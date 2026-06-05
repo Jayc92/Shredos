@@ -18,9 +18,9 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options: Record<string, unknown> }) =>
               cookieStore.set(name, value, options)
             )
           } catch {
@@ -144,5 +144,39 @@ export async function fetchFastingLogsThisWeek(
     .order('started_at', { ascending: false })
 
   if (error) console.error('fetchFastingLogsThisWeek error:', error)
+  return data ?? []
+}
+
+/** Fetch all food_logs for a specific date */
+export async function fetchFoodLogsForDate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  date: string
+) {
+  const { data, error } = await supabase
+    .from('food_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('logged_date', date)
+    .order('created_at', { ascending: true })
+
+  if (error) console.error('fetchFoodLogsForDate error:', error)
+  return data ?? []
+}
+
+/** Fetch all saved meals, autopilot first then by use_count desc */
+export async function fetchSavedMeals(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from('saved_meals')
+    .select('*')
+    .eq('user_id', userId)
+    .order('is_autopilot', { ascending: false })
+    .order('use_count', { ascending: false })
+    .order('name', { ascending: true })
+
+  if (error) console.error('fetchSavedMeals error:', error)
   return data ?? []
 }

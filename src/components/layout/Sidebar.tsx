@@ -15,6 +15,7 @@ import {
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/weigh-in', label: 'Weigh-in', icon: Scale },
+  { href: '/food', label: 'Food', icon: UtensilsCrossed },
   { href: '/nutrition', label: 'Nutrition', icon: UtensilsCrossed },
   { href: '/fasting', label: 'Fasting', icon: Timer },
   { href: '/decisions', label: 'Decisions', icon: ClipboardList },

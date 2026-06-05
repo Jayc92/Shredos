@@ -99,3 +99,32 @@ export interface OnboardingFormState {
   // Step 4 — Nutrition (review only, deficit override)
   deficit_override: string
 }
+
+// ── Phase 1B — food logging ───────────────────────────────────────
+
+export interface DailyNutritionTotals {
+  date: string        // ISO date 'YYYY-MM-DD'
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  fiber_g: number | null    // null if no entry recorded fiber
+  sugar_g: number | null
+  sodium_mg: number | null
+  entry_count: number
+}
+
+export interface MacroProgress {
+  consumed: number
+  target: number
+  pct: number       // 0-100+ (can exceed 100)
+  remaining: number // can be negative if over target
+}
+
+export interface NutritionProgress {
+  calories:  MacroProgress
+  protein_g: MacroProgress
+  carbs_g:   MacroProgress
+  fat_g:     MacroProgress
+  warnings:  string[]
+}

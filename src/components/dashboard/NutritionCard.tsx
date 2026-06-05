@@ -1,36 +1,49 @@
 import { UtensilsCrossed } from 'lucide-react'
-import type { NutritionTarget } from '@/types/database'
+import { computeDailyTotals, computeNutritionProgress, progressColor, remainingColor } from '@/lib/food'
+import { todayISO } from '@/lib/dates'
+import type { NutritionTarget, FoodLog } from '@/types/database'
 
 interface NutritionCardProps {
   target: NutritionTarget | null
+  todayLogs: FoodLog[]
 }
 
-function MacroBar({
-  label,
-  grams,
-  calories,
-  color,
-}: {
+interface BarProps {
   label: string
-  grams: number
-  calories: number
-  color: string
-}) {
+  consumed: number
+  target: number
+  pct: number
+  remaining: number
+  unit?: string
+  isCalories?: boolean
+}
+
+function Bar({ label, consumed, target, pct, remaining, unit = 'g', isCalories = false }: BarProps) {
+  const fill = progressColor(pct, isCalories)
+  const remClr = remainingColor(remaining)
+  const cap = Math.min(100, pct)
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="text-foreground font-medium tabular-nums">{grams}g</span>
+        <span className="tabular-nums text-foreground">
+          {isCalories ? consumed.toLocaleString() : consumed.toFixed(1)}{isCalories ? ' cal' : unit}
+          <span className="text-muted-foreground"> / {isCalories ? target.toLocaleString() : target}{isCalories ? '' : unit}</span>
+        </span>
       </div>
-      <div className="h-1.5 bg-secondary rounded-full">
-        <div className={`h-full ${color} rounded-full`} style={{ width: '100%' }} />
+      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+        <div className={`h-full ${fill} rounded-full transition-all duration-300`} style={{ width: `${cap}%` }} />
       </div>
-      <p className="text-xs text-muted-foreground">{calories} cal</p>
+      <p className={`text-xs text-right ${remClr}`}>
+        {remaining >= 0
+          ? `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} left`
+          : `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} over`}
+      </p>
     </div>
   )
 }
 
-export function NutritionCard({ target }: NutritionCardProps) {
+export function NutritionCard({ target, todayLogs }: NutritionCardProps) {
   if (!target) {
     return (
       <div className="shred-card space-y-3">
@@ -39,85 +52,56 @@ export function NutritionCard({ target }: NutritionCardProps) {
           <span className="text-sm font-medium text-muted-foreground">Nutrition targets</span>
         </div>
         <p className="text-sm text-muted-foreground">No nutrition targets set.</p>
-        <a href="/nutrition" className="text-sm text-primary hover:underline">
-          Set up targets →
-        </a>
+        <a href="/nutrition" className="text-sm text-primary hover:underline">Set up targets →</a>
       </div>
     )
   }
 
-  const proteinCal = target.protein_g * 4
-  const carbsCal = target.carbs_g * 4
-  const fatCal = target.fat_g * 9
+  const today = todayISO()
+  const totals = computeDailyTotals(todayLogs, today)
+  const nowHour = new Date().getHours()
+  const progress = computeNutritionProgress(totals, target, nowHour)
 
   return (
     <div className="shred-card space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <UtensilsCrossed className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Daily targets</span>
+          <span className="text-sm font-medium text-muted-foreground">Today&apos;s nutrition</span>
         </div>
-        <a href="/nutrition" className="text-xs text-primary hover:underline">
-          Edit
-        </a>
-      </div>
-
-      {/* Calorie target */}
-      <div>
-        <p className="metric-label">Calorie target</p>
-        <div className="flex items-end gap-2 mt-1">
-          <span className="metric-value">{target.calories.toLocaleString()}</span>
-          <span className="text-muted-foreground text-sm mb-1">cal/day</span>
-        </div>
-        {target.deficit !== null && target.deficit !== 0 && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {target.deficit > 0 ? `${target.deficit} cal deficit` : `${Math.abs(target.deficit)} cal surplus`}
-            {target.maintenance_cal ? ` from ${target.maintenance_cal.toLocaleString()} maintenance` : ''}
-          </p>
-        )}
-      </div>
-
-      {/* Macro targets */}
-      <div className="space-y-3 pt-1">
-        <MacroBar
-          label="Protein"
-          grams={target.protein_g}
-          calories={proteinCal}
-          color="bg-blue-500"
-        />
-        <MacroBar
-          label="Carbs"
-          grams={target.carbs_g}
-          calories={carbsCal}
-          color="bg-yellow-500"
-        />
-        <MacroBar
-          label="Fat"
-          grams={target.fat_g}
-          calories={fatCal}
-          color="bg-orange-500"
-        />
+        <a href="/food" className="text-xs text-primary hover:underline">Log food</a>
       </div>
 
       {/* Warnings */}
-      {target.low_carb_warning && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-amber-400">
-            Carbs are low ({target.carbs_g}g). This may affect training energy. See{' '}
-            <a href="/nutrition" className="underline">
-              Nutrition
-            </a>{' '}
-            to adjust.
-          </p>
+      {progress.warnings.length > 0 && (
+        <div className="space-y-1">
+          {progress.warnings.map((w, i) => (
+            <div key={i} className="bg-amber-500/10 border border-amber-500/20 rounded px-2.5 py-1.5">
+              <p className="text-xs text-amber-300">⚠️ {w}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Food log placeholder */}
+      {totals.entry_count === 0 ? (
+        <div className="py-2 space-y-2">
+          <p className="text-sm text-muted-foreground">No food logged yet today.</p>
+          <div className="space-y-1.5">
+            <Bar label="Calories" consumed={0} target={target.calories} pct={0} remaining={target.calories} isCalories />
+            <Bar label="Protein"  consumed={0} target={target.protein_g} pct={0} remaining={target.protein_g} />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          <Bar label="Calories" consumed={progress.calories.consumed}  target={progress.calories.target}  pct={progress.calories.pct}  remaining={progress.calories.remaining}  isCalories />
+          <Bar label="Protein"  consumed={progress.protein_g.consumed} target={progress.protein_g.target} pct={progress.protein_g.pct} remaining={progress.protein_g.remaining} />
+          <Bar label="Carbs"    consumed={progress.carbs_g.consumed}   target={progress.carbs_g.target}   pct={progress.carbs_g.pct}   remaining={progress.carbs_g.remaining} />
+          <Bar label="Fat"      consumed={progress.fat_g.consumed}     target={progress.fat_g.target}     pct={progress.fat_g.pct}     remaining={progress.fat_g.remaining} />
+        </div>
+      )}
+
       <div className="pt-2 border-t border-border">
-        <p className="text-xs text-muted-foreground">
-          Food logging arrives in Phase 1B.
-        </p>
+        <a href="/food" className="text-xs text-primary hover:underline">View full food log →</a>
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ export const PROTECTED_ROUTES = [
   '/nutrition',
   '/fasting',
   '/decisions',
+  '/food',
 ] as const
 
 export function isProtectedRoute(pathname: string): boolean {
@@ -117,6 +118,19 @@ export const DIETARY_PREF_OPTIONS = [
   'Kosher',
   'No restrictions',
 ] as const
+
+
+// ── Meal types ────────────────────────────────────────────────────
+export const MEAL_TYPES = [
+  { value: 'breakfast',  label: 'Breakfast' },
+  { value: 'lunch',      label: 'Lunch' },
+  { value: 'dinner',     label: 'Dinner' },
+  { value: 'snack',      label: 'Snack' },
+  { value: 'supplement', label: 'Supplement' },
+  { value: 'drink',      label: 'Drink' },
+] as const
+
+export type MealTypeValue = typeof MEAL_TYPES[number]['value']
 
 // ── App meta ─────────────────────────────────────────────────────
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? 'ShredOS'

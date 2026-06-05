@@ -7,6 +7,7 @@ import {
   fetchActiveFast,
   fetchRecentDecisions,
   fetchFastingLogsThisWeek,
+  fetchFoodLogsForDate,
 } from '@/lib/supabase/server'
 import { WeightCard } from '@/components/dashboard/WeightCard'
 import { NutritionCard } from '@/components/dashboard/NutritionCard'
@@ -16,7 +17,7 @@ import { WorkoutCard } from '@/components/dashboard/WorkoutCard'
 import { CoachAlertsCard } from '@/components/dashboard/CoachAlertsCard'
 import { DecisionLogCard } from '@/components/dashboard/DecisionLogCard'
 import { computeFastingWeekStats } from '@/lib/fasting'
-import { formatDateFull } from '@/lib/dates'
+import { formatDateFull, todayISO } from '@/lib/dates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -31,7 +32,9 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   // Parallel data fetch — no waterfalls
-  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts] =
+  const today = todayISO()
+
+  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs] =
     await Promise.all([
       fetchUserProfile(supabase, user.id),
       fetchRecentWeighIns(supabase, user.id, 20),
@@ -39,6 +42,7 @@ export default async function DashboardPage() {
       fetchActiveFast(supabase, user.id),
       fetchRecentDecisions(supabase, user.id, 5),
       fetchFastingLogsThisWeek(supabase, user.id),
+      fetchFoodLogsForDate(supabase, user.id, today),
     ])
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
@@ -47,7 +51,7 @@ export default async function DashboardPage() {
   const completedFasts = weekFasts.filter((f) => f.ended_at !== null)
   const lastCompletedFast = completedFasts[0] ?? null
 
-  const today = formatDateFull(new Date())
+  const todayLabel = formatDateFull(new Date())
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
@@ -56,13 +60,13 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold text-foreground">
           Good {getTimeOfDay()}, {profile.display_name.split(' ')[0]}
         </h1>
-        <p className="text-sm text-muted-foreground">{today}</p>
+        <p className="text-sm text-muted-foreground">{todayLabel}</p>
       </div>
 
       {/* Dashboard grid — 1 col mobile, 2 col tablet+ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <WeightCard weighIns={weighIns} profile={profile} />
-        <NutritionCard target={nutritionTarget} />
+        <NutritionCard target={nutritionTarget} todayLogs={todayFoodLogs} />
         <FastingCard
           activeFast={activeFast}
           lastCompletedFast={lastCompletedFast}

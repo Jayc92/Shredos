@@ -162,3 +162,74 @@ export type DecisionLogInsert = Omit<DecisionLog, 'id' | 'created_at' | 'updated
 }
 
 export type DecisionLogUpdate = Partial<Omit<DecisionLog, 'id' | 'user_id' | 'created_at'>>
+
+// ── saved_meals ───────────────────────────────────────────────────
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'supplement' | 'drink'
+
+export interface SavedMealItem {
+  name: string
+  serving?: string
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  food_item_id?: string | null // Phase 2C
+}
+
+export interface SavedMeal {
+  id: string
+  user_id: string
+  name: string
+  meal_type_default: MealType | null
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  fiber_g: number | null
+  sugar_g: number | null
+  sodium_mg: number | null
+  items: SavedMealItem[]
+  is_autopilot: boolean
+  notes: string | null
+  use_count: number
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SavedMealInsert = Omit<SavedMeal, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type SavedMealUpdate = Partial<Omit<SavedMeal, 'id' | 'user_id' | 'created_at'>>
+
+// ── food_logs ─────────────────────────────────────────────────────
+export interface FoodLog {
+  id: string
+  user_id: string
+  logged_date: string // ISO date 'YYYY-MM-DD'
+  meal_type: MealType
+  food_name: string
+  serving_description: string | null
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  fiber_g: number | null
+  sugar_g: number | null
+  sodium_mg: number | null
+  saved_meal_id: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type FoodLogInsert = Omit<FoodLog, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type FoodLogUpdate = Partial<Omit<FoodLog, 'id' | 'user_id' | 'created_at'>>
