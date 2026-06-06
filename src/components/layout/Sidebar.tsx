@@ -10,11 +10,13 @@ import {
   Timer,
   ClipboardList,
   User,
+  Dumbbell
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/weigh-in', label: 'Weigh-in', icon: Scale },
+  { href: '/workouts', label: 'Workouts', icon: Dumbbell },
   { href: '/food', label: 'Food', icon: UtensilsCrossed },
   { href: '/nutrition', label: 'Nutrition', icon: UtensilsCrossed },
   { href: '/fasting', label: 'Fasting', icon: Timer },

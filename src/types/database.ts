@@ -233,3 +233,95 @@ export type FoodLogInsert = Omit<FoodLog, 'id' | 'created_at' | 'updated_at'> & 
 }
 
 export type FoodLogUpdate = Partial<Omit<FoodLog, 'id' | 'user_id' | 'created_at'>>
+
+// ── Phase 1C — workout logging ────────────────────────────────────
+
+export type PrimaryMuscle =
+  | 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps'
+  | 'forearms' | 'core' | 'quads' | 'hamstrings'
+  | 'glutes' | 'calves' | 'full_body' | 'other'
+
+export type ExerciseCategory = 'compound' | 'isolation' | 'cardio' | 'mobility' | 'other'
+
+export type ExerciseEquipment =
+  | 'barbell' | 'dumbbell' | 'cable' | 'machine'
+  | 'bodyweight' | 'resistance_band' | 'kettlebell' | 'other'
+
+export type ExerciseType =
+  | 'strength' | 'bodyweight' | 'machine' | 'cable'
+  | 'dumbbell' | 'barbell' | 'cardio' | 'mobility'
+
+export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped'
+
+export interface Exercise {
+  id: string
+  user_id: string
+  name: string
+  category: ExerciseCategory | null
+  primary_muscle: PrimaryMuscle
+  secondary_muscles: string[]
+  equipment: ExerciseEquipment | null
+  exercise_type: ExerciseType
+  unilateral: boolean
+  notes: string | null
+  is_active: boolean
+  is_system: boolean
+  created_at: string
+  updated_at: string
+}
+export type ExerciseInsert = Omit<Exercise,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
+export type ExerciseUpdate  = Partial<Omit<Exercise,'id'|'user_id'|'created_at'>>
+
+export interface WorkoutSession {
+  id: string
+  user_id: string
+  workout_date: string
+  title: string
+  status: WorkoutStatus
+  start_time: string | null
+  end_time: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type WorkoutSessionInsert = Omit<WorkoutSession,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
+export type WorkoutSessionUpdate  = Partial<Omit<WorkoutSession,'id'|'user_id'|'created_at'>>
+
+export interface WorkoutExercise {
+  id: string
+  workout_session_id: string
+  exercise_id: string
+  order_index: number
+  target_sets: number | null
+  target_reps: number | null
+  target_weight_kg: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type WorkoutExerciseInsert = Omit<WorkoutExercise,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
+export type WorkoutExerciseUpdate  = Partial<Omit<WorkoutExercise,'id'|'workout_session_id'|'created_at'>>
+
+export interface WorkoutSet {
+  id: string
+  workout_exercise_id: string
+  set_number: number
+  weight_kg: number | null
+  reps: number | null
+  rpe: number | null
+  completed: boolean
+  is_warmup: boolean
+  notes: string | null
+  created_at: string
+}
+export type WorkoutSetInsert = Omit<WorkoutSet,'id'|'created_at'> & { id?:string; created_at?:string }
+export type WorkoutSetUpdate  = Partial<Omit<WorkoutSet,'id'|'workout_exercise_id'|'created_at'>>
+
+// Rich joined types for UI
+export type WorkoutExerciseWithDetails = WorkoutExercise & {
+  exercise: Exercise
+  workout_sets: WorkoutSet[]
+}
+export type WorkoutSessionWithExercises = WorkoutSession & {
+  workout_exercises: WorkoutExerciseWithDetails[]
+}

@@ -128,3 +128,19 @@ export interface NutritionProgress {
   fat_g:     MacroProgress
   warnings:  string[]
 }
+
+// ── Phase 1C — workout types ──────────────────────────────────────
+
+export type ProgressSignal = 'improved' | 'same' | 'declined' | 'new'
+
+export interface WorkoutWeekStats {
+  sessions_this_week: number
+  last_session: import('./database').WorkoutSession | null
+  last_session_exercise_count: number
+}
+
+export interface ExercisePreviousBest {
+  weight_kg: number | null
+  reps: number | null
+  estimated_1rm_kg: number | null
+}

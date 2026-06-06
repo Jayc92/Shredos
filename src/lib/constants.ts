@@ -13,6 +13,7 @@ export const PROTECTED_ROUTES = [
   '/fasting',
   '/decisions',
   '/food',
+  '/workouts',
 ] as const
 
 export function isProtectedRoute(pathname: string): boolean {
@@ -132,5 +133,61 @@ export const MEAL_TYPES = [
 
 export type MealTypeValue = typeof MEAL_TYPES[number]['value']
 
-// ── App meta ─────────────────────────────────────────────────────
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? 'ShredOS'
+
+// ── Workout ───────────────────────────────────────────────────────
+export const PRIMARY_MUSCLES = [
+  { value: 'chest',     label: 'Chest' },
+  { value: 'back',      label: 'Back' },
+  { value: 'shoulders', label: 'Shoulders' },
+  { value: 'biceps',    label: 'Biceps' },
+  { value: 'triceps',   label: 'Triceps' },
+  { value: 'forearms',  label: 'Forearms' },
+  { value: 'core',      label: 'Core' },
+  { value: 'quads',     label: 'Quads' },
+  { value: 'hamstrings',label: 'Hamstrings' },
+  { value: 'glutes',    label: 'Glutes' },
+  { value: 'calves',    label: 'Calves' },
+  { value: 'full_body', label: 'Full body' },
+  { value: 'other',     label: 'Other' },
+] as const
+
+export const EXERCISE_CATEGORIES = [
+  { value: 'compound',  label: 'Compound' },
+  { value: 'isolation', label: 'Isolation' },
+  { value: 'cardio',    label: 'Cardio' },
+  { value: 'mobility',  label: 'Mobility' },
+  { value: 'other',     label: 'Other' },
+] as const
+
+export const EXERCISE_EQUIPMENT = [
+  { value: 'barbell',       label: 'Barbell' },
+  { value: 'dumbbell',      label: 'Dumbbell' },
+  { value: 'cable',         label: 'Cable' },
+  { value: 'machine',       label: 'Machine' },
+  { value: 'bodyweight',    label: 'Bodyweight' },
+  { value: 'resistance_band',label: 'Band' },
+  { value: 'kettlebell',    label: 'Kettlebell' },
+  { value: 'other',         label: 'Other' },
+] as const
+
+export const EXERCISE_TYPES = [
+  { value: 'strength',   label: 'Strength' },
+  { value: 'bodyweight', label: 'Bodyweight' },
+  { value: 'machine',    label: 'Machine' },
+  { value: 'cable',      label: 'Cable' },
+  { value: 'dumbbell',   label: 'Dumbbell' },
+  { value: 'barbell',    label: 'Barbell' },
+  { value: 'cardio',     label: 'Cardio' },
+  { value: 'mobility',   label: 'Mobility' },
+] as const
+
+export const WORKOUT_STATUS_LABELS: Record<string, string> = {
+  planned:     'Planned',
+  in_progress: 'In progress',
+  completed:   'Completed',
+  skipped:     'Skipped',
+}
+
+
+
+export const APP_NAME = 'ShredOS'

@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -16,12 +18,10 @@ export default function LoginPage() {
   const [error, setError]       = useState<string | null>(null)
   const [done, setDone]         = useState<string | null>(null)
 
-  const supabase = createClient()
-
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
     setError(null); setLoading(true)
-    const { error: err } = await supabase.auth.signInWithPassword({
+    const { error: err } = await createClient().auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     })
@@ -34,7 +34,7 @@ export default function LoginPage() {
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault()
     setError(null); setLoading(true)
-    const { error: err } = await supabase.auth.signUp({
+    const { error: err } = await createClient().auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -50,7 +50,7 @@ export default function LoginPage() {
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
     setError(null); setLoading(true)
-    const { error: err } = await supabase.auth.signInWithOtp({
+    const { error: err } = await createClient().auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
         emailRedirectTo: (process.env.NEXT_PUBLIC_APP_URL ?? '') + '/auth/callback',

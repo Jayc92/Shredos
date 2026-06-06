@@ -8,12 +8,13 @@ import {
   fetchRecentDecisions,
   fetchFastingLogsThisWeek,
   fetchFoodLogsForDate,
+  fetchWorkoutWeekStats,
 } from '@/lib/supabase/server'
 import { WeightCard } from '@/components/dashboard/WeightCard'
 import { NutritionCard } from '@/components/dashboard/NutritionCard'
+import { WorkoutCard } from '@/components/dashboard/WorkoutCard'
 import { FastingCard } from '@/components/dashboard/FastingCard'
 import { StepsCard } from '@/components/dashboard/StepsCard'
-import { WorkoutCard } from '@/components/dashboard/WorkoutCard'
 import { CoachAlertsCard } from '@/components/dashboard/CoachAlertsCard'
 import { DecisionLogCard } from '@/components/dashboard/DecisionLogCard'
 import { computeFastingWeekStats } from '@/lib/fasting'
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
   // Parallel data fetch — no waterfalls
   const today = todayISO()
 
-  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs] =
+  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs, workoutStats] =
     await Promise.all([
       fetchUserProfile(supabase, user.id),
       fetchRecentWeighIns(supabase, user.id, 20),
@@ -43,6 +44,7 @@ export default async function DashboardPage() {
       fetchRecentDecisions(supabase, user.id, 5),
       fetchFastingLogsThisWeek(supabase, user.id),
       fetchFoodLogsForDate(supabase, user.id, today),
+      fetchWorkoutWeekStats(supabase, user.id),
     ])
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
@@ -74,7 +76,7 @@ export default async function DashboardPage() {
           fastingEnabled={profile.fasting_enabled}
         />
         <StepsCard stepGoal={profile.step_goal} />
-        <WorkoutCard />
+        <WorkoutCard stats={workoutStats} />
         <CoachAlertsCard decisions={recentDecisions} />
         <div className="sm:col-span-2">
           <DecisionLogCard decision={recentDecisions[0] ?? null} />

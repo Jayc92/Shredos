@@ -180,3 +180,178 @@ export async function fetchSavedMeals(
   if (error) console.error('fetchSavedMeals error:', error)
   return data ?? []
 }
+
+// ── Phase 1C — Workout fetch helpers ─────────────────────────────
+
+/** Fetch recent workout sessions for a user, newest first */
+export async function fetchRecentSessions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  limit = 20
+) {
+  const { data, error } = await supabase
+    .from('workout_sessions')
+    .select(`
+      *,
+      workout_exercises (
+        id, exercise_id, order_index,
+        exercise:exercises ( id, name, primary_muscle, unilateral ),
+        workout_sets ( id, set_number, reps, weight_kg, completed, is_warmup )
+      )
+    `)
+    .eq('user_id', userId)
+    .order('workout_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) console.error('fetchRecentSessions error:', error)
+  return data ?? []
+}
+
+/** Fetch a single session with all exercises and sets */
+export async function fetchSessionWithDetails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  sessionId: string
+) {
+  const { data, error } = await supabase
+    .from('workout_sessions')
+    .select(`
+      *,
+      workout_exercises (
+        *,
+        exercise:exercises ( * ),
+        workout_sets ( * )
+      )
+    `)
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .single()
+
+  if (error) console.error('fetchSessionWithDetails error:', error)
+  return data ?? null
+}
+
+/** Fetch today's in_progress or last completed session */
+export async function fetchTodaySession(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  const today = new Date().toISOString().split('T')[0]
+  const { data } = await supabase
+    .from('workout_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('workout_date', today)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+  return data ?? null
+}
+
+/** Fetch workout stats for dashboard: last session + this-week count */
+export async function fetchWorkoutWeekStats(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  const now = new Date()
+  const day = now.getDay()
+  const diffToMon = day === 0 ? -6 : 1 - day
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() + diffToMon)
+  weekStart.setHours(0, 0, 0, 0)
+  const weekStartISO = weekStart.toISOString().split('T')[0]
+
+  const { data: thisWeekSessions } = await supabase
+    .from('workout_sessions')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('workout_date', weekStartISO)
+    .in('status', ['in_progress', 'completed'])
+
+  const { data: lastSessionData } = await supabase
+    .from('workout_sessions')
+    .select('*, workout_exercises(id)')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('workout_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return {
+    sessions_this_week: thisWeekSessions?.length ?? 0,
+    last_session: lastSessionData ?? null,
+    last_session_exercise_count: (lastSessionData as any)?.workout_exercises?.length ?? 0,
+  }
+}
+
+/** Fetch previous bests for exercises in a session (for overload badge) */
+export async function fetchPreviousBests(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  exerciseIds: string[],
+  currentSessionId: string
+) {
+  if (exerciseIds.length === 0) return {}
+
+  // Fetch last 15 completed sessions with exercises and sets
+  const { data: history } = await supabase
+    .from('workout_sessions')
+    .select(`
+      id, workout_date,
+      workout_exercises (
+        exercise_id,
+        workout_sets ( reps, weight_kg, is_warmup, completed )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .neq('id', currentSessionId)
+    .order('workout_date', { ascending: false })
+    .limit(15)
+
+  const bests: Record<string, any> = {}
+
+  for (const session of history ?? []) {
+    for (const we of (session.workout_exercises as Array<{
+      exercise_id: string
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; is_warmup: boolean; completed: boolean }>
+    }>) ?? []) {
+      if (!exerciseIds.includes(we.exercise_id)) continue
+      if (bests[we.exercise_id]) continue // already found a more recent session
+
+      const working = (we.workout_sets ?? []).filter(
+        (s) => s.completed && !s.is_warmup
+      )
+      if (working.length === 0) continue
+
+      // Pick best set by Epley 1RM
+      const best = working.reduce((b, s) => {
+        const score = s.weight_kg
+          ? s.weight_kg * (1 + (s.reps ?? 0) / 30)
+          : (s.reps ?? 0)
+        const bScore = b.weight_kg
+          ? b.weight_kg * (1 + (b.reps ?? 0) / 30)
+          : (b.reps ?? 0)
+        return score > bScore ? s : b
+      }, working[0])
+
+      bests[we.exercise_id] = {
+        // Full WorkoutSet-compatible shape
+        id: '',
+        workout_exercise_id: we.exercise_id,
+        set_number: 0,
+        weight_kg: best.weight_kg,
+        reps: best.reps,
+        rpe: null,
+        completed: true,
+        is_warmup: false,
+        notes: null,
+        created_at: session.workout_date,
+      }
+    }
+  }
+
+  return bests
+}
