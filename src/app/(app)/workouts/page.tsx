@@ -20,7 +20,7 @@ export default async function WorkoutsPage() {
   const profile = await fetchUserProfile(supabase, user.id)
   if (!profile) redirect('/onboarding')
 
-  // Seed 15 default exercises on first visit
+  // Seed 15 default exercises on first visit (idempotent)
   await seedExercisesIfNeeded(supabase, user.id)
 
   const [sessions, weekStats] = await Promise.all([
@@ -28,20 +28,25 @@ export default async function WorkoutsPage() {
     fetchWorkoutWeekStats(supabase, user.id),
   ])
 
-  // Fetch sessions with exercise details for muscle volume
+  // M1: Use local calendar date (not UTC) for "today" comparison.
+  // The server runs on the same machine as the browser for local dev,
+  // so toLocaleDateString gives the correct local date.
+  const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local tz
+
+  // M5: fetchRecentSessions already includes workout_exercises — no second query needed.
+  // Filter to last 7 days for muscle volume summary.
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const { data: weekSessions } = await supabase
-    .from('workout_sessions')
-    .select('workout_exercises(exercise:exercises(primary_muscle), workout_sets(completed, is_warmup))')
-    .eq('user_id', user.id)
-    .in('status', ['in_progress', 'completed'])
-    .gte('workout_date', sevenDaysAgo.toISOString().split('T')[0])
+  const sevenDaysAgoISO = sevenDaysAgo.toLocaleDateString('en-CA')
 
-  const muscleVolume = weeklyMuscleVolume((weekSessions ?? []) as any)
-  const today = new Date().toISOString().split('T')[0]
-  const todaySessions = sessions.filter(s => s.workout_date === today)
-  const otherSessions = sessions.filter(s => s.workout_date !== today)
+  const weekSessionsForVolume = sessions.filter(
+    (s: any) => s.workout_date >= sevenDaysAgoISO &&
+                (s.status === 'in_progress' || s.status === 'completed')
+  )
+  const muscleVolume = weeklyMuscleVolume(weekSessionsForVolume as any)
+
+  const todaySessions = sessions.filter((s: any) => s.workout_date === today)
+  const otherSessions = sessions.filter((s: any) => s.workout_date !== today)
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
@@ -75,11 +80,17 @@ export default async function WorkoutsPage() {
       {todaySessions.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Today</p>
-          {todaySessions.map(s => <SessionCard key={s.id} session={s} />)}
+          {todaySessions.map((s: any) => (
+            <SessionCard
+              key={s.id}
+              session={s}
+              exerciseCount={(s.workout_exercises?.length ?? 0)}
+            />
+          ))}
         </div>
       )}
 
-      {/* Muscle volume */}
+      {/* Muscle volume (computed from already-fetched session data — no extra query) */}
       {Object.keys(muscleVolume).length > 0 && (
         <MuscleVolumeSummary volume={muscleVolume} />
       )}
@@ -88,14 +99,22 @@ export default async function WorkoutsPage() {
       {otherSessions.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent sessions</p>
-          {otherSessions.map(s => <SessionCard key={s.id} session={s} />)}
+          {otherSessions.map((s: any) => (
+            <SessionCard
+              key={s.id}
+              session={s}
+              exerciseCount={(s.workout_exercises?.length ?? 0)}
+            />
+          ))}
         </div>
       )}
 
       {sessions.length === 0 && (
         <div className="shred-card text-center py-10 space-y-3">
           <p className="text-muted-foreground text-sm">No workouts yet.</p>
-          <p className="text-xs text-muted-foreground">Start logging to track progressive overload and weekly muscle volume.</p>
+          <p className="text-xs text-muted-foreground">
+            Start logging to track progressive overload and weekly muscle volume.
+          </p>
           <CreateWorkoutButton label="Start your first workout" />
         </div>
       )}

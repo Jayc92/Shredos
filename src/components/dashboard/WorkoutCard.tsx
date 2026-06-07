@@ -46,12 +46,16 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
         <span className="text-xs text-muted-foreground">
           {sessions_this_week} session{sessions_this_week !== 1 ? 's' : ''} this week
         </span>
-        <div className="flex gap-1">
+        {/* Dots capped at 5 — text count is the source of truth for >5 */}
+        <div className="flex items-center gap-1">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className={`w-2 h-2 rounded-full ${
-              i < sessions_this_week ? 'bg-primary' : 'bg-secondary'
+              i < Math.min(sessions_this_week, 5) ? 'bg-primary' : 'bg-secondary'
             }`} />
           ))}
+          {sessions_this_week > 5 && (
+            <span className="text-xs text-muted-foreground ml-0.5">+</span>
+          )}
         </div>
       </div>
     </div>

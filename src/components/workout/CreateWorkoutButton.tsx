@@ -14,10 +14,12 @@ export function CreateWorkoutButton({ label = 'New workout' }: CreateWorkoutButt
 
   async function handleCreate() {
     setCreating(true)
+    // Use the browser's local date (not UTC) so workout_date matches the user's calendar day
+    const workout_date = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local tz
     const res = await fetch('/api/workouts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ workout_date }),
     })
     if (res.ok) {
       const { data } = await res.json()

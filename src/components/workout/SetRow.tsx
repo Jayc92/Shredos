@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
-import { lbsToKg } from '@/lib/units'
-import { Trash2 } from 'lucide-react'
+import { Trash2, AlertCircle } from 'lucide-react'
 import type { WorkoutSet } from '@/types/database'
 
 interface SetRowProps {
@@ -15,20 +14,27 @@ interface SetRowProps {
 
 export function SetRow({ set, isUnilateral }: SetRowProps) {
   const router = useRouter()
-  const [reps, setReps]     = useState(set.reps !== null ? String(set.reps) : '')
-  const [lbs, setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
-  const [rpe, setRpe]       = useState(set.rpe !== null ? String(set.rpe) : '')
+  const [reps,      setReps]      = useState(set.reps      !== null ? String(set.reps)      : '')
+  const [lbs,       setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
+  const [rpe,       setRpe]       = useState(set.rpe       !== null ? String(set.rpe)       : '')
   const [completed, setCompleted] = useState(set.completed)
-  const [isWarmup, setIsWarmup]   = useState(set.is_warmup)
-  const [busy, setBusy]     = useState(false)
+  const [isWarmup,  setIsWarmup]  = useState(set.is_warmup)
+  const [busy,      setBusy]      = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   async function patch(update: Record<string, unknown>) {
-    await fetch(`/api/workout-sets/${set.id}`, {
+    setSaveError(null)
+    const res = await fetch(`/api/workout-sets/${set.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(update),
     })
+    if (!res.ok) {
+      setSaveError('Not saved')
+      return false
+    }
     router.refresh()
+    return true
   }
 
   async function handleRepsBlur() {
@@ -52,29 +58,39 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
   async function toggleComplete() {
     const next = !completed
     setCompleted(next)
-    await patch({ completed: next })
+    const ok = await patch({ completed: next })
+    if (!ok) setCompleted(!next) // revert optimistic update on failure
   }
 
   async function toggleWarmup() {
     const next = !isWarmup
     setIsWarmup(next)
-    await patch({ is_warmup: next })
+    const ok = await patch({ is_warmup: next })
+    if (!ok) setIsWarmup(!next)
   }
 
   async function handleDelete() {
     if (!confirm('Delete this set?')) return
     setBusy(true)
-    await fetch(`/api/workout-sets/${set.id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/workout-sets/${set.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      setSaveError('Delete failed')
+      setBusy(false)
+      return
+    }
     router.refresh()
   }
 
   const inputCls = 'w-full min-w-0 px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
 
+  // L1: show "per side" label for unilateral exercises instead of cryptic "lbs/s"
+  const weightSuffix = isUnilateral ? 'per side' : 'lbs'
+
   return (
     <div className={cn(
       'flex items-center gap-2 py-2 border-b border-border/40 last:border-0',
-      isWarmup && 'opacity-60',
-      completed && 'opacity-80'
+      isWarmup   && 'opacity-60',
+      completed  && 'opacity-80'
     )}>
       {/* Set number */}
       <span className="text-xs text-muted-foreground w-5 text-center flex-shrink-0 tabular-nums">
@@ -91,7 +107,7 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
           className={inputCls} />
       </div>
 
-      {/* Weight */}
+      {/* Weight — L1: label is now "per side" or "lbs", not "lbs/s" */}
       <div className="flex-1 min-w-0">
         <div className="relative">
           <input type="number" inputMode="decimal" value={lbs}
@@ -99,9 +115,9 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
             onFocus={e => e.target.select()}
             onBlur={handleWeightBlur}
             placeholder="0" min="0" step="0.5"
-            className={inputCls + ' pr-6'} />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none">
-            {isUnilateral ? 'lbs/s' : 'lbs'}
+            className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
+            {weightSuffix}
           </span>
         </div>
       </div>
@@ -138,6 +154,13 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
         )}>
         {completed && <span className="text-xs font-bold">✓</span>}
       </button>
+
+      {/* Save error indicator — L2 */}
+      {saveError && (
+        <span title={saveError} className="flex-shrink-0 text-destructive" aria-label={saveError}>
+          <AlertCircle className="w-3.5 h-3.5" />
+        </span>
+      )}
 
       {/* Delete */}
       <button type="button" onClick={handleDelete} disabled={busy}

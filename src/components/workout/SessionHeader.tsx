@@ -17,8 +17,9 @@ export function SessionHeader({ session }: SessionHeaderProps) {
   const router = useRouter()
   const [editingTitle, setEditingTitle] = useState(false)
   const [title, setTitle]               = useState(session.title || 'Workout')
-  const [completing, setCompleting]     = useState(false)
-  const [deleting, setDeleting]         = useState(false)
+  const [completing,    setCompleting]    = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
+  const [deleting,      setDeleting]      = useState(false)
 
   const dateLabel  = format(parseISO(session.workout_date), 'EEEE, MMMM d')
   const duration   = formatWorkoutDuration(session.start_time, session.end_time)
@@ -40,9 +41,16 @@ export function SessionHeader({ session }: SessionHeaderProps) {
 
   async function handleComplete() {
     setCompleting(true)
-    await fetch(`/api/workouts/${session.id}/complete`, { method: 'POST' })
-    router.refresh()
-    setCompleting(false)
+    setCompleteError(null)
+    try {
+      const res = await fetch(`/api/workouts/${session.id}/complete`, { method: 'POST' })
+      if (!res.ok) throw new Error('Server error')
+      router.refresh()
+    } catch {
+      setCompleteError('Could not save. Try again.')
+    } finally {
+      setCompleting(false)
+    }
   }
 
   async function handleDelete() {
@@ -100,10 +108,15 @@ export function SessionHeader({ session }: SessionHeaderProps) {
 
       {/* Complete button */}
       {isActive && (
-        <button onClick={handleComplete} disabled={completing}
-          className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
-          {completing ? 'Saving…' : 'Complete workout'}
-        </button>
+        <div className="space-y-2">
+          <button onClick={handleComplete} disabled={completing}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            {completing ? 'Saving…' : 'Complete workout'}
+          </button>
+          {completeError && (
+            <p className="text-xs text-destructive text-center">{completeError}</p>
+          )}
+        </div>
       )}
     </div>
   )

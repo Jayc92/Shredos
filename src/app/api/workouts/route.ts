@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json().catch(() => ({}))
+  // Prefer client-supplied local date (sent as YYYY-MM-DD in the browser's timezone).
+  // Fall back to UTC date only as a safety net — the client should always send this.
   const workout_date = body.workout_date ?? new Date().toISOString().split('T')[0]
   const title = body.title?.trim() || autoTitle(workout_date)
   const { data, error } = await supabase

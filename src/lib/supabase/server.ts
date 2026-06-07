@@ -229,24 +229,19 @@ export async function fetchSessionWithDetails(
     .single()
 
   if (error) console.error('fetchSessionWithDetails error:', error)
-  return data ?? null
-}
+  if (!data) return null
 
-/** Fetch today's in_progress or last completed session */
-export async function fetchTodaySession(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-) {
-  const today = new Date().toISOString().split('T')[0]
-  const { data } = await supabase
-    .from('workout_sessions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('workout_date', today)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-  return data ?? null
+  // Restore deterministic ordering lost during Phase 1C dedup cleanup
+  if (Array.isArray(data.workout_exercises)) {
+    data.workout_exercises.sort((a: any, b: any) => a.order_index - b.order_index)
+    data.workout_exercises.forEach((we: any) => {
+      if (Array.isArray(we.workout_sets)) {
+        we.workout_sets.sort((a: any, b: any) => a.set_number - b.set_number)
+      }
+    })
+  }
+
+  return data
 }
 
 /** Fetch workout stats for dashboard: last session + this-week count */
@@ -321,21 +316,24 @@ export async function fetchPreviousBests(
       if (!exerciseIds.includes(we.exercise_id)) continue
       if (bests[we.exercise_id]) continue // already found a more recent session
 
+      // Include weighted AND bodyweight sets (null weight_kg counts via reps)
       const working = (we.workout_sets ?? []).filter(
-        (s) => s.completed && !s.is_warmup
+        (s: any) => s.completed && !s.is_warmup && (
+          (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+        )
       )
       if (working.length === 0) continue
 
-      // Pick best set by Epley 1RM
-      const best = working.reduce((b, s) => {
-        const score = s.weight_kg
-          ? s.weight_kg * (1 + (s.reps ?? 0) / 30)
-          : (s.reps ?? 0)
-        const bScore = b.weight_kg
-          ? b.weight_kg * (1 + (b.reps ?? 0) / 30)
-          : (b.reps ?? 0)
-        return score > bScore ? s : b
-      }, working[0])
+      // Pick best set: Epley 1RM for weighted, reps for bodyweight
+      const score = (s: any): number => {
+        if (s.weight_kg && s.weight_kg > 0) {
+          const reps = s.reps ?? 0
+          if (reps >= 1 && reps <= 12) return s.weight_kg * (1 + reps / 30)
+          return s.weight_kg
+        }
+        return s.reps ?? 0  // bodyweight: reps is the proxy
+      }
+      const best = working.reduce((b: any, s: any) => score(s) > score(b) ? s : b, working[0])
 
       bests[we.exercise_id] = {
         // Full WorkoutSet-compatible shape

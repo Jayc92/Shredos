@@ -2,34 +2,59 @@
 // ShredOS — Workout Utilities
 // ============================================================
 
+import { format, parseISO } from 'date-fns'
 import { kgToLbs } from '@/lib/units'
-import type { WorkoutSet, WorkoutSession } from '@/types/database'
+import type { WorkoutSet } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
 
 // ── Epley 1RM ─────────────────────────────────────────────────────
 
 /**
  * Epley formula: weight × (1 + reps / 30).
- * Returns null for bodyweight sets, reps outside 1–12, or reps=1.
+ * Valid for weighted sets with 2–12 reps.
+ * Returns null for bodyweight, 1-rep (that IS the 1RM), or >12 reps.
  */
 export function epley1RM(weightKg: number, reps: number): number | null {
-  if (weightKg <= 0 || reps < 1 || reps > 12) return null
-  if (reps === 1) return weightKg
+  if (weightKg <= 0 || reps < 2 || reps > 12) return null
   return Math.round(weightKg * (1 + reps / 30) * 10) / 10
+}
+
+// ── Set scoring (shared by bestSet + progressSignal) ──────────────
+
+/**
+ * Score a completed set for comparison purposes.
+ *   Weighted: Epley estimated 1RM (or raw weight for reps outside 2–12)
+ *   Bodyweight (null/0 weight): reps count is the proxy metric
+ *
+ * This lets Plank/push-up progress (reps) be tracked alongside
+ * barbell work without mixing the two into nonsensical comparisons
+ * (exercises are compared to themselves, never cross-exercise).
+ */
+function setScore(s: WorkoutSet): number {
+  if (s.weight_kg && s.weight_kg > 0) {
+    const rm = s.reps ? epley1RM(s.weight_kg, s.reps) : null
+    return rm ?? s.weight_kg
+  }
+  // Bodyweight: reps as the proxy metric
+  return s.reps ?? 0
 }
 
 // ── Best set selection ────────────────────────────────────────────
 
+/**
+ * Find the best completed, non-warmup set in a list.
+ * Includes both weighted AND bodyweight sets.
+ * Warmup and incomplete sets are always excluded.
+ */
 export function bestSet(sets: WorkoutSet[]): WorkoutSet | null {
   const working = sets.filter(
-    (s) => s.completed && !s.is_warmup && s.weight_kg !== null && s.weight_kg > 0
+    (s) => s.completed && !s.is_warmup && (
+      (s.weight_kg !== null && s.weight_kg > 0) ||
+      (s.reps !== null && s.reps > 0)
+    )
   )
   if (working.length === 0) return null
-  return working.reduce((best, s) => {
-    const score = epley1RM(s.weight_kg!, s.reps ?? 0) ?? (s.weight_kg ?? 0)
-    const bestScore = epley1RM(best.weight_kg!, best.reps ?? 0) ?? (best.weight_kg ?? 0)
-    return score > bestScore ? s : best
-  })
+  return working.reduce((best, s) => setScore(s) > setScore(best) ? s : best)
 }
 
 // ── Progressive overload signal ───────────────────────────────────
@@ -39,9 +64,9 @@ export function progressSignal(
   previousBest: WorkoutSet | null
 ): ProgressSignal {
   if (!previousBest) return 'new'
-  if (!currentBest) return 'same'
-  const curr = epley1RM(currentBest.weight_kg!, currentBest.reps ?? 0) ?? (currentBest.weight_kg ?? 0)
-  const prev = epley1RM(previousBest.weight_kg!, previousBest.reps ?? 0) ?? (previousBest.weight_kg ?? 0)
+  if (!currentBest)  return 'same'
+  const curr = setScore(currentBest)
+  const prev = setScore(previousBest)
   if (prev === 0) return 'new'
   if (curr > prev * 1.01) return 'improved'
   if (curr < prev * 0.99) return 'declined'
@@ -66,14 +91,22 @@ export function progressColor(signal: ProgressSignal): string {
   }
 }
 
+// ── Previous best summary string ──────────────────────────────────
+
 export function buildPreviousBestSummary(best: WorkoutSet | null): string {
   if (!best) return ''
-  const lbs = best.weight_kg ? Math.round(kgToLbs(best.weight_kg)) : null
-  const rm = best.weight_kg && best.reps ? epley1RM(best.weight_kg, best.reps) : null
+
+  // Bodyweight exercise
+  if (!best.weight_kg || best.weight_kg === 0) {
+    return best.reps ? `${best.reps} reps` : ''
+  }
+
+  // Weighted exercise
+  const lbs = Math.round(kgToLbs(best.weight_kg))
+  const rm   = best.reps ? epley1RM(best.weight_kg, best.reps) : null
   const parts: string[] = []
-  if (lbs && best.reps) parts.push(`${lbs} lbs x ${best.reps}`)
-  else if (lbs) parts.push(`${lbs} lbs`)
-  else if (best.reps) parts.push(`${best.reps} reps`)
+  if (best.reps) parts.push(`${lbs} lbs × ${best.reps}`)
+  else parts.push(`${lbs} lbs`)
   if (rm) parts.push(`est. 1RM ${Math.round(kgToLbs(rm))} lbs`)
   return parts.join(' · ')
 }
@@ -107,17 +140,20 @@ export function weeklyMuscleVolume(
 
 export function formatWorkoutDuration(startTime: string | null, endTime: string | null): string | null {
   if (!startTime) return null
-  const end = endTime ? new Date(endTime) : new Date()
+  const end  = endTime ? new Date(endTime) : new Date()
   const mins = Math.round((end.getTime() - new Date(startTime).getTime()) / 60000)
+  if (mins < 1)  return null
   if (mins < 60) return `${mins}m`
   return `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
+/** Generate a session title from a workout date ISO string using date-fns. */
 export function autoTitle(dateISO: string): string {
-  const d = new Date(dateISO + 'T12:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })
+  // parseISO + format is consistent with the rest of the app (date-fns everywhere)
+  return format(parseISO(dateISO), 'EEE, MMM d')
 }
 
+/** Convert stored kg to display-friendly integer lbs. */
 export function displayWeight(kg: number | null): number | null {
   if (kg === null) return null
   return Math.round(kgToLbs(kg))

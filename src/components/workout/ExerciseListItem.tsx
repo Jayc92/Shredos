@@ -19,8 +19,7 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
   const muscleLabel = ex.primary_muscle.charAt(0).toUpperCase() + ex.primary_muscle.slice(1).replace('_', ' ')
 
   async function toggleActive() {
-    if (!ex.is_active) return // no re-activation in Phase 1C
-    if (!confirm(`Deactivate "${ex.name}"? It will be hidden from the exercise picker but history is preserved.`)) return
+    if (!confirm(`Deactivate "${ex.name}"? It will be hidden from the exercise picker. You can reactivate it later.`)) return
     setToggling(true)
     await fetch(`/api/exercises/${ex.id}`, {
       method: 'PATCH',
@@ -28,6 +27,19 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
       body: JSON.stringify({ is_active: false }),
     })
     router.refresh()
+    setToggling(false)
+  }
+
+  async function reactivate() {
+    if (!confirm(`Reactivate "${ex.name}"? It will reappear in the exercise picker.`)) return
+    setToggling(true)
+    await fetch(`/api/exercises/${ex.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: true }),
+    })
+    router.refresh()
+    setToggling(false)
   }
 
   if (editing) {
@@ -60,7 +72,7 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
             {ex.category ? ` · ${ex.category}` : ''}
           </p>
         </div>
-        {ex.is_active && (
+        {ex.is_active ? (
           <div className="flex items-center gap-1 flex-shrink-0">
             <button onClick={() => setEditing(true)}
               className="p-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Edit">
@@ -71,6 +83,11 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
               <EyeOff className="w-3.5 h-3.5" />
             </button>
           </div>
+        ) : (
+          <button onClick={reactivate} disabled={toggling}
+            className="text-xs text-primary hover:underline disabled:opacity-40 flex-shrink-0 transition-colors">
+            {toggling ? 'Saving…' : 'Reactivate'}
+          </button>
         )}
       </div>
     </div>
