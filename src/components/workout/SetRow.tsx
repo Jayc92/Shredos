@@ -59,7 +59,7 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
     const next = !completed
     setCompleted(next)
     const ok = await patch({ completed: next })
-    if (!ok) setCompleted(!next) // revert optimistic update on failure
+    if (!ok) setCompleted(!next)
   }
 
   async function toggleWarmup() {
@@ -82,8 +82,6 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
   }
 
   const inputCls = 'w-full min-w-0 px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
-
-  // L1: show "per side" label for unilateral exercises instead of cryptic "lbs/s"
   const weightSuffix = isUnilateral ? 'per side' : 'lbs'
 
   return (
@@ -94,7 +92,7 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
     )}>
       {/* Set number */}
       <span className="text-xs text-muted-foreground w-5 text-center flex-shrink-0 tabular-nums">
-        {isWarmup ? 'W' : set.set_number}
+        {isWarmup ? 'WU' : set.set_number}
       </span>
 
       {/* Reps */}
@@ -104,10 +102,11 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
           onFocus={e => e.target.select()}
           onBlur={handleRepsBlur}
           placeholder="reps" min="0" step="1"
+          aria-label="Reps"
           className={inputCls} />
       </div>
 
-      {/* Weight — L1: label is now "per side" or "lbs", not "lbs/s" */}
+      {/* Weight */}
       <div className="flex-1 min-w-0">
         <div className="relative">
           <input type="number" inputMode="decimal" value={lbs}
@@ -115,6 +114,7 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
             onFocus={e => e.target.select()}
             onBlur={handleWeightBlur}
             placeholder="0" min="0" step="0.5"
+            aria-label={isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs'}
             className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
             {weightSuffix}
@@ -122,40 +122,51 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
         </div>
       </div>
 
-      {/* RPE */}
+      {/* RPE — Rate of Perceived Exertion 1–10 */}
       <div className="w-12 flex-shrink-0">
         <input type="number" inputMode="decimal" value={rpe}
           onChange={e => setRpe(e.target.value)}
           onFocus={e => e.target.select()}
           onBlur={handleRpeBlur}
           placeholder="RPE" min="1" max="10" step="0.5"
+          title="Rate of Perceived Exertion (1–10). RPE 10 = max effort. RPE 8 ≈ 2 reps in reserve."
+          aria-label="RPE — Rate of Perceived Exertion, 1 to 10"
           className={inputCls} />
       </div>
 
-      {/* Warmup pill */}
-      <button type="button" onClick={toggleWarmup}
+      {/* Warm-up toggle — WU with tooltip */}
+      <button
+        type="button"
+        onClick={toggleWarmup}
+        title="Warm-up set — excluded from progressive overload and volume calculations"
+        aria-label="Warm-up set"
+        aria-pressed={isWarmup}
         className={cn(
-          'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0',
+          'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium',
           isWarmup
             ? 'border-foreground bg-foreground text-background'
             : 'border-border text-muted-foreground hover:border-muted-foreground'
-        )}>
-        W
+        )}
+      >
+        WU
       </button>
 
       {/* Complete */}
-      <button type="button" onClick={toggleComplete}
+      <button
+        type="button"
+        onClick={toggleComplete}
         aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
         className={cn(
           'w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
           completed
             ? 'border-green-500 bg-green-500 text-white'
             : 'border-border hover:border-muted-foreground'
-        )}>
+        )}
+      >
         {completed && <span className="text-xs font-bold">✓</span>}
       </button>
 
-      {/* Save error indicator — L2 */}
+      {/* Save error indicator */}
       {saveError && (
         <span title={saveError} className="flex-shrink-0 text-destructive" aria-label={saveError}>
           <AlertCircle className="w-3.5 h-3.5" />
@@ -164,8 +175,8 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
 
       {/* Delete */}
       <button type="button" onClick={handleDelete} disabled={busy}
-        className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40"
-        aria-label="Delete set">
+        aria-label="Delete set"
+        className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>

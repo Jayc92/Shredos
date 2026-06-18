@@ -11,9 +11,11 @@ import type { WorkoutSession } from '@/types/database'
 
 interface SessionHeaderProps {
   session: WorkoutSession
+  routineId?: string | null
+  routineName?: string | null
 }
 
-export function SessionHeader({ session }: SessionHeaderProps) {
+export function SessionHeader({ session, routineId, routineName }: SessionHeaderProps) {
   const router = useRouter()
   const [editingTitle, setEditingTitle] = useState(false)
   const [title, setTitle]               = useState(session.title || 'Workout')
@@ -96,6 +98,12 @@ export function SessionHeader({ session }: SessionHeaderProps) {
       <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
         <span>{dateLabel}</span>
         {duration && <span>{duration}</span>}
+        {routineId && routineName && (
+          <a href={`/workouts/routines/${routineId}`}
+            className="text-primary hover:underline flex-shrink-0">
+            From: {routineName} →
+          </a>
+        )}
         <span className={cn(
           'rounded-full border px-2 py-0.5 font-medium',
           isDone ? 'bg-green-500/15 text-green-400 border-green-500/20' :

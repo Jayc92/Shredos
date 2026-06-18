@@ -76,6 +76,27 @@ export default async function WorkoutsPage() {
         </div>
       </div>
 
+      {/* Routines entry point */}
+      {weekStats.active_routine_count > 0 ? (
+        <a href="/workouts/routines"
+          className="block shred-card hover:border-border/80 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Routines</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {weekStats.active_routine_count} saved · Start a structured workout
+              </p>
+            </div>
+            <span className="text-muted-foreground text-xs">›</span>
+          </div>
+        </a>
+      ) : (
+        <a href="/workouts/routines"
+          className="block shred-card hover:border-border/80 transition-colors">
+          <p className="text-sm text-muted-foreground">Build routines to start structured workouts →</p>
+        </a>
+      )}
+
       {/* Today */}
       {todaySessions.length > 0 && (
         <div className="space-y-2">

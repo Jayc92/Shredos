@@ -8,7 +8,7 @@ interface WorkoutCardProps {
 }
 
 export function WorkoutCard({ stats }: WorkoutCardProps) {
-  const { sessions_this_week, last_session, last_session_exercise_count } = stats
+  const { sessions_this_week, last_session, last_session_exercise_count, active_routine_count } = stats
 
   return (
     <div className="shred-card space-y-3">
@@ -58,6 +58,17 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
           )}
         </div>
       </div>
+      {/* Phase 1D: routine count + start link */}
+      {active_routine_count > 0 && (
+        <div className="flex items-center justify-between pt-1 border-t border-border">
+          <span className="text-xs text-muted-foreground">
+            {active_routine_count} routine{active_routine_count !== 1 ? 's' : ''} saved
+          </span>
+          <a href="/workouts/routines" className="text-xs text-primary hover:underline">
+            Start a routine →
+          </a>
+        </div>
+      )}
     </div>
   )
 }

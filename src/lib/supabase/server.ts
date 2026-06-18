@@ -218,6 +218,7 @@ export async function fetchSessionWithDetails(
     .from('workout_sessions')
     .select(`
       *,
+      routine:workout_routines (id, name),
       workout_exercises (
         *,
         exercise:exercises ( * ),
@@ -274,10 +275,18 @@ export async function fetchWorkoutWeekStats(
     .limit(1)
     .maybeSingle()
 
+  // Count active routines for WorkoutCard display (Phase 1D)
+  const { count: routineCount } = await supabase
+    .from('workout_routines')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_active', true)
+
   return {
     sessions_this_week: thisWeekSessions?.length ?? 0,
     last_session: lastSessionData ?? null,
     last_session_exercise_count: (lastSessionData as any)?.workout_exercises?.length ?? 0,
+    active_routine_count: routineCount ?? 0,
   }
 }
 
@@ -352,4 +361,58 @@ export async function fetchPreviousBests(
   }
 
   return bests
+}
+
+// ── Phase 1D — routine fetch helpers ─────────────────────────────
+
+export async function fetchRoutines(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  const { data } = await supabase
+    .from('workout_routines')
+    .select('*, workout_routine_exercises(id)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export async function fetchRoutineWithExercises(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  routineId: string
+) {
+  const { data, error } = await supabase
+    .from('workout_routines')
+    .select(`
+      *,
+      workout_routine_exercises (
+        *,
+        exercise:exercises (*)
+      )
+    `)
+    .eq('id', routineId)
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return null
+
+  // Deterministic ordering
+  if (Array.isArray((data as any).workout_routine_exercises)) {
+    (data as any).workout_routine_exercises.sort((a: any, b: any) => a.order_index - b.order_index)
+  }
+
+  return data as any
+}
+
+export async function fetchRoutineCount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from('workout_routines')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_active', true)
+  return count ?? 0
 }

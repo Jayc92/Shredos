@@ -281,6 +281,7 @@ export interface WorkoutSession {
   start_time: string | null
   end_time: string | null
   notes: string | null
+  routine_id: string | null  // Phase 1D: nullable FK; null = manually started session
   created_at: string
   updated_at: string
 }
@@ -324,4 +325,48 @@ export type WorkoutExerciseWithDetails = WorkoutExercise & {
 }
 export type WorkoutSessionWithExercises = WorkoutSession & {
   workout_exercises: WorkoutExerciseWithDetails[]
+}
+
+// ── Phase 1D — saved routines ────────────────────────────────────
+
+export type RoutineGoal = 'strength' | 'hypertrophy' | 'endurance' | 'conditioning' | 'mobility' | 'mixed'
+export type RoutineMuscleFocus = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'core' | 'full_body' | 'other'
+export type RoutineDifficulty = 'beginner' | 'intermediate' | 'advanced'
+
+export interface WorkoutRoutine {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  goal: RoutineGoal | null
+  primary_muscle_focus: RoutineMuscleFocus | null
+  difficulty: RoutineDifficulty | null
+  estimated_duration_minutes: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkoutRoutineExercise {
+  id: string
+  routine_id: string
+  exercise_id: string
+  order_index: number
+  target_sets: number | null
+  target_reps_min: number | null
+  target_reps_max: number | null
+  target_weight_kg: number | null  // stored kg, displayed lbs
+  target_rpe: number | null
+  rest_seconds: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkoutRoutineExerciseWithDetails extends WorkoutRoutineExercise {
+  exercise: Exercise
+}
+
+export interface WorkoutRoutineWithExercises extends WorkoutRoutine {
+  workout_routine_exercises: WorkoutRoutineExerciseWithDetails[]
 }

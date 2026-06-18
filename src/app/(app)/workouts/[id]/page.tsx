@@ -49,7 +49,11 @@ export default async function WorkoutDetailPage({
         ← Workouts
       </Link>
 
-      <SessionHeader session={session} />
+      <SessionHeader
+        session={session}
+        routineId={(session as any).routine?.id ?? null}
+        routineName={(session as any).routine?.name ?? null}
+      />
 
       {exercises.length === 0 && (
         <div className="shred-card text-center py-6 text-sm text-muted-foreground">

@@ -191,3 +191,30 @@ export const WORKOUT_STATUS_LABELS: Record<string, string> = {
 
 
 export const APP_NAME = 'ShredOS'
+
+// ── Phase 1D — routine constants ─────────────────────────────────
+export const ROUTINE_GOALS = [
+  { value: 'strength',     label: 'Strength' },
+  { value: 'hypertrophy',  label: 'Hypertrophy' },
+  { value: 'endurance',    label: 'Endurance' },
+  { value: 'conditioning', label: 'Conditioning' },
+  { value: 'mobility',     label: 'Mobility' },
+  { value: 'mixed',        label: 'Mixed' },
+] as const
+
+export const ROUTINE_MUSCLE_FOCUS = [
+  { value: 'chest',     label: 'Chest' },
+  { value: 'back',      label: 'Back' },
+  { value: 'legs',      label: 'Legs' },
+  { value: 'shoulders', label: 'Shoulders' },
+  { value: 'arms',      label: 'Arms' },
+  { value: 'core',      label: 'Core' },
+  { value: 'full_body', label: 'Full body' },
+  { value: 'other',     label: 'Other' },
+] as const
+
+export const ROUTINE_DIFFICULTIES = [
+  { value: 'beginner',     label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced',     label: 'Advanced' },
+] as const

@@ -137,6 +137,7 @@ export interface WorkoutWeekStats {
   sessions_this_week: number
   last_session: import('./database').WorkoutSession | null
   last_session_exercise_count: number
+  active_routine_count: number  // Phase 1D
 }
 
 export interface ExercisePreviousBest {

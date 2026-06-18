@@ -1,23 +1,22 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { PRIMARY_MUSCLES } from '@/lib/constants'
-import { Search, Plus, X } from 'lucide-react'
+import { Check, Search, Plus, X } from 'lucide-react'
 import type { Exercise } from '@/types/database'
 
 interface ExercisePickerProps {
   exercises: Exercise[]
-  workoutId: string
+  /** Caller owns the API call — picker is context-agnostic */
+  onAdd: (exerciseId: string) => Promise<void>
   onClose: () => void
 }
 
-export function ExercisePicker({ exercises, workoutId, onClose }: ExercisePickerProps) {
-  const router = useRouter()
-  const [search, setSearch] = useState('')
-  const [muscle, setMuscle]  = useState('all')
-  const [adding, setAdding]  = useState<string | null>(null)
+export function ExercisePicker({ exercises, onAdd, onClose }: ExercisePickerProps) {
+  const [search,  setSearch]  = useState('')
+  const [muscle,  setMuscle]  = useState('all')
+  const [adding,  setAdding]  = useState<string | null>(null)
 
   const filtered = useMemo(() => exercises.filter(e =>
     e.is_active &&
@@ -27,14 +26,21 @@ export function ExercisePicker({ exercises, workoutId, onClose }: ExercisePicker
 
   async function handleAdd(exerciseId: string) {
     setAdding(exerciseId)
-    await fetch(`/api/workouts/${workoutId}/exercises`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exercise_id: exerciseId }),
-    })
-    router.refresh()
+    try {
+      await onAdd(exerciseId)
+    } finally {
+      setAdding(null)
+    }
     onClose()
   }
+
+  const pillCls = (selected: boolean) => cn(
+    'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+    selected
+      ? 'border-2 border-foreground bg-foreground text-background font-semibold'
+      : 'border border-border bg-background text-foreground hover:bg-muted hover:border-muted-foreground'
+  )
 
   return (
     <div className="shred-card space-y-3 mt-2">
@@ -57,30 +63,32 @@ export function ExercisePicker({ exercises, workoutId, onClose }: ExercisePicker
         />
       </div>
 
-      {/* Muscle filter pills */}
-      <div className="flex flex-wrap gap-1.5">
+      {/* Muscle filter pills — high-contrast selected state */}
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by muscle group">
         <button
           type="button"
+          aria-pressed={muscle === 'all'}
           onClick={() => setMuscle('all')}
-          className={cn(
-            'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
-            muscle === 'all'
-              ? 'border-foreground bg-foreground text-background'
-              : 'border-border text-muted-foreground hover:bg-muted'
-          )}>
+          className={pillCls(muscle === 'all')}
+        >
+          {muscle === 'all' && <Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" />}
           All
         </button>
-        {PRIMARY_MUSCLES.map(({ value, label }) => (
-          <button key={value} type="button" onClick={() => setMuscle(value)}
-            className={cn(
-              'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
-              muscle === value
-                ? 'border-foreground bg-foreground text-background'
-                : 'border-border text-muted-foreground hover:bg-muted'
-            )}>
-            {label}
-          </button>
-        ))}
+        {PRIMARY_MUSCLES.map(({ value, label }) => {
+          const selected = muscle === value
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setMuscle(value)}
+              className={pillCls(selected)}
+            >
+              {selected && <Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" />}
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Exercise list */}
@@ -103,7 +111,8 @@ export function ExercisePicker({ exercises, workoutId, onClose }: ExercisePicker
               type="button"
               disabled={adding === e.id}
               onClick={() => handleAdd(e.id)}
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0">
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0"
+            >
               <Plus className="w-3.5 h-3.5" />
               {adding === e.id ? 'Adding…' : 'Add'}
             </button>
