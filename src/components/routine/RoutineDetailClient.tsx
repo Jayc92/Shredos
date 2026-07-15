@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RoutineForm } from './RoutineForm'
 import { RoutineExerciseRow } from './RoutineExerciseRow'
 import { StartWorkoutButton } from './StartWorkoutButton'
 import { ExercisePicker } from '@/components/workout/ExercisePicker'
-import { cn } from '@/lib/utils'
-import { Pencil, EyeOff, Trash2, Plus } from 'lucide-react'
+import { Pencil, EyeOff, Eye, Trash2, Plus } from 'lucide-react'
 import type { WorkoutRoutineWithExercises, Exercise } from '@/types/database'
 
 interface RoutineDetailClientProps {
@@ -17,187 +16,221 @@ interface RoutineDetailClientProps {
 
 export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClientProps) {
   const router = useRouter()
-  const [editingMeta, setEditingMeta] = useState(false)
-  const [showPicker,  setShowPicker]  = useState(false)
-  const [toggling,    setToggling]    = useState(false)
-  const [deleting,    setDeleting]    = useState(false)
-  const [deleteErr,   setDeleteErr]   = useState<string | null>(null)
 
-  const exercises = (routine.workout_routine_exercises ?? [])
-    .slice().sort((a, b) => a.order_index - b.order_index)
+  // Optimistic exercise list.
+  // Initialised from sorted server data; resynced only when exercise count
+  // changes (add / remove). Reorder moves update local state immediately
+  // and do NOT call router.refresh() — the local state IS the display.
+  const [exerciseList, setExerciseList] = useState<any[]>(() =>
+    ((routine.workout_routine_exercises ?? []) as any[])
+      .slice()
+      .sort((a: any, b: any) => a.order_index - b.order_index)
+  )
+  const exCount = (routine.workout_routine_exercises ?? []).length
+  useEffect(() => {
+    setExerciseList(
+      ((routine.workout_routine_exercises ?? []) as any[])
+        .slice()
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exCount])
+
+  const [editingMeta,     setEditingMeta]    = useState(false)
+  const [showPicker,      setShowPicker]     = useState(false)
+  const [reordering,      setReordering]     = useState(false)
+  const [reorderErr,      setReorderErr]     = useState<string | null>(null)
+  const [addErr,          setAddErr]         = useState<string | null>(null)
+  const [toggling,        setToggling]       = useState(false)
+  const [toggleErr,       setToggleErr]      = useState<string | null>(null)
+  const [deleting,        setDeleting]       = useState(false)
+  const [deleteErr,       setDeleteErr]      = useState<string | null>(null)
+  const [offerDeactivate, setOfferDeactivate] = useState(false)
 
   async function handleAddExercise(exerciseId: string) {
-    await fetch(`/api/routines/${routine.id}/exercises`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    setAddErr(null)
+    const res = await fetch(`/api/routines/${routine.id}/exercises`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ exercise_id: exerciseId }),
     })
+    if (!res.ok) { setAddErr('Failed to add exercise — please try again.'); return }
     router.refresh()
   }
 
-  async function handleMoveUp(idx: number) {
-    if (idx === 0) return
-    const curr = exercises[idx]
-    const prev = exercises[idx - 1]
-    await Promise.all([
-      fetch(`/api/routine-exercises/${curr.id}`, {
+  // moveExercise: shared helper for handleMoveUp and handleMoveDown.
+  // Swaps positions AND order_index values so subsequent moves read correct indexes.
+  async function moveExercise(fromIdx: number, toIdx: number) {
+    if (reordering) return
+
+    const fromOrderIndex = exerciseList[fromIdx].order_index
+    const toOrderIndex   = exerciseList[toIdx].order_index
+    const snapshot: any[] = exerciseList.map((e: any) => ({ ...e }))
+
+    setExerciseList(prev => {
+      const next = prev.map((e: any) => ({ ...e }))
+      ;[next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]]
+      next[toIdx]   = { ...next[toIdx],   order_index: toOrderIndex }
+      next[fromIdx] = { ...next[fromIdx], order_index: fromOrderIndex }
+      return next
+    })
+
+    setReordering(true)
+    setReorderErr(null)
+
+    const [r1, r2] = await Promise.all([
+      fetch(`/api/routine-exercises/${snapshot[fromIdx].id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: prev.order_index }),
+        body: JSON.stringify({ order_index: toOrderIndex }),
       }),
-      fetch(`/api/routine-exercises/${prev.id}`, {
+      fetch(`/api/routine-exercises/${snapshot[toIdx].id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: curr.order_index }),
+        body: JSON.stringify({ order_index: fromOrderIndex }),
       }),
     ])
-    router.refresh()
+
+    if (!r1.ok || !r2.ok) {
+      setExerciseList(snapshot)
+      setReorderErr('Reorder failed — please try again.')
+    }
+    setReordering(false)
   }
 
-  async function handleMoveDown(idx: number) {
-    if (idx === exercises.length - 1) return
-    const curr = exercises[idx]
-    const next = exercises[idx + 1]
-    await Promise.all([
-      fetch(`/api/routine-exercises/${curr.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: next.order_index }),
-      }),
-      fetch(`/api/routine-exercises/${next.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: curr.order_index }),
-      }),
-    ])
-    router.refresh()
-  }
+  function handleMoveUp(idx: number)   { if (idx > 0)                       moveExercise(idx, idx - 1) }
+  function handleMoveDown(idx: number) { if (idx < exerciseList.length - 1) moveExercise(idx, idx + 1) }
 
   async function toggleActive() {
-    const action = routine.is_active ? 'Deactivate' : 'Reactivate'
-    if (!confirm(`${action} "${routine.name}"?`)) return
-    setToggling(true)
-    await fetch(`/api/routines/${routine.id}`, {
+    const newActive = !routine.is_active
+    const label = newActive ? 'Reactivate' : 'Deactivate'
+    if (!confirm(`${label} “${routine.name}”?`)) return
+    setToggling(true); setToggleErr(null); setDeleteErr(null); setOfferDeactivate(false)
+    const res = await fetch(`/api/routines/${routine.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !routine.is_active }),
+      body: JSON.stringify({ is_active: newActive }),
     })
-    router.refresh()
+    if (!res.ok) setToggleErr(`Could not ${label.toLowerCase()} — please try again.`)
     setToggling(false)
+    router.refresh()
+  }
+
+  async function handleDeactivateInstead() {
+    setOfferDeactivate(false); setDeleteErr(null); setToggling(true)
+    const res = await fetch(`/api/routines/${routine.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: false }),
+    })
+    if (!res.ok) setToggleErr('Could not deactivate — please try again.')
+    setToggling(false)
+    router.refresh()
   }
 
   async function handleDelete() {
-    setDeleteErr(null)
-    if (!confirm(`Delete "${routine.name}"? This cannot be undone.`)) return
+    setDeleteErr(null); setOfferDeactivate(false)
+    if (!confirm(`Permanently delete “${routine.name}”? This cannot be undone.`)) return
     setDeleting(true)
     const res = await fetch(`/api/routines/${routine.id}`, { method: 'DELETE' })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      setDeleteErr(body.error ?? 'Delete failed.')
-      setDeleting(false)
-      return
+      if (res.status === 409 && body.has_sessions) {
+        setDeleteErr('This routine has been used in workouts and cannot be deleted.')
+        setOfferDeactivate(true)
+      } else {
+        setDeleteErr(body.error ?? 'Delete failed — please try again.')
+      }
+      setDeleting(false); return
     }
     router.push('/workouts/routines')
   }
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+      {/* Fix 1: literal arrow character — was rendering escaped ← visibly */}
       <a href="/workouts/routines" className="text-xs text-muted-foreground hover:text-foreground">
         ← Routines
       </a>
 
-      {/* Metadata card */}
-      <div className="shred-card space-y-2">
+      <div className="shred-card space-y-3">
         {editingMeta ? (
-          <RoutineForm existing={routine} onClose={() => { setEditingMeta(false); router.refresh() }} />
+          <RoutineForm existing={routine} onClose={() => setEditingMeta(false)} />
         ) : (
           <>
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <h1 className="text-base font-semibold text-foreground">{routine.name}</h1>
-                {routine.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{routine.description}</p>
-                )}
+                {routine.description && <p className="text-xs text-muted-foreground mt-0.5">{routine.description}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {routine.goal && (
-                    <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">
-                      {routine.goal}
-                    </span>
-                  )}
-                  {routine.primary_muscle_focus && (
-                    <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">
-                      {routine.primary_muscle_focus.replace('_', ' ')}
-                    </span>
-                  )}
-                  {routine.difficulty && (
-                    <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">
-                      {routine.difficulty}
-                    </span>
-                  )}
-                  {routine.estimated_duration_minutes && (
-                    <span className="text-xs text-muted-foreground">∼{routine.estimated_duration_minutes} min</span>
-                  )}
+                  {routine.goal && <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">{routine.goal}</span>}
+                  {routine.primary_muscle_focus && <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">{routine.primary_muscle_focus.replace('_', ' ')}</span>}
+                  {routine.difficulty && <span className="text-xs rounded-full border border-border px-2.5 py-0.5 text-muted-foreground">{routine.difficulty}</span>}
+                  {routine.estimated_duration_minutes && <span className="text-xs text-muted-foreground">∼{routine.estimated_duration_minutes} min</span>}
                 </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button onClick={() => setEditingMeta(true)} aria-label="Edit"
-                  className="p-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={toggleActive} disabled={toggling} aria-label={routine.is_active ? 'Deactivate' : 'Reactivate'}
-                  className="p-1.5 text-muted-foreground hover:text-amber-400 transition-colors disabled:opacity-40">
-                  <EyeOff className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={handleDelete} disabled={deleting} aria-label="Delete"
-                  className="p-1.5 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button onClick={() => setEditingMeta(true)}
+                title="Edit routine details" aria-label="Edit routine details"
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+              <button onClick={toggleActive} disabled={toggling}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-40">
+                {routine.is_active ? <EyeOff className="w-3.5 h-3.5 flex-shrink-0" /> : <Eye className="w-3.5 h-3.5 flex-shrink-0" />}
+                {routine.is_active ? 'Deactivate routine' : 'Reactivate routine'}
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex items-center gap-1.5 text-xs text-destructive border border-destructive/30 rounded-md px-2.5 py-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-40">
+                <Trash2 className="w-3.5 h-3.5 flex-shrink-0" /> Delete permanently
+              </button>
+            </div>
+
+            {toggleErr && <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{toggleErr}</p>}
             {deleteErr && (
-              <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{deleteErr}</p>
+              <div className="text-xs bg-destructive/10 rounded px-2 py-2 space-y-1.5">
+                <p className="text-destructive">{deleteErr}</p>
+                {offerDeactivate && (
+                  <>
+                    <p className="text-muted-foreground">Deactivate it instead to hide it while keeping workout history intact.</p>
+                    <button onClick={handleDeactivateInstead} className="text-xs font-medium text-primary hover:underline">
+                      Deactivate this routine
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </>
         )}
       </div>
 
-      {/* Start workout button (top) */}
-      <StartWorkoutButton routineId={routine.id} routineName={routine.name} />
+      {/* Fix 2: single Start button above the exercise list only */}
+      <StartWorkoutButton routineId={routine.id} routineName={routine.name} isActive={routine.is_active} />
 
-      {/* Exercises */}
-      {exercises.length === 0 ? (
-        <div className="shred-card text-center py-6 text-sm text-muted-foreground">
-          No exercises yet. Add your first exercise below.
-        </div>
+      {reorderErr && <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{reorderErr}</p>}
+
+      {exerciseList.length === 0 ? (
+        <div className="shred-card text-center py-6 text-sm text-muted-foreground">No exercises yet. Add your first exercise below.</div>
       ) : (
         <div className="space-y-2">
-          {exercises.map((re, idx) => (
-            <RoutineExerciseRow
-              key={re.id}
-              re={re}
-              isFirst={idx === 0}
-              isLast={idx === exercises.length - 1}
-              onMoveUp={() => handleMoveUp(idx)}
-              onMoveDown={() => handleMoveDown(idx)}
-            />
+          {exerciseList.map((re: any, idx: number) => (
+            <RoutineExerciseRow key={re.id} re={re}
+              isFirst={idx === 0} isLast={idx === exerciseList.length - 1}
+              isReordering={reordering}
+              onMoveUp={() => handleMoveUp(idx)} onMoveDown={() => handleMoveDown(idx)} />
           ))}
         </div>
       )}
 
-      {/* Add exercise picker */}
+      {addErr && <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{addErr}</p>}
+
       {showPicker ? (
-        <ExercisePicker
-          exercises={allExercises}
-          onAdd={handleAddExercise}
-          onClose={() => setShowPicker(false)}
-        />
+        <ExercisePicker exercises={allExercises} onAdd={handleAddExercise}
+          onClose={() => { setShowPicker(false); setAddErr(null) }} />
       ) : (
         <button type="button" onClick={() => setShowPicker(true)}
           className="w-full shred-card flex items-center justify-center gap-2 py-3 text-sm text-primary hover:border-primary/50 transition-colors border-dashed">
-          <Plus className="w-4 h-4" />
-          Add exercise
+          <Plus className="w-4 h-4" aria-hidden="true" /> Add exercise
         </button>
       )}
-
-      {/* Start workout button (bottom) */}
-      {exercises.length > 0 && (
-        <StartWorkoutButton routineId={routine.id} routineName={routine.name} />
-      )}
+      {/* Fix 2: second StartWorkoutButton removed — was duplicating the one above */}
     </div>
   )
 }

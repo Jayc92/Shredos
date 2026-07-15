@@ -10,17 +10,17 @@ import type { WorkoutRoutineExercise } from '@/types/database'
 
 /** "Push Day — Jun 9" — used when starting a session from a routine */
 export function buildSessionTitle(routineName: string, dateISO: string): string {
-  return `${routineName} \u2014 ${format(parseISO(dateISO), 'MMM d')}`
+  return `${routineName} — ${format(parseISO(dateISO), 'MMM d')}`
 }
 
 // ── Rep range formatting ──────────────────────────────────────────
 
-/** "3 \u00d7 8\u201312" or "3 \u00d7 10" or "3 sets" depending on what is set */
+/** "3 × 8–12" or "3 × 10" or "3 sets" depending on what is set */
 export function formatRepRange(re: WorkoutRoutineExercise): string {
-  const setPart = re.target_sets ? `${re.target_sets} \u00d7` : null
+  const setPart = re.target_sets ? `${re.target_sets} ×` : null
   const repPart = (() => {
     if (re.target_reps_min && re.target_reps_max && re.target_reps_min !== re.target_reps_max) {
-      return `${re.target_reps_min}\u2013${re.target_reps_max}`
+      return `${re.target_reps_min}–${re.target_reps_max}`
     }
     const r = re.target_reps_min ?? re.target_reps_max
     return r ? String(r) : null
@@ -41,7 +41,7 @@ export function formatRestSeconds(seconds: number | null): string | null {
 
 // ── Combined target summary ───────────────────────────────────────
 
-/** "3 \u00d7 8\u201312 \u00b7 185 lbs \u00b7 RPE 7 \u00b7 90s rest" */
+/** "3 × 8–12 · 185 lbs · RPE 7 · 90s rest" */
 export function formatRoutineTarget(re: WorkoutRoutineExercise): string {
   const parts: string[] = []
   const reps = formatRepRange(re)
@@ -52,7 +52,7 @@ export function formatRoutineTarget(re: WorkoutRoutineExercise): string {
   if (re.target_rpe) parts.push(`RPE ${re.target_rpe}`)
   const rest = formatRestSeconds(re.rest_seconds)
   if (rest) parts.push(`${rest} rest`)
-  return parts.join(' \u00b7 ')
+  return parts.join(' · ')
 }
 
 // ── Routine meta label helpers ────────────────────────────────────

@@ -75,9 +75,9 @@ export function progressSignal(
 
 export function progressLabel(signal: ProgressSignal): string {
   switch (signal) {
-    case 'improved': return '\u2191 Improved'
-    case 'declined': return '\u2193 Declined'
-    case 'same':     return '\u2192 Same'
+    case 'improved': return '↑ Improved'
+    case 'declined': return '↓ Declined'
+    case 'same':     return '→ Same'
     case 'new':      return 'New exercise'
   }
 }
