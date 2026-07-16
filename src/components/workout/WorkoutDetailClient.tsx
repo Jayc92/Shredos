@@ -5,16 +5,30 @@ import { useRouter } from 'next/navigation'
 import { SessionHeader } from '@/components/workout/SessionHeader'
 import { WorkoutExerciseBlock } from '@/components/workout/WorkoutExerciseBlock'
 import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
+import type { ProgressionTrend } from '@/lib/workout-coach'
 
 interface WorkoutDetailClientProps {
-  session: any; exercises: any[]; previousBests: Record<string, any>
-  allExercises: any[]; routineId?: string | null; routineName?: string | null
+  session: any
+  exercises: any[]
+  previousBests: Record<string, any>
+  allExercises: any[]
+  routineId?: string | null
+  routineName?: string | null
+  exerciseTrends?: Record<string, ProgressionTrend>
 }
 
-export function WorkoutDetailClient({ session, exercises, previousBests, allExercises, routineId, routineName }: WorkoutDetailClientProps) {
+export function WorkoutDetailClient({
+  session, exercises, previousBests, allExercises,
+  routineId, routineName, exerciseTrends,
+}: WorkoutDetailClientProps) {
   const router = useRouter()
   const [sessionDeleted, setSessionDeleted] = useState(false)
-  function handleSessionDeleted() { setSessionDeleted(true); router.replace('/workouts') }
+
+  function handleSessionDeleted() {
+    setSessionDeleted(true)
+    router.replace('/workouts')
+  }
+
   if (sessionDeleted) {
     return (
       <div className="shred-card text-center py-8 space-y-1">
@@ -23,11 +37,31 @@ export function WorkoutDetailClient({ session, exercises, previousBests, allExer
       </div>
     )
   }
+
   return (
     <>
-      <SessionHeader session={session} routineId={routineId} routineName={routineName} onSessionDeleted={handleSessionDeleted} />
-      {exercises.length === 0 && <div className="shred-card text-center py-6 text-sm text-muted-foreground">No exercises yet. Add your first exercise below.</div>}
-      {exercises.map((we: any) => <WorkoutExerciseBlock key={we.id} we={we} previousBest={previousBests[we.exercise_id] ?? null} />)}
+      <SessionHeader
+        session={session}
+        routineId={routineId}
+        routineName={routineName}
+        onSessionDeleted={handleSessionDeleted}
+      />
+
+      {exercises.length === 0 && (
+        <div className="shred-card text-center py-6 text-sm text-muted-foreground">
+          No exercises yet. Add your first exercise below.
+        </div>
+      )}
+
+      {exercises.map((we: any) => (
+        <WorkoutExerciseBlock
+          key={we.id}
+          we={we}
+          previousBest={previousBests[we.exercise_id] ?? null}
+          trend={exerciseTrends?.[we.exercise_id]}
+        />
+      ))}
+
       <AddExerciseSection exercises={allExercises} workoutId={session.id} />
     </>
   )

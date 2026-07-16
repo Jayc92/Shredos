@@ -6,7 +6,9 @@ import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
 import { weeklyMuscleVolume } from '@/lib/workout'
 import { SessionCard } from '@/components/workout/SessionCard'
 import { MuscleVolumeSummary } from '@/components/workout/MuscleVolumeSummary'
+import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { CreateWorkoutButton } from '@/components/workout/CreateWorkoutButton'
+import { fetchCoachSummary } from '@/lib/workout-coach'
 import { Dumbbell } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -20,31 +22,26 @@ export default async function WorkoutsPage() {
   const profile = await fetchUserProfile(supabase, user.id)
   if (!profile) redirect('/onboarding')
 
-  // Seed 15 default exercises on first visit (idempotent)
   await seedExercisesIfNeeded(supabase, user.id)
 
-  const [sessions, weekStats] = await Promise.all([
+  const today = new Date().toISOString().split('T')[0]
+
+  const [sessions, weekStats, coachSummary] = await Promise.all([
     fetchRecentSessions(supabase, user.id, 15),
     fetchWorkoutWeekStats(supabase, user.id),
+    fetchCoachSummary(supabase, user.id, today),
   ])
 
-  // M1: Use local calendar date (not UTC) for "today" comparison.
-  // The server runs on the same machine as the browser for local dev,
-  // so toLocaleDateString gives the correct local date.
-  const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local tz
-
-  // M5: fetchRecentSessions already includes workout_exercises — no second query needed.
-  // Filter to last 7 days for muscle volume summary.
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const sevenDaysAgoISO = sevenDaysAgo.toLocaleDateString('en-CA')
+  const { data: weekSessions } = await supabase
+    .from('workout_sessions')
+    .select('workout_exercises(exercise:exercises(primary_muscle), workout_sets(completed, is_warmup))')
+    .eq('user_id', user.id)
+    .in('status', ['in_progress', 'completed'])
+    .gte('workout_date', sevenDaysAgo.toISOString().split('T')[0])
 
-  const weekSessionsForVolume = sessions.filter(
-    (s: any) => s.workout_date >= sevenDaysAgoISO &&
-                (s.status === 'in_progress' || s.status === 'completed')
-  )
-  const muscleVolume = weeklyMuscleVolume(weekSessionsForVolume as any)
-
+  const muscleVolume = weeklyMuscleVolume((weekSessions ?? []) as any)
   const todaySessions = sessions.filter((s: any) => s.workout_date === today)
   const otherSessions = sessions.filter((s: any) => s.workout_date !== today)
 
@@ -52,7 +49,7 @@ export default async function WorkoutsPage() {
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold flex items-center gap-2">
-          <Dumbbell className="w-5 h-5" /> Workouts
+          <Dumbbell className="w-5 h-5" aria-hidden="true" /> Workouts
         </h1>
         <Link href="/workouts/exercises" className="text-xs text-primary hover:underline">
           Exercise library →
@@ -76,7 +73,10 @@ export default async function WorkoutsPage() {
         </div>
       </div>
 
-      {/* Routines entry point */}
+      {/* Phase 1E: Muscle readiness — hidden until enough data */}
+      <MuscleReadinessPanel summary={coachSummary} />
+
+      {/* Routines entry point (Phase 1D) */}
       {weekStats.active_routine_count > 0 ? (
         <a href="/workouts/routines"
           className="block shred-card hover:border-border/80 transition-colors">
@@ -101,17 +101,11 @@ export default async function WorkoutsPage() {
       {todaySessions.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Today</p>
-          {todaySessions.map((s: any) => (
-            <SessionCard
-              key={s.id}
-              session={s}
-              exerciseCount={(s.workout_exercises?.length ?? 0)}
-            />
-          ))}
+          {todaySessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
         </div>
       )}
 
-      {/* Muscle volume (computed from already-fetched session data — no extra query) */}
+      {/* Muscle volume */}
       {Object.keys(muscleVolume).length > 0 && (
         <MuscleVolumeSummary volume={muscleVolume} />
       )}
@@ -120,22 +114,14 @@ export default async function WorkoutsPage() {
       {otherSessions.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent sessions</p>
-          {otherSessions.map((s: any) => (
-            <SessionCard
-              key={s.id}
-              session={s}
-              exerciseCount={(s.workout_exercises?.length ?? 0)}
-            />
-          ))}
+          {otherSessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
         </div>
       )}
 
       {sessions.length === 0 && (
         <div className="shred-card text-center py-10 space-y-3">
           <p className="text-muted-foreground text-sm">No workouts yet.</p>
-          <p className="text-xs text-muted-foreground">
-            Start logging to track progressive overload and weekly muscle volume.
-          </p>
+          <p className="text-xs text-muted-foreground">Start logging to track progressive overload and weekly muscle volume.</p>
           <CreateWorkoutButton label="Start your first workout" />
         </div>
       )}
