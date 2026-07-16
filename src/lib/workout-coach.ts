@@ -112,19 +112,18 @@ function scoreRoutine(
   return score
 }
 
-function buildReasonText(freshMuscles: MuscleReadiness[], focusMuscle: string | null): string {
-  // If we have a routine, highlight why that focus is good
-  if (focusMuscle) {
-    const m = freshMuscles.find(m => m.muscle === focusMuscle)
-    if (m) {
-      const days = m.lastTrainedDaysAgo
-      const daysStr = days === null ? 'not trained yet' : `${days} day${days !== 1 ? 's' : ''} ago`
-      return `${m.label} last trained ${daysStr}`
-    }
-  }
-  if (!freshMuscles.length) return ''
-  const names = freshMuscles.slice(0, 2).map(m => m.label)
-  return `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} fresh`
+function buildReasonText(allMuscleReadiness: MuscleReadiness[], focusMuscle: string | null): string {
+  // Accepts full muscleReadiness so recovering-focus routines get accurate copy
+  // rather than incorrectly citing OTHER muscles as the reason.
+  if (!focusMuscle) return ''
+  const m = allMuscleReadiness.find(m => m.muscle === focusMuscle)
+  if (!m) return ''
+  const days = m.lastTrainedDaysAgo
+  if (days === null)                return `${m.label} — start building volume`
+  if (m.freshness === 'fresh')      return `${m.label} is fresh — ${days} day${days !== 1 ? 's' : ''} rest`
+  if (m.freshness === 'ready')      return `${m.label} is ready — ${days} day${days !== 1 ? 's' : ''} rest`
+  if (m.freshness === 'recovering') return `${m.label} is recovering — keep it moderate`
+  return ''
 }
 
 function classifyTrend(scores: number[]): ProgressionTrend {
@@ -221,7 +220,10 @@ export async function fetchCoachSummary(
   })
 
   // ── Week stats ────────────────────────────────────────────────────────────
-  const thisWeekSessions = sessionData.filter(s => s.workout_date >= sevenDaysAgo)
+  const thisWeekSessions = sessionData.filter(s =>
+    s.workout_date >= sevenDaysAgo &&
+    (s.status === 'in_progress' || s.status === 'completed')
+  )
   let setsThisWeek = 0
   const musclesHitSet = new Set<string>()
 
@@ -279,7 +281,7 @@ export async function fetchCoachSummary(
   if (topScore < 0) topRoutine = null
 
   const routineReasonText = topRoutine
-    ? buildReasonText(freshMuscles, topRoutine.primary_muscle_focus)
+    ? buildReasonText(muscleReadiness, topRoutine.primary_muscle_focus)
     : ''
 
   const fallbackFocusText = !topRoutine && freshMuscles.length > 0

@@ -38,7 +38,7 @@ export function CoachCard({ summary }: CoachCardProps) {
             Log a few workouts to see personalised training recommendations.
           </p>
           <Link href="/workouts" className="text-xs text-primary hover:underline">
-            Start your first workout →
+            Start logging workouts →
           </Link>
         </div>
       ) : topRoutine ? (

@@ -9,6 +9,7 @@ import { MuscleVolumeSummary } from '@/components/workout/MuscleVolumeSummary'
 import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { CreateWorkoutButton } from '@/components/workout/CreateWorkoutButton'
 import { fetchCoachSummary } from '@/lib/workout-coach'
+import { todayISO } from '@/lib/dates'
 import { Dumbbell } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -24,7 +25,7 @@ export default async function WorkoutsPage() {
 
   await seedExercisesIfNeeded(supabase, user.id)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
 
   const [sessions, weekStats, coachSummary] = await Promise.all([
     fetchRecentSessions(supabase, user.id, 15),
