@@ -121,7 +121,7 @@ export default async function FoodPage({
 
       {/* Phase 1F: coaching panel (today only, hidden until enough data) */}
       {nutritionSummary && (
-        <NutritionCoachPanel summary={nutritionSummary} target={target} />
+        <NutritionCoachPanel summary={nutritionSummary} />
       )}
 
       {/* Date navigation */}

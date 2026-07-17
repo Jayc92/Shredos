@@ -137,8 +137,8 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
         </div>
       )}
 
-      {/* Time-gated warnings (protein low late in day, calories over) */}
-      {progress.warnings.map((w, i) => (
+      {/* Time-gated warnings — only when food has actually been logged */}
+      {todayLogs.length > 0 && progress.warnings.map((w, i) => (
         <div
           key={i}
           className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"

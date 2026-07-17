@@ -7,11 +7,9 @@
 // ============================================================
 
 import type { NutritionCoachSummary } from '@/lib/nutrition-coach'
-import type { NutritionTarget } from '@/types/database'
 
 interface NutritionCoachPanelProps {
   summary: NutritionCoachSummary
-  target:  NutritionTarget | null
 }
 
 const CONFIDENCE_LABEL: Record<string, string> = {
@@ -28,7 +26,7 @@ const CONFIDENCE_CLS: Record<string, string> = {
   insufficient: 'bg-secondary text-muted-foreground',
 }
 
-export function NutritionCoachPanel({ summary, target }: NutritionCoachPanelProps) {
+export function NutritionCoachPanel({ summary }: NutritionCoachPanelProps) {
   // Hidden until enough data to be useful
   if (!summary.hasEnoughData) return null
 

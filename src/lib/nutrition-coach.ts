@@ -13,8 +13,6 @@ import type { NutritionTarget, FoodLog } from '@/types/database'
 
 // Logged days needed to compute 7-day averages
 export const NUTRITION_MIN_LOGGED_DAYS = 4
-// Logged days needed for a calorie suggestion (6–7 = high confidence)
-const NUTRITION_MIN_SUGGESTION_DAYS = 6
 // Weigh-ins needed for a weight trend signal
 const NUTRITION_MIN_WEIGH_INS = 2
 // Goals eligible for calorie adjustment suggestions
@@ -158,9 +156,11 @@ function buildCalorieSuggestion(
   }
   // Gate 3: needs an average to base the suggestion on
   if (avgCaloriesLast7 === null) return null
-  // Gate 4: don’t suggest reduction if already losing
+  // Gate 4: no suggestion without reliable weight data (requires 2+ weigh-ins)
+  if (weightTrend === 'insufficient-data') return null
+  // Gate 5: don’t suggest reduction if already losing
   if (weightTrend === 'losing') return null
-  // Gate 5: don’t suggest reduction if already under target
+  // Gate 6: don’t suggest reduction if already under target
   if (calorieTrend === 'below') return null
 
   // Safety floor
@@ -206,7 +206,7 @@ export async function fetchNutritionCoachSummary(
   userGoal: string | null
 ): Promise<NutritionCoachSummary> {
   const today           = parseISO(todayStr)
-  const sevenDaysAgo    = format(subDays(today,  7), 'yyyy-MM-dd')
+  const sevenDaysAgo    = format(subDays(today,  6), 'yyyy-MM-dd')  // today + 6 prior = 7 days
   const fourteenDaysAgo = format(subDays(today, 14), 'yyyy-MM-dd')
   const twentyOneDaysAgo = format(subDays(today, 21), 'yyyy-MM-dd')
 
