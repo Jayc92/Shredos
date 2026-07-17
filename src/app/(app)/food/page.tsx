@@ -12,6 +12,8 @@ import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { DailyMacroSummary } from '@/components/food/DailyMacroSummary'
 import { MealSection } from '@/components/food/MealSection'
 import { QuickAddPanel } from '@/components/food/QuickAddPanel'
+import { NutritionCoachPanel } from '@/components/nutrition/NutritionCoachPanel'
+import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import { MEAL_TYPES } from '@/lib/constants'
 import { todayISO } from '@/lib/dates'
 import { format, addDays, parseISO, isToday, isFuture } from 'date-fns'
@@ -20,16 +22,15 @@ import type { MealType } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Food log' }
 
-/** Date navigation — server component renders links, no client JS needed */
+/** Date navigation — server component, uses Links, no client JS */
 function DateNav({ date }: { date: string }) {
   const current = parseISO(date)
   const prev = format(addDays(current, -1), 'yyyy-MM-dd')
   const next = format(addDays(current, 1), 'yyyy-MM-dd')
   const isCurrentToday = isToday(current)
-  const isNextFuture = isFuture(addDays(current, 1)) && !isToday(addDays(current, 1))
-  const today = todayISO()
+  const isNextFuture   = isFuture(addDays(current, 1)) && !isToday(addDays(current, 1))
   const oldDate = !isCurrentToday && Math.abs(
-    (current.getTime() - new Date().getTime()) / 86400000
+    (current.getTime() - new Date().getTime()) / 86_400_000
   ) > 7
 
   return (
@@ -76,12 +77,15 @@ export default async function FoodPage({
   searchParams: { date?: string }
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const date = searchParams.date ?? todayISO()
+  const date    = searchParams.date ?? todayISO()
+  const todayStr = todayISO()
 
-  // Parallel fetch
+  // Parallel fetch: all data needed for the food log page
   const [profile, logs, savedMeals, target] = await Promise.all([
     fetchUserProfile(supabase, user.id),
     fetchFoodLogsForDate(supabase, user.id, date),
@@ -91,7 +95,17 @@ export default async function FoodPage({
 
   if (!profile) redirect('/onboarding')
 
-  const totals = computeDailyTotals(logs, date)
+  // Phase 1F: nutrition coaching summary
+  // Only fetched when viewing today — the panel is anchored to the current week
+  // and today’s logs are needed to compute caloriesToday / proteinToday.
+  const isViewingToday = date === todayStr
+  const nutritionSummary = isViewingToday
+    ? await fetchNutritionCoachSummary(
+        supabase, user.id, todayStr, target, logs, profile.main_goal
+      )
+    : null
+
+  const totals  = computeDailyTotals(logs, date)
   const nowHour = new Date().getHours()
   const progress = target ? computeNutritionProgress(totals, target, nowHour) : null
 
@@ -100,18 +114,20 @@ export default async function FoodPage({
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Food log</h1>
-        <Link
-          href="/food/saved"
-          className="text-xs text-primary hover:underline"
-        >
+        <Link href="/food/saved" className="text-xs text-primary hover:underline">
           Saved meals →
         </Link>
       </div>
 
+      {/* Phase 1F: coaching panel (today only, hidden until enough data) */}
+      {nutritionSummary && (
+        <NutritionCoachPanel summary={nutritionSummary} target={target} />
+      )}
+
       {/* Date navigation */}
       <DateNav date={date} />
 
-      {/* Daily progress */}
+      {/* Daily macro progress */}
       <DailyMacroSummary
         progress={progress}
         target={target}
@@ -124,7 +140,7 @@ export default async function FoodPage({
           key={value}
           mealType={value as MealType}
           label={label}
-          entries={logs.filter(l => l.meal_type === value)}
+          entries={logs.filter((l) => l.meal_type === value)}
           date={date}
         />
       ))}
