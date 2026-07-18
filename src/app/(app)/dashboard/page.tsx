@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserProfile,
@@ -65,11 +66,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">
-          Good {getTimeOfDay()}, {profile.display_name.split(' ')[0]}
-        </h1>
-        <p className="text-sm text-muted-foreground">{todayLabel}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">
+            Good {getTimeOfDay()}, {profile.display_name.split(' ')[0]}
+          </h1>
+          <p className="text-sm text-muted-foreground">{todayLabel}</p>
+        </div>
+        <Link
+          href="/check-in"
+          className="text-xs text-primary hover:underline mt-1 flex-shrink-0"
+        >
+          Weekly check-in →
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
