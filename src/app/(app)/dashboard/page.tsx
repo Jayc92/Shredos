@@ -76,12 +76,14 @@ export default async function DashboardPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{todayLabel}</p>
         </div>
-        <Link
-          href="/check-in"
-          className="text-xs text-primary hover:underline mt-1 flex-shrink-0"
-        >
-          Weekly check-in →
-        </Link>
+        <div className="flex flex-col items-end gap-1 mt-1 flex-shrink-0">
+          <Link href="/check-in" className="text-xs text-primary hover:underline">
+            Weekly check-in →
+          </Link>
+          <Link href="/coach" className="text-xs text-primary hover:underline">
+            Coach actions →
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
