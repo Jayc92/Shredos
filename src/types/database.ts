@@ -370,3 +370,17 @@ export interface WorkoutRoutineExerciseWithDetails extends WorkoutRoutineExercis
 export interface WorkoutRoutineWithExercises extends WorkoutRoutine {
   workout_routine_exercises: WorkoutRoutineExerciseWithDetails[]
 }
+
+
+// ============================================================
+// Phase 1H — daily activity/steps logging
+// ============================================================
+export interface DailyActivityLog {
+  id: string
+  user_id: string
+  logged_date: string
+  steps: number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}

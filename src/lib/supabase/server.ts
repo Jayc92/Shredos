@@ -416,3 +416,67 @@ export async function fetchRoutineCount(
     .eq('is_active', true)
   return count ?? 0
 }
+
+
+// ============================================================
+// Phase 1H — daily activity/steps logging
+// ============================================================
+import type { DailyActivityLog } from '@/types/database'
+
+export async function fetchActivityLogForDate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  date: string
+): Promise<DailyActivityLog | null> {
+  const { data } = await supabase
+    .from('daily_activity_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('logged_date', date)
+    .maybeSingle()
+  return data ?? null
+}
+
+export async function fetchActivityLogsForRange(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<DailyActivityLog[]> {
+  const { data } = await supabase
+    .from('daily_activity_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('logged_date', startDate)
+    .lte('logged_date', endDate)
+    .order('logged_date', { ascending: false })
+  return data ?? []
+}
+
+export async function upsertActivityLogForDate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  date: string,
+  steps: number,
+  notes?: string | null
+): Promise<DailyActivityLog> {
+  const { data, error } = await supabase
+    .from('daily_activity_logs')
+    .upsert(
+      {
+        user_id: userId,
+        logged_date: date,
+        steps,
+        notes: notes ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,logged_date' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}

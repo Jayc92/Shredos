@@ -36,7 +36,8 @@ export default async function CheckInPage() {
     today,
     target,
     profile.main_goal,
-    profile.fasting_enabled
+    profile.fasting_enabled,
+    profile.step_goal
   )
 
   const weekStartDate = parseISO(review.weekStart)
@@ -291,6 +292,42 @@ export default async function CheckInPage() {
                   · {review.avgFastHours}h avg
                 </span>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Activity (Phase 1H) — informational only, own independent empty
+          state, not gated on hasAnyData (steps aren’t part of that flag) */}
+      {review.stepGoal !== null && (
+        <div className="shred-card space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Activity</h2>
+          {review.stepLoggedDays === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No steps logged this week yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {review.stepLoggedDays}/7
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
+              </div>
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {review.avgStepsLogged !== null
+                    ? review.avgStepsLogged.toLocaleString()
+                    : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">avg steps</p>
+              </div>
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {review.stepGoalDaysHit !== null ? review.stepGoalDaysHit : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">goal days</p>
+              </div>
             </div>
           )}
         </div>

@@ -10,6 +10,7 @@ import {
   fetchFastingLogsThisWeek,
   fetchFoodLogsForDate,
   fetchWorkoutWeekStats,
+  fetchActivityLogForDate,
 } from '@/lib/supabase/server'
 import { WeightCard } from '@/components/dashboard/WeightCard'
 import { NutritionCard } from '@/components/dashboard/NutritionCard'
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
 
   const today = todayISO()
 
-  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs, workoutStats, coachSummary] =
+  const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs, workoutStats, coachSummary, todayActivityLog] =
     await Promise.all([
       fetchUserProfile(supabase, user.id),
       fetchRecentWeighIns(supabase, user.id, 20),
@@ -48,6 +49,8 @@ export default async function DashboardPage() {
       fetchFoodLogsForDate(supabase, user.id, today),
       fetchWorkoutWeekStats(supabase, user.id),
       fetchCoachSummary(supabase, user.id, today),
+      // Phase 1H: today's step log for the StepsCard
+      fetchActivityLogForDate(supabase, user.id, today),
     ])
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
@@ -94,7 +97,7 @@ export default async function DashboardPage() {
           weekStats={fastingStats}
           fastingEnabled={profile.fasting_enabled}
         />
-        <StepsCard stepGoal={profile.step_goal} />
+        <StepsCard stepGoal={profile.step_goal} todayLog={todayActivityLog} />
         <WorkoutCard stats={workoutStats} />
         {/* Phase 1E: CoachCard replaces static CoachAlertsCard placeholder */}
         <CoachCard summary={coachSummary} />

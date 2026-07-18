@@ -16,6 +16,7 @@ import {
   X,
   Dumbbell,
   CalendarCheck,
+  Footprints,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/weigh-in',   label: 'Weigh-in',   icon: Scale },
   { href: '/workouts',   label: 'Workouts',   icon: Dumbbell },
   { href: '/food',       label: 'Food',       icon: UtensilsCrossed },
+  { href: '/activity',   label: 'Activity',   icon: Footprints },
   { href: '/nutrition',  label: 'Nutrition',  icon: UtensilsCrossed },
   { href: '/fasting',    label: 'Fasting',    icon: Timer },
   { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },

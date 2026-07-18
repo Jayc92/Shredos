@@ -61,6 +61,12 @@ export interface WeeklyReviewSummary {
   fastsCompletedThisWeek:  number
   avgFastHours:            number | null
 
+  // Phase 1H: activity/steps (informational only, does not affect coaching)
+  stepGoal:        number | null
+  stepLoggedDays:  number
+  avgStepsLogged:  number | null
+  stepGoalDaysHit: number | null
+
   primaryFocus:  string | null
   weekBriefText: string | null
 
@@ -99,7 +105,9 @@ function buildPrimaryFocus(
   foodLoggedDays: number,
   proteinStatus: ProteinStatus,
   sessionsCompleted: number,
-  calorieTrend: CalorieTrend
+  calorieTrend: CalorieTrend,
+  stepGoal: number | null,
+  stepLoggedDays: number
 ): string | null {
   if (daysElapsed < 3) return null
 
@@ -124,6 +132,11 @@ function buildPrimaryFocus(
   }
   if (isCutting && calorieTrend === 'above' && foodLoggedDays >= 4) {
     return 'Calories have been above target this week — aim to stay closer.'
+  }
+  // Phase 1H: steps are the lowest-priority nudge — only surfaces after
+  // every higher-priority weigh-in/food/protein/workout/calorie check passes
+  if (stepGoal && stepLoggedDays < 4 && daysElapsed >= 5) {
+    return 'Log steps at least 4 days this week for a fuller picture.'
   }
   if (
     sessionsCompleted >= 3 &&
@@ -174,7 +187,8 @@ export async function fetchWeeklyReview(
   todayStr: string,
   target: NutritionTarget | null,
   userGoal: string | null,
-  fastingEnabled: boolean
+  fastingEnabled: boolean,
+  stepGoal: number | null
 ): Promise<WeeklyReviewSummary> {
   const today     = parseISO(todayStr)
   const weekStart = format(startOfISOWeek(today), 'yyyy-MM-dd')
@@ -191,7 +205,7 @@ export async function fetchWeeklyReview(
   )
 
   // ── Run queries in parallel ─────────────────────────────────────────────
-  const [metricsRes, foodRes, sessionRes, fastingRes] = await Promise.all([
+  const [metricsRes, foodRes, sessionRes, fastingRes, activityRes] = await Promise.all([
     supabase
       .from('body_metrics')
       .select('logged_date, weight_kg')
@@ -236,12 +250,21 @@ export async function fetchWeeklyReview(
           .gte('ended_at', `${weekStart}T00:00:00`)
           .lte('ended_at', `${queryEnd}T23:59:59.999`)
       : Promise.resolve({ data: [] }),
+
+    // Phase 1H: informational only — does not affect coaching in any way
+    supabase
+      .from('daily_activity_logs')
+      .select('logged_date, steps')
+      .eq('user_id', userId)
+      .gte('logged_date', weekStart)
+      .lte('logged_date', queryEnd),
   ])
 
-  const allMetrics = metricsRes.data ?? []
-  const foodLogs   = foodRes.data ?? []
-  const sessions   = sessionRes.data ?? []
-  const fasts      = fastingRes.data ?? []
+  const allMetrics  = metricsRes.data ?? []
+  const foodLogs    = foodRes.data ?? []
+  const sessions    = sessionRes.data ?? []
+  const fasts       = fastingRes.data ?? []
+  const activityLogs: Array<{ logged_date: string; steps: number }> = activityRes.data ?? []
 
   // ── Weight ───────────────────────────────────────────────────────────────
   const thisWeekMetrics = allMetrics.filter(
@@ -315,6 +338,18 @@ export async function fetchWeeklyReview(
       Math.round((totalMins / fastsCompletedThisWeek / 60) * 10) / 10
   }
 
+  // ── Activity (Phase 1H, informational only) ────────────────────────────
+  const stepLoggedDays = activityLogs.length
+  let avgStepsLogged: number | null = null
+  if (stepLoggedDays > 0) {
+    avgStepsLogged = Math.round(
+      activityLogs.reduce((s, l) => s + l.steps, 0) / stepLoggedDays
+    )
+  }
+  const stepGoalDaysHit = stepGoal
+    ? activityLogs.filter((l) => l.steps >= stepGoal).length
+    : null
+
   // ── Coaching output ───────────────────────────────────────────────────────
   const hasAnyData =
     weighInsThisWeek > 0 ||
@@ -325,7 +360,8 @@ export async function fetchWeeklyReview(
 
   const primaryFocus = buildPrimaryFocus(
     daysElapsed, userGoal, weighInsThisWeek, foodLoggedDays,
-    proteinStatus, sessionsCompleted, calorieTrend
+    proteinStatus, sessionsCompleted, calorieTrend,
+    stepGoal, stepLoggedDays
   )
   const weekBriefText = buildWeekBriefText(
     sessionsCompleted, foodLoggedDays, avgCaloriesLogged, weeklyChangeLbs
@@ -355,6 +391,10 @@ export async function fetchWeeklyReview(
     fastingEnabled,
     fastsCompletedThisWeek,
     avgFastHours,
+    stepGoal,
+    stepLoggedDays,
+    avgStepsLogged,
+    stepGoalDaysHit,
     primaryFocus,
     weekBriefText,
     userGoal,
