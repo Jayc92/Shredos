@@ -41,8 +41,16 @@ export default async function CheckInPage() {
 
   const weekStartDate = parseISO(review.weekStart)
   const weekEndDate   = parseISO(review.weekEnd)
-  const startLabel    = format(weekStartDate, 'MMM d')
-  const endLabel      = format(weekEndDate, 'd')
+  const sameMonth = format(weekStartDate, 'yyyy-MM') === format(weekEndDate, 'yyyy-MM')
+  const sameYear  = format(weekStartDate, 'yyyy') === format(weekEndDate, 'yyyy')
+  const startLabel = format(weekStartDate, sameYear ? 'MMM d' : 'MMM d, yyyy')
+  // End label always includes the month when the week crosses a month
+  // boundary (e.g. "Jul 28–Aug 3"), and the year when it crosses a year
+  // boundary (e.g. "Dec 30–Jan 5, 2027").
+  const endLabel = format(
+    weekEndDate,
+    sameMonth ? 'd' : sameYear ? 'MMM d' : 'MMM d, yyyy'
+  )
 
   const weightLbs =
     review.latestWeightKg !== null
@@ -67,6 +75,11 @@ export default async function CheckInPage() {
         {review.daysElapsed < 3 && (
           <p className="text-xs text-muted-foreground mt-1">
             Week is just getting started — check back after a few more days.
+          </p>
+        )}
+        {review.weekBriefText && review.daysElapsed >= 3 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {review.weekBriefText}
           </p>
         )}
       </div>
@@ -135,7 +148,11 @@ export default async function CheckInPage() {
         </div>
       )}
 
-      {/* Nutrition */}
+      {/* Nutrition — gated like Weight: suppressed only when the whole
+          week is empty, to avoid repeating the general empty-state banner.
+          Still shows its own empty message when some OTHER data exists
+          this week (e.g. workouts logged but no food). */}
+      {review.hasAnyData && (
       <div className="shred-card space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
         {review.foodLoggedDays === 0 ? (
@@ -207,8 +224,10 @@ export default async function CheckInPage() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Training */}
+      {/* Training — same gating rationale as Nutrition above */}
+      {review.hasAnyData && (
       <div className="shred-card space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Training</h2>
         {review.sessionsCompleted === 0 && !review.hasActiveSession ? (
@@ -251,6 +270,7 @@ export default async function CheckInPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Fasting (only when profile.fasting_enabled) */}
       {review.fastingEnabled && (

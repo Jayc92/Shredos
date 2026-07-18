@@ -14,19 +14,21 @@ import {
   LogOut,
   Menu,
   X,
-  Dumbbell
+  Dumbbell,
+  CalendarCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/weigh-in', label: 'Weigh-in', icon: Scale },
-  { href: '/workouts', label: 'Workouts', icon: Dumbbell },
-  { href: '/food', label: 'Food', icon: UtensilsCrossed },
-  { href: '/nutrition', label: 'Nutrition', icon: UtensilsCrossed },
-  { href: '/fasting', label: 'Fasting', icon: Timer },
-  { href: '/decisions', label: 'Decisions', icon: ClipboardList },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/weigh-in',   label: 'Weigh-in',   icon: Scale },
+  { href: '/workouts',   label: 'Workouts',   icon: Dumbbell },
+  { href: '/food',       label: 'Food',       icon: UtensilsCrossed },
+  { href: '/nutrition',  label: 'Nutrition',  icon: UtensilsCrossed },
+  { href: '/fasting',    label: 'Fasting',    icon: Timer },
+  { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },
+  { href: '/check-in',   label: 'Check-in',   icon: CalendarCheck },
+  { href: '/profile',    label: 'Profile',    icon: User },
 ] as const
 
 interface TopBarProps {

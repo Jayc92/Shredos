@@ -15,10 +15,13 @@ import {
   format,
 } from 'date-fns'
 import type { NutritionTarget } from '@/types/database'
-import { kgToLbs } from '@/lib/units'
 
-// ── Thresholds (consistent with Phase 1F nutrition-coach.ts) ────────
-
+// ── Thresholds ───────────────────────────────────────────────────
+// NOTE: these intentionally mirror the constants in nutrition-coach.ts
+// (PROTEIN_MEETING_THRESHOLD, PROTEIN_CLOSE_THRESHOLD, CALORIE_ON_TRACK_RANGE,
+// CALORIE_SUGGESTION_GOALS). Kept as separate local copies rather than a shared
+// import to avoid a cross-module refactor in this pass. If Phase 1F's
+// thresholds change, update both files together.
 const PROTEIN_MEETING_THRESHOLD = 0.90
 const PROTEIN_CLOSE_THRESHOLD   = 0.80
 const CALORIE_ON_TRACK_RANGE    = 0.10
@@ -220,14 +223,18 @@ export async function fetchWeeklyReview(
       .in('status', ['completed', 'in_progress'])
       .order('workout_date', { ascending: true }),
 
+    // Filtered by ended_at (not started_at) so a fast that starts the prior
+    // week and completes this week is counted in the week it finished.
+    // ended_at IS NOT NULL already guarantees only completed fasts qualify;
+    // an active/incomplete fast has no ended_at and is correctly excluded.
     fastingEnabled
       ? supabase
           .from('fasting_logs')
           .select('started_at, ended_at, duration_minutes')
           .eq('user_id', userId)
-          .gte('started_at', `${weekStart}T00:00:00`)
-          .lte('started_at', `${queryEnd}T23:59:59.999`)
           .not('ended_at', 'is', null)
+          .gte('ended_at', `${weekStart}T00:00:00`)
+          .lte('ended_at', `${queryEnd}T23:59:59.999`)
       : Promise.resolve({ data: [] }),
   ])
 
