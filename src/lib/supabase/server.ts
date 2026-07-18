@@ -417,10 +417,14 @@ export async function fetchRoutineCount(
   return count ?? 0
 }
 
-
 // ============================================================
 // Phase 1H — daily activity/steps logging
 // ============================================================
+// NOTE: DailyActivityLog is imported here rather than merged into
+// this file's top-level type import because this block was added via
+// an additive patch. If server.ts already imports other types from
+// '@/types/database' near the top of the file, consider consolidating
+// this import into that statement the next time this file is edited.
 import type { DailyActivityLog } from '@/types/database'
 
 export async function fetchActivityLogForDate(

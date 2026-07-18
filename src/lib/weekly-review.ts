@@ -1,9 +1,13 @@
 // ============================================================
-// ShredOS — Weekly Review (Phase 1G)
+// ShredOS — Weekly Review (Phase 1G, extended in Phase 1H)
 // Current ISO-week check-in derived server-side from existing
 // tables. No schema changes. No writes. Read-only.
 //
-// Adds 3–4 bounded queries on the /check-in page only.
+// Phase 1G: weight, nutrition, training, fasting.
+// Phase 1H: added daily_activity_logs query + step metrics
+// (informational only — does not affect coaching or hasAnyData).
+//
+// Adds 4–5 bounded queries on the /check-in page only.
 // Zero impact on dashboard load.
 // ============================================================
 

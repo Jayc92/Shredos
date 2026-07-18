@@ -80,7 +80,7 @@ export default async function ActivityPage({
     fetchActivityLogsForRange(supabase, user.id, sevenDaysAgo, todayStr),
   ])
 
-  if (!profile) redirect('/onboarding')
+  if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
   const stepGoal = profile.step_goal ?? null
 

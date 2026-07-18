@@ -79,7 +79,7 @@ export function ActivityLogForm({ date, existingLog, isFutureDate }: ActivityLog
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       {isFutureDate ? (
-        <p className="text-xs text-muted-foreground">Can&rsquo;t log steps for a future date.</p>
+        <p className="text-xs text-muted-foreground">Can’t log steps for a future date.</p>
       ) : (
         <button
           type="button"
