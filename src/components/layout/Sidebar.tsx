@@ -13,6 +13,8 @@ import {
   Dumbbell,
   CalendarCheck,
   Footprints,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -23,8 +25,10 @@ const NAV_ITEMS = [
   { href: '/activity',   label: 'Activity',   icon: Footprints },
   { href: '/nutrition',  label: 'Nutrition',  icon: UtensilsCrossed },
   { href: '/fasting',    label: 'Fasting',    icon: Timer },
-  { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },
   { href: '/check-in',   label: 'Check-in',   icon: CalendarCheck },
+  { href: '/coach',      label: 'Coach',      icon: Sparkles },
+  { href: '/progress',   label: 'Progress',   icon: TrendingUp },
+  { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },
   { href: '/profile',    label: 'Profile',    icon: User },
 ] as const
 
