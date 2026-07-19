@@ -18,7 +18,7 @@
 
 import { fetchWeeklyReview } from '@/lib/weekly-review'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
-import type { NutritionTarget, UserProfile } from '@/types/database'
+import type { NutritionTarget, UserProfile, FoodLog } from '@/types/database'
 
 const CUTTING_GOALS = ['fat_loss', 'recomposition'] as const
 
@@ -309,7 +309,7 @@ export async function fetchCoachActions(
   todayStr: string,
   profile: UserProfile,
   target: NutritionTarget | null,
-  todayFoodLogs: Array<{ calories: number; protein_g: number }>
+  todayFoodLogs: FoodLog[]
 ): Promise<CoachActionsSummary> {
   const [weeklyReview, nutritionCoachSummary] = await Promise.all([
     fetchWeeklyReview(
