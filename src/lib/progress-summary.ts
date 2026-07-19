@@ -16,6 +16,7 @@
 // ============================================================
 
 import { subDays, format, parseISO, differenceInCalendarDays } from 'date-fns'
+import { kgToLbs } from '@/lib/units'
 import type { NutritionTarget } from '@/types/database'
 
 const WINDOW_DAYS = 28
@@ -123,7 +124,8 @@ function computeWeightProgress(
     }
   }
 
-  const deltaLbs = Math.round((latestWeightKg - firstWeightKg) * 2.20462 * 10) / 10
+  const deltaLbs =
+    Math.round((kgToLbs(latestWeightKg) - kgToLbs(firstWeightKg)) * 10) / 10
   let trend: WeightTrend = 'stable'
   if (Math.abs(deltaLbs) >= WEIGHT_STABLE_THRESHOLD_LBS) {
     trend = deltaLbs < 0 ? 'down' : 'up'
@@ -171,10 +173,12 @@ function computeNutritionProgress(
 }
 
 function computeTrainingProgress(
-  sessions: Array<{ workout_date: string; status: string }>,
+  // Already filtered to status='completed' by the Supabase query itself
+  // (see fetchProgressSummary) — no client-side re-filter needed here.
+  sessions: Array<{ workout_date: string }>,
   todayStr: string
 ): TrainingProgress {
-  const completed = sessions.filter((s) => s.status === 'completed')
+  const completed = sessions
   const completedCount = completed.length
   const avgPerWeek = Math.round((completedCount / 4) * 10) / 10
 
@@ -208,12 +212,14 @@ function computeActivityProgress(
   const loggedDays = activityLogs.length
   const avgSteps =
     loggedDays > 0
-      ? Math.round(activityLogs.reduce((s, l) => s + l.steps, 0) / loggedDays)
+      ? Math.round(activityLogs.reduce((s, l) => s + (l.steps ?? 0), 0) / loggedDays)
       : null
   const goalDays =
-    stepGoal !== null ? activityLogs.filter((l) => l.steps >= stepGoal).length : null
+    stepGoal !== null
+      ? activityLogs.filter((l) => (l.steps ?? 0) >= stepGoal).length
+      : null
   const bestDaySteps =
-    loggedDays > 0 ? Math.max(...activityLogs.map((l) => l.steps)) : null
+    loggedDays > 0 ? Math.max(...activityLogs.map((l) => l.steps ?? 0)) : null
 
   return { loggedDays, avgSteps, goalDays, bestDaySteps }
 }
@@ -307,7 +313,7 @@ export async function fetchProgressSummary(
 
     supabase
       .from('workout_sessions')
-      .select('workout_date, status')
+      .select('workout_date')
       .eq('user_id', userId)
       .gte('workout_date', windowStart)
       .lte('workout_date', windowEnd)
