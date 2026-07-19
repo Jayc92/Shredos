@@ -32,7 +32,7 @@ export type ActionType =
   | 'complete_workout'
   | 'keep_calories_steady'
   | 'consider_calorie_decrease'
-  | 'consider_calorie_increase'
+  | 'consider_calorie_increase' // reserved for a future muscle_gain-focused pass; no builder yet
   | 'maintain_current_plan'
   | 'recovery_focus'
 

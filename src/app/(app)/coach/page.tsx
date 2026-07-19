@@ -30,7 +30,11 @@ function ActionCard({
   isPrimary: boolean
 }) {
   return (
-    <div className={`shred-card space-y-2.5 ${isPrimary ? '' : ''}`}>
+    <div
+      className={`shred-card space-y-2.5 ${
+        isPrimary ? 'border-primary/30' : ''
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground">
           {CATEGORY_LABELS[action.category] ?? action.category}
