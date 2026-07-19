@@ -342,6 +342,17 @@ export default async function CheckInPage() {
           </p>
         </div>
       )}
+
+      {/* Bottom links (new for Phase 1J — this page had no bottom link
+          row before; added to mirror /coach's existing pattern) */}
+      <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
+        <Link href="/coach" className="text-xs text-primary hover:underline">
+          Coach actions →
+        </Link>
+        <Link href="/progress" className="text-xs text-primary hover:underline">
+          Progress →
+        </Link>
+      </div>
     </div>
   )
 }

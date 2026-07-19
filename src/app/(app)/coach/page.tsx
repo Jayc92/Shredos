@@ -131,9 +131,12 @@ export default async function CoachPage() {
         </div>
       )}
 
-      <div className="pt-2 flex items-center justify-center gap-4">
+      <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
         <Link href="/check-in" className="text-xs text-primary hover:underline">
           Weekly check-in →
+        </Link>
+        <Link href="/progress" className="text-xs text-primary hover:underline">
+          Progress →
         </Link>
         <Link href="/decisions" className="text-xs text-primary hover:underline">
           Decisions →
