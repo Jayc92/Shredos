@@ -13,11 +13,37 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json() as Partial<DecisionLogInsert>
 
+  const decisionType = body.decision_type ?? 'unknown'
+  const createdBy = body.created_by ?? 'system'
+
+  // Phase 1K: prevent duplicate suggested coach decisions of the same
+  // type piling up from repeated "Record this decision" clicks. Only
+  // applies when created_by === 'coach' — user/system-created decisions
+  // are unaffected. Scoped to status === 'suggested' specifically: once
+  // a matching decision is accepted or dismissed (status changes away
+  // from 'suggested'), this guard stops matching and a fresh suggestion
+  // can be recorded again.
+  if (createdBy === 'coach') {
+    const { data: existing } = await supabase
+      .from('decision_logs')
+      .select()
+      .eq('user_id', user.id)
+      .eq('decision_type', decisionType)
+      .eq('created_by', 'coach')
+      .eq('status', 'suggested')
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({ data: existing, duplicate: true }, { status: 200 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('decision_logs')
     .insert({
       user_id: user.id,
-      decision_type: body.decision_type ?? 'unknown',
+      decision_type: decisionType,
       decision_title: body.decision_title ?? '',
       decision_summary: body.decision_summary ?? '',
       reason: body.reason ?? '',
@@ -25,7 +51,7 @@ export async function POST(request: NextRequest) {
       previous_value: body.previous_value ?? null,
       new_value: body.new_value ?? null,
       status: body.status ?? 'suggested',
-      created_by: body.created_by ?? 'system',
+      created_by: createdBy,
       applied_at: body.applied_at ?? null,
       notes: body.notes ?? null,
     })

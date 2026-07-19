@@ -3,34 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import {
-  LayoutDashboard,
-  Scale,
-  UtensilsCrossed,
-  Timer,
-  ClipboardList,
-  User,
-  Dumbbell,
-  CalendarCheck,
-  Footprints,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react'
-
-const NAV_ITEMS = [
-  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { href: '/weigh-in',   label: 'Weigh-in',   icon: Scale },
-  { href: '/workouts',   label: 'Workouts',   icon: Dumbbell },
-  { href: '/food',       label: 'Food',       icon: UtensilsCrossed },
-  { href: '/activity',   label: 'Activity',   icon: Footprints },
-  { href: '/nutrition',  label: 'Nutrition',  icon: UtensilsCrossed },
-  { href: '/fasting',    label: 'Fasting',    icon: Timer },
-  { href: '/check-in',   label: 'Check-in',   icon: CalendarCheck },
-  { href: '/coach',      label: 'Coach',      icon: Sparkles },
-  { href: '/progress',   label: 'Progress',   icon: TrendingUp },
-  { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },
-  { href: '/profile',    label: 'Profile',    icon: User },
-] as const
+import { NAV_ITEMS } from '@/components/layout/nav-items'
 
 interface SidebarProps {
   className?: string

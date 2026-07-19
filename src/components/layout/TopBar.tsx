@@ -4,38 +4,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import {
-  LayoutDashboard,
-  Scale,
-  UtensilsCrossed,
-  Timer,
-  ClipboardList,
-  User,
-  LogOut,
-  Menu,
-  X,
-  Dumbbell,
-  CalendarCheck,
-  Footprints,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react'
+import { LogOut, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-const NAV_ITEMS = [
-  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { href: '/weigh-in',   label: 'Weigh-in',   icon: Scale },
-  { href: '/workouts',   label: 'Workouts',   icon: Dumbbell },
-  { href: '/food',       label: 'Food',       icon: UtensilsCrossed },
-  { href: '/activity',   label: 'Activity',   icon: Footprints },
-  { href: '/nutrition',  label: 'Nutrition',  icon: UtensilsCrossed },
-  { href: '/fasting',    label: 'Fasting',    icon: Timer },
-  { href: '/check-in',   label: 'Check-in',   icon: CalendarCheck },
-  { href: '/coach',      label: 'Coach',      icon: Sparkles },
-  { href: '/progress',   label: 'Progress',   icon: TrendingUp },
-  { href: '/decisions',  label: 'Decisions',  icon: ClipboardList },
-  { href: '/profile',    label: 'Profile',    icon: User },
-] as const
+import { NAV_ITEMS } from '@/components/layout/nav-items'
 
 interface TopBarProps {
   displayName?: string
@@ -47,7 +18,10 @@ export function TopBar({ displayName }: TopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
 
-  const currentPage = NAV_ITEMS.find((item) => pathname.startsWith(item.href))?.label ?? 'ShredOS'
+  const currentPage =
+    NAV_ITEMS.find(
+      (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+    )?.label ?? 'ShredOS'
 
   async function handleSignOut() {
     setSigningOut(true)

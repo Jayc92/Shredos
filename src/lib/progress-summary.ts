@@ -25,6 +25,11 @@ const WINDOW_DAYS = 28
 // constant. Not imported from nutrition-coach.ts: that file's
 // thresholds gate calorie/protein *coaching suggestions*, while this
 // is a plain historical count with no suggestion attached.
+// Phase 1K: also NOT centralized into src/lib/coach-constants.ts —
+// PROTEIN_MEETING_THRESHOLD there is the same number (0.9) by
+// coincidence, but gates a coaching suggestion over a 7-day window,
+// not this file's factual 28-day count. Same-looking number,
+// different domain rule — left local on purpose.
 const PROTEIN_HIT_RATIO = 0.9
 
 // Nutrition logging confidence over the 28-day window

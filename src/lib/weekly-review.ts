@@ -19,17 +19,20 @@ import {
   format,
 } from 'date-fns'
 import type { NutritionTarget } from '@/types/database'
+import {
+  CUTTING_GOALS,
+  PROTEIN_MEETING_THRESHOLD,
+  PROTEIN_CLOSE_THRESHOLD,
+  CALORIE_ON_TRACK_RANGE,
+  MIN_RELIABLE_LOGGED_DAYS,
+} from '@/lib/coach-constants'
 
 // ── Thresholds ───────────────────────────────────────────────────
-// NOTE: these intentionally mirror the constants in nutrition-coach.ts
-// (PROTEIN_MEETING_THRESHOLD, PROTEIN_CLOSE_THRESHOLD, CALORIE_ON_TRACK_RANGE,
-// CALORIE_SUGGESTION_GOALS). Kept as separate local copies rather than a shared
-// import to avoid a cross-module refactor in this pass. If Phase 1F's
-// thresholds change, update both files together.
-const PROTEIN_MEETING_THRESHOLD = 0.90
-const PROTEIN_CLOSE_THRESHOLD   = 0.80
-const CALORIE_ON_TRACK_RANGE    = 0.10
-const CUTTING_GOALS = ['fat_loss', 'recomposition'] as const
+// Phase 1K: these previously mirrored nutrition-coach.ts's own local
+// copies (PROTEIN_MEETING_THRESHOLD, PROTEIN_CLOSE_THRESHOLD,
+// CALORIE_ON_TRACK_RANGE, CUTTING_GOALS) as separate literals. Now both
+// files import the same values from coach-constants.ts, so there's
+// nothing left to keep in sync by hand.
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -125,7 +128,7 @@ function buildPrimaryFocus(
   if (foodLoggedDays === 0 && daysElapsed >= 3) {
     return 'Start logging food to build your weekly picture.'
   }
-  if (foodLoggedDays < 4 && daysElapsed >= 5) {
+  if (foodLoggedDays < MIN_RELIABLE_LOGGED_DAYS && daysElapsed >= 5) {
     return 'Log food at least 4 days this week for reliable coaching insights.'
   }
   if (proteinStatus === 'low' && foodLoggedDays >= 3) {
@@ -139,7 +142,7 @@ function buildPrimaryFocus(
   }
   // Phase 1H: steps are the lowest-priority nudge — only surfaces after
   // every higher-priority weigh-in/food/protein/workout/calorie check passes
-  if (stepGoal && stepLoggedDays < 4 && daysElapsed >= 5) {
+  if (stepGoal && stepLoggedDays < MIN_RELIABLE_LOGGED_DAYS && daysElapsed >= 5) {
     return 'Log steps at least 4 days this week for a fuller picture.'
   }
   if (

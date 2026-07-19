@@ -18,9 +18,8 @@
 
 import { fetchWeeklyReview } from '@/lib/weekly-review'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
+import { CUTTING_GOALS, MIN_RELIABLE_LOGGED_DAYS } from '@/lib/coach-constants'
 import type { NutritionTarget, UserProfile, FoodLog } from '@/types/database'
-
-const CUTTING_GOALS = ['fat_loss', 'recomposition'] as const
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -236,7 +235,7 @@ export function buildCoachActions(
   // 2. No / poor food logging
   if (weeklyReview.foodLoggedDays === 0 && daysElapsed >= 3) {
     candidates.push(actionLogFood(weeklyReview.foodLoggedDays))
-  } else if (weeklyReview.foodLoggedDays < 4 && daysElapsed >= 5) {
+  } else if (weeklyReview.foodLoggedDays < MIN_RELIABLE_LOGGED_DAYS && daysElapsed >= 5) {
     candidates.push(actionLogFood(weeklyReview.foodLoggedDays))
   }
 
@@ -253,7 +252,7 @@ export function buildCoachActions(
   // 5. Steps consistency (only meaningful if a step goal exists)
   if (
     weeklyReview.stepGoal !== null &&
-    weeklyReview.stepLoggedDays < 4 &&
+    weeklyReview.stepLoggedDays < MIN_RELIABLE_LOGGED_DAYS &&
     daysElapsed >= 5
   ) {
     candidates.push(actionLogSteps(weeklyReview.stepLoggedDays))

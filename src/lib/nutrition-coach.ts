@@ -8,24 +8,24 @@
 
 import { differenceInDays, parseISO, subDays, format } from 'date-fns'
 import type { NutritionTarget, FoodLog } from '@/types/database'
+import {
+  CUTTING_GOALS,
+  PROTEIN_MEETING_THRESHOLD,
+  PROTEIN_CLOSE_THRESHOLD,
+  CALORIE_ON_TRACK_RANGE,
+  MIN_RELIABLE_LOGGED_DAYS,
+} from '@/lib/coach-constants'
 
 // ── Thresholds ───────────────────────────────────────────────────────────
 
-// Logged days needed to compute 7-day averages
-export const NUTRITION_MIN_LOGGED_DAYS = 4
+// Logged days needed to compute 7-day averages. Value now sourced from
+// coach-constants.ts (Phase 1K); re-exported under this name in case any
+// existing consumer imports NUTRITION_MIN_LOGGED_DAYS directly.
+export const NUTRITION_MIN_LOGGED_DAYS = MIN_RELIABLE_LOGGED_DAYS
 // Weigh-ins needed for a weight trend signal
 const NUTRITION_MIN_WEIGH_INS = 2
-// Goals eligible for calorie adjustment suggestions
-const CALORIE_SUGGESTION_GOALS = ['fat_loss', 'recomposition'] as const
 // Never suggest going below this calorie floor
 const MIN_CALORIES_FLOOR = 1200
-
-// Protein thresholds (fraction of daily target)
-const PROTEIN_MEETING_THRESHOLD = 0.90  // ≥90% = meeting
-const PROTEIN_CLOSE_THRESHOLD   = 0.80  // 80–89% = close, below = low
-
-// Calorie on-track band: ±10% of target
-const CALORIE_ON_TRACK_RANGE = 0.10
 
 // Weight trend thresholds (lbs/week)
 const WEIGHT_LOSING_THRESHOLD  = -0.1  // ≤ -0.1 lb/wk = losing
@@ -126,7 +126,7 @@ function buildPrimaryNudge(
     return 'Protein is slightly under target this week — one addition will close it.'
   }
   // Priority 3: calorie signal (goal-aware)
-  const isCuttingGoal = userGoal === 'fat_loss' || userGoal === 'recomposition'
+  const isCuttingGoal = CUTTING_GOALS.includes(userGoal as typeof CUTTING_GOALS[number])
   if (isCuttingGoal && calorieTrend === 'above') {
     return 'Calories have been running above target this week.'
   }
@@ -151,7 +151,7 @@ function buildCalorieSuggestion(
   // Gate 1: requires high confidence (6+ logged days)
   if (loggingConfidence !== 'high') return null
   // Gate 2: cutting goal only
-  if (!CALORIE_SUGGESTION_GOALS.includes(userGoal as typeof CALORIE_SUGGESTION_GOALS[number])) {
+  if (!CUTTING_GOALS.includes(userGoal as typeof CUTTING_GOALS[number])) {
     return null
   }
   // Gate 3: needs an average to base the suggestion on
