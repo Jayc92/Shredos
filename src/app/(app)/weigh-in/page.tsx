@@ -2,8 +2,11 @@ import { redirect } from 'next/navigation'
 import { createClient, fetchUserProfile, fetchRecentWeighIns } from '@/lib/supabase/server'
 import { WeighInForm } from '@/components/weigh-in/WeighInForm'
 import { WeighInHistory } from '@/components/weigh-in/WeighInHistory'
+import { WeighInSummary } from '@/components/weigh-in/WeighInSummary'
 import { getNextWeighInDate, getTrendConfidence } from '@/lib/weighIn'
-import { getDayName, formatDateShort } from '@/lib/dates'
+import { computeWeightProgress } from '@/lib/progress-summary'
+import { getDayName, formatDateShort, todayISO } from '@/lib/dates'
+import { subDays, format, parseISO } from 'date-fns'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weigh-in' }
@@ -31,6 +34,20 @@ export default async function WeighInPage() {
   )
 
   const confidence = getTrendConfidence(profile.preferred_weigh_in_cadence, weighIns.length)
+
+  // Phase 1L: 28-day summary, derived from the already-fetched weighIns
+  // array (no new query). computeWeightProgress is the exact same helper
+  // /progress uses for its own 4-week rollup — reused here rather than
+  // reimplementing the same trend math a third time.
+  const today = todayISO()
+  const windowStart = format(subDays(parseISO(today), 27), 'yyyy-MM-dd')
+  const last28DayMetrics = weighIns
+    .filter(
+      (w) => w.weight_kg !== null && w.logged_date >= windowStart && w.logged_date <= today
+    )
+    .map((w) => ({ logged_date: w.logged_date, weight_kg: w.weight_kg as number }))
+    .sort((a, b) => a.logged_date.localeCompare(b.logged_date))
+  const weightProgress = computeWeightProgress(last28DayMetrics)
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
@@ -62,7 +79,13 @@ export default async function WeighInPage() {
 
       <WeighInForm />
 
-      <WeighInHistory weighIns={weighIns} cadence={profile.preferred_weigh_in_cadence} />
+      <WeighInSummary summary={weightProgress} userGoal={profile.main_goal} />
+
+      <WeighInHistory
+        weighIns={weighIns}
+        cadence={profile.preferred_weigh_in_cadence}
+        userGoal={profile.main_goal}
+      />
     </div>
   )
 }

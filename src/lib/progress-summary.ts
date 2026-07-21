@@ -102,7 +102,7 @@ export interface ProgressSummary {
 
 // ── Pure helpers (no I/O) ─────────────────────────────────────────────
 
-function computeWeightProgress(
+export function computeWeightProgress(
   metrics: Array<{ logged_date: string; weight_kg: number }>
 ): WeightProgress {
   const weighInCount = metrics.length

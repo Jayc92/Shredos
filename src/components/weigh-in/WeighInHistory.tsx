@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { kgToLbs } from '@/lib/units'
-import { computeWeightChange, getTrendConfidence, confidenceLabel } from '@/lib/weighIn'
+import { computeWeightChange, getTrendConfidence, confidenceLabel, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import { formatDateShort } from '@/lib/dates'
 import type { BodyMetric, WeighInCadence } from '@/types/database'
 import { Trash2 } from 'lucide-react'
@@ -12,9 +12,10 @@ import { Trash2 } from 'lucide-react'
 interface WeighInHistoryProps {
   weighIns: BodyMetric[]
   cadence: WeighInCadence
+  userGoal: string | null
 }
 
-export function WeighInHistory({ weighIns, cadence }: WeighInHistoryProps) {
+export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const confidence = getTrendConfidence(cadence, weighIns.length)
@@ -58,6 +59,9 @@ export function WeighInHistory({ weighIns, cadence }: WeighInHistoryProps) {
             w.weight_kg && prev?.weight_kg
               ? computeWeightChange(w.weight_kg, prev.weight_kg)
               : null
+          const changeColor = change
+            ? getGoalAwareWeightChangeFraming(change.direction, userGoal).color
+            : null
           const lbs = w.weight_kg ? kgToLbs(w.weight_kg) : null
 
           return (
@@ -76,7 +80,7 @@ export function WeighInHistory({ weighIns, cadence }: WeighInHistoryProps) {
                   </p>
                 </div>
                 {change && (
-                  <span className={`text-xs font-medium ${change.color}`}>{change.label}</span>
+                  <span className={`text-xs font-medium ${changeColor}`}>{change.label}</span>
                 )}
               </div>
 

@@ -1,6 +1,6 @@
 import { Scale, TrendingDown, TrendingUp, Minus, Calendar } from 'lucide-react'
 import { kgToLbs, calculateBMI } from '@/lib/units'
-import { getTrendConfidence, confidenceLabel, computeWeightChange, getNextWeighInDate } from '@/lib/weighIn'
+import { getTrendConfidence, confidenceLabel, computeWeightChange, getNextWeighInDate, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import { formatDateShort } from '@/lib/dates'
 import { getDayName } from '@/lib/dates'
 import type { BodyMetric, UserProfile } from '@/types/database'
@@ -23,6 +23,9 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
     latest?.weight_kg && previous?.weight_kg
       ? computeWeightChange(latest.weight_kg, previous.weight_kg)
       : null
+  const changeColor = change
+    ? getGoalAwareWeightChangeFraming(change.direction, profile.main_goal).color
+    : null
 
   const lastDate = latest?.logged_date
     ? new Date(latest.logged_date + 'T00:00:00')
@@ -64,7 +67,7 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
             <span className="metric-value">{latestWeightLbs.toFixed(1)}</span>
             <span className="text-muted-foreground text-sm mb-1">lbs</span>
             {change && (
-              <div className={`flex items-center gap-1 mb-1 ${change.color}`}>
+              <div className={`flex items-center gap-1 mb-1 ${changeColor}`}>
                 <ChangeIcon className="w-3.5 h-3.5" />
                 <span className="text-sm font-medium">{change.label}</span>
               </div>

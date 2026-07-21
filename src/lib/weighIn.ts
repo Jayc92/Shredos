@@ -8,6 +8,14 @@
 import { addDays, addWeeks, nextDay, isAfter, startOfDay } from 'date-fns'
 import type { TrendConfidence } from '@/types/app'
 import type { WeighInCadence } from '@/types/database'
+import { kgToLbs } from '@/lib/units'
+import { CUTTING_GOALS } from '@/lib/coach-constants'
+
+// Goals where an upward weight trend is generally the expected/desired
+// direction. Kept local to this file rather than added to
+// coach-constants.ts — it's a weigh-in-display framing rule, not a
+// nutrition-coaching gate like CUTTING_GOALS.
+const GAINING_GOALS = ['muscle_gain', 'strength'] as const
 
 // ── Trend confidence ─────────────────────────────────────────────
 
@@ -123,7 +131,6 @@ export interface WeightChange {
   lbs: number
   direction: 'down' | 'up' | 'same'
   label: string   // e.g. "−1.2 lbs"
-  color: string   // Tailwind class
 }
 
 export function computeWeightChange(
@@ -131,7 +138,7 @@ export function computeWeightChange(
   previousKg: number
 ): WeightChange {
   const changeKg = latestKg - previousKg
-  const changeLbs = Math.round(changeKg * 2.20462 * 10) / 10
+  const changeLbs = kgToLbs(changeKg)
 
   const direction: WeightChange['direction'] =
     Math.abs(changeLbs) < 0.1 ? 'same' : changeKg < 0 ? 'down' : 'up'
@@ -139,13 +146,48 @@ export function computeWeightChange(
   const sign = changeKg < 0 ? '−' : '+'
   const label = direction === 'same' ? '±0 lbs' : `${sign}${Math.abs(changeLbs).toFixed(1)} lbs`
 
-  // For fat loss goals, down is good (green), up is warning (amber)
-  const color =
-    direction === 'down'
-      ? 'text-green-400'
-      : direction === 'up'
-      ? 'text-amber-400'
-      : 'text-muted-foreground'
+  return { kg: changeKg, lbs: changeLbs, direction, label }
+}
 
-  return { kg: changeKg, lbs: changeLbs, direction, label, color }
+// ── Goal-aware framing ───────────────────────────────────────────
+
+export interface WeightChangeFraming {
+  color: string   // Tailwind class
+  note: string    // short, non-judgmental trend descriptor
+}
+
+/**
+ * Frames a weight-change direction relative to the user's goal, without
+ * "good/bad" language:
+ *   - fat_loss / recomposition (CUTTING_GOALS): down = positive framing,
+ *     up = cautious framing — preserves the original green/amber choice.
+ *   - muscle_gain / strength (GAINING_GOALS): up = positive framing,
+ *     down = cautious (not shameful) framing — the inverse of cutting.
+ *   - maintenance / running / unknown: neutral regardless of direction.
+ *     No color implies a judgment either way.
+ */
+export function getGoalAwareWeightChangeFraming(
+  direction: WeightChange['direction'],
+  userGoal: string | null
+): WeightChangeFraming {
+  const isCutting = CUTTING_GOALS.includes(userGoal as typeof CUTTING_GOALS[number])
+  const isGaining = GAINING_GOALS.includes(userGoal as typeof GAINING_GOALS[number])
+
+  const noteFor = (d: WeightChange['direction']): string =>
+    d === 'down' ? 'Trending down' : d === 'up' ? 'Trending up' : 'Holding steady'
+
+  if (isCutting) {
+    if (direction === 'down') return { color: 'text-green-400', note: noteFor(direction) }
+    if (direction === 'up')   return { color: 'text-amber-400', note: noteFor(direction) }
+    return { color: 'text-muted-foreground', note: noteFor(direction) }
+  }
+
+  if (isGaining) {
+    if (direction === 'up')   return { color: 'text-green-400', note: noteFor(direction) }
+    if (direction === 'down') return { color: 'text-amber-400', note: noteFor(direction) }
+    return { color: 'text-muted-foreground', note: noteFor(direction) }
+  }
+
+  // maintenance / running / unknown goal — neutral regardless of direction
+  return { color: 'text-muted-foreground', note: noteFor(direction) }
 }
