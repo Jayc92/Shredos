@@ -54,6 +54,20 @@ export function formatHeightImperial(cm: number): string {
   return `${feet}'${inches}"`
 }
 
+// ── Circumference measurements (waist, chest, etc.) ─────────────
+// Distinct from the height helpers above: a single measurement value
+// (e.g. a 34.5" waist), not a compound feet+inches height.
+
+/** Convert centimetres to inches for a single circumference measurement */
+export function cmToInches(cm: number): number {
+  return Math.round((cm / CM_PER_INCH) * 10) / 10
+}
+
+/** Convert inches to centimetres for storage, for a single circumference measurement */
+export function inchesToCm(inches: number): number {
+  return Math.round(inches * CM_PER_INCH * 10) / 10
+}
+
 // ── BMI ──────────────────────────────────────────────────────────
 // NOTE: BMI is calculated here in the app. It is NOT a generated
 // database column because weight (body_metrics) and height

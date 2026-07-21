@@ -3,8 +3,10 @@ import { createClient, fetchUserProfile, fetchRecentWeighIns } from '@/lib/supab
 import { WeighInForm } from '@/components/weigh-in/WeighInForm'
 import { WeighInHistory } from '@/components/weigh-in/WeighInHistory'
 import { WeighInSummary } from '@/components/weigh-in/WeighInSummary'
+import { BodyMeasurementsSummary } from '@/components/weigh-in/BodyMeasurementsSummary'
 import { getNextWeighInDate, getTrendConfidence } from '@/lib/weighIn'
 import { computeWeightProgress } from '@/lib/progress-summary'
+import { cmToInches } from '@/lib/units'
 import { getDayName, formatDateShort, todayISO } from '@/lib/dates'
 import { subDays, format, parseISO } from 'date-fns'
 import type { Metadata } from 'next'
@@ -49,6 +51,42 @@ export default async function WeighInPage() {
     .sort((a, b) => a.logged_date.localeCompare(b.logged_date))
   const weightProgress = computeWeightProgress(last28DayMetrics)
 
+  // Phase 1M: waist summary, derived from the same already-fetched
+  // weighIns array and the same 28-day window computed above — no new
+  // query. Independently filtered on waist_cm, since a row can have
+  // weight without waist (waist is optional) or, in principle, be
+  // missing either field.
+  const allWaistEntries = weighIns
+    .filter((w) => w.waist_cm !== null)
+    .map((w) => ({ logged_date: w.logged_date, waist_cm: w.waist_cm as number }))
+    .sort((a, b) => a.logged_date.localeCompare(b.logged_date))
+
+  const waistEntriesLast28Days = allWaistEntries.filter(
+    (w) => w.logged_date >= windowStart && w.logged_date <= today
+  )
+
+  const totalWaistCount = allWaistEntries.length
+  const waistCountLast28Days = waistEntriesLast28Days.length
+
+  const latestWaistEntry = allWaistEntries[allWaistEntries.length - 1] ?? null
+  const previousWaistEntry =
+    allWaistEntries.length >= 2 ? allWaistEntries[allWaistEntries.length - 2] : null
+
+  const latestWaistIn = latestWaistEntry ? cmToInches(latestWaistEntry.waist_cm) : null
+  const deltaFromPreviousIn =
+    latestWaistEntry && previousWaistEntry
+      ? Math.round((cmToInches(latestWaistEntry.waist_cm) - cmToInches(previousWaistEntry.waist_cm)) * 10) / 10
+      : null
+
+  const first28DayWaistEntry = waistEntriesLast28Days[0] ?? null
+  const latest28DayWaistEntry = waistEntriesLast28Days[waistEntriesLast28Days.length - 1] ?? null
+  const delta28DayIn =
+    waistCountLast28Days >= 2 && first28DayWaistEntry && latest28DayWaistEntry
+      ? Math.round(
+          (cmToInches(latest28DayWaistEntry.waist_cm) - cmToInches(first28DayWaistEntry.waist_cm)) * 10
+        ) / 10
+      : null
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
       <div>
@@ -80,6 +118,14 @@ export default async function WeighInPage() {
       <WeighInForm />
 
       <WeighInSummary summary={weightProgress} userGoal={profile.main_goal} />
+
+      <BodyMeasurementsSummary
+        latestWaistIn={latestWaistIn}
+        deltaFromPreviousIn={deltaFromPreviousIn}
+        delta28DayIn={delta28DayIn}
+        totalWaistCount={totalWaistCount}
+        waistCountLast28Days={waistCountLast28Days}
+      />
 
       <WeighInHistory
         weighIns={weighIns}

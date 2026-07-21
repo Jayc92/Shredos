@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { lbsToKg } from '@/lib/units'
+import { lbsToKg, inchesToCm } from '@/lib/units'
 import { todayISO } from '@/lib/dates'
 
 interface WeighInFormProps {
@@ -15,6 +15,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
   const [weightLbs, setWeightLbs] = useState('')
   const [date, setDate] = useState(todayISO())
   const [bfPct, setBfPct] = useState('')
+  const [waistIn, setWaistIn] = useState('')
   const [notes, setNotes] = useState('')
   const [energy, setEnergy] = useState('')
   const [saving, setSaving] = useState(false)
@@ -53,6 +54,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
         logged_date: date,
         weight_kg: weightKg,
         bf_pct: bfPct ? parseFloat(bfPct) : null,
+        waist_cm: waistIn ? inchesToCm(parseFloat(waistIn)) : null,
         energy_1_5: energy ? parseInt(energy) : null,
         notes: notes || null,
       },
@@ -69,6 +71,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
     setSuccess(true)
     setWeightLbs('')
     setBfPct('')
+    setWaistIn('')
     setNotes('')
     setEnergy('')
     setDate(todayISO())
@@ -152,6 +155,26 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
             <option value="4">4 — Good</option>
             <option value="5">5 — Excellent</option>
           </select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-foreground">
+          Waist{' '}
+          <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+        </label>
+        <div className="relative">
+          <input
+            type="number"
+            value={waistIn}
+            onChange={(e) => setWaistIn(e.target.value)}
+            placeholder="34.0"
+            min="10"
+            max="80"
+            step="0.1"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">in</span>
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { kgToLbs } from '@/lib/units'
+import { kgToLbs, cmToInches } from '@/lib/units'
 import { computeWeightChange, getTrendConfidence, confidenceLabel, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import { formatDateShort } from '@/lib/dates'
 import type { BodyMetric, WeighInCadence } from '@/types/database'
@@ -77,6 +77,7 @@ export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryPr
                   <p className="text-xs text-muted-foreground">
                     {formatDateShort(w.logged_date + 'T00:00:00')}
                     {w.bf_pct ? ` · ${w.bf_pct}% BF` : ''}
+                    {w.waist_cm ? ` · ${cmToInches(w.waist_cm).toFixed(1)}" waist` : ''}
                   </p>
                 </div>
                 {change && (
