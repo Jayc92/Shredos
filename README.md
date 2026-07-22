@@ -4,6 +4,16 @@ Private performance coaching dashboard for fat loss, strength, and running.
 
 ---
 
+## Live deployment
+
+- **URL:** https://shredos-pi.vercel.app/
+- **Status:** private beta / buddy testing (Phase 1T) — not a public service
+- **Repo:** https://github.com/Jayc92/Shredos.git (private)
+
+Root `/` redirects to `/dashboard` (signed in) or `/login` (signed out).
+
+---
+
 ## Tech stack
 
 - **Next.js 14** — App Router, TypeScript, server components
@@ -32,6 +42,15 @@ NEXT_PUBLIC_APP_NAME=ShredOS
 
 Get your Supabase URL and anon key from:
 **supabase.com → your project → Settings → API**
+
+### Production (Vercel)
+
+`NEXT_PUBLIC_APP_URL` must match the real deployed URL
+(`https://shredos-pi.vercel.app`), not `localhost`. This value feeds
+directly into the magic-link and sign-up email redirect
+(`emailRedirectTo`) — if it's left at the `.env.example` default,
+confirmation emails sent to remote testers will redirect back to
+`localhost` and silently fail.
 
 ---
 
@@ -371,3 +390,91 @@ Work through this list before starting Phase 1B.
 - **No automated coaching logic** — `CoachAlertsCard` shows any `suggested` decisions but the system does not yet auto-generate recommendations from trend data. Decisions are generated manually on profile changes.
 - **No chart/trend visualization** — weight trend is text-only. Charts arrive in Phase 2A.
 - **BMI disclaimer is not shown** alongside BMI on all surfaces — add where BMI is displayed.
+
+---
+
+## Buddy tester script (Phase 1T)
+
+For testers on the live deployment. Work through in order.
+
+- [ ] Visit the live URL → redirects to `/login`
+- [ ] Create an account (password sign-up recommended over magic link —
+      Supabase's default email sender has low rate limits)
+- [ ] Confirm the "check your email to confirm" message appears
+- [ ] Confirm your email → click the link → land in onboarding (or
+      note if anything looks skipped/broken)
+- [ ] Complete onboarding → land on the dashboard
+- [ ] Sign out, then sign back in with password → confirm this also
+      routes correctly (not just the magic-link path)
+- [ ] Log a weigh-in → check the 28-day summary and history; optionally
+      try the waist field
+- [ ] Log food manually, try a saved meal, Quick Add, Recent foods, the
+      Quick drink log, and the nutrition label calculator
+- [ ] Start a workout, log some sets, try a saved routine
+- [ ] Log fasting: start a fast, watch the timer and projected end
+      time, end it, try the manual past-fast entry
+- [ ] Log steps (activity)
+- [ ] Visit weekly check-in, progress, coach actions (try recording a
+      decision), and decisions (try accepting/dismissing)
+- [ ] Try the nav — sidebar on desktop, drawer on mobile — confirm
+      every item works and highlights correctly
+- [ ] Try it on an actual phone, not just a resized desktop browser
+
+## Known issues for testers
+
+- UI is intentionally plain — a visual redesign is planned (see Roadmap
+  below)
+- The login page logo is a temporary placeholder
+- This is test data — expect resets; please don't log real personal
+  health information you'd want to keep
+- If a confirmation or magic-link email is slow to arrive, try password
+  sign-up/sign-in instead
+
+## Privacy & data notes
+
+- This is a private, invite-only deployment, not a public service
+- Test accounts and the developer's own account share one Supabase
+  project; RLS plus consistent per-user scoping in every server query
+  keep data separated
+- Please don't log sensitive personal information you wouldn't want
+  reset or seen during testing
+
+## Roadmap — Phase 2E / Phase UI-1: ForgeFit visual system + modular dashboard
+
+Status: planned, not started. Build only after buddy testing confirms
+core flows work. This is a full design-system phase (components,
+layout rules, spacing, tokens, mobile-first behavior) — not a cosmetic
+CSS-only patch.
+
+### 1. Naming / brand direction
+- Evaluate renaming the public-facing app from ShredOS to ForgeFit
+- ShredOS remains the internal/build codename until a decision is made
+- Preferred direction: ForgeFit feels more inclusive and polished than
+  "shred/get shredded"
+- Explore: ForgeFit, ForgeFit OS, ForgeFit Coach, ForgeFit Training
+
+### 2. Logo direction
+- Target: the supplied ForgeFit "F" mark, mint/green gradient
+- Replaces the temporary standalone "S" on the login page
+- Future scope: app icon, favicon, splash/social preview, in-app logo
+  usage
+
+### 3. UI design direction — north star
+- Dark charcoal/black glass background
+- Mint/green gradient accents
+- Rounded modular cards, premium fitness dashboard feel
+- Clean mobile-first bottom navigation
+- Soft glows, subtle borders, high-contrast typography
+- Widget-like data cards, not plain bordered boxes
+
+### 4. Modular/customizable Home dashboard
+- Users choose which widgets appear on Home
+- Users can reorder widgets
+- Widget size/layout options: full-width, half-width, compact,
+  hidden/off
+- Workout-only users can show just workout widgets; full-app users can
+  include workout, nutrition, weight trend, steps/activity, fasting,
+  progress, coach insights, weekly streak/consistency, and (later)
+  upcoming run/cardio
+- Goal: avoid feature noise by making Home opt-in per widget rather
+  than forcing every feature on every user

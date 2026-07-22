@@ -186,7 +186,7 @@ export default function LoginPage() {
           </form>
         )}
 
-        <p className="text-center text-xs text-muted-foreground">Private app — not a public service.</p>
+        <p className="text-center text-xs text-muted-foreground">Private beta — test data may be reset.</p>
       </div>
     </div>
   )
