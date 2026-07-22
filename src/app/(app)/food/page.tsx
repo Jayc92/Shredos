@@ -14,6 +14,7 @@ import { DailyMacroSummary } from '@/components/food/DailyMacroSummary'
 import { MealSection } from '@/components/food/MealSection'
 import { RecentFoodPanel } from '@/components/food/RecentFoodPanel'
 import { QuickDrinkLog } from '@/components/food/QuickDrinkLog'
+import { LabelCalculatorForm } from '@/components/food/LabelCalculatorForm'
 import { QuickAddPanel } from '@/components/food/QuickAddPanel'
 import { NutritionCoachPanel } from '@/components/nutrition/NutritionCoachPanel'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
@@ -170,6 +171,9 @@ export default async function FoodPage({
 
       {/* Quick drink log — one aggregate row, e.g. "7 Bud Lights" */}
       <QuickDrinkLog date={date} />
+
+      {/* Nutrition label calculator — per-serving label values x servings eaten */}
+      <LabelCalculatorForm date={date} />
 
       {/* Recent foods — repeat a previously-logged entry to the selected date */}
       <RecentFoodPanel recentFoods={recentFoods} date={date} />
