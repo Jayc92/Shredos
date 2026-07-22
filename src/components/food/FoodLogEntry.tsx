@@ -125,10 +125,11 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
                 key={value}
                 type="button"
                 onClick={() => setMealType(value)}
+                aria-pressed={mealType === value}
                 className={cn(
                   'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
                   mealType === value
-                    ? 'border-foreground bg-foreground text-background'
+                    ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
                     : 'border-border bg-background text-foreground hover:bg-muted'
                 )}
               >

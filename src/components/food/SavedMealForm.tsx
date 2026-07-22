@@ -127,10 +127,11 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
           <button
             type="button"
             onClick={() => setMealType('' as MealType)}
+            aria-pressed={!mealType}
             className={cn(
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
               !mealType
-                ? 'border-foreground bg-foreground text-background'
+                ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
                 : 'border-border bg-background text-foreground hover:bg-muted'
             )}
           >
@@ -141,10 +142,11 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
               key={value}
               type="button"
               onClick={() => setMealType(value)}
+              aria-pressed={mealType === value}
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 mealType === value
-                  ? 'border-foreground bg-foreground text-background'
+                  ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
                   : 'border-border bg-background text-foreground hover:bg-muted'
               )}
             >
