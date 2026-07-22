@@ -164,10 +164,11 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
               key={value}
               type="button"
               onClick={() => upd({ meal_type: value })}
+              aria-pressed={f.meal_type === value}
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 f.meal_type === value
-                  ? 'border-foreground bg-foreground text-background'
+                  ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
                   : 'border-border bg-background text-foreground hover:bg-muted'
               )}
             >

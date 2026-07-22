@@ -164,6 +164,31 @@ export async function fetchFoodLogsForDate(
   return data ?? []
 }
 
+/**
+ * Fetch recent food_logs for "repeat a recent food" UI (Phase 1N).
+ * Bounded by logged_date >= sinceDate and capped at `limit` raw rows,
+ * newest-created first. Deduplication down to distinct foods happens
+ * in the caller (page.tsx) — this helper returns raw rows only, same
+ * as every other fetch* helper in this file.
+ */
+export async function fetchRecentFoodLogs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  sinceDate: string,
+  limit = 60
+) {
+  const { data, error } = await supabase
+    .from('food_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('logged_date', sinceDate)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) console.error('fetchRecentFoodLogs error:', error)
+  return data ?? []
+}
+
 /** Fetch all saved meals, autopilot first then by use_count desc */
 export async function fetchSavedMeals(
   supabase: Awaited<ReturnType<typeof createClient>>,

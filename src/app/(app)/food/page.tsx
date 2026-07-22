@@ -5,20 +5,22 @@ import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserProfile,
   fetchFoodLogsForDate,
+  fetchRecentFoodLogs,
   fetchSavedMeals,
   fetchCurrentNutritionTarget,
 } from '@/lib/supabase/server'
 import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { DailyMacroSummary } from '@/components/food/DailyMacroSummary'
 import { MealSection } from '@/components/food/MealSection'
+import { RecentFoodPanel } from '@/components/food/RecentFoodPanel'
 import { QuickAddPanel } from '@/components/food/QuickAddPanel'
 import { NutritionCoachPanel } from '@/components/nutrition/NutritionCoachPanel'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import { MEAL_TYPES } from '@/lib/constants'
 import { todayISO } from '@/lib/dates'
-import { format, addDays, parseISO, isToday, isFuture } from 'date-fns'
+import { format, addDays, subDays, parseISO, isToday, isFuture } from 'date-fns'
 import type { Metadata } from 'next'
-import type { MealType } from '@/types/database'
+import type { FoodLog, MealType } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Food log' }
 
@@ -85,15 +87,35 @@ export default async function FoodPage({
   const date    = searchParams.date ?? todayISO()
   const todayStr = todayISO()
 
+  // Phase 1N: 14-day window for "recent foods", anchored to today (not the
+  // viewed date) — "recent" is an absolute recency concept independent of
+  // which date the user happens to be logging against.
+  const fourteenDaysAgo = format(subDays(parseISO(todayStr), 13), 'yyyy-MM-dd')
+
   // Parallel fetch: all data needed for the food log page
-  const [profile, logs, savedMeals, target] = await Promise.all([
+  const [profile, logs, recentFoodRows, savedMeals, target] = await Promise.all([
     fetchUserProfile(supabase, user.id),
     fetchFoodLogsForDate(supabase, user.id, date),
+    fetchRecentFoodLogs(supabase, user.id, fourteenDaysAgo, 60),
     fetchSavedMeals(supabase, user.id),
     fetchCurrentNutritionTarget(supabase, user.id),
   ])
 
   if (!profile) redirect('/onboarding')
+
+  // Phase 1N: dedupe recentFoodRows down to distinct foods (by trimmed,
+  // lowercased food_name). recentFoodRows is already ordered created_at
+  // desc, so the first occurrence encountered for a given name is the
+  // most recent one — no re-sorting needed. Capped to 10 distinct foods
+  // for display.
+  const recentFoodsByName = new Map<string, FoodLog>()
+  for (const row of recentFoodRows) {
+    const key = row.food_name.trim().toLowerCase()
+    if (!recentFoodsByName.has(key)) {
+      recentFoodsByName.set(key, row)
+    }
+  }
+  const recentFoods = Array.from(recentFoodsByName.values()).slice(0, 10)
 
   // Phase 1F: nutrition coaching summary
   // Only fetched when viewing today — the panel is anchored to the current week
@@ -144,6 +166,9 @@ export default async function FoodPage({
           date={date}
         />
       ))}
+
+      {/* Recent foods — repeat a previously-logged entry to the selected date */}
+      <RecentFoodPanel recentFoods={recentFoods} date={date} />
 
       {/* Quick add panel */}
       <QuickAddPanel savedMeals={savedMeals} date={date} />
