@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { startOfISOWeek } from 'date-fns'
 
 /**
  * Creates a Supabase client for use in server components, server actions,
@@ -132,9 +133,15 @@ export async function fetchFastingLogsThisWeek(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ) {
-  const weekStart = new Date()
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1) // Monday
-  weekStart.setHours(0, 0, 0, 0)
+  // Phase 1P: previously computed via manual Date arithmetic
+  // (weekStart.getDate() - weekStart.getDay() + 1), which silently
+  // returned tomorrow instead of last Monday whenever today was Sunday
+  // (getDay() === 0 broke the "+ 1" offset). Now uses the same
+  // startOfISOWeek helper weekly-review.ts already uses correctly for
+  // the same "this week" concept, so /fasting and /check-in agree on
+  // Sundays too. Same single query, same gte-only boundary, same
+  // return shape — only the boundary calculation changed.
+  const weekStart = startOfISOWeek(new Date())
 
   const { data, error } = await supabase
     .from('fasting_logs')

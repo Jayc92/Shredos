@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { addHours } from 'date-fns'
 import { getFastingDuration, formatDurationHMS, getCurrentMilestone, getNextMilestone } from '@/lib/fasting'
+import { formatTime } from '@/lib/dates'
 import type { FastingLog } from '@/types/database'
 
 interface FastingTimerProps {
@@ -31,6 +33,16 @@ export function FastingTimer({ fast }: FastingTimerProps) {
     ? Math.min(100, (mins / (fast.goal_hours * 60)) * 100)
     : null
 
+  const goalReached = fast.goal_hours !== null && durationHours >= fast.goal_hours
+
+  // Phase 1P: factual projected end-time, not a recommendation or claim.
+  // Only shown while there's still a goal to reach — once reached, the
+  // existing "✓ Reached!" indicator already covers it.
+  const projectedEndTime =
+    fast.goal_hours !== null && !goalReached
+      ? formatTime(addHours(new Date(fast.started_at), fast.goal_hours))
+      : null
+
   const nextMilestoneMinutesAway = nextMilestone
     ? Math.max(0, Math.round(nextMilestone.hours * 60 - mins))
     : null
@@ -46,9 +58,14 @@ export function FastingTimer({ fast }: FastingTimerProps) {
         {fast.goal_hours && (
           <p className="text-sm text-muted-foreground">
             Goal: {fast.goal_hours}h
-            {durationHours >= fast.goal_hours && (
+            {goalReached && (
               <span className="ml-2 text-green-400 font-medium">✓ Reached!</span>
             )}
+          </p>
+        )}
+        {projectedEndTime && (
+          <p className="text-sm text-muted-foreground">
+            Ends around {projectedEndTime}
           </p>
         )}
       </div>
