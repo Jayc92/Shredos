@@ -4,6 +4,19 @@ Private performance coaching dashboard for fat loss, strength, and running.
 
 ---
 
+## Current status (Phase 1U)
+
+This README was originally written for Phase 1A, and several of its
+sections (file tree, RLS policy summary, deferred features, and the
+Phase 1A testing checklist) still describe the app as it stood then.
+The app has since progressed through Phase 1T and is live for
+controlled buddy testing — see **Live deployment** below. Those older
+sections haven't been rewritten yet; treat them as historical context
+rather than current documentation until a full docs refresh happens
+(see **Watch list before wider testing** near the end of this file).
+
+---
+
 ## Live deployment
 
 - **URL:** https://shredos-pi.vercel.app/
@@ -420,6 +433,46 @@ For testers on the live deployment. Work through in order.
       every item works and highlights correctly
 - [ ] Try it on an actual phone, not just a resized desktop browser
 
+## Owner live QA checks (Phase 1U)
+
+Do these in addition to the Buddy tester script above before relying on
+buddy feedback. Use one browser session for your real account and a
+separate private/incognito window for a fresh test account, so neither
+session affects the other.
+
+### Onboarding gate (highest priority)
+- [ ] Sign up a fresh account with password (not magic link)
+- [ ] Confirm the email, click the link, note exactly where you land
+- [ ] Sign out, then sign back in with that same account's password
+      directly — before completing onboarding if possible — and confirm
+      you're routed to onboarding rather than a broken/incomplete
+      dashboard
+
+### Root redirect + session state
+- [ ] Fully signed out, visit `/` → confirm redirect to `/login`
+- [ ] Signed in, visit `/` → confirm redirect to `/dashboard`
+- [ ] Signed in, visit `/login` directly → confirm it bounces to
+      `/dashboard` rather than showing the login form
+
+### Data isolation (verify directly, don't assume)
+- [ ] In the Supabase dashboard, confirm RLS is enabled on `food_logs`,
+      `workout_sessions`, `saved_meals`, and `daily_activity_logs` —
+      not just the Phase 1A tables
+- [ ] As the fresh test account, log a weigh-in, a food entry, and a
+      workout — confirm none of your real account's historical data
+      appears anywhere (dashboard, history lists, progress, recent
+      foods)
+
+## Tester feedback template
+
+- **Device/browser:** (e.g. iPhone 14, Safari / Windows, Chrome)
+- **Account flow tested:** (e.g. fresh signup, existing login, magic link)
+- **Page/feature:** (e.g. /food — Quick drink log)
+- **What happened:**
+- **What you expected instead:**
+- **Screenshot or screen recording:** (attach if possible)
+- **Severity:** blocks me from testing / annoying but workable / cosmetic
+
 ## Known issues for testers
 
 - UI is intentionally plain — a visual redesign is planned (see Roadmap
@@ -438,6 +491,24 @@ For testers on the live deployment. Work through in order.
   keep data separated
 - Please don't log sensitive personal information you wouldn't want
   reset or seen during testing
+
+## Watch list before wider testing (Phase 1U)
+
+- **Password sign-in onboarding routing** — the password sign-in path
+  does not currently check onboarding completion the way the
+  magic-link callback does. Needs a live verification pass (see Owner
+  live QA checks above) before assuming it's fine.
+- **RLS coverage for post-Phase-1A tables** — `food_logs`,
+  `saved_meals`, `workout_sessions`, `workout_exercises`,
+  `workout_sets`, `workout_routines`, and `daily_activity_logs` have no
+  documented RLS status in this README. Needs a direct check in the
+  Supabase dashboard.
+- **README needs a full documentation refresh** — the Phase 1A-era
+  sections (file tree, RLS summary, deferred features, testing
+  checklist) are stale relative to the app's actual current state.
+  Deferred until after buddy testing settles.
+- **ForgeFit visual system / modular Home widgets** — already captured
+  in the Roadmap section below. Not part of this phase.
 
 ## Roadmap — Phase 2E / Phase UI-1: ForgeFit visual system + modular dashboard
 
