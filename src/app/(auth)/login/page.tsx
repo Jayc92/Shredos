@@ -27,8 +27,7 @@ export default function LoginPage() {
     })
     setLoading(false)
     if (err) { setError(err.message); return }
-    router.push('/dashboard')
-    router.refresh()
+    window.location.assign('/dashboard')
   }
 
   async function handleSignUp(e: React.FormEvent) {

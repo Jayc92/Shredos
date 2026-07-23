@@ -179,7 +179,7 @@ export function OnboardingWizard() {
         applied_at: new Date().toISOString(),
       })
 
-      router.push('/dashboard')
+      window.location.assign('/dashboard')
     } catch (err) {
       console.error('Onboarding save error:', err)
       setError('Something went wrong saving your profile. Please try again.')
