@@ -18,15 +18,13 @@ interface WeighInSummaryProps {
 export function WeighInSummary({ summary, userGoal }: WeighInSummaryProps) {
   const { weighInCount, deltaLbs, trend } = summary
 
+  // Phase 1W: previously rendered its own "No weigh-ins logged in the
+  // last 28 days" message here, which duplicated WeighInHistory's own
+  // empty state immediately below it on the page for a first-time
+  // user. Render nothing instead — WeighInHistory already carries the
+  // actionable "log your first weigh-in above" message for that case.
   if (weighInCount === 0) {
-    return (
-      <div className="shred-card text-center py-6 space-y-1">
-        <h3 className="text-sm font-medium text-foreground">Last 28 days</h3>
-        <p className="text-sm text-muted-foreground">
-          No weigh-ins logged in the last 28 days.
-        </p>
-      </div>
-    )
+    return null
   }
 
   if (trend === 'insufficient-data') {

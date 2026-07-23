@@ -24,10 +24,11 @@ function PillGroup<T extends string>({ options, value, onChange }: PillGroupProp
     <div className="flex flex-wrap gap-1.5">
       {options.map(o => (
         <button key={o.value} type="button" onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
           className={cn(
             'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
             value === o.value
-              ? 'border-foreground bg-foreground text-background'
+              ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
               : 'border-border text-muted-foreground hover:bg-muted'
           )}>
           {o.label}

@@ -144,7 +144,7 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
         className={cn(
           'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium',
           isWarmup
-            ? 'border-foreground bg-foreground text-background'
+            ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
             : 'border-border text-muted-foreground hover:border-muted-foreground'
         )}
       >

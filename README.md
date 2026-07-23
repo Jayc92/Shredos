@@ -4,12 +4,12 @@ Private performance coaching dashboard for fat loss, strength, and running.
 
 ---
 
-## Current status (Phase 1U)
+## Current status (Phase 1V)
 
 This README was originally written for Phase 1A, and several of its
 sections (file tree, RLS policy summary, deferred features, and the
 Phase 1A testing checklist) still describe the app as it stood then.
-The app has since progressed through Phase 1T and is live for
+The app has since progressed through Phase 1V and is live for
 controlled buddy testing — see **Live deployment** below. Those older
 sections haven't been rewritten yet; treat them as historical context
 rather than current documentation until a full docs refresh happens
@@ -494,10 +494,15 @@ session affects the other.
 
 ## Watch list before wider testing (Phase 1U)
 
-- **Password sign-in onboarding routing** — the password sign-in path
-  does not currently check onboarding completion the way the
-  magic-link callback does. Needs a live verification pass (see Owner
-  live QA checks above) before assuming it's fine.
+- **Password sign-in onboarding routing — resolved in Phase 1V.**
+  Live Safari Private Browsing testing traced this to client-side App
+  Router navigation into `/dashboard` colliding with Safari's stricter
+  `history.replaceState` rate limit after auth/onboarding state
+  changes — not a missing onboarding check. Fixed by switching both
+  the onboarding-completion and password-sign-in success navigations
+  to `window.location.assign('/dashboard')` (a full document
+  navigation), in `OnboardingWizard.tsx` and `login/page.tsx`. See
+  `phase1v-auth-onboarding-navigation-stable`.
 - **RLS coverage for post-Phase-1A tables** — `food_logs`,
   `saved_meals`, `workout_sessions`, `workout_exercises`,
   `workout_sets`, `workout_routines`, and `daily_activity_logs` have no
