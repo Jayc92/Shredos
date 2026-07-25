@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget } from '@/lib/workout'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
@@ -38,6 +38,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend }: WorkoutExercis
   const curBest = bestSet(sets)
   const signal  = progressSignal(curBest, previousBest)
   const prevSummary = formatPreviousBest(previousBest)
+  const nextTarget = suggestNextTarget(previousBest, we.exercise.unilateral, trend)
 
   const completedSets = sets.filter((s: any) => s.completed && !s.is_warmup).length
   const totalSets     = sets.filter((s: any) => !s.is_warmup).length
@@ -110,6 +111,15 @@ export function WorkoutExerciseBlock({ we, previousBest, trend }: WorkoutExercis
           </button>
         </div>
       </div>
+
+      {open && (
+        <div className="pl-6 space-y-0.5">
+          {previousBest && (
+            <p className="text-xs text-muted-foreground">Last: {prevSummary}</p>
+          )}
+          <p className="text-xs text-muted-foreground">{nextTarget.message}</p>
+        </div>
+      )}
 
       {open && (we.target_sets || we.target_reps) && (
         <p className="text-xs text-muted-foreground pl-6">

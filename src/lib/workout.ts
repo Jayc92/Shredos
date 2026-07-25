@@ -6,6 +6,7 @@ import { format, parseISO } from 'date-fns'
 import { kgToLbs } from '@/lib/units'
 import type { WorkoutSet } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
+import type { ProgressionTrend } from '@/lib/workout-coach'
 
 // ── Epley 1RM ─────────────────────────────────────────────────────
 
@@ -114,6 +115,120 @@ export function buildPreviousBestSummary(best: WorkoutSet | null): string {
 export function formatPreviousBest(best: WorkoutSet | null): string {
   if (!best) return 'No prior data'
   return buildPreviousBestSummary(best)
+}
+
+// ── Next-target suggestion ─────────────────────────────────────────
+// Answers "what should I try to beat next time for this exercise?"
+// Reuses the caller's already-filtered previousBest (completed,
+// non-warmup — see fetchPreviousBests) and, optionally, the existing
+// multi-session trend from workout-coach.ts's fetchExerciseTrends.
+// Does not recompute historical bests or decline detection — both are
+// consumed as inputs, not rebuilt here.
+
+const RPE_HIGH_THRESHOLD = 9
+const LOW_REPS_THRESHOLD = 6
+const TOP_OF_RANGE_REPS = 8
+const MANAGEABLE_RPE_MAX = 8
+const SUGGESTED_WEIGHT_INCREASE_LBS = 5
+const SUGGESTED_REP_INCREASE = 1
+
+export type NextTargetAction = 'unavailable' | 'increase' | 'repeat' | 'reduce_volume'
+
+export interface NextTargetSuggestion {
+  action: NextTargetAction
+  message: string
+}
+
+/** Builds a "Repeat: ..." suggestion from the previous best, with an optional reason suffix. */
+function buildRepeatSuggestion(
+  previousBest: WorkoutSet,
+  isBodyweight: boolean,
+  suffix: string,
+  reason?: string
+): NextTargetSuggestion {
+  const reps = previousBest.reps ?? null
+  const reasonText = reason ? ` — ${reason}` : ''
+
+  if (isBodyweight) {
+    return {
+      action: 'repeat',
+      message: reps !== null
+        ? `Repeat: ${reps} reps${suffix}${reasonText}`
+        : `Repeat last effort${suffix}${reasonText}`,
+    }
+  }
+
+  const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
+  if (lbs !== null && reps !== null) {
+    return {
+      action: 'repeat',
+      message: `Repeat: ${lbs} lbs × ${reps}${suffix}${reasonText}`,
+    }
+  }
+  return {
+    action: 'repeat',
+    message: `Repeat last effort${suffix}${reasonText}`,
+  }
+}
+
+export function suggestNextTarget(
+  previousBest: WorkoutSet | null,
+  isUnilateral: boolean,
+  trend?: ProgressionTrend
+): NextTargetSuggestion {
+  if (!previousBest) {
+    return {
+      action: 'unavailable',
+      message: 'Log a working set to start tracking targets.',
+    }
+  }
+
+  const suffix = isUnilateral ? ' per side' : ''
+  const isBodyweight = !previousBest.weight_kg || previousBest.weight_kg <= 0
+  const reps = previousBest.reps ?? null
+  const rpe = previousBest.rpe ?? null
+
+  // Existing multi-session trend takes priority — reuse it rather than
+  // re-deriving decline detection from a single set.
+  if (trend === 'stalling') {
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'progress has stalled recently')
+  }
+
+  if (rpe !== null && rpe >= RPE_HIGH_THRESHOLD) {
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'RPE was high')
+  }
+
+  if (reps !== null && reps < LOW_REPS_THRESHOLD) {
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'reps were low')
+  }
+
+  if (reps !== null && reps >= TOP_OF_RANGE_REPS && rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
+    if (isBodyweight) {
+      const nextReps = reps + SUGGESTED_REP_INCREASE
+      return {
+        action: 'increase',
+        message: `Try: ${nextReps} reps${suffix} next time`,
+      }
+    }
+    const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
+    if (lbs !== null) {
+      const nextLbs = lbs + SUGGESTED_WEIGHT_INCREASE_LBS
+      return {
+        action: 'increase',
+        message: `Try: ${nextLbs} lbs × ${reps}${suffix} next time`,
+      }
+    }
+  }
+
+  // Ambiguous fallback: RPE missing, or reps in the 6-7 zone with no
+  // clear signal either way. Conservative repeat, nudging toward
+  // logging RPE for a sharper suggestion next time.
+  return buildRepeatSuggestion(
+    previousBest,
+    isBodyweight,
+    suffix,
+    'log RPE next time for a sharper suggestion'
+  )
 }
 
 // ── Weekly muscle volume ──────────────────────────────────────────
