@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
+import { setScore, epley1RM } from '@/lib/workout'
+import type { ExerciseHistoryEntry } from '@/lib/workout'
+import type { WorkoutSet } from '@/types/database'
 
 /**
  * Creates a Supabase client for use in server components, server actions,
@@ -338,7 +341,7 @@ export async function fetchPreviousBests(
       id, workout_date,
       workout_exercises (
         exercise_id,
-        workout_sets ( reps, weight_kg, is_warmup, completed )
+        workout_sets ( reps, weight_kg, rpe, is_warmup, completed )
       )
     `)
     .eq('user_id', userId)
@@ -352,7 +355,7 @@ export async function fetchPreviousBests(
   for (const session of history ?? []) {
     for (const we of (session.workout_exercises as Array<{
       exercise_id: string
-      workout_sets: Array<{ reps: number|null; weight_kg: number|null; is_warmup: boolean; completed: boolean }>
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean }>
     }>) ?? []) {
       if (!exerciseIds.includes(we.exercise_id)) continue
       if (bests[we.exercise_id]) continue // already found a more recent session
@@ -365,16 +368,14 @@ export async function fetchPreviousBests(
       )
       if (working.length === 0) continue
 
-      // Pick best set: Epley 1RM for weighted, reps for bodyweight
-      const score = (s: any): number => {
-        if (s.weight_kg && s.weight_kg > 0) {
-          const reps = s.reps ?? 0
-          if (reps >= 1 && reps <= 12) return s.weight_kg * (1 + reps / 30)
-          return s.weight_kg
-        }
-        return s.reps ?? 0  // bodyweight: reps is the proxy
-      }
-      const best = working.reduce((b: any, s: any) => score(s) > score(b) ? s : b, working[0])
+      // Pick best set — reuses the same scoring workout.ts's bestSet and
+      // fetchExerciseHistory use, so "best set" means the same thing
+      // everywhere in the app (Phase 2B: previously duplicated this
+      // scoring inline).
+      const best = working.reduce(
+        (b: any, s: any) => (setScore(s as WorkoutSet) > setScore(b as WorkoutSet) ? s : b),
+        working[0]
+      )
 
       bests[we.exercise_id] = {
         // Full WorkoutSet-compatible shape
@@ -383,7 +384,12 @@ export async function fetchPreviousBests(
         set_number: 0,
         weight_kg: best.weight_kg,
         reps: best.reps,
-        rpe: null,
+        // Phase 2B fix: previously hardcoded to null regardless of the
+        // actual logged RPE, which meant Phase 2A's suggestNextTarget
+        // RPE-based branches ("RPE was high", the increase condition
+        // requiring RPE <= 8) could never fire in production. rpe is
+        // now selected above and returned here for real.
+        rpe: best.rpe ?? null,
         completed: true,
         is_warmup: false,
         notes: null,
@@ -393,6 +399,98 @@ export async function fetchPreviousBests(
   }
 
   return bests
+}
+
+/**
+ * Fetch recent exercise history for the workout detail page (Phase 2B).
+ * For each given exercise, returns up to 3 most-recent completed
+ * sessions' best working set, most-recent-first. Warm-up and incomplete
+ * sets are excluded, same rule as fetchPreviousBests above. Reuses the
+ * same setScore/epley1RM math workout.ts's bestSet and
+ * fetchPreviousBests use, so "best set" means the same thing
+ * everywhere in the app.
+ *
+ * If the same exercise appears more than once within a single session
+ * (a rare "added twice to one workout" case), all of that session's
+ * qualifying sets for that exercise are merged before picking one best
+ * set, so a single session never produces more than one history row.
+ */
+export async function fetchExerciseHistory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  exerciseIds: string[],
+  currentSessionId: string
+): Promise<Record<string, ExerciseHistoryEntry[]>> {
+  if (exerciseIds.length === 0) return {}
+
+  const HISTORY_ROWS_PER_EXERCISE = 3
+
+  const { data: history } = await supabase
+    .from('workout_sessions')
+    .select(`
+      id, workout_date,
+      workout_exercises (
+        exercise_id,
+        workout_sets ( reps, weight_kg, rpe, is_warmup, completed )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .neq('id', currentSessionId)
+    .order('workout_date', { ascending: false })
+    .limit(15)
+
+  const result: Record<string, ExerciseHistoryEntry[]> = {}
+  for (const id of exerciseIds) result[id] = []
+
+  for (const session of history ?? []) {
+    // Merge all workout_exercises entries for the same exercise within
+    // this one session first, so a repeated exercise still produces
+    // exactly one history row for that session, not two.
+    const bestInSession: Record<string, any> = {}
+
+    for (const we of (session.workout_exercises as Array<{
+      exercise_id: string
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean }>
+    }>) ?? []) {
+      if (!exerciseIds.includes(we.exercise_id)) continue
+
+      const working = (we.workout_sets ?? []).filter(
+        (s: any) => s.completed && !s.is_warmup && (
+          (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+        )
+      )
+      if (working.length === 0) continue
+
+      const localBest = working.reduce(
+        (b: any, s: any) => (setScore(s as WorkoutSet) > setScore(b as WorkoutSet) ? s : b),
+        working[0]
+      )
+
+      const existing = bestInSession[we.exercise_id]
+      if (!existing || setScore(localBest as WorkoutSet) > setScore(existing as WorkoutSet)) {
+        bestInSession[we.exercise_id] = localBest
+      }
+    }
+
+    for (const [exerciseId, best] of Object.entries(bestInSession)) {
+      if (result[exerciseId].length >= HISTORY_ROWS_PER_EXERCISE) continue
+
+      const b = best as any
+      const estimated1RmKg =
+        b.weight_kg && b.reps ? epley1RM(b.weight_kg, b.reps) : null
+
+      result[exerciseId].push({
+        workoutDate: session.workout_date,
+        weightKg: b.weight_kg,
+        reps: b.reps,
+        rpe: b.rpe ?? null,
+        estimated1RmKg,
+      })
+    }
+  }
+
+  return result
 }
 
 // ── Phase 1D — routine fetch helpers ─────────────────────────────

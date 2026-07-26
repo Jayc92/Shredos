@@ -6,9 +6,11 @@ import { cn } from '@/lib/utils'
 import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget } from '@/lib/workout'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
+import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import type { ProgressionTrend } from '@/lib/workout-coach'
+import type { ExerciseHistoryEntry } from '@/lib/workout'
 
 // Trend labels and styles (Phase 1E — lightweight, no charts)
 const TREND_LABEL: Partial<Record<ProgressionTrend, string>> = {
@@ -26,9 +28,10 @@ interface WorkoutExerciseBlockProps {
   we: WorkoutExerciseWithDetails
   previousBest: WorkoutSet | null
   trend?: ProgressionTrend
+  history?: ExerciseHistoryEntry[]
 }
 
-export function WorkoutExerciseBlock({ we, previousBest, trend }: WorkoutExerciseBlockProps) {
+export function WorkoutExerciseBlock({ we, previousBest, trend, history }: WorkoutExerciseBlockProps) {
   const router = useRouter()
   const [open, setOpen]           = useState(true)
   const [addingSet, setAddingSet] = useState(false)
@@ -103,7 +106,13 @@ export function WorkoutExerciseBlock({ we, previousBest, trend }: WorkoutExercis
         </button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ProgressBadge signal={signal} previousSummary={prevSummary} />
+          {/* QA fix: previousBest exists but nothing completed yet this
+              session -> no meaningful comparison exists, so show no
+              badge at all rather than a misleading "Same". New-exercise
+              behavior (no previousBest) is unaffected either way. */}
+          {(curBest || !previousBest) && (
+            <ProgressBadge signal={signal} previousSummary={prevSummary} />
+          )}
           <button type="button" onClick={handleRemove} disabled={removing}
             className="p-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
             aria-label="Remove exercise">
@@ -119,6 +128,10 @@ export function WorkoutExerciseBlock({ we, previousBest, trend }: WorkoutExercis
           )}
           <p className="text-xs text-muted-foreground">{nextTarget.message}</p>
         </div>
+      )}
+
+      {open && (
+        <ExerciseHistoryRows entries={history} isUnilateral={we.exercise.unilateral} />
       )}
 
       {open && (we.target_sets || we.target_reps) && (

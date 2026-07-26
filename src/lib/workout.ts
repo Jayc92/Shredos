@@ -31,7 +31,7 @@ export function epley1RM(weightKg: number, reps: number): number | null {
  * barbell work without mixing the two into nonsensical comparisons
  * (exercises are compared to themselves, never cross-exercise).
  */
-function setScore(s: WorkoutSet): number {
+export function setScore(s: WorkoutSet): number {
   if (s.weight_kg && s.weight_kg > 0) {
     const rm = s.reps ? epley1RM(s.weight_kg, s.reps) : null
     return rm ?? s.weight_kg
@@ -229,6 +229,19 @@ export function suggestNextTarget(
     suffix,
     'log RPE next time for a sharper suggestion'
   )
+}
+
+// ── Exercise history (Phase 2B) ───────────────────────────────────
+// Display shape for "last N sessions' best set" for one exercise.
+// Populated by fetchExerciseHistory (server.ts) — this file only
+// defines the shape and provides the scoring/1RM math it reuses.
+
+export interface ExerciseHistoryEntry {
+  workoutDate: string          // 'YYYY-MM-DD'
+  weightKg: number | null      // null for a pure bodyweight best set
+  reps: number | null
+  rpe: number | null
+  estimated1RmKg: number | null
 }
 
 // ── Weekly muscle volume ──────────────────────────────────────────
