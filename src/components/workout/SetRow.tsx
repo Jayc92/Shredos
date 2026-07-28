@@ -4,15 +4,27 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
+import type { PRType } from '@/lib/workout'
 import { Trash2, AlertCircle } from 'lucide-react'
 import type { WorkoutSet } from '@/types/database'
+
+// Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
+// specifically, not "1RM PR" -- it's a formula-derived estimate, not a
+// verified true 1-rep max. "Rep PR" for bodyweight display copy, while
+// the internal type stays bodyweight_reps.
+const PR_LABELS: Record<Exclude<PRType, null>, string> = {
+  weight: 'Weight PR',
+  estimated_1rm: 'Est. 1RM PR',
+  bodyweight_reps: 'Rep PR',
+}
 
 interface SetRowProps {
   set: WorkoutSet
   isUnilateral: boolean
+  prType?: PRType
 }
 
-export function SetRow({ set, isUnilateral }: SetRowProps) {
+export function SetRow({ set, isUnilateral, prType }: SetRowProps) {
   const router = useRouter()
   const [reps,      setReps]      = useState(set.reps      !== null ? String(set.reps)      : '')
   const [lbs,       setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
@@ -86,10 +98,11 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
 
   return (
     <div className={cn(
-      'flex items-center gap-2 py-2 border-b border-border/40 last:border-0',
+      'py-2 border-b border-border/40 last:border-0',
       isWarmup   && 'opacity-60',
       completed  && 'opacity-80'
     )}>
+      <div className="flex items-center gap-2">
       {/* Set number */}
       <span className="text-xs text-muted-foreground w-5 text-center flex-shrink-0 tabular-nums">
         {isWarmup ? 'WU' : set.set_number}
@@ -179,6 +192,16 @@ export function SetRow({ set, isUnilateral }: SetRowProps) {
         className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
+      </div>
+
+      {/* Phase 2C: PR badge — only one type shown, priority already
+          resolved by evaluateSetPRs before this component ever sees
+          prType. SetRow does not query or compute PR status itself. */}
+      {prType && (
+        <p className="text-xs text-primary font-medium pl-7 mt-1">
+          {PR_LABELS[prType]}
+        </p>
+      )}
     </div>
   )
 }

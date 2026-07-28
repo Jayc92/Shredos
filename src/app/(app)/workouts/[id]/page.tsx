@@ -6,6 +6,7 @@ import {
   fetchSessionWithDetails,
   fetchPreviousBests,
   fetchExerciseHistory,
+  fetchExercisePRBaseline,
 } from '@/lib/supabase/server'
 import { WorkoutDetailClient } from '@/components/workout/WorkoutDetailClient'
 import { fetchExerciseTrends } from '@/lib/workout-coach'
@@ -35,11 +36,12 @@ export default async function WorkoutDetailPage({ params }: { params: { id: stri
   const exercises = (session as any).workout_exercises ?? []
   const exerciseIds = exercises.map((we: any) => we.exercise_id)
 
-  // Fetch in parallel — all three are independent
-  const [previousBests, exerciseTrends, exerciseHistory] = await Promise.all([
+  // Fetch in parallel — all four are independent
+  const [previousBests, exerciseTrends, exerciseHistory, prBaseline] = await Promise.all([
     fetchPreviousBests(supabase, user.id, exerciseIds, params.id),
     fetchExerciseTrends(supabase, user.id, exerciseIds),
     fetchExerciseHistory(supabase, user.id, exerciseIds, params.id),
+    fetchExercisePRBaseline(supabase, user.id, exerciseIds, params.id),
   ])
 
   return (
@@ -57,6 +59,7 @@ export default async function WorkoutDetailPage({ params }: { params: { id: stri
         routineName={(session as any).routine?.name ?? null}
         exerciseTrends={exerciseTrends}
         exerciseHistory={exerciseHistory}
+        prBaseline={prBaseline}
       />
     </div>
   )

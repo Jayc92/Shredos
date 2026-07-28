@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs } from '@/lib/workout'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import type { ProgressionTrend } from '@/lib/workout-coach'
-import type { ExerciseHistoryEntry } from '@/lib/workout'
+import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 
 // Trend labels and styles (Phase 1E — lightweight, no charts)
 const TREND_LABEL: Partial<Record<ProgressionTrend, string>> = {
@@ -24,14 +24,24 @@ const TREND_CLS: Partial<Record<ProgressionTrend, string>> = {
   stalling:  'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
 }
 
+// Phase 2C: fallback when no PR baseline is available yet for this
+// exercise (e.g. it was just added to the session) — behaves the same
+// as "no history", every set is eligible to be a first-time PR.
+const EMPTY_PR_BASELINE: PRBaseline = {
+  maxWeightKg: null,
+  maxEstimated1RmKg: null,
+  maxBodyweightReps: null,
+}
+
 interface WorkoutExerciseBlockProps {
   we: WorkoutExerciseWithDetails
   previousBest: WorkoutSet | null
   trend?: ProgressionTrend
   history?: ExerciseHistoryEntry[]
+  prBaseline?: PRBaseline
 }
 
-export function WorkoutExerciseBlock({ we, previousBest, trend, history }: WorkoutExerciseBlockProps) {
+export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBaseline }: WorkoutExerciseBlockProps) {
   const router = useRouter()
   const [open, setOpen]           = useState(true)
   const [addingSet, setAddingSet] = useState(false)
@@ -41,7 +51,8 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history }: Worko
   const curBest = bestSet(sets)
   const signal  = progressSignal(curBest, previousBest)
   const prevSummary = formatPreviousBest(previousBest)
-  const nextTarget = suggestNextTarget(previousBest, we.exercise.unilateral, trend)
+  const nextTarget = suggestNextTarget(previousBest, we.exercise.unilateral, we.exercise.exercise_type, trend)
+  const setPRs = evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)
 
   const completedSets = sets.filter((s: any) => s.completed && !s.is_warmup).length
   const totalSets     = sets.filter((s: any) => !s.is_warmup).length
@@ -156,7 +167,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history }: Worko
             <span className="w-6"></span>
           </div>
           {sets.map((s: any) => (
-            <SetRow key={s.id} set={s} isUnilateral={we.exercise.unilateral} />
+            <SetRow key={s.id} set={s} isUnilateral={we.exercise.unilateral} prType={setPRs[s.id] ?? null} />
           ))}
         </div>
       )}

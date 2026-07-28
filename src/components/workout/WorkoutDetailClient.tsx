@@ -6,7 +6,7 @@ import { SessionHeader } from '@/components/workout/SessionHeader'
 import { WorkoutExerciseBlock } from '@/components/workout/WorkoutExerciseBlock'
 import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
 import type { ProgressionTrend } from '@/lib/workout-coach'
-import type { ExerciseHistoryEntry } from '@/lib/workout'
+import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 
 interface WorkoutDetailClientProps {
   session: any
@@ -17,11 +17,12 @@ interface WorkoutDetailClientProps {
   routineName?: string | null
   exerciseTrends?: Record<string, ProgressionTrend>
   exerciseHistory?: Record<string, ExerciseHistoryEntry[]>
+  prBaseline?: Record<string, PRBaseline>
 }
 
 export function WorkoutDetailClient({
   session, exercises, previousBests, allExercises,
-  routineId, routineName, exerciseTrends, exerciseHistory,
+  routineId, routineName, exerciseTrends, exerciseHistory, prBaseline,
 }: WorkoutDetailClientProps) {
   const router = useRouter()
   const [sessionDeleted, setSessionDeleted] = useState(false)
@@ -62,6 +63,7 @@ export function WorkoutDetailClient({
           previousBest={previousBests[we.exercise_id] ?? null}
           trend={exerciseTrends?.[we.exercise_id]}
           history={exerciseHistory?.[we.exercise_id]}
+          prBaseline={prBaseline?.[we.exercise_id]}
         />
       ))}
 

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
 import { setScore, epley1RM } from '@/lib/workout'
-import type { ExerciseHistoryEntry } from '@/lib/workout'
+import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { WorkoutSet } from '@/types/database'
 
 /**
@@ -487,6 +487,82 @@ export async function fetchExerciseHistory(
         rpe: b.rpe ?? null,
         estimated1RmKg,
       })
+    }
+  }
+
+  return result
+}
+
+/**
+ * Fetch the true all-time PR baseline for each exercise (Phase 2C).
+ * Deliberately does NOT reuse fetchPreviousBests/fetchExerciseHistory
+ * above — both are bounded to the last 15 sessions for "recent
+ * history" purposes, which is the right choice for those, but wrong
+ * for a PR claim, which must be genuinely all-time-correct or it's
+ * misleading. This scans ALL of the user's completed sessions, no
+ * date or session-count limit. Excludes the current in-progress
+ * session, warmups, and incomplete/empty sets — same exclusion rules
+ * used everywhere else in this file. Computed entirely in application
+ * code (no RPC, no migration), consistent with every other helper
+ * here.
+ */
+export async function fetchExercisePRBaseline(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  exerciseIds: string[],
+  currentSessionId: string
+): Promise<Record<string, PRBaseline>> {
+  if (exerciseIds.length === 0) return {}
+
+  const { data: sessions } = await supabase
+    .from('workout_sessions')
+    .select(`
+      id,
+      workout_exercises (
+        exercise_id,
+        workout_sets ( reps, weight_kg, is_warmup, completed )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .neq('id', currentSessionId)
+
+  const result: Record<string, PRBaseline> = {}
+  for (const id of exerciseIds) {
+    result[id] = { maxWeightKg: null, maxEstimated1RmKg: null, maxBodyweightReps: null }
+  }
+
+  for (const session of sessions ?? []) {
+    for (const we of (session.workout_exercises as Array<{
+      exercise_id: string
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; is_warmup: boolean; completed: boolean }>
+    }>) ?? []) {
+      if (!exerciseIds.includes(we.exercise_id)) continue
+
+      const working = (we.workout_sets ?? []).filter(
+        (s: any) => s.completed && !s.is_warmup && (
+          (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+        )
+      )
+      if (working.length === 0) continue
+
+      const baseline = result[we.exercise_id]
+
+      for (const s of working as any[]) {
+        if (s.weight_kg && s.weight_kg > 0) {
+          if (baseline.maxWeightKg === null || s.weight_kg > baseline.maxWeightKg) {
+            baseline.maxWeightKg = s.weight_kg
+          }
+          const rm = s.reps ? epley1RM(s.weight_kg, s.reps) : null
+          if (rm !== null && (baseline.maxEstimated1RmKg === null || rm > baseline.maxEstimated1RmKg)) {
+            baseline.maxEstimated1RmKg = rm
+          }
+        } else if (s.reps && s.reps > 0) {
+          if (baseline.maxBodyweightReps === null || s.reps > baseline.maxBodyweightReps) {
+            baseline.maxBodyweightReps = s.reps
+          }
+        }
+      }
     }
   }
 

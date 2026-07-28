@@ -4,7 +4,7 @@
 
 import { format, parseISO } from 'date-fns'
 import { kgToLbs } from '@/lib/units'
-import type { WorkoutSet } from '@/types/database'
+import type { WorkoutSet, ExerciseType } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 
@@ -132,7 +132,7 @@ const MANAGEABLE_RPE_MAX = 8
 const SUGGESTED_WEIGHT_INCREASE_LBS = 5
 const SUGGESTED_REP_INCREASE = 1
 
-export type NextTargetAction = 'unavailable' | 'increase' | 'repeat' | 'reduce_volume'
+export type NextTargetAction = 'unavailable' | 'increase' | 'repeat' | 'reduce_volume' | 'no_suggestion'
 
 export interface NextTargetSuggestion {
   action: NextTargetAction
@@ -174,6 +174,7 @@ function buildRepeatSuggestion(
 export function suggestNextTarget(
   previousBest: WorkoutSet | null,
   isUnilateral: boolean,
+  exerciseType: ExerciseType,
   trend?: ProgressionTrend
 ): NextTargetSuggestion {
   if (!previousBest) {
@@ -184,7 +185,10 @@ export function suggestNextTarget(
   }
 
   const suffix = isUnilateral ? ' per side' : ''
-  const isBodyweight = !previousBest.weight_kg || previousBest.weight_kg <= 0
+  // Phase 2C: previously inferred from weight_kg being null/0, which
+  // misclassified cardio/mobility exercises (which also have no
+  // weight) as bodyweight. Now uses the exercise's actual type.
+  const isBodyweight = exerciseType === 'bodyweight'
   const reps = previousBest.reps ?? null
   const rpe = previousBest.rpe ?? null
 
@@ -203,13 +207,37 @@ export function suggestNextTarget(
   }
 
   if (reps !== null && reps >= TOP_OF_RANGE_REPS && rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-    if (isBodyweight) {
+    // Phase 2C: equipment-aware increment, chosen from the exercise's
+    // actual type. Does not read target_reps anywhere — the rep
+    // ceiling above stays the existing global TOP_OF_RANGE_REPS
+    // constant for every exercise, routine-started or not (see Phase
+    // 2C analysis: workout_exercises.target_reps is ambiguous between
+    // a routine's min and max and cannot safely be treated as a
+    // per-exercise ceiling).
+    if (exerciseType === 'cardio' || exerciseType === 'mobility') {
+      return {
+        action: 'no_suggestion',
+        message: 'No strength-progression suggestion for this exercise type.',
+      }
+    }
+
+    if (exerciseType === 'machine' || exerciseType === 'cable') {
+      return {
+        action: 'increase',
+        message: `Try the next available setting${suffix}`,
+      }
+    }
+
+    if (exerciseType === 'bodyweight') {
       const nextReps = reps + SUGGESTED_REP_INCREASE
       return {
         action: 'increase',
         message: `Try: ${nextReps} reps${suffix} next time`,
       }
     }
+
+    // barbell, dumbbell, strength (default), and any other type all
+    // use the same +5 lbs suggestion.
     const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
     if (lbs !== null) {
       const nextLbs = lbs + SUGGESTED_WEIGHT_INCREASE_LBS
@@ -242,6 +270,79 @@ export interface ExerciseHistoryEntry {
   reps: number | null
   rpe: number | null
   estimated1RmKg: number | null
+}
+
+// ── PR detection (Phase 2C) ─────────────────────────────────────────
+// Evaluates completed, non-warmup CURRENT-session sets against a true
+// all-time historical baseline (from fetchExercisePRBaseline in
+// server.ts). Pure function — does not query anything itself. The
+// baseline already excludes the current session, warmups, and
+// incomplete/empty sets; this function applies the same exclusion to
+// the current session's own sets for symmetry.
+
+export interface PRBaseline {
+  maxWeightKg: number | null
+  maxEstimated1RmKg: number | null
+  maxBodyweightReps: number | null
+}
+
+export type PRType = 'weight' | 'estimated_1rm' | 'bodyweight_reps' | null
+
+/**
+ * Returns a PRType per set id. Sets are evaluated in set_number order,
+ * and the running best is updated after each qualifying set — so a
+ * second set in the same session can be recognized as a new record
+ * even though it's only beating THIS session's first set, not the
+ * original historical baseline (e.g. baseline 195 -> set1 200lbs is a
+ * PR -> set2 205lbs is ALSO a PR, since it beats the new 200lbs high).
+ *
+ * Priority when a single weighted set qualifies for more than one PR
+ * type simultaneously: weight PR wins over estimated-1RM PR. A set is
+ * never both a weighted PR and a bodyweight-rep PR (mutually
+ * exclusive based on whether the set has a real weight).
+ */
+export function evaluateSetPRs(
+  currentSets: WorkoutSet[],
+  baseline: PRBaseline
+): Record<string, PRType> {
+  const result: Record<string, PRType> = {}
+
+  let runningMaxWeightKg = baseline.maxWeightKg
+  let runningMaxEstimated1RmKg = baseline.maxEstimated1RmKg
+  let runningMaxBodyweightReps = baseline.maxBodyweightReps
+
+  const working = currentSets
+    .filter((s) => s.completed && !s.is_warmup && (
+      (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+    ))
+    .slice()
+    .sort((a, b) => a.set_number - b.set_number)
+
+  for (const set of working) {
+    let prType: PRType = null
+
+    if (set.weight_kg !== null && set.weight_kg > 0) {
+      if (runningMaxWeightKg === null || set.weight_kg > runningMaxWeightKg) {
+        prType = 'weight'
+        runningMaxWeightKg = set.weight_kg
+      }
+
+      const rm = set.reps ? epley1RM(set.weight_kg, set.reps) : null
+      if (rm !== null && (runningMaxEstimated1RmKg === null || rm > runningMaxEstimated1RmKg)) {
+        if (prType === null) prType = 'estimated_1rm'
+        runningMaxEstimated1RmKg = rm
+      }
+    } else if (set.reps !== null && set.reps > 0) {
+      if (runningMaxBodyweightReps === null || set.reps > runningMaxBodyweightReps) {
+        prType = 'bodyweight_reps'
+        runningMaxBodyweightReps = set.reps
+      }
+    }
+
+    result[set.id] = prType
+  }
+
+  return result
 }
 
 // ── Weekly muscle volume ──────────────────────────────────────────
