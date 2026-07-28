@@ -4,7 +4,7 @@
 
 import { format, parseISO } from 'date-fns'
 import { kgToLbs } from '@/lib/units'
-import type { WorkoutSet, ExerciseType } from '@/types/database'
+import type { WorkoutSet, ExerciseType, WorkoutExerciseWithDetails } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 
@@ -576,6 +576,212 @@ export function evaluateSetPRs(
   }
 
   return result
+}
+
+// ── Workout completion summary (Phase 2H) ────────────────────────────
+// Deterministic, recomputed-every-render summary of one completed
+// workout session. Reuses evaluateSetPRs (Phase 2C) and
+// evaluateSetTargetFeedback (Phase 2G) exactly -- no duplicated PR or
+// range-normalization logic. Pure function over already-loaded session
+// data: given the same exercises + PR baseline, always produces the
+// same summary, so reopening a completed workout later shows identical
+// output with no persisted summary blob.
+
+const MAX_HIGHLIGHTS = 3
+const MAX_ATTENTION = 3
+const MIN_SETS_FOR_AGGREGATE_RULE = 2
+
+export interface WorkoutTargetCounts {
+  belowTarget: number
+  inRange: number
+  topOfRange: number
+  aboveTarget: number
+  evaluated: number
+}
+
+export interface WorkoutEffortSummary {
+  averageRpe: number | null
+  loggedRpeCount: number
+  missingRpeCount: number
+  highEffortCount: number
+}
+
+export interface ExerciseCompletionSummary {
+  workoutExerciseId: string
+  exerciseName: string
+  completedWorkingSets: number
+  targetCounts: WorkoutTargetCounts
+  highEffortCount: number
+  missingRpeCount: number
+  prSetCount: number
+}
+
+export interface WorkoutCompletionSummary {
+  exerciseCount: number
+  completedExerciseCount: number
+  workingSetCount: number
+  targetCounts: WorkoutTargetCounts
+  effort: WorkoutEffortSummary
+  prSetCount: number
+  exerciseSummaries: ExerciseCompletionSummary[]
+  highlights: string[]
+  attention: string[]
+}
+
+function emptyTargetCounts(): WorkoutTargetCounts {
+  return { belowTarget: 0, inRange: 0, topOfRange: 0, aboveTarget: 0, evaluated: 0 }
+}
+
+/**
+ * Summarizes one workout session deterministically from data already
+ * loaded on the workout detail page (exercises with their nested
+ * workout_sets, plus the same PR baseline map already fetched for the
+ * active-workout PR badges) -- no new queries.
+ *
+ * "Completed working set" = completed && !is_warmup, the exact same
+ * filter every other Phase 2C/2G caller already uses. An exercise
+ * counts as completed when it has at least one completed working set
+ * -- this is a session-summary definition only; it does not replace
+ * WorkoutExerciseBlock's own "X/Y sets done" display.
+ *
+ * cardio/mobility exercises and sets with no usable rep-range snapshot
+ * both already resolve to rangeStatus 'no_target' inside
+ * evaluateSetTargetFeedback -- they still count toward
+ * exerciseCount/workingSetCount, but contribute nothing to
+ * targetCounts, with zero special-casing needed here.
+ */
+export function summarizeWorkout(
+  exercises: WorkoutExerciseWithDetails[],
+  prBaselineByExerciseId: Record<string, PRBaseline>
+): WorkoutCompletionSummary {
+  const exerciseCount = exercises.length
+  let completedExerciseCount = 0
+  let workingSetCount = 0
+  const targetCounts = emptyTargetCounts()
+  let rpeSum = 0
+  let loggedRpeCount = 0
+  let missingRpeCount = 0
+  let highEffortCount = 0
+  let prSetCount = 0
+
+  const exerciseSummaries: ExerciseCompletionSummary[] = []
+
+  for (const we of exercises) {
+    const sets = (we.workout_sets ?? []) as WorkoutSet[]
+    const workingSets = sets.filter((s) => s.completed && !s.is_warmup)
+
+    if (workingSets.length === 0) continue // not "completed" per this summary's definition
+
+    completedExerciseCount++
+    workingSetCount += workingSets.length
+
+    const repRange: RepRange = { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
+    const baseline: PRBaseline = prBaselineByExerciseId[we.exercise_id] ?? {
+      maxWeightKg: null,
+      maxEstimated1RmKg: null,
+      maxBodyweightReps: null,
+    }
+    const setPRs = evaluateSetPRs(workingSets, baseline)
+
+    const exTargetCounts = emptyTargetCounts()
+    let exHighEffort = 0
+    let exMissingRpe = 0
+    let exPrSetCount = 0
+
+    for (const s of workingSets) {
+      const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.exercise_type, repRange)
+      if (feedback.rangeStatus !== 'no_target') {
+        targetCounts.evaluated++
+        exTargetCounts.evaluated++
+        if (feedback.rangeStatus === 'below_target') { targetCounts.belowTarget++; exTargetCounts.belowTarget++ }
+        else if (feedback.rangeStatus === 'in_range') { targetCounts.inRange++; exTargetCounts.inRange++ }
+        else if (feedback.rangeStatus === 'top_of_range') { targetCounts.topOfRange++; exTargetCounts.topOfRange++ }
+        else if (feedback.rangeStatus === 'above_target') { targetCounts.aboveTarget++; exTargetCounts.aboveTarget++ }
+      }
+
+      if (s.rpe !== null) {
+        rpeSum += s.rpe
+        loggedRpeCount++
+        if (s.rpe >= RPE_HIGH_THRESHOLD) { highEffortCount++; exHighEffort++ }
+      } else {
+        missingRpeCount++
+        exMissingRpe++
+      }
+
+      if (setPRs[s.id]) { prSetCount++; exPrSetCount++ }
+    }
+
+    exerciseSummaries.push({
+      workoutExerciseId: we.id,
+      exerciseName: we.exercise.name,
+      completedWorkingSets: workingSets.length,
+      targetCounts: exTargetCounts,
+      highEffortCount: exHighEffort,
+      missingRpeCount: exMissingRpe,
+      prSetCount: exPrSetCount,
+    })
+  }
+
+  // ── Highlights: at most one per exercise, priority A -> B -> C ──────
+  const highlights: string[] = []
+  for (const ex of exerciseSummaries) {
+    if (highlights.length >= MAX_HIGHLIGHTS) break
+
+    if (ex.prSetCount > 0) {
+      highlights.push(`${ex.exerciseName}: ${ex.prSetCount} PR set${ex.prSetCount !== 1 ? 's' : ''}`)
+      continue
+    }
+
+    const metOrExceeded = ex.targetCounts.inRange + ex.targetCounts.topOfRange + ex.targetCounts.aboveTarget
+    if (ex.targetCounts.evaluated >= MIN_SETS_FOR_AGGREGATE_RULE && metOrExceeded === ex.targetCounts.evaluated) {
+      highlights.push(`${ex.exerciseName}: all evaluated sets met the target`)
+      continue
+    }
+
+    const topOrAbove = ex.targetCounts.topOfRange + ex.targetCounts.aboveTarget
+    if (topOrAbove >= MIN_SETS_FOR_AGGREGATE_RULE) {
+      highlights.push(`${ex.exerciseName}: ${topOrAbove} sets reached or exceeded the top target`)
+      continue
+    }
+  }
+
+  // ── Attention: at most one per exercise, priority A -> B -> C ───────
+  const attention: string[] = []
+  for (const ex of exerciseSummaries) {
+    if (attention.length >= MAX_ATTENTION) break
+
+    if (ex.targetCounts.belowTarget >= MIN_SETS_FOR_AGGREGATE_RULE) {
+      attention.push(`${ex.exerciseName}: ${ex.targetCounts.belowTarget} sets below target`)
+      continue
+    }
+
+    if (ex.highEffortCount >= MIN_SETS_FOR_AGGREGATE_RULE) {
+      attention.push(`${ex.exerciseName}: ${ex.highEffortCount} high-effort sets`)
+      continue
+    }
+
+    if (ex.completedWorkingSets > 0 && ex.missingRpeCount === ex.completedWorkingSets) {
+      attention.push(`${ex.exerciseName}: log RPE for better coaching`)
+      continue
+    }
+  }
+
+  return {
+    exerciseCount,
+    completedExerciseCount,
+    workingSetCount,
+    targetCounts,
+    effort: {
+      averageRpe: loggedRpeCount > 0 ? Math.round((rpeSum / loggedRpeCount) * 10) / 10 : null,
+      loggedRpeCount,
+      missingRpeCount,
+      highEffortCount,
+    },
+    prSetCount,
+    exerciseSummaries,
+    highlights,
+    attention,
+  }
 }
 
 // ── Weekly muscle volume ──────────────────────────────────────────

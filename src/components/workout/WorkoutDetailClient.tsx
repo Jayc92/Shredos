@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { SessionHeader } from '@/components/workout/SessionHeader'
 import { WorkoutExerciseBlock } from '@/components/workout/WorkoutExerciseBlock'
 import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
+import { WorkoutCompletionSummaryCard } from '@/components/workout/WorkoutCompletionSummaryCard'
+import { summarizeWorkout } from '@/lib/workout'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 
@@ -41,8 +43,22 @@ export function WorkoutDetailClient({
     )
   }
 
+  // Phase 2H: recomputed every render from already-loaded session data —
+  // no persisted summary blob, so reopening a completed workout later
+  // shows the identical summary automatically.
+  const completionSummary =
+    session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null
+
   return (
     <>
+      {completionSummary && (
+        <WorkoutCompletionSummaryCard
+          summary={completionSummary}
+          startTime={session.start_time}
+          endTime={session.end_time}
+        />
+      )}
+
       <SessionHeader
         session={session}
         routineId={routineId}
