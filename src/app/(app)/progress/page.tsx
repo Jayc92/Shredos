@@ -127,6 +127,12 @@ export default async function ProgressPage() {
                   {trendLabel && (
                     <p className="text-xs text-muted-foreground">Trend: {trendLabel}</p>
                   )}
+                  <Link
+                    href={`/progress/exercises/${r.exerciseId}`}
+                    className="text-xs text-primary hover:underline inline-block pt-0.5"
+                  >
+                    View progress →
+                  </Link>
                 </div>
               )
             })}

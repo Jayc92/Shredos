@@ -402,8 +402,8 @@ export async function fetchPreviousBests(
 }
 
 /**
- * Fetch recent exercise history for the workout detail page (Phase 2B).
- * For each given exercise, returns up to 3 most-recent completed
+ * Fetch recent exercise history (Phase 2B, extended Phase 2E). For
+ * each given exercise, returns up to `limit` most-recent completed
  * sessions' best working set, most-recent-first. Warm-up and incomplete
  * sets are excluded, same rule as fetchPreviousBests above. Reuses the
  * same setScore/epley1RM math workout.ts's bestSet and
@@ -414,18 +414,22 @@ export async function fetchPreviousBests(
  * (a rare "added twice to one workout" case), all of that session's
  * qualifying sets for that exercise are merged before picking one best
  * set, so a single session never produces more than one history row.
+ *
+ * currentSessionId is optional (Phase 2E): the workout-detail page
+ * still passes its own session id to exclude it from "recent history".
+ * The standalone exercise-progress-detail page has no current session
+ * at all, so it omits this argument and nothing gets excluded.
  */
 export async function fetchExerciseHistory(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   exerciseIds: string[],
-  currentSessionId: string
+  currentSessionId?: string,
+  limit = 3
 ): Promise<Record<string, ExerciseHistoryEntry[]>> {
   if (exerciseIds.length === 0) return {}
 
-  const HISTORY_ROWS_PER_EXERCISE = 3
-
-  const { data: history } = await supabase
+  let query = supabase
     .from('workout_sessions')
     .select(`
       id, workout_date,
@@ -436,7 +440,12 @@ export async function fetchExerciseHistory(
     `)
     .eq('user_id', userId)
     .eq('status', 'completed')
-    .neq('id', currentSessionId)
+
+  if (currentSessionId) {
+    query = query.neq('id', currentSessionId)
+  }
+
+  const { data: history } = await query
     .order('workout_date', { ascending: false })
     .limit(15)
 
@@ -474,7 +483,7 @@ export async function fetchExerciseHistory(
     }
 
     for (const [exerciseId, best] of Object.entries(bestInSession)) {
-      if (result[exerciseId].length >= HISTORY_ROWS_PER_EXERCISE) continue
+      if (result[exerciseId].length >= limit) continue
 
       const b = best as any
       const estimated1RmKg =
