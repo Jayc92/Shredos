@@ -251,7 +251,7 @@ interface ResolvedRepTarget {
  *   - neither, or min > max (malformed) -> 'none': exact existing
  *                              Phase 2C global-fallback behavior
  */
-function resolveRepTarget(repRange: RepRange | undefined): ResolvedRepTarget {
+export function resolveRepTarget(repRange: RepRange | undefined): ResolvedRepTarget {
   const min = repRange?.min ?? null
   const max = repRange?.max ?? null
   const hasMin = min !== null && min > 0
@@ -276,6 +276,105 @@ function resolveRepTarget(repRange: RepRange | undefined): ResolvedRepTarget {
     return { mode: 'single', floor: null, ceiling: min as number }
   }
   return { mode: 'none', floor: null, ceiling: null }
+}
+
+// ── Set-level target feedback (Phase 2G) ────────────────────────────
+// Per-set, deterministic execution feedback for the ACTIVE workout —
+// distinct from and independent of suggestNextTarget's exercise-level
+// "what to try next session" recommendation, and independent of
+// evaluateSetPRs' all-time PR detection. All three coexist on the same
+// set without one overriding another; combining PR + range feedback
+// into one display line is the caller's (SetRow's) job, not this
+// function's — this function only describes ONE set's execution
+// against its programmed target, nothing about records or trends.
+
+export type RangeStatus = 'below_target' | 'in_range' | 'top_of_range' | 'above_target' | 'no_target'
+export type EffortStatus = 'manageable' | 'high' | 'missing' | 'not_applicable'
+
+export interface SetTargetFeedback {
+  rangeStatus: RangeStatus
+  effortStatus: EffortStatus
+  /** Empty string when rangeStatus === 'no_target' — caller renders nothing for this portion. */
+  label: string
+}
+
+/**
+ * Evaluates ONE completed, non-warmup set against its exercise's
+ * snapshotted rep target (reused from Phase 2F's resolveRepTarget —
+ * no duplicated normalization logic). Reps missing, or exerciseType
+ * cardio/mobility, both mean no target concept applies here (matches
+ * suggestNextTarget's existing 'cardio'/'mobility' -> no strength-
+ * progression treatment) -> 'no_target', empty label.
+ *
+ * Effort modifier ("RPE high" / "Log RPE") is only appended to the
+ * visible label for 'top_of_range'/'above_target' — a set that's
+ * clearly below target doesn't need an RPE callout, since the reps
+ * shortfall is already the actionable signal.
+ *
+ * Caller is responsible for combining this with PR feedback (a
+ * completely separate, independent signal) into one display line.
+ */
+export function evaluateSetTargetFeedback(
+  reps: number | null,
+  rpe: number | null,
+  exerciseType: ExerciseType,
+  repRange?: RepRange
+): SetTargetFeedback {
+  if (exerciseType === 'cardio' || exerciseType === 'mobility' || reps === null) {
+    return { rangeStatus: 'no_target', effortStatus: 'not_applicable', label: '' }
+  }
+
+  const resolved = resolveRepTarget(repRange)
+  const effortStatus: EffortStatus =
+    rpe === null ? 'missing' : rpe >= RPE_HIGH_THRESHOLD ? 'high' : 'manageable'
+
+  const withEffort = (rangeLabel: string): string =>
+    effortStatus === 'high' ? `${rangeLabel} · RPE high`
+      : effortStatus === 'missing' ? `${rangeLabel} · Log RPE`
+      : rangeLabel // 'manageable' -> no visible modifier
+
+  if (resolved.mode === 'range') {
+    const floor = resolved.floor as number
+    const ceiling = resolved.ceiling as number
+    if (reps < floor) {
+      return { rangeStatus: 'below_target', effortStatus, label: `Below ${floor}–${ceiling} target` }
+    }
+    if (reps === ceiling) {
+      return { rangeStatus: 'top_of_range', effortStatus, label: withEffort('Top of range') }
+    }
+    if (reps > ceiling) {
+      return { rangeStatus: 'above_target', effortStatus, label: withEffort(`Above ${floor}–${ceiling} target`) }
+    }
+    return { rangeStatus: 'in_range', effortStatus, label: 'In range' }
+  }
+
+  if (resolved.mode === 'single') {
+    const target = resolved.ceiling as number
+    if (reps < target) {
+      return { rangeStatus: 'below_target', effortStatus, label: `Work toward ${target} reps` }
+    }
+    if (reps === target) {
+      return { rangeStatus: 'top_of_range', effortStatus, label: withEffort('Target reached') }
+    }
+    return { rangeStatus: 'above_target', effortStatus, label: withEffort(`Above ${target}-rep target`) }
+  }
+
+  if (resolved.mode === 'ceiling_only') {
+    const ceiling = resolved.ceiling as number
+    if (reps < LOW_REPS_THRESHOLD) {
+      return { rangeStatus: 'below_target', effortStatus, label: 'Low reps' }
+    }
+    if (reps === ceiling) {
+      return { rangeStatus: 'top_of_range', effortStatus, label: withEffort('Top of range') }
+    }
+    if (reps > ceiling) {
+      return { rangeStatus: 'above_target', effortStatus, label: withEffort(`Above ${ceiling}-rep target`) }
+    }
+    return { rangeStatus: 'in_range', effortStatus, label: `Work toward ${ceiling} reps` }
+  }
+
+  // mode === 'none': no usable routine range (none provided, or malformed min > max)
+  return { rangeStatus: 'no_target', effortStatus: 'not_applicable', label: '' }
 }
 
 export function suggestNextTarget(

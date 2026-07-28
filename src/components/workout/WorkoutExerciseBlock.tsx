@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback } from '@/lib/workout'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import type { ProgressionTrend } from '@/lib/workout-coach'
-import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
+import type { ExerciseHistoryEntry, PRBaseline, RepRange } from '@/lib/workout'
 
 // Trend labels and styles (Phase 1E — lightweight, no charts)
 const TREND_LABEL: Partial<Record<ProgressionTrend, string>> = {
@@ -59,6 +59,20 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
     { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
   )
   const setPRs = evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)
+
+  // Phase 2G: per-set target-execution feedback for the active
+  // workout. Only completed, non-warmup sets are evaluated — warmups
+  // and incomplete sets receive no target feedback at all. Reuses the
+  // exact same repRange snapshot already built above for
+  // suggestNextTarget, so there's one source of truth for "what is
+  // this exercise's target" per render, not two.
+  const repRangeForFeedback: RepRange = { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
+  const targetFeedbackBySetId: Record<string, string> = {}
+  for (const s of sets as any[]) {
+    if (!s.completed || s.is_warmup) continue
+    const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.exercise_type, repRangeForFeedback)
+    targetFeedbackBySetId[s.id] = feedback.label
+  }
 
   const completedSets = sets.filter((s: any) => s.completed && !s.is_warmup).length
   const totalSets     = sets.filter((s: any) => !s.is_warmup).length
@@ -173,7 +187,13 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
             <span className="w-6"></span>
           </div>
           {sets.map((s: any) => (
-            <SetRow key={s.id} set={s} isUnilateral={we.exercise.unilateral} prType={setPRs[s.id] ?? null} />
+            <SetRow
+              key={s.id}
+              set={s}
+              isUnilateral={we.exercise.unilateral}
+              prType={setPRs[s.id] ?? null}
+              targetFeedbackLabel={targetFeedbackBySetId[s.id]}
+            />
           ))}
         </div>
       )}

@@ -22,9 +22,10 @@ interface SetRowProps {
   set: WorkoutSet
   isUnilateral: boolean
   prType?: PRType
+  targetFeedbackLabel?: string
 }
 
-export function SetRow({ set, isUnilateral, prType }: SetRowProps) {
+export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRowProps) {
   const router = useRouter()
   const [reps,      setReps]      = useState(set.reps      !== null ? String(set.reps)      : '')
   const [lbs,       setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
@@ -95,6 +96,19 @@ export function SetRow({ set, isUnilateral, prType }: SetRowProps) {
 
   const inputCls = 'w-full min-w-0 px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
   const weightSuffix = isUnilateral ? 'per side' : 'lbs'
+
+  // Phase 2C/2G: combined PR + target-feedback label — only one PR type
+  // shown, priority already resolved by evaluateSetPRs, and target
+  // feedback already resolved by evaluateSetTargetFeedback, both
+  // before this component ever sees them. SetRow does not query or
+  // compute PR/target status itself. Approved order: PR first, then
+  // range/effort, joined with " · ". A PR remains visible even when
+  // there is no programmed target (targetFeedbackLabel is '' or
+  // undefined in that case).
+  const combinedLabel = [
+    prType ? PR_LABELS[prType] : null,
+    targetFeedbackLabel || null,
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className={cn(
@@ -194,12 +208,10 @@ export function SetRow({ set, isUnilateral, prType }: SetRowProps) {
       </button>
       </div>
 
-      {/* Phase 2C: PR badge — only one type shown, priority already
-          resolved by evaluateSetPRs before this component ever sees
-          prType. SetRow does not query or compute PR status itself. */}
-      {prType && (
+      {/* Phase 2C/2G: combined PR + target-feedback line */}
+      {combinedLabel && (
         <p className="text-xs text-primary font-medium pl-7 mt-1">
-          {PR_LABELS[prType]}
+          {combinedLabel}
         </p>
       )}
     </div>
