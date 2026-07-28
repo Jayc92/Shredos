@@ -54,6 +54,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       order_index:        re.order_index,
       target_sets:        re.target_sets      ?? null,
       target_reps:        re.target_reps_max  ?? re.target_reps_min ?? null,
+      target_reps_min:    re.target_reps_min  ?? null,
+      target_reps_max:    re.target_reps_max  ?? null,
       target_weight_kg:   re.target_weight_kg ?? null,
     }))
 

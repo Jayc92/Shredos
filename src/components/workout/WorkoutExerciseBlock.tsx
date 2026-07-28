@@ -51,7 +51,13 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const curBest = bestSet(sets)
   const signal  = progressSignal(curBest, previousBest)
   const prevSummary = formatPreviousBest(previousBest)
-  const nextTarget = suggestNextTarget(previousBest, we.exercise.unilateral, we.exercise.exercise_type, trend)
+  const nextTarget = suggestNextTarget(
+    previousBest,
+    we.exercise.unilateral,
+    we.exercise.exercise_type,
+    trend,
+    { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
+  )
   const setPRs = evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)
 
   const completedSets = sets.filter((s: any) => s.completed && !s.is_warmup).length

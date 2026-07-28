@@ -139,6 +139,12 @@ export interface NextTargetSuggestion {
   message: string
 }
 
+/** A routine-originated rep target snapshot (Phase 2F). Either field may be null/absent. */
+export interface RepRange {
+  min: number | null
+  max: number | null
+}
+
 /** Builds a "Repeat: ..." suggestion from the previous best, with an optional reason suffix. */
 function buildRepeatSuggestion(
   previousBest: WorkoutSet,
@@ -171,11 +177,113 @@ function buildRepeatSuggestion(
   }
 }
 
+/**
+ * Equipment-aware "increase" suggestion (Phase 2C, extracted as its own
+ * function in Phase 2F since range-aware/single-target/ceiling-only/
+ * no-range modes all need to trigger it from different rep thresholds).
+ * Unchanged mechanism from Phase 2C — same amounts, same equipment
+ * switch, same defensive fallback when weight data is unexpectedly
+ * missing.
+ */
+function buildIncreaseSuggestion(
+  exerciseType: ExerciseType,
+  previousBest: WorkoutSet,
+  reps: number,
+  suffix: string
+): NextTargetSuggestion {
+  if (exerciseType === 'cardio' || exerciseType === 'mobility') {
+    return {
+      action: 'no_suggestion',
+      message: 'No strength-progression suggestion for this exercise type.',
+    }
+  }
+
+  if (exerciseType === 'machine' || exerciseType === 'cable') {
+    return {
+      action: 'increase',
+      message: `Try the next available setting${suffix}`,
+    }
+  }
+
+  if (exerciseType === 'bodyweight') {
+    const nextReps = reps + SUGGESTED_REP_INCREASE
+    return {
+      action: 'increase',
+      message: `Try: ${nextReps} reps${suffix} next time`,
+    }
+  }
+
+  // barbell, dumbbell, strength (default), and any other type all use
+  // the same +5 lbs suggestion.
+  const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
+  if (lbs !== null) {
+    const nextLbs = lbs + SUGGESTED_WEIGHT_INCREASE_LBS
+    return {
+      action: 'increase',
+      message: `Try: ${nextLbs} lbs × ${reps}${suffix} next time`,
+    }
+  }
+
+  // Defensive fallback: reached increase-eligibility but weight data is
+  // unexpectedly missing for a weighted exercise type. Falls back to a
+  // conservative repeat rather than a broken message (matches Phase
+  // 2C's original behavior of falling through when lbs was null).
+  return buildRepeatSuggestion(previousBest, false, suffix, 'log RPE next time for a sharper suggestion')
+}
+
+type ResolvedRepTargetMode = 'range' | 'single' | 'ceiling_only' | 'none'
+
+interface ResolvedRepTarget {
+  mode: ResolvedRepTargetMode
+  floor: number | null    // only meaningful in 'range' mode
+  ceiling: number | null  // the effective ceiling/target that triggers "increase"
+}
+
+/**
+ * Normalizes a routine-originated rep range into one of four modes
+ * (Phase 2F), per the approved semantics:
+ *   - min < max            -> 'range': true floor + true ceiling
+ *   - min === max          -> 'single': one exact target
+ *   - only max present     -> 'ceiling_only': true ceiling, global
+ *                              LOW_REPS_THRESHOLD as the conservative floor
+ *   - only min present     -> 'single': min IS the target (does NOT
+ *                              borrow the global 8-rep ceiling)
+ *   - neither, or min > max (malformed) -> 'none': exact existing
+ *                              Phase 2C global-fallback behavior
+ */
+function resolveRepTarget(repRange: RepRange | undefined): ResolvedRepTarget {
+  const min = repRange?.min ?? null
+  const max = repRange?.max ?? null
+  const hasMin = min !== null && min > 0
+  const hasMax = max !== null && max > 0
+
+  if (hasMin && hasMax) {
+    const realMin = min as number
+    const realMax = max as number
+    if (realMin > realMax) {
+      // Malformed data: ignore both, do not attempt to repair or infer intent.
+      return { mode: 'none', floor: null, ceiling: null }
+    }
+    if (realMin === realMax) {
+      return { mode: 'single', floor: null, ceiling: realMin }
+    }
+    return { mode: 'range', floor: realMin, ceiling: realMax }
+  }
+  if (hasMax) {
+    return { mode: 'ceiling_only', floor: null, ceiling: max as number }
+  }
+  if (hasMin) {
+    return { mode: 'single', floor: null, ceiling: min as number }
+  }
+  return { mode: 'none', floor: null, ceiling: null }
+}
+
 export function suggestNextTarget(
   previousBest: WorkoutSet | null,
   isUnilateral: boolean,
   exerciseType: ExerciseType,
-  trend?: ProgressionTrend
+  trend?: ProgressionTrend,
+  repRange?: RepRange
 ): NextTargetSuggestion {
   if (!previousBest) {
     return {
@@ -192,8 +300,8 @@ export function suggestNextTarget(
   const reps = previousBest.reps ?? null
   const rpe = previousBest.rpe ?? null
 
-  // Existing multi-session trend takes priority — reuse it rather than
-  // re-deriving decline detection from a single set.
+  // Priority 1-3, unconditional regardless of any routine rep range —
+  // unchanged from Phase 2C.
   if (trend === 'stalling') {
     return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'progress has stalled recently')
   }
@@ -202,50 +310,65 @@ export function suggestNextTarget(
     return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'RPE was high')
   }
 
+  // Priority 4: routine-aware rep target/range (Phase 2F). Does NOT
+  // read workout_exercises.target_reps (the ambiguous collapsed
+  // singular value) — only the snapshotted target_reps_min/max the
+  // caller passes in as repRange.
+  const resolved = resolveRepTarget(repRange)
+
+  if (resolved.mode === 'range') {
+    const floor = resolved.floor as number
+    const ceiling = resolved.ceiling as number
+
+    if (reps !== null && reps < floor) {
+      return buildRepeatSuggestion(previousBest, isBodyweight, suffix, `target range is ${floor}–${ceiling} reps`)
+    }
+    if (reps !== null && reps >= ceiling) {
+      if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
+        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+      }
+      return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
+    }
+    // floor <= reps < ceiling: genuine progress within the range.
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, `work toward ${ceiling} reps`)
+  }
+
+  if (resolved.mode === 'single') {
+    const target = resolved.ceiling as number
+
+    if (reps !== null && reps >= target) {
+      if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
+        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+      }
+      return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
+    }
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, `work toward ${target} reps`)
+  }
+
+  if (resolved.mode === 'ceiling_only') {
+    const ceiling = resolved.ceiling as number
+
+    if (reps !== null && reps < LOW_REPS_THRESHOLD) {
+      return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'reps were low')
+    }
+    if (reps !== null && reps >= ceiling) {
+      if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
+        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+      }
+      return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
+    }
+    return buildRepeatSuggestion(previousBest, isBodyweight, suffix, `work toward ${ceiling} reps`)
+  }
+
+  // mode === 'none': no usable routine range (none provided, or
+  // malformed min > max) — exact existing Phase 2C global-fallback
+  // behavior, byte-identical.
   if (reps !== null && reps < LOW_REPS_THRESHOLD) {
     return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'reps were low')
   }
 
   if (reps !== null && reps >= TOP_OF_RANGE_REPS && rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-    // Phase 2C: equipment-aware increment, chosen from the exercise's
-    // actual type. Does not read target_reps anywhere — the rep
-    // ceiling above stays the existing global TOP_OF_RANGE_REPS
-    // constant for every exercise, routine-started or not (see Phase
-    // 2C analysis: workout_exercises.target_reps is ambiguous between
-    // a routine's min and max and cannot safely be treated as a
-    // per-exercise ceiling).
-    if (exerciseType === 'cardio' || exerciseType === 'mobility') {
-      return {
-        action: 'no_suggestion',
-        message: 'No strength-progression suggestion for this exercise type.',
-      }
-    }
-
-    if (exerciseType === 'machine' || exerciseType === 'cable') {
-      return {
-        action: 'increase',
-        message: `Try the next available setting${suffix}`,
-      }
-    }
-
-    if (exerciseType === 'bodyweight') {
-      const nextReps = reps + SUGGESTED_REP_INCREASE
-      return {
-        action: 'increase',
-        message: `Try: ${nextReps} reps${suffix} next time`,
-      }
-    }
-
-    // barbell, dumbbell, strength (default), and any other type all
-    // use the same +5 lbs suggestion.
-    const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
-    if (lbs !== null) {
-      const nextLbs = lbs + SUGGESTED_WEIGHT_INCREASE_LBS
-      return {
-        action: 'increase',
-        message: `Try: ${nextLbs} lbs × ${reps}${suffix} next time`,
-      }
-    }
+    return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
   }
 
   // Ambiguous fallback: RPE missing, or reps in the 6-7 zone with no

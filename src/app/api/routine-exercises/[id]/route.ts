@@ -7,14 +7,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json()
-  // Convert target_weight_lbs to target_weight_kg if provided
+  // target_weight_lbs is a UI-only field.
+  // Convert it to the database's kg field when numeric, then always remove it
+  // before passing the payload to Supabase.
   const update: Record<string, any> = { ...body }
   if (typeof body.target_weight_lbs === 'number') {
     update.target_weight_kg = body.target_weight_lbs > 0
       ? Math.round(lbsToKg(body.target_weight_lbs) * 100) / 100
       : null
-    delete update.target_weight_lbs
   }
+
+  delete update.target_weight_lbs
   const { data, error } = await supabase
     .from('workout_routine_exercises')
     .update(update)
