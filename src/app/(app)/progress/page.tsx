@@ -6,6 +6,8 @@ import {
   fetchCurrentNutritionTarget,
 } from '@/lib/supabase/server'
 import { fetchProgressSummary } from '@/lib/progress-summary'
+import { fetchStrengthRecords } from '@/lib/strength-records'
+import { kgToLbs } from '@/lib/units'
 import { todayISO } from '@/lib/dates'
 import { format, parseISO } from 'date-fns'
 import type { Metadata } from 'next'
@@ -27,17 +29,22 @@ export default async function ProgressPage() {
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
-  // Round-trip 2: 5 bounded 28-day queries inside fetchProgressSummary
+  // Round-trip 2: fetchProgressSummary (5 bounded 28-day queries) and
+  // fetchStrengthRecords (one all-time query) are independent of each
+  // other — run in parallel.
   const today = todayISO()
-  const summary = await fetchProgressSummary(
-    supabase,
-    user.id,
-    today,
-    target,
-    profile.main_goal,
-    profile.fasting_enabled,
-    profile.step_goal
-  )
+  const [summary, strengthRecords] = await Promise.all([
+    fetchProgressSummary(
+      supabase,
+      user.id,
+      today,
+      target,
+      profile.main_goal,
+      profile.fasting_enabled,
+      profile.step_goal
+    ),
+    fetchStrengthRecords(supabase, user.id),
+  ])
 
   const windowStartDate = parseISO(summary.windowStart)
   const windowEndDate = parseISO(summary.windowEnd)
@@ -65,6 +72,99 @@ export default async function ProgressPage() {
           A read-only look at the last 4 weeks — for day-to-day, see your
           weekly check-in or coach actions.
         </p>
+      </div>
+
+      {/* Strength Records (Phase 2D) — all-time, independent of the
+          28-day summary below, so this has its own empty state rather
+          than being gated on summary.hasAnyData. */}
+      <div className="shred-card space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Strength Records</h2>
+        {strengthRecords.records.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No strength records yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {strengthRecords.records.map((r) => {
+              const suffix = r.isUnilateral ? ' per side' : ''
+              const trendLabel =
+                r.trend === 'improving' ? 'Improving'
+                : r.trend === 'stalling' ? 'Possible stall'
+                : r.trend === 'steady'   ? 'Steady'
+                : null // 'needs-data' — don't pretend a trend exists
+
+              return (
+                <div
+                  key={r.exerciseId}
+                  className="space-y-1 pb-4 border-b border-border/40 last:border-0 last:pb-0"
+                >
+                  <p className="text-sm font-semibold text-foreground">{r.exerciseName}</p>
+                  {r.maxWeightKg !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Weight PR: {Math.round(kgToLbs(r.maxWeightKg))} lbs{suffix}
+                    </p>
+                  )}
+                  {r.maxEstimated1RmKg !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Est. 1RM: {Math.round(kgToLbs(r.maxEstimated1RmKg))} lbs{suffix}
+                    </p>
+                  )}
+                  {r.maxBodyweightReps !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Rep PR: {r.maxBodyweightReps} reps
+                    </p>
+                  )}
+                  {r.mostRecentBest && (
+                    <p className="text-xs text-muted-foreground">
+                      Recent best:{' '}
+                      {r.mostRecentBest.weightKg !== null
+                        ? `${Math.round(kgToLbs(r.mostRecentBest.weightKg))} lbs${
+                            r.mostRecentBest.reps !== null ? ` × ${r.mostRecentBest.reps}` : ''
+                          }${suffix}`
+                        : r.mostRecentBest.reps !== null
+                        ? `${r.mostRecentBest.reps} reps`
+                        : '—'}
+                    </p>
+                  )}
+                  {trendLabel && (
+                    <p className="text-xs text-muted-foreground">Trend: {trendLabel}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Recent PRs (Phase 2D) */}
+      <div className="shred-card space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Recent PRs</h2>
+        {strengthRecords.recentPREvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No PRs yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {strengthRecords.recentPREvents.map((e, i) => {
+              const suffix = e.isUnilateral ? ' per side' : ''
+              const dateLabel = format(parseISO(e.workoutDate), 'MMM d')
+              const typeLabel =
+                e.type === 'weight' ? 'Weight PR'
+                : e.type === 'estimated_1rm' ? 'Est. 1RM PR'
+                : 'Rep PR'
+              const valueText =
+                e.type === 'weight'
+                  ? `${Math.round(kgToLbs(e.weightKg as number))} lbs${
+                      e.reps !== null ? ` × ${e.reps}` : ''
+                    }${suffix}`
+                  : e.type === 'estimated_1rm'
+                  ? `${Math.round(kgToLbs(e.estimated1RmKg as number))} lbs${suffix}`
+                  : `${e.reps} reps${suffix}`
+
+              return (
+                <li key={i} className="text-xs text-foreground">
+                  {dateLabel} — {e.exerciseName} — {typeLabel} — {valueText}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Empty state */}

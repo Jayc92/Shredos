@@ -126,7 +126,7 @@ function buildReasonText(allMuscleReadiness: MuscleReadiness[], focusMuscle: str
   return ''
 }
 
-function classifyTrend(scores: number[]): ProgressionTrend {
+export function classifyTrend(scores: number[]): ProgressionTrend {
   if (scores.length < 3) return 'needs-data'
   const recent = scores.slice(0, 2)
   const prior  = scores.slice(2, 4)

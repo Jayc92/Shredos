@@ -296,6 +296,12 @@ export type PRType = 'weight' | 'estimated_1rm' | 'bodyweight_reps' | null
  * original historical baseline (e.g. baseline 195 -> set1 200lbs is a
  * PR -> set2 205lbs is ALSO a PR, since it beats the new 200lbs high).
  *
+ * A first-ever qualifying value (no prior baseline for that metric —
+ * baseline.maxWeightKg/maxEstimated1RmKg/maxBodyweightReps is null)
+ * SILENTLY establishes the running best and is never itself reported
+ * as a PR — there was nothing to beat yet. Only a later set that
+ * exceeds an already-established baseline counts as a PR.
+ *
  * Priority when a single weighted set qualifies for more than one PR
  * type simultaneously: weight PR wins over estimated-1RM PR. A set is
  * never both a weighted PR and a bodyweight-rep PR (mutually
@@ -322,19 +328,24 @@ export function evaluateSetPRs(
     let prType: PRType = null
 
     if (set.weight_kg !== null && set.weight_kg > 0) {
+      const hadWeightBaseline = runningMaxWeightKg !== null
       if (runningMaxWeightKg === null || set.weight_kg > runningMaxWeightKg) {
-        prType = 'weight'
+        if (hadWeightBaseline) prType = 'weight'
         runningMaxWeightKg = set.weight_kg
       }
 
       const rm = set.reps ? epley1RM(set.weight_kg, set.reps) : null
-      if (rm !== null && (runningMaxEstimated1RmKg === null || rm > runningMaxEstimated1RmKg)) {
-        if (prType === null) prType = 'estimated_1rm'
-        runningMaxEstimated1RmKg = rm
+      if (rm !== null) {
+        const hadRmBaseline = runningMaxEstimated1RmKg !== null
+        if (runningMaxEstimated1RmKg === null || rm > runningMaxEstimated1RmKg) {
+          if (hadRmBaseline && prType === null) prType = 'estimated_1rm'
+          runningMaxEstimated1RmKg = rm
+        }
       }
     } else if (set.reps !== null && set.reps > 0) {
+      const hadBwBaseline = runningMaxBodyweightReps !== null
       if (runningMaxBodyweightReps === null || set.reps > runningMaxBodyweightReps) {
-        prType = 'bodyweight_reps'
+        if (hadBwBaseline) prType = 'bodyweight_reps'
         runningMaxBodyweightReps = set.reps
       }
     }
