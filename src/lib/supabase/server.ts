@@ -325,6 +325,51 @@ export async function fetchWorkoutWeekStats(
   }
 }
 
+/**
+ * Finds the user's true active training session, if any (Phase 2K).
+ *
+ * "True active" is deliberately narrower than status='in_progress'
+ * alone: a reopened completed workout (Phase 2I correction) is ALSO
+ * status='in_progress', but always has a non-null
+ * completed_duration_seconds (Phase 2J never clears it on reopen, and
+ * no code path can reach in_progress with a real duration any other
+ * way). Excluding rows with a non-null duration is what lets a
+ * correction session coexist with a genuinely new active workout,
+ * rather than blocking it.
+ *
+ * When more than one true active session exists (from before this
+ * phase's conflict prevention), the most recently CREATED one is
+ * returned, on the assumption that's most likely the session the user
+ * intended to continue. Older duplicates are left untouched and may
+ * surface one at a time as newer ones are resumed or discarded.
+ *
+ * Fails closed: unlike this file's read-only display helpers (which
+ * log and return an empty/null result on error), a query failure here
+ * must NOT be treated as "no active session" -- that would let a
+ * duplicate slip through past the very check meant to prevent it.
+ * Callers MUST catch and abort creation on a thrown error, not
+ * proceed as if this returned null.
+ */
+export async function findActiveTrainingSession(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from('workout_sessions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'in_progress')
+    .is('completed_duration_seconds', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`findActiveTrainingSession query failed: ${error.message}`)
+  }
+  return data
+}
+
 /** Fetch previous bests for exercises in a session (for overload badge) */
 export async function fetchPreviousBests(
   supabase: Awaited<ReturnType<typeof createClient>>,

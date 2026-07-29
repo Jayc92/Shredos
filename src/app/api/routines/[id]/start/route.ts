@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { findActiveTrainingSession } from '@/lib/supabase/server'
 import { buildSessionTitle } from '@/lib/routine'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Phase 2K: same active-session conflict check as manual creation.
+  // See findActiveTrainingSession's own doc comment for why a
+  // reopened correction session doesn't trigger this.
+  let activeSession: { id: string } | null
+  try {
+    activeSession = await findActiveTrainingSession(supabase, user.id)
+  } catch {
+    return NextResponse.json({ error: 'Could not verify active workout status.' }, { status: 500 })
+  }
+  if (activeSession) {
+    return NextResponse.json(
+      { error: 'A workout is already in progress.', active_workout_id: activeSession.id },
+      { status: 409 }
+    )
+  }
 
   const body = await request.json().catch(() => ({}))
   const workout_date = body.workout_date ?? new Date().toISOString().split('T')[0]
