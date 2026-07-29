@@ -7,6 +7,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
+
+  // Phase 2O: notes-specific validation only. Every other field on
+  // this route (name, category, primary_muscle, equipment,
+  // exercise_type, unilateral, is_active, etc.) is deliberately left
+  // exactly as it was -- this route still spreads the rest of the
+  // body directly into .update(body), a known pre-existing gap not
+  // addressed in this phase. Full whitelist hardening (matching the
+  // pattern already applied to workout_sessions in Phases 2M/2N) is
+  // deliberately deferred.
+  const EXERCISE_NOTES_MAX_LENGTH = 1000
+  if ('notes' in body) {
+    if (typeof body.notes === 'string') {
+      const trimmed = body.notes.trim()
+      if (trimmed.length > EXERCISE_NOTES_MAX_LENGTH) {
+        return NextResponse.json(
+          { error: `Exercise notes must be ${EXERCISE_NOTES_MAX_LENGTH} characters or fewer.` },
+          { status: 400 }
+        )
+      }
+      body.notes = trimmed.length > 0 ? trimmed : null
+    } else if (body.notes !== null) {
+      return NextResponse.json({ error: 'Exercise notes must be text or null.' }, { status: 400 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('exercises').update(body)
     .eq('id', params.id).eq('user_id', user.id)

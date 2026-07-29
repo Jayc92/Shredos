@@ -78,6 +78,61 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const completedSets = sets.filter((s: any) => s.completed && !s.is_warmup).length
   const totalSets     = sets.filter((s: any) => !s.is_warmup).length
 
+  // Phase 2O: exercise-level setup/technique notes, surfaced from the
+  // already-existing, already-user-owned exercises.notes column (not
+  // new data -- ExerciseForm.tsx has edited this same field since
+  // Phase 1C). Editable only when this block isn't read-only, exactly
+  // mirroring the same editable-state rule already governing every
+  // other mutation control in this component.
+  const EXERCISE_NOTES_MAX_LENGTH = 1000
+  const [editingExerciseNotes, setEditingExerciseNotes] = useState(false)
+  const [exerciseNotesDraft, setExerciseNotesDraft] = useState(we.exercise.notes ?? '')
+  const [savingExerciseNotes, setSavingExerciseNotes] = useState(false)
+  const [exerciseNotesError, setExerciseNotesError] = useState<string | null>(null)
+  const trimmedExerciseNotes = (we.exercise.notes ?? '').trim()
+
+  function startEditingExerciseNotes() {
+    if (readOnly) return
+    setExerciseNotesDraft(we.exercise.notes ?? '')
+    setExerciseNotesError(null)
+    setEditingExerciseNotes(true)
+  }
+
+  function handleExerciseNotesCancel() {
+    setExerciseNotesDraft(we.exercise.notes ?? '')
+    setExerciseNotesError(null)
+    setEditingExerciseNotes(false)
+  }
+
+  async function handleSaveExerciseNotes() {
+    if (readOnly) return
+    if (savingExerciseNotes) return
+    const trimmed = exerciseNotesDraft.trim()
+    if (trimmed.length > EXERCISE_NOTES_MAX_LENGTH) return // Save is already disabled in this state; defensive guard
+    setSavingExerciseNotes(true)
+    setExerciseNotesError(null)
+    try {
+      const res = await fetch(`/api/exercises/${we.exercise.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: trimmed.length > 0 ? trimmed : null }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setExerciseNotesError(body.error ?? 'Could not save exercise notes. Please try again.')
+        setSavingExerciseNotes(false)
+        return
+      }
+      setExerciseNotesError(null)
+      setEditingExerciseNotes(false)
+      setSavingExerciseNotes(false)
+      router.refresh()
+    } catch {
+      setExerciseNotesError('Could not save exercise notes. Please try again.')
+      setSavingExerciseNotes(false)
+    }
+  }
+
   async function handleAddSet() {
     if (readOnly) return
     setAddingSet(true)
@@ -156,6 +211,62 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           )}
         </div>
       </div>
+
+      {open && (editingExerciseNotes || trimmedExerciseNotes.length > 0 || !readOnly) && (
+        <div className="pl-6">
+          {editingExerciseNotes ? (
+            <div className="space-y-1.5">
+              <label htmlFor={`exercise-notes-${we.exercise.id}`} className="text-xs font-medium text-muted-foreground">
+                Exercise notes
+              </label>
+              <textarea
+                id={`exercise-notes-${we.exercise.id}`}
+                value={exerciseNotesDraft}
+                onChange={e => setExerciseNotesDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') handleExerciseNotesCancel() }}
+                placeholder="Setup, form cues, equipment differences, or anything to remember next time."
+                maxLength={EXERCISE_NOTES_MAX_LENGTH + 100}
+                rows={3}
+                className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+              />
+              <p
+                className={cn('text-xs', exerciseNotesDraft.length > EXERCISE_NOTES_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground')}
+                aria-live="polite"
+              >
+                {exerciseNotesDraft.length} / {EXERCISE_NOTES_MAX_LENGTH}
+              </p>
+              {exerciseNotesError && (
+                <p className="text-xs text-destructive" aria-live="polite">{exerciseNotesError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleSaveExerciseNotes}
+                  disabled={savingExerciseNotes || exerciseNotesDraft.trim().length > EXERCISE_NOTES_MAX_LENGTH}
+                  className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                  {savingExerciseNotes ? 'Saving…' : 'Save'}
+                </button>
+                <button type="button" onClick={handleExerciseNotesCancel} disabled={savingExerciseNotes}
+                  className="px-3 py-1 rounded-md border border-border text-muted-foreground text-xs font-medium hover:bg-secondary disabled:opacity-50 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : trimmedExerciseNotes.length > 0 ? (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Exercise notes</p>
+              <p className="text-xs text-foreground whitespace-pre-wrap break-words">{trimmedExerciseNotes}</p>
+              {!readOnly && (
+                <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-primary hover:underline">
+                  Edit notes
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              + Add exercise notes
+            </button>
+          )}
+        </div>
+      )}
 
       {open && (
         <div className="pl-6 space-y-0.5">
