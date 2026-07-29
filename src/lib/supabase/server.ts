@@ -370,6 +370,36 @@ export async function findActiveTrainingSession(
   return data
 }
 
+/**
+ * Resolves an active-workout unique-index violation (Phase 2L) back
+ * to the actual session that's occupying the slot, so the losing
+ * request in a race can be given the same deterministic 409 contract
+ * as the normal Phase 2K pre-check. Deliberately data-only -- no
+ * NextResponse or other framework import in this file; the calling
+ * route builds the actual HTTP response itself.
+ *
+ * Throws (rather than returning null) in the extremely unlikely case
+ * where the violation just fired but a fresh query finds no true-
+ * active session (e.g. it was completed or discarded in the same
+ * instant) -- callers must treat that as a failure to resolve, not
+ * silently fabricate a conflict response with no real session behind
+ * it.
+ */
+export async function resolveActiveWorkoutConflict(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<{ id: string }> {
+  const activeSession = await findActiveTrainingSession(supabase, userId)
+
+  if (!activeSession) {
+    throw new Error(
+      'Active workout conflict detected but could not be resolved to a session.'
+    )
+  }
+
+  return activeSession
+}
+
 /** Fetch previous bests for exercises in a session (for overload badge) */
 export async function fetchPreviousBests(
   supabase: Awaited<ReturnType<typeof createClient>>,

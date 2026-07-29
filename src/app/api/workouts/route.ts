@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { findActiveTrainingSession } from '@/lib/supabase/server'
+import { findActiveTrainingSession, resolveActiveWorkoutConflict } from '@/lib/supabase/server'
 import { autoTitle } from '@/lib/workout'
+
+// Phase 2L: name of the partial unique index (migration 008) enforcing
+// one true active training session per user at the database level.
+const ACTIVE_WORKOUT_UNIQUE_INDEX = 'workout_sessions_one_active_training_per_user_idx'
+
+/**
+ * True only for the exact new-index violation -- SQLSTATE 23505 AND
+ * the error message names this specific index. Checking both (not
+ * just the code) means an unrelated future unique violation on this
+ * table is never misclassified as an active-workout conflict.
+ */
+function isActiveWorkoutUniqueViolation(error: any): boolean {
+  return error?.code === '23505'
+    && typeof error?.message === 'string'
+    && error.message.includes(ACTIVE_WORKOUT_UNIQUE_INDEX)
+}
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -58,6 +74,23 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Phase 2L: the app-level pre-check above already covers the
+    // common case; this handles the rare race where two requests both
+    // passed that check before either insert committed. The unique
+    // index (migration 008) is what actually stops the second insert.
+    if (isActiveWorkoutUniqueViolation(error)) {
+      try {
+        const conflictingSession = await resolveActiveWorkoutConflict(supabase, user.id)
+        return NextResponse.json(
+          { error: 'A workout is already in progress.', active_workout_id: conflictingSession.id },
+          { status: 409 }
+        )
+      } catch {
+        return NextResponse.json({ error: 'Could not verify active workout status.' }, { status: 500 })
+      }
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ data }, { status: 201 })
 }
