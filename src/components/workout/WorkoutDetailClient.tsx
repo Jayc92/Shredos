@@ -60,6 +60,7 @@ export function WorkoutDetailClient({
           summary={completionSummary}
           startTime={session.start_time}
           endTime={session.end_time}
+          completedDurationSeconds={session.completed_duration_seconds}
         />
       )}
 

@@ -19,7 +19,7 @@ interface SessionCardProps {
 
 export function SessionCard({ session, exerciseCount }: SessionCardProps) {
   const dateLabel = format(parseISO(session.workout_date), 'EEE, MMM d')
-  const duration  = formatWorkoutDuration(session.start_time, session.end_time)
+  const duration  = formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)
   const title     = session.title || 'Workout'
 
   return (

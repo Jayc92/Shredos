@@ -24,16 +24,28 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   const [deleting,      setDeleting]      = useState(false)
   const [deleteError,   setDeleteError]   = useState<string | null>(null)
   const dateLabel = format(parseISO(session.workout_date), 'EEEE, MMMM d')
-  const duration  = formatWorkoutDuration(session.start_time, session.end_time)
+  const duration  = formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)
   const isActive  = session.status === 'in_progress'
   const isDone    = session.status === 'completed'
   async function saveTitle() {
+    if (isDone) return
     const trimmed = title.trim()
     if (trimmed && trimmed !== session.title) {
-      await fetch(`/api/workouts/${session.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trimmed }) })
-      router.refresh()
+      const res = await fetch(`/api/workouts/${session.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trimmed }) })
+      if (res.ok) {
+        router.refresh()
+      } else {
+        setTitle(session.title || 'Workout')
+      }
     }
     setEditingTitle(false)
+  }
+  function handleTitleClick() {
+    // Defense in depth: the button below only renders when !isDone, but
+    // guard the handler itself too, matching the same independent-guard
+    // philosophy already applied to every mutation handler in Phase 2I.
+    if (isDone) return
+    setEditingTitle(true)
   }
   async function handleComplete() {
     setCompleting(true); setCompleteError(null)
@@ -61,7 +73,11 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   return (
     <div className="shred-card space-y-3">
       <div className="flex items-start justify-between gap-2">
-        {editingTitle ? (
+        {isDone ? (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
+          </div>
+        ) : editingTitle ? (
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <input autoFocus value={title} onChange={e => setTitle(e.target.value)} onBlur={saveTitle}
               onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
@@ -69,7 +85,7 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             <button onClick={saveTitle} className="text-green-400 hover:text-green-300"><Check className="w-4 h-4" /></button>
           </div>
         ) : (
-          <button onClick={() => setEditingTitle(true)} className="flex items-center gap-2 text-left flex-1 min-w-0 group">
+          <button onClick={handleTitleClick} className="flex items-center gap-2 text-left flex-1 min-w-0 group">
             <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
             <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </button>

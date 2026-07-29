@@ -806,13 +806,48 @@ export function weeklyMuscleVolume(
 
 // ── Duration + display helpers ────────────────────────────────────
 
-export function formatWorkoutDuration(startTime: string | null, endTime: string | null): string | null {
+/**
+ * Formats a workout's duration for display (Phase 1E, extended Phase
+ * 2J). Precedence:
+ *   1. completedDurationSeconds, if provided -- the persisted duration
+ *      from first completion. Takes priority over everything else,
+ *      including a currently-null end_time, so a workout reopened for
+ *      correction (Phase 2I clears end_time on reopen) still shows its
+ *      original completed duration instead of a live-elapsed value
+ *      inflating for as long as the correction sits open.
+ *   2. Otherwise, the original start_time -> end_time (or "now" if
+ *      end_time is still null, i.e. a genuinely active session)
+ *      behavior, unchanged from before Phase 2J.
+ */
+export function formatWorkoutDuration(
+  startTime: string | null,
+  endTime: string | null,
+  completedDurationSeconds?: number | null
+): string | null {
+  if (completedDurationSeconds !== null && completedDurationSeconds !== undefined) {
+    const mins = Math.round(completedDurationSeconds / 60)
+    if (mins < 1)  return null
+    if (mins < 60) return `${mins}m`
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`
+  }
   if (!startTime) return null
   const end  = endTime ? new Date(endTime) : new Date()
   const mins = Math.round((end.getTime() - new Date(startTime).getTime()) / 60000)
   if (mins < 1)  return null
   if (mins < 60) return `${mins}m`
   return `${Math.floor(mins / 60)}h ${mins % 60}m`
+}
+
+/**
+ * Computes a definite duration in seconds between two known ISO
+ * timestamps (Phase 2J). Distinct from formatWorkoutDuration -- this
+ * is the route-side persistence calculation used exactly once, at
+ * first completion, to populate completed_duration_seconds. Always
+ * non-negative; never returns null (both inputs are assumed present
+ * and valid, unlike the nullable/live-fallback display formatter).
+ */
+export function computeDurationSeconds(startIso: string, endIso: string): number {
+  return Math.max(0, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 1000))
 }
 
 /** Generate a session title from a workout date ISO string using date-fns. */

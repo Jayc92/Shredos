@@ -282,6 +282,7 @@ export interface WorkoutSession {
   end_time: string | null
   notes: string | null
   routine_id: string | null  // Phase 1D: nullable FK; null = manually started session
+  completed_duration_seconds: number | null  // Phase 2J: persisted at first completion, preserved through reopen/recomplete corrections
   created_at: string
   updated_at: string
 }

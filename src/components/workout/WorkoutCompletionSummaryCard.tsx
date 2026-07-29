@@ -5,6 +5,7 @@ interface WorkoutCompletionSummaryCardProps {
   summary: WorkoutCompletionSummary
   startTime: string | null
   endTime: string | null
+  completedDurationSeconds: number | null
 }
 
 /**
@@ -21,8 +22,9 @@ export function WorkoutCompletionSummaryCard({
   summary,
   startTime,
   endTime,
+  completedDurationSeconds,
 }: WorkoutCompletionSummaryCardProps) {
-  const duration = formatWorkoutDuration(startTime, endTime)
+  const duration = formatWorkoutDuration(startTime, endTime, completedDurationSeconds)
   const { targetCounts, effort } = summary
 
   const showTargetExecution = targetCounts.evaluated > 0

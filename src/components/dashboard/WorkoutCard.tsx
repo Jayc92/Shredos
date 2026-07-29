@@ -33,7 +33,7 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
               <span>{last_session_exercise_count} exercise{last_session_exercise_count !== 1 ? 's' : ''}</span>
             )}
             {(() => {
-              const dur = formatWorkoutDuration(last_session.start_time, last_session.end_time)
+              const dur = formatWorkoutDuration(last_session.start_time, last_session.end_time, last_session.completed_duration_seconds)
               return dur ? <span>{dur}</span> : null
             })()}
           </div>
