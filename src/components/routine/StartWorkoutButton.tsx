@@ -92,10 +92,8 @@ export function StartWorkoutButton({ routineId, routineName, isActive = true, cl
     setModalBusy(true)
     setModalError(null)
     try {
-      const patchRes = await fetch(`/api/workouts/${conflictId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'skipped' }),
+      const patchRes = await fetch(`/api/workouts/${conflictId}/skip`, {
+        method: 'POST',
       })
       if (!patchRes.ok) {
         setModalError('Could not discard the existing workout. Please try again.')

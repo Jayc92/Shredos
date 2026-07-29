@@ -35,6 +35,17 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // Phase 2M: a session with no recorded start_time cannot produce an
+  // honest completed_duration_seconds. Reject rather than inventing a
+  // start time, using "now" as a fake start, or storing a zero
+  // duration -- none of those would be a true record of the workout.
+  if (!existing.start_time) {
+    return NextResponse.json(
+      { error: 'Cannot complete a workout with no recorded start time.' },
+      { status: 409 }
+    )
+  }
+
   const update: Record<string, unknown> = { status: 'completed', end_time: nowIso }
   // Only set completed_duration_seconds when it isn't already present --
   // this is what makes recompletion after a correction preserve the

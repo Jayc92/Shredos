@@ -19,7 +19,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   const { data: session, error: fetchError } = await supabase
     .from('workout_sessions')
-    .select('status')
+    .select('status, completed_duration_seconds')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -29,6 +29,21 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   if (session.status !== 'completed') {
     return NextResponse.json({ error: 'Only completed workouts can be reopened.' }, { status: 409 })
+  }
+
+  // Phase 2M: a completed row with no persisted duration (e.g. a
+  // legacy row from before Phase 2J's backfill, missing start_time or
+  // end_time at the time it was completed) cannot safely become a
+  // true-active session -- it would be indistinguishable from a
+  // genuine active workout and would illegitimately occupy the Phase
+  // 2L one-active-workout slot. Fail closed rather than reopening an
+  // ambiguous historical record; do not invent or backfill a duration
+  // here.
+  if (session.completed_duration_seconds === null) {
+    return NextResponse.json(
+      { error: 'This workout has no recorded duration and cannot safely enter correction mode.' },
+      { status: 409 }
+    )
   }
 
   const { data, error } = await supabase
