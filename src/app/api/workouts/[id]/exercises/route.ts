@@ -6,11 +6,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Verify session ownership
-  const { data: session } = await supabase
-    .from('workout_sessions').select('id')
-    .eq('id', params.id).eq('user_id', user.id).single()
+  // Verify session ownership (Phase 2I: also check completion status
+  // in the same query, rather than adding a second lookup). Uses
+  // maybeSingle() rather than single() so a genuinely-missing session
+  // (data: null, error: null) is distinguishable from a real query
+  // failure (error set) -- single() would return an error for BOTH
+  // cases, which would have broken the original not-found -> 404
+  // behavior once a fail-closed error check was added.
+  const { data: session, error: sessionError } = await supabase
+    .from('workout_sessions').select('id, status')
+    .eq('id', params.id).eq('user_id', user.id).maybeSingle()
+  if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 })
   if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (session.status === 'completed') {
+    return NextResponse.json(
+      { error: 'Completed workouts are read-only. Reopen the workout before editing.' },
+      { status: 409 }
+    )
+  }
 
   const body = await request.json()
   if (!body.exercise_id) return NextResponse.json({ error: 'exercise_id required' }, { status: 400 })

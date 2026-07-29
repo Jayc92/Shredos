@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { lbsToKg } from '@/lib/units'
+import { blockIfWorkoutSetCompleted } from '@/lib/supabase/workout-guards'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const locked = await blockIfWorkoutSetCompleted(supabase, params.id, user.id)
+  if (locked) return locked
 
   const body = await request.json()
 
@@ -32,6 +36,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const locked = await blockIfWorkoutSetCompleted(supabase, params.id, user.id)
+  if (locked) return locked
+
   const { error } = await supabase
     .from('workout_sets').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

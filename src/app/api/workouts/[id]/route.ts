@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { blockIfSessionCompleted } from '@/lib/supabase/workout-guards'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -17,6 +18,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Phase 2I: a completed workout is read-only, including this generic
+  // PATCH — it must not be usable to bypass the dedicated reopen route
+  // (e.g. a PATCH body containing status: 'in_progress'). The ONLY
+  // legal completed -> in_progress transition is POST
+  // /api/workouts/[id]/reopen.
+  const locked = await blockIfSessionCompleted(supabase, params.id, user.id)
+  if (locked) return locked
+
   const body = await request.json()
   const { data, error } = await supabase
     .from('workout_sessions')

@@ -39,9 +39,10 @@ interface WorkoutExerciseBlockProps {
   trend?: ProgressionTrend
   history?: ExerciseHistoryEntry[]
   prBaseline?: PRBaseline
+  readOnly?: boolean
 }
 
-export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBaseline }: WorkoutExerciseBlockProps) {
+export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBaseline, readOnly = false }: WorkoutExerciseBlockProps) {
   const router = useRouter()
   const [open, setOpen]           = useState(true)
   const [addingSet, setAddingSet] = useState(false)
@@ -78,6 +79,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const totalSets     = sets.filter((s: any) => !s.is_warmup).length
 
   async function handleAddSet() {
+    if (readOnly) return
     setAddingSet(true)
     const lastSet = sets.length > 0 ? sets[sets.length - 1] : null
     await fetch(`/api/workout-exercises/${we.id}/sets`, {
@@ -95,6 +97,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   }
 
   async function handleRemove() {
+    if (readOnly) return
     if (!confirm(`Remove ${we.exercise.name} from this workout?`)) return
     setRemoving(true)
     await fetch(`/api/workout-exercises/${we.id}`, { method: 'DELETE' })
@@ -144,11 +147,13 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           {(curBest || !previousBest) && (
             <ProgressBadge signal={signal} previousSummary={prevSummary} />
           )}
-          <button type="button" onClick={handleRemove} disabled={removing}
-            className="p-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-            aria-label="Remove exercise">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {!readOnly && (
+            <button type="button" onClick={handleRemove} disabled={removing}
+              className="p-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+              aria-label="Remove exercise">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -193,12 +198,13 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
               isUnilateral={we.exercise.unilateral}
               prType={setPRs[s.id] ?? null}
               targetFeedbackLabel={targetFeedbackBySetId[s.id]}
+              readOnly={readOnly}
             />
           ))}
         </div>
       )}
 
-      {open && (
+      {open && !readOnly && (
         <div className="pl-6">
           <button type="button" onClick={handleAddSet} disabled={addingSet}
             className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">

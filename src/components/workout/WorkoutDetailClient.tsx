@@ -49,6 +49,10 @@ export function WorkoutDetailClient({
   const completionSummary =
     session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null
 
+  // Phase 2I: a completed workout is read-only in the UI, mirroring
+  // the same lock enforced server-side by the mutation guards.
+  const readOnly = session.status === 'completed'
+
   return (
     <>
       {completionSummary && (
@@ -80,10 +84,11 @@ export function WorkoutDetailClient({
           trend={exerciseTrends?.[we.exercise_id]}
           history={exerciseHistory?.[we.exercise_id]}
           prBaseline={prBaseline?.[we.exercise_id]}
+          readOnly={readOnly}
         />
       ))}
 
-      <AddExerciseSection exercises={allExercises} workoutId={session.id} />
+      {!readOnly && <AddExerciseSection exercises={allExercises} workoutId={session.id} />}
     </>
   )
 }

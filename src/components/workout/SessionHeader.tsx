@@ -19,6 +19,8 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   const [title,         setTitle]         = useState(session.title || 'Workout')
   const [completing,    setCompleting]    = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
+  const [reopening,     setReopening]     = useState(false)
+  const [reopenError,   setReopenError]   = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState(false)
   const [deleteError,   setDeleteError]   = useState<string | null>(null)
   const dateLabel = format(parseISO(session.workout_date), 'EEEE, MMMM d')
@@ -37,6 +39,12 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
     setCompleting(true); setCompleteError(null)
     try { const res = await fetch(`/api/workouts/${session.id}/complete`, { method: 'POST' }); if (!res.ok) throw new Error(''); router.refresh() }
     catch { setCompleteError('Could not save. Try again.') } finally { setCompleting(false) }
+  }
+  async function handleReopen() {
+    if (!confirm('Reopen this workout for editing? Its completion time and summary will update when you complete it again.')) return
+    setReopening(true); setReopenError(null)
+    try { const res = await fetch(`/api/workouts/${session.id}/reopen`, { method: 'POST' }); if (!res.ok) throw new Error(''); router.refresh() }
+    catch { setReopenError('Could not reopen. Try again.') } finally { setReopening(false) }
   }
   async function handleDelete() {
     const confirmMsg = isActive
@@ -88,6 +96,15 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             {completing ? 'Saving…' : 'Complete workout'}
           </button>
           {completeError && <p className="text-xs text-destructive text-center">{completeError}</p>}
+        </div>
+      )}
+      {isDone && (
+        <div className="space-y-2">
+          <button onClick={handleReopen} disabled={reopening}
+            className="w-full py-2.5 rounded-lg border border-border text-muted-foreground font-medium text-sm hover:bg-secondary disabled:opacity-50 transition-colors">
+            {reopening ? 'Reopening…' : 'Reopen workout'}
+          </button>
+          {reopenError && <p className="text-xs text-destructive text-center">{reopenError}</p>}
         </div>
       )}
     </div>

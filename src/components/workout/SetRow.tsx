@@ -23,9 +23,10 @@ interface SetRowProps {
   isUnilateral: boolean
   prType?: PRType
   targetFeedbackLabel?: string
+  readOnly?: boolean
 }
 
-export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRowProps) {
+export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnly = false }: SetRowProps) {
   const router = useRouter()
   const [reps,      setReps]      = useState(set.reps      !== null ? String(set.reps)      : '')
   const [lbs,       setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
@@ -36,6 +37,11 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
   const [saveError, setSaveError] = useState<string | null>(null)
 
   async function patch(update: Record<string, unknown>) {
+    // Phase 2I backstop: the UI hides/disables every mutation control
+    // in read-only mode, and every handler below already guards itself
+    // independently -- this additional check means even a future
+    // caller that forgets its own guard still can't reach the network.
+    if (readOnly) return false
     setSaveError(null)
     const res = await fetch(`/api/workout-sets/${set.id}`, {
       method: 'PATCH',
@@ -51,11 +57,13 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
   }
 
   async function handleRepsBlur() {
+    if (readOnly) return
     const n = parseInt(reps)
     if (!isNaN(n) && n !== set.reps) await patch({ reps: n })
   }
 
   async function handleWeightBlur() {
+    if (readOnly) return
     const n = parseFloat(lbs)
     if (!isNaN(n)) {
       const stored = set.weight_kg !== null ? displayWeight(set.weight_kg) : null
@@ -64,11 +72,13 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
   }
 
   async function handleRpeBlur() {
+    if (readOnly) return
     const n = parseFloat(rpe)
     if (!isNaN(n) && n >= 1 && n <= 10 && n !== set.rpe) await patch({ rpe: n })
   }
 
   async function toggleComplete() {
+    if (readOnly) return
     const next = !completed
     setCompleted(next)
     const ok = await patch({ completed: next })
@@ -76,6 +86,7 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
   }
 
   async function toggleWarmup() {
+    if (readOnly) return
     const next = !isWarmup
     setIsWarmup(next)
     const ok = await patch({ is_warmup: next })
@@ -83,6 +94,7 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
   }
 
   async function handleDelete() {
+    if (readOnly) return
     if (!confirm('Delete this set?')) return
     setBusy(true)
     const res = await fetch(`/api/workout-sets/${set.id}`, { method: 'DELETE' })
@@ -130,6 +142,8 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
           onBlur={handleRepsBlur}
           placeholder="reps" min="0" step="1"
           aria-label="Reps"
+          readOnly={readOnly}
+          aria-readonly={readOnly}
           className={inputCls} />
       </div>
 
@@ -142,6 +156,8 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
             onBlur={handleWeightBlur}
             placeholder="0" min="0" step="0.5"
             aria-label={isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs'}
+            readOnly={readOnly}
+            aria-readonly={readOnly}
             className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
             {weightSuffix}
@@ -158,6 +174,8 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
           placeholder="RPE" min="1" max="10" step="0.5"
           title="Rate of Perceived Exertion (1–10). RPE 10 = max effort. RPE 8 ≈ 2 reps in reserve."
           aria-label="RPE — Rate of Perceived Exertion, 1 to 10"
+          readOnly={readOnly}
+          aria-readonly={readOnly}
           className={inputCls} />
       </div>
 
@@ -165,11 +183,12 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
       <button
         type="button"
         onClick={toggleWarmup}
+        disabled={readOnly}
         title="Warm-up set — excluded from progressive overload and volume calculations"
         aria-label="Warm-up set"
         aria-pressed={isWarmup}
         className={cn(
-          'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium',
+          'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium disabled:opacity-70',
           isWarmup
             ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
             : 'border-border text-muted-foreground hover:border-muted-foreground'
@@ -182,9 +201,10 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
       <button
         type="button"
         onClick={toggleComplete}
+        disabled={readOnly}
         aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
         className={cn(
-          'w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all',
+          'w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-90',
           completed
             ? 'border-green-500 bg-green-500 text-white'
             : 'border-border hover:border-muted-foreground'
@@ -201,11 +221,13 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel }: SetRo
       )}
 
       {/* Delete */}
-      <button type="button" onClick={handleDelete} disabled={busy}
-        aria-label="Delete set"
-        className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {!readOnly && (
+        <button type="button" onClick={handleDelete} disabled={busy}
+          aria-label="Delete set"
+          className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
       </div>
 
       {/* Phase 2C/2G: combined PR + target-feedback line */}
