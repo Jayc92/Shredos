@@ -6,6 +6,7 @@ import { SessionHeader } from '@/components/workout/SessionHeader'
 import { WorkoutExerciseBlock } from '@/components/workout/WorkoutExerciseBlock'
 import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
 import { WorkoutCompletionSummaryCard } from '@/components/workout/WorkoutCompletionSummaryCard'
+import { WorkoutSessionNotes } from '@/components/workout/WorkoutSessionNotes'
 import { summarizeWorkout } from '@/lib/workout'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
@@ -61,6 +62,7 @@ export function WorkoutDetailClient({
           startTime={session.start_time}
           endTime={session.end_time}
           completedDurationSeconds={session.completed_duration_seconds}
+          notes={session.notes}
         />
       )}
 
@@ -69,6 +71,12 @@ export function WorkoutDetailClient({
         routineId={routineId}
         routineName={routineName}
         onSessionDeleted={handleSessionDeleted}
+      />
+
+      <WorkoutSessionNotes
+        sessionId={session.id}
+        notes={session.notes}
+        status={session.status}
       />
 
       {exercises.length === 0 && (

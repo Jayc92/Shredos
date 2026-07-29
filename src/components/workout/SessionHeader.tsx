@@ -6,8 +6,15 @@ import { cn } from '@/lib/utils'
 import { formatWorkoutDuration } from '@/lib/workout'
 import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
 import { format, parseISO } from 'date-fns'
-import { Check, Pencil, Trash2 } from 'lucide-react'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import type { WorkoutSession } from '@/types/database'
+
+// Phase 2N title-error fix: must match WORKOUT_TITLE_MAX_LENGTH in
+// src/app/api/workouts/[id]/route.ts. Kept as an independent literal
+// here rather than importing from that route module — a route file
+// pulls in server-only imports that shouldn't be dragged into a
+// client component's bundle.
+const TITLE_MAX_LENGTH = 100
 
 interface SessionHeaderProps {
   session: WorkoutSession; routineId?: string | null; routineName?: string | null
@@ -17,6 +24,8 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   const router = useRouter()
   const [editingTitle,  setEditingTitle]  = useState(false)
   const [title,         setTitle]         = useState(session.title || 'Workout')
+  const [savingTitle,   setSavingTitle]   = useState(false)
+  const [titleError,    setTitleError]    = useState<string | null>(null)
   const [completing,    setCompleting]    = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [reopening,     setReopening]     = useState(false)
@@ -29,15 +38,36 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   const isDone    = session.status === 'completed'
   async function saveTitle() {
     if (isDone) return
+    if (savingTitle) return
     const trimmed = title.trim()
-    if (trimmed && trimmed !== session.title) {
-      const res = await fetch(`/api/workouts/${session.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trimmed }) })
-      if (res.ok) {
-        router.refresh()
-      } else {
-        setTitle(session.title || 'Workout')
-      }
+    if (trimmed.length > TITLE_MAX_LENGTH) return // Save button is already disabled in this state; defensive guard for Enter
+    if (!trimmed || trimmed === session.title) {
+      setTitleError(null)
+      setEditingTitle(false)
+      return
     }
+    setSavingTitle(true)
+    setTitleError(null)
+    try {
+      const res = await fetch(`/api/workouts/${session.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trimmed }) })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setTitleError(body.error ?? 'Could not save workout title. Please try again.')
+        setSavingTitle(false)
+        return
+      }
+      setTitleError(null)
+      setEditingTitle(false)
+      setSavingTitle(false)
+      router.refresh()
+    } catch {
+      setTitleError('Could not save workout title. Please try again.')
+      setSavingTitle(false)
+    }
+  }
+  function handleTitleCancel() {
+    setTitle(session.title || 'Workout')
+    setTitleError(null)
     setEditingTitle(false)
   }
   function handleTitleClick() {
@@ -45,6 +75,8 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
     // guard the handler itself too, matching the same independent-guard
     // philosophy already applied to every mutation handler in Phase 2I.
     if (isDone) return
+    setTitle(session.title || 'Workout')
+    setTitleError(null)
     setEditingTitle(true)
   }
   async function handleComplete() {
@@ -78,11 +110,30 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
           </div>
         ) : editingTitle ? (
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <input autoFocus value={title} onChange={e => setTitle(e.target.value)} onBlur={saveTitle}
-              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
-              className="flex-1 min-w-0 px-2 py-1 rounded-md bg-secondary border border-input text-foreground text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button onClick={saveTitle} className="text-green-400 hover:text-green-300"><Check className="w-4 h-4" /></button>
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') handleTitleCancel() }}
+                maxLength={TITLE_MAX_LENGTH + 20}
+                aria-label="Workout title"
+                className="flex-1 min-w-0 px-2 py-1 rounded-md bg-secondary border border-input text-foreground text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
+              <button onClick={saveTitle} disabled={savingTitle || title.trim().length > TITLE_MAX_LENGTH}
+                aria-label="Save title"
+                className="text-green-400 hover:text-green-300 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-colors">
+                <Check className="w-4 h-4" />
+              </button>
+              <button onClick={handleTitleCancel} disabled={savingTitle}
+                aria-label="Cancel editing title"
+                className="text-muted-foreground hover:text-foreground disabled:opacity-40 flex-shrink-0 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className={cn('text-xs', title.length > TITLE_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground')} aria-live="polite">
+              {title.length} / {TITLE_MAX_LENGTH}
+            </p>
+            {titleError && (
+              <p className="text-xs text-destructive" aria-live="polite">{titleError}</p>
+            )}
           </div>
         ) : (
           <button onClick={handleTitleClick} className="flex items-center gap-2 text-left flex-1 min-w-0 group">

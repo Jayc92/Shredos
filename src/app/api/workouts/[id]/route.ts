@@ -14,6 +14,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ data })
 }
 
+// Phase 2N: server-side length limits for the two metadata fields this
+// route accepts. Enforced here (not just via HTML maxlength) since the
+// client can't be trusted as the sole source of truth.
+const WORKOUT_TITLE_MAX_LENGTH = 100
+const WORKOUT_NOTES_MAX_LENGTH = 2000
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -48,20 +54,45 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const update: { title?: string | null; notes?: string | null } = {}
 
+  // Title: whitespace-only trims down to an empty string (not null) --
+  // an intentionally blank title is different from "no title set",
+  // and session.title || 'Workout' already displays a sensible
+  // fallback for an empty string exactly as it does for null.
   if ('title' in body) {
-    update.title = typeof body.title === 'string'
-      ? body.title.trim()
-      : body.title === null
-        ? null
-        : undefined
+    if (typeof body.title === 'string') {
+      const trimmed = body.title.trim()
+      if (trimmed.length > WORKOUT_TITLE_MAX_LENGTH) {
+        return NextResponse.json(
+          { error: `Workout title must be ${WORKOUT_TITLE_MAX_LENGTH} characters or fewer.` },
+          { status: 400 }
+        )
+      }
+      update.title = trimmed
+    } else if (body.title === null) {
+      update.title = null
+    } else {
+      update.title = undefined
+    }
   }
 
+  // Notes: whitespace-only becomes null (a note that's just spaces is
+  // functionally "no note"), unlike title's empty-string behavior --
+  // internal line breaks are preserved, only outer whitespace is trimmed.
   if ('notes' in body) {
-    update.notes = typeof body.notes === 'string'
-      ? body.notes
-      : body.notes === null
-        ? null
-        : undefined
+    if (typeof body.notes === 'string') {
+      const trimmed = body.notes.trim()
+      if (trimmed.length > WORKOUT_NOTES_MAX_LENGTH) {
+        return NextResponse.json(
+          { error: `Workout notes must be ${WORKOUT_NOTES_MAX_LENGTH} characters or fewer.` },
+          { status: 400 }
+        )
+      }
+      update.notes = trimmed.length > 0 ? trimmed : null
+    } else if (body.notes === null) {
+      update.notes = null
+    } else {
+      update.notes = undefined
+    }
   }
 
   // Strip any key that resolved to undefined (a wrong-typed value for

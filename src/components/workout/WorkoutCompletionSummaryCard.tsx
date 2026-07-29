@@ -6,6 +6,7 @@ interface WorkoutCompletionSummaryCardProps {
   startTime: string | null
   endTime: string | null
   completedDurationSeconds: number | null
+  notes: string | null
 }
 
 /**
@@ -23,9 +24,11 @@ export function WorkoutCompletionSummaryCard({
   startTime,
   endTime,
   completedDurationSeconds,
+  notes,
 }: WorkoutCompletionSummaryCardProps) {
   const duration = formatWorkoutDuration(startTime, endTime, completedDurationSeconds)
   const { targetCounts, effort } = summary
+  const trimmedNotes = notes?.trim() ?? ''
 
   const showTargetExecution = targetCounts.evaluated > 0
   const showEffort = effort.loggedRpeCount > 0 || effort.missingRpeCount > 0
@@ -101,6 +104,13 @@ export function WorkoutCompletionSummaryCard({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {trimmedNotes.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Session notes</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{trimmedNotes}</p>
         </div>
       )}
     </div>
