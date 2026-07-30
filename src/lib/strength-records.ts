@@ -32,7 +32,7 @@
 import { epley1RM, setScore } from '@/lib/workout'
 import { classifyTrend } from '@/lib/workout-coach'
 import type { ProgressionTrend } from '@/lib/workout-coach'
-import type { WorkoutSet, ExerciseType } from '@/types/database'
+import type { WorkoutSet, ExerciseType, TrackingMode, ExerciseEquipment } from '@/types/database'
 
 const RECENT_PR_DISPLAY_CAP = 10
 
@@ -72,7 +72,13 @@ export interface StrengthRecordsSummary {
 export interface ExerciseProgressDetail {
   exerciseId: string
   exerciseName: string
-  exerciseType: ExerciseType
+  // Phase 2R completion: exerciseType was here as ExerciseType, but was
+  // removed after directly verifying this interface's only consumer
+  // (progress/exercises/[id]/page.tsx) had exactly two reads of it,
+  // both now replaced by trackingMode/equipment below, with no other
+  // reference anywhere else on that page.
+  trackingMode: TrackingMode
+  equipment: ExerciseEquipment | null
   isUnilateral: boolean
   maxWeightKg: number | null
   maxEstimated1RmKg: number | null
@@ -231,7 +237,7 @@ export async function fetchStrengthRecords(
       id, workout_date,
       workout_exercises (
         exercise_id,
-        exercise:exercises ( id, name, exercise_type, unilateral ),
+        exercise:exercises ( id, name, exercise_type, tracking_mode, unilateral ),
         workout_sets ( set_number, reps, weight_kg, rpe, is_warmup, completed )
       )
     `)
@@ -239,7 +245,7 @@ export async function fetchStrengthRecords(
     .eq('status', 'completed')
     .order('workout_date', { ascending: true })
 
-  type ExerciseMeta = { name: string; exerciseType: ExerciseType; isUnilateral: boolean }
+  type ExerciseMeta = { name: string; exerciseType: ExerciseType; trackingMode: TrackingMode; isUnilateral: boolean }
   const exerciseMeta: Record<string, ExerciseMeta> = {}
   const state: Record<string, RunningBestState> = {}
   const mostRecentBest: Record<
@@ -269,12 +275,15 @@ export async function fetchStrengthRecords(
         exerciseMeta[exerciseId] = {
           name: ex.name,
           exerciseType: ex.exercise_type,
+          trackingMode: ex.tracking_mode,
           isUnilateral: !!ex.unilateral,
         }
       }
 
-      // cardio/mobility excluded entirely — don't even collect their sets.
-      if (ex.exercise_type === 'cardio' || ex.exercise_type === 'mobility') continue
+      // Phase 2R: cardio/timed excluded entirely -- don't even collect
+      // their sets. Uses tracking_mode, the behavioral replacement for
+      // exercise_type's old cardio/mobility check.
+      if (ex.tracking_mode === 'cardio' || ex.tracking_mode === 'timed') continue
 
       const working = ((we.workout_sets ?? []) as RawSet[]).filter(isQualifyingSet)
       if (working.length === 0) continue
@@ -308,7 +317,7 @@ export async function fetchStrengthRecords(
   }
 
   const records: StrengthRecord[] = Object.entries(exerciseMeta)
-    .filter(([, meta]) => meta.exerciseType !== 'cardio' && meta.exerciseType !== 'mobility')
+    .filter(([, meta]) => meta.trackingMode !== 'cardio' && meta.trackingMode !== 'timed')
     .map(([exerciseId, meta]) => {
       const scoresDescending = (sessionScoresAscending[exerciseId] ?? []).slice().reverse()
       const st = state[exerciseId] ?? freshRunningBestState()
@@ -359,7 +368,7 @@ export async function fetchExerciseProgressDetail(
 ): Promise<ExerciseProgressDetail | null> {
   const { data: exercise } = await supabase
     .from('exercises')
-    .select('id, name, exercise_type, unilateral')
+    .select('id, name, tracking_mode, equipment, unilateral')
     .eq('id', exerciseId)
     .eq('user_id', userId)
     .single()
@@ -418,7 +427,8 @@ export async function fetchExerciseProgressDetail(
   return {
     exerciseId,
     exerciseName: exercise.name,
-    exerciseType: exercise.exercise_type,
+    trackingMode: exercise.tracking_mode,
+    equipment: exercise.equipment,
     isUnilateral: !!exercise.unilateral,
     maxWeightKg: state.maxWeightKg,
     maxEstimated1RmKg: state.maxEstimated1RmKg,

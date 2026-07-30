@@ -251,6 +251,12 @@ export type ExerciseType =
   | 'strength' | 'bodyweight' | 'machine' | 'cable'
   | 'dumbbell' | 'barbell' | 'cardio' | 'mobility'
 
+// Phase 2R: replaces ExerciseType as the source of application/coaching
+// behavior. ExerciseType/exercise_type remains on Exercise below for
+// legacy DB compatibility only -- it is derived from tracking_mode on
+// write, never read for behavior.
+export type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'
+
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped'
 
 export interface Exercise {
@@ -262,6 +268,7 @@ export interface Exercise {
   secondary_muscles: string[]
   equipment: ExerciseEquipment | null
   exercise_type: ExerciseType
+  tracking_mode: TrackingMode
   unilateral: boolean
   notes: string | null
   is_active: boolean

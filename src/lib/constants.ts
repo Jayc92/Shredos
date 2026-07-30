@@ -181,6 +181,17 @@ export const EXERCISE_TYPES = [
   { value: 'mobility',   label: 'Mobility' },
 ] as const
 
+// Phase 2R: replaces EXERCISE_TYPES as the user-facing field in
+// ExerciseForm.tsx. EXERCISE_TYPES above is left defined (unused by
+// the UI now) rather than deleted, since the legacy exercise_type
+// column and its enum remain in the schema for compatibility.
+export const TRACKING_MODES = [
+  { value: 'weight_reps', label: 'Weight & reps' },
+  { value: 'bodyweight',  label: 'Bodyweight' },
+  { value: 'cardio',      label: 'Cardio' },
+  { value: 'timed',       label: 'Timed' },
+] as const
+
 export const WORKOUT_STATUS_LABELS: Record<string, string> = {
   planned:     'Planned',
   in_progress: 'In progress',

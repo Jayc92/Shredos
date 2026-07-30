@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
-import { normalizeExerciseCreatePayload } from '@/lib/exercise-validation'
+import { normalizeExerciseCreatePayload, deriveLegacyExerciseType } from '@/lib/exercise-validation'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: user.id,
       ...result.value,
+      // Phase 2R: exercise_type is no longer caller-supplied -- it's
+      // derived from the validated tracking_mode so the legacy
+      // NOT NULL/CHECK constraint stays satisfied.
+      exercise_type: deriveLegacyExerciseType(result.value.tracking_mode),
       is_system: false,
     })
     .select().single()

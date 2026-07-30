@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { normalizeExercisePatchPayload } from '@/lib/exercise-validation'
+import { normalizeExercisePatchPayload, deriveLegacyExerciseType } from '@/lib/exercise-validation'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -29,8 +29,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!existing) return NextResponse.json({ error: 'Exercise not found.' }, { status: 404 })
 
+  // Phase 2R: if this PATCH changes tracking_mode, refresh the legacy
+  // exercise_type to match via the same derivation POST uses -- keeps
+  // the legacy column consistent with the current tracking_mode
+  // rather than freezing it at whatever value the exercise was
+  // originally created with.
+  const updatePayload: Record<string, unknown> = { ...result.value }
+  if (result.value.tracking_mode !== undefined) {
+    updatePayload.exercise_type = deriveLegacyExerciseType(result.value.tracking_mode)
+  }
+
   const { data, error } = await supabase
-    .from('exercises').update(result.value)
+    .from('exercises').update(updatePayload)
     .eq('id', params.id).eq('user_id', user.id)
     .select().single()
 

@@ -4,7 +4,7 @@
 
 import { format, parseISO } from 'date-fns'
 import { kgToLbs } from '@/lib/units'
-import type { WorkoutSet, ExerciseType, WorkoutExerciseWithDetails } from '@/types/database'
+import type { WorkoutSet, TrackingMode, ExerciseEquipment, WorkoutExerciseWithDetails } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 
@@ -181,31 +181,33 @@ function buildRepeatSuggestion(
  * Equipment-aware "increase" suggestion (Phase 2C, extracted as its own
  * function in Phase 2F since range-aware/single-target/ceiling-only/
  * no-range modes all need to trigger it from different rep thresholds).
- * Unchanged mechanism from Phase 2C — same amounts, same equipment
- * switch, same defensive fallback when weight data is unexpectedly
- * missing.
+ * Phase 2R: now takes trackingMode (replacing exerciseType as the
+ * source of coaching behavior) and equipment separately -- the
+ * machine/cable "try the next setting" case now reads equipment
+ * directly instead of the old exercise_type value that duplicated it.
  */
 function buildIncreaseSuggestion(
-  exerciseType: ExerciseType,
+  trackingMode: TrackingMode,
+  equipment: ExerciseEquipment | null,
   previousBest: WorkoutSet,
   reps: number,
   suffix: string
 ): NextTargetSuggestion {
-  if (exerciseType === 'cardio' || exerciseType === 'mobility') {
+  if (trackingMode === 'cardio' || trackingMode === 'timed') {
     return {
       action: 'no_suggestion',
       message: 'No strength-progression suggestion for this exercise type.',
     }
   }
 
-  if (exerciseType === 'machine' || exerciseType === 'cable') {
+  if (equipment === 'machine' || equipment === 'cable') {
     return {
       action: 'increase',
       message: `Try the next available setting${suffix}`,
     }
   }
 
-  if (exerciseType === 'bodyweight') {
+  if (trackingMode === 'bodyweight') {
     const nextReps = reps + SUGGESTED_REP_INCREASE
     return {
       action: 'increase',
@@ -213,8 +215,8 @@ function buildIncreaseSuggestion(
     }
   }
 
-  // barbell, dumbbell, strength (default), and any other type all use
-  // the same +5 lbs suggestion.
+  // weight_reps with any other/no equipment all use the same +5 lbs
+  // suggestion.
   const lbs = previousBest.weight_kg ? Math.round(kgToLbs(previousBest.weight_kg)) : null
   if (lbs !== null) {
     const nextLbs = lbs + SUGGESTED_WEIGHT_INCREASE_LBS
@@ -301,9 +303,9 @@ export interface SetTargetFeedback {
 /**
  * Evaluates ONE completed, non-warmup set against its exercise's
  * snapshotted rep target (reused from Phase 2F's resolveRepTarget —
- * no duplicated normalization logic). Reps missing, or exerciseType
- * cardio/mobility, both mean no target concept applies here (matches
- * suggestNextTarget's existing 'cardio'/'mobility' -> no strength-
+ * no duplicated normalization logic). Reps missing, or trackingMode
+ * cardio/timed, both mean no target concept applies here (matches
+ * suggestNextTarget's existing 'cardio'/'timed' -> no strength-
  * progression treatment) -> 'no_target', empty label.
  *
  * Effort modifier ("RPE high" / "Log RPE") is only appended to the
@@ -317,10 +319,10 @@ export interface SetTargetFeedback {
 export function evaluateSetTargetFeedback(
   reps: number | null,
   rpe: number | null,
-  exerciseType: ExerciseType,
+  trackingMode: TrackingMode,
   repRange?: RepRange
 ): SetTargetFeedback {
-  if (exerciseType === 'cardio' || exerciseType === 'mobility' || reps === null) {
+  if (trackingMode === 'cardio' || trackingMode === 'timed' || reps === null) {
     return { rangeStatus: 'no_target', effortStatus: 'not_applicable', label: '' }
   }
 
@@ -380,7 +382,8 @@ export function evaluateSetTargetFeedback(
 export function suggestNextTarget(
   previousBest: WorkoutSet | null,
   isUnilateral: boolean,
-  exerciseType: ExerciseType,
+  trackingMode: TrackingMode,
+  equipment: ExerciseEquipment | null,
   trend?: ProgressionTrend,
   repRange?: RepRange
 ): NextTargetSuggestion {
@@ -394,8 +397,9 @@ export function suggestNextTarget(
   const suffix = isUnilateral ? ' per side' : ''
   // Phase 2C: previously inferred from weight_kg being null/0, which
   // misclassified cardio/mobility exercises (which also have no
-  // weight) as bodyweight. Now uses the exercise's actual type.
-  const isBodyweight = exerciseType === 'bodyweight'
+  // weight) as bodyweight. Phase 2R: uses the exercise's tracking_mode
+  // (the clearer, dedicated replacement for exercise_type) instead.
+  const isBodyweight = trackingMode === 'bodyweight'
   const reps = previousBest.reps ?? null
   const rpe = previousBest.rpe ?? null
 
@@ -424,7 +428,7 @@ export function suggestNextTarget(
     }
     if (reps !== null && reps >= ceiling) {
       if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+        return buildIncreaseSuggestion(trackingMode, equipment, previousBest, reps, suffix)
       }
       return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
     }
@@ -437,7 +441,7 @@ export function suggestNextTarget(
 
     if (reps !== null && reps >= target) {
       if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+        return buildIncreaseSuggestion(trackingMode, equipment, previousBest, reps, suffix)
       }
       return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
     }
@@ -452,7 +456,7 @@ export function suggestNextTarget(
     }
     if (reps !== null && reps >= ceiling) {
       if (rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-        return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+        return buildIncreaseSuggestion(trackingMode, equipment, previousBest, reps, suffix)
       }
       return buildRepeatSuggestion(previousBest, isBodyweight, suffix, 'log RPE next time for a sharper suggestion')
     }
@@ -467,7 +471,7 @@ export function suggestNextTarget(
   }
 
   if (reps !== null && reps >= TOP_OF_RANGE_REPS && rpe !== null && rpe <= MANAGEABLE_RPE_MAX) {
-    return buildIncreaseSuggestion(exerciseType, previousBest, reps, suffix)
+    return buildIncreaseSuggestion(trackingMode, equipment, previousBest, reps, suffix)
   }
 
   // Ambiguous fallback: RPE missing, or reps in the 6-7 zone with no
@@ -689,7 +693,7 @@ export function summarizeWorkout(
     let exPrSetCount = 0
 
     for (const s of workingSets) {
-      const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.exercise_type, repRange)
+      const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.tracking_mode, repRange)
       if (feedback.rangeStatus !== 'no_target') {
         targetCounts.evaluated++
         exTargetCounts.evaluated++

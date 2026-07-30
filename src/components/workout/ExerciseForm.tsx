@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
-  EXERCISE_CATEGORIES, EXERCISE_EQUIPMENT, EXERCISE_TYPES, PRIMARY_MUSCLES,
+  EXERCISE_CATEGORIES, EXERCISE_EQUIPMENT, TRACKING_MODES, PRIMARY_MUSCLES,
 } from '@/lib/constants'
 import type { Exercise } from '@/types/database'
 
@@ -44,7 +44,7 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
   const [category,   setCategory]   = useState<string>(existing?.category ?? '')
   const [muscle,     setMuscle]     = useState<string>(existing?.primary_muscle ?? '')
   const [equipment,  setEquipment]  = useState<string>(existing?.equipment ?? '')
-  const [exType,     setExType]     = useState<string>(existing?.exercise_type ?? 'strength')
+  const [trackingMode, setTrackingMode] = useState<string>(existing?.tracking_mode ?? 'weight_reps')
   const [unilateral, setUnilateral] = useState(existing?.unilateral ?? false)
   const [notes,      setNotes]      = useState(existing?.notes ?? '')
   const [saving, setSaving] = useState(false)
@@ -60,7 +60,7 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
     const payload = {
       name: name.trim(), category: category || null,
       primary_muscle: muscle, equipment: equipment || null,
-      exercise_type: exType || 'strength',
+      tracking_mode: trackingMode || 'weight_reps',
       unilateral, notes: notes.trim() || null,
     }
 
@@ -110,8 +110,8 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Exercise type</label>
-        <PillGroup options={EXERCISE_TYPES} value={exType as any} onChange={setExType as any} />
+        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tracking method</label>
+        <PillGroup options={TRACKING_MODES} value={trackingMode as any} onChange={setTrackingMode as any} />
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer select-none">

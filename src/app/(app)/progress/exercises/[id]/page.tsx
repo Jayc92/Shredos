@@ -31,10 +31,11 @@ export default async function ExerciseProgressDetailPage({
   const detail = await fetchExerciseProgressDetail(supabase, user.id, params.id)
   if (!detail) notFound()
 
-  // Cardio/mobility don't get a strength-progression detail page —
-  // /progress's own Strength Records list already excludes them, so
-  // this only matters for someone hitting the URL directly.
-  if (detail.exerciseType === 'cardio' || detail.exerciseType === 'mobility') {
+  // Cardio/timed don't get a strength-progression detail page —
+  // /progress's own Strength Records list already excludes them (via
+  // tracking_mode, Phase 2R), so this only matters for someone hitting
+  // the URL directly.
+  if (detail.trackingMode === 'cardio' || detail.trackingMode === 'timed') {
     redirect('/progress')
   }
 
@@ -75,7 +76,8 @@ export default async function ExerciseProgressDetailPage({
   const nextTarget = suggestNextTarget(
     previousBestSet,
     detail.isUnilateral,
-    detail.exerciseType,
+    detail.trackingMode,
+    detail.equipment,
     detail.trend
   )
 

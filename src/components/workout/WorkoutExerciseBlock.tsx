@@ -55,7 +55,8 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const nextTarget = suggestNextTarget(
     previousBest,
     we.exercise.unilateral,
-    we.exercise.exercise_type,
+    we.exercise.tracking_mode,
+    we.exercise.equipment,
     trend,
     { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
   )
@@ -71,7 +72,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const targetFeedbackBySetId: Record<string, string> = {}
   for (const s of sets as any[]) {
     if (!s.completed || s.is_warmup) continue
-    const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.exercise_type, repRangeForFeedback)
+    const feedback = evaluateSetTargetFeedback(s.reps, s.rpe, we.exercise.tracking_mode, repRangeForFeedback)
     targetFeedbackBySetId[s.id] = feedback.label
   }
 

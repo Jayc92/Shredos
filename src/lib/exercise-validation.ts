@@ -27,10 +27,19 @@ export const EXERCISE_TYPES = [
   'dumbbell', 'barbell', 'cardio', 'mobility',
 ] as const
 
+// Phase 2R: the user-facing, behavior-driving replacement for
+// exercise_type/EXERCISE_TYPES above. EXERCISE_TYPES/ExerciseTypeValue
+// are kept only because a legacy exercise_type value must still be
+// derived and written for every row (see deriveLegacyExerciseType) --
+// callers can no longer supply exercise_type directly through either
+// normalize function below.
+export const TRACKING_MODES = ['weight_reps', 'bodyweight', 'cardio', 'timed'] as const
+
 export type ExerciseCategory = typeof EXERCISE_CATEGORIES[number]
 export type MuscleGroup = typeof MUSCLE_GROUPS[number]
 export type EquipmentType = typeof EQUIPMENT_TYPES[number]
 export type ExerciseTypeValue = typeof EXERCISE_TYPES[number]
+export type TrackingMode = typeof TRACKING_MODES[number]
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -49,7 +58,7 @@ export interface ExerciseCreatePayload {
   primary_muscle: MuscleGroup
   secondary_muscles: MuscleGroup[]
   equipment: EquipmentType | null
-  exercise_type: ExerciseTypeValue
+  tracking_mode: TrackingMode
   unilateral: boolean
   notes: string | null
 }
@@ -60,7 +69,7 @@ export interface ExercisePatchPayload {
   primary_muscle?: MuscleGroup
   secondary_muscles?: MuscleGroup[]
   equipment?: EquipmentType | null
-  exercise_type?: ExerciseTypeValue
+  tracking_mode?: TrackingMode
   unilateral?: boolean
   notes?: string | null
   is_active?: boolean
@@ -68,12 +77,12 @@ export interface ExercisePatchPayload {
 
 const CREATE_ALLOWED_FIELDS = new Set([
   'name', 'category', 'primary_muscle', 'secondary_muscles',
-  'equipment', 'exercise_type', 'unilateral', 'notes',
+  'equipment', 'tracking_mode', 'unilateral', 'notes',
 ])
 
 const PATCH_ALLOWED_FIELDS = new Set([
   'name', 'category', 'primary_muscle', 'secondary_muscles',
-  'equipment', 'exercise_type', 'unilateral', 'notes', 'is_active',
+  'equipment', 'tracking_mode', 'unilateral', 'notes', 'is_active',
 ])
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -144,11 +153,30 @@ function validateEquipment(raw: unknown): ValidationResult<EquipmentType | null>
   return fail('Invalid equipment value.')
 }
 
-function validateExerciseType(raw: unknown): ValidationResult<ExerciseTypeValue> {
-  if (typeof raw === 'string' && (EXERCISE_TYPES as readonly string[]).includes(raw)) {
-    return ok(raw as ExerciseTypeValue)
+function validateTrackingMode(raw: unknown): ValidationResult<TrackingMode> {
+  if (typeof raw === 'string' && (TRACKING_MODES as readonly string[]).includes(raw)) {
+    return ok(raw as TrackingMode)
   }
-  return fail('Invalid exercise type.')
+  return fail('Invalid tracking mode.')
+}
+
+/**
+ * Derives the legacy exercise_type value from a validated
+ * tracking_mode (Phase 2R), so every write still satisfies the
+ * exercise_type NOT NULL/CHECK constraint without ever accepting a
+ * caller-supplied exercise_type directly. Callers (POST/PATCH routes)
+ * apply this themselves when building the actual database write --
+ * it is intentionally NOT part of ExerciseCreatePayload/
+ * ExercisePatchPayload, since it's a derived legacy-compatibility
+ * value, not something the caller validated or supplied.
+ */
+export function deriveLegacyExerciseType(trackingMode: TrackingMode): ExerciseTypeValue {
+  switch (trackingMode) {
+    case 'bodyweight': return 'bodyweight'
+    case 'cardio': return 'cardio'
+    case 'timed': return 'mobility'
+    case 'weight_reps': return 'strength'
+  }
 }
 
 function validateUnilateral(raw: unknown): ValidationResult<boolean> {
@@ -204,10 +232,9 @@ export function normalizeExerciseCreatePayload(body: unknown): ValidationResult<
   const equipmentResult = validateEquipment(body.equipment)
   if (!equipmentResult.ok) return equipmentResult
 
-  const exerciseTypeResult = body.exercise_type === undefined
-    ? ok<ExerciseTypeValue>('strength')
-    : validateExerciseType(body.exercise_type)
-  if (!exerciseTypeResult.ok) return exerciseTypeResult
+  if (body.tracking_mode === undefined) return fail('Tracking mode is required.')
+  const trackingModeResult = validateTrackingMode(body.tracking_mode)
+  if (!trackingModeResult.ok) return trackingModeResult
 
   const unilateralResult = body.unilateral === undefined
     ? ok(false)
@@ -225,7 +252,7 @@ export function normalizeExerciseCreatePayload(body: unknown): ValidationResult<
     primary_muscle: muscleResult.value,
     secondary_muscles: secondaryResult.value,
     equipment: equipmentResult.value,
-    exercise_type: exerciseTypeResult.value,
+    tracking_mode: trackingModeResult.value,
     unilateral: unilateralResult.value,
     notes: notesResult.value,
   })
@@ -280,10 +307,10 @@ export function normalizeExercisePatchPayload(body: unknown): ValidationResult<E
     payload.equipment = result.value
   }
 
-  if ('exercise_type' in body) {
-    const result = validateExerciseType(body.exercise_type)
+  if ('tracking_mode' in body) {
+    const result = validateTrackingMode(body.tracking_mode)
     if (!result.ok) return result
-    payload.exercise_type = result.value
+    payload.tracking_mode = result.value
   }
 
   if ('unilateral' in body) {
