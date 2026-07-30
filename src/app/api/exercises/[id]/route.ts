@@ -1,39 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeExercisePatchPayload } from '@/lib/exercise-validation'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => null)
+  const result = normalizeExercisePatchPayload(body)
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
 
-  // Phase 2O: notes-specific validation only. Every other field on
-  // this route (name, category, primary_muscle, equipment,
-  // exercise_type, unilateral, is_active, etc.) is deliberately left
-  // exactly as it was -- this route still spreads the rest of the
-  // body directly into .update(body), a known pre-existing gap not
-  // addressed in this phase. Full whitelist hardening (matching the
-  // pattern already applied to workout_sessions in Phases 2M/2N) is
-  // deliberately deferred.
-  const EXERCISE_NOTES_MAX_LENGTH = 1000
-  if ('notes' in body) {
-    if (typeof body.notes === 'string') {
-      const trimmed = body.notes.trim()
-      if (trimmed.length > EXERCISE_NOTES_MAX_LENGTH) {
-        return NextResponse.json(
-          { error: `Exercise notes must be ${EXERCISE_NOTES_MAX_LENGTH} characters or fewer.` },
-          { status: 400 }
-        )
-      }
-      body.notes = trimmed.length > 0 ? trimmed : null
-    } else if (body.notes !== null) {
-      return NextResponse.json({ error: 'Exercise notes must be text or null.' }, { status: 400 })
-    }
-  }
+  // Phase 2P: fetch the existing row first. This serves two purposes
+  // in one query: (1) a deterministic 404 for a missing or another
+  // user's exercise, instead of letting a zero-row update surface as
+  // an unstructured error; (2) detecting a genuine true -> false
+  // is_active transition below, rather than logging a deactivation
+  // decision every time a request body merely CONTAINS is_active:false
+  // (the prior behavior, which could create duplicate logs on repeated
+  // PATCH calls).
+  const { data: existing, error: fetchError } = await supabase
+    .from('exercises')
+    .select('is_active')
+    .eq('id', params.id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (!existing) return NextResponse.json({ error: 'Exercise not found.' }, { status: 404 })
 
   const { data, error } = await supabase
-    .from('exercises').update(body)
+    .from('exercises').update(result.value)
     .eq('id', params.id).eq('user_id', user.id)
     .select().single()
 
@@ -43,8 +40,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Decision log if deactivating
-  if (body.is_active === false && data) {
+  // Decision log only on an actual true -> false transition (Phase 2P
+  // correction) -- not merely because this request's payload happens
+  // to include is_active: false, which would have logged again on
+  // every repeated deactivation attempt against an already-inactive
+  // exercise.
+  if (existing.is_active === true && result.value.is_active === false && data) {
     // Count sessions in last 30 days that used this exercise
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
+import { normalizeExerciseCreatePayload } from '@/lib/exercise-validation'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -24,22 +25,15 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
-  if (!body.name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
-  if (!body.primary_muscle) return NextResponse.json({ error: 'primary_muscle required' }, { status: 400 })
+  const body = await request.json().catch(() => null)
+  const result = normalizeExerciseCreatePayload(body)
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
 
   const { data, error } = await supabase
     .from('exercises')
     .insert({
       user_id: user.id,
-      name: body.name.trim(),
-      category: body.category ?? null,
-      primary_muscle: body.primary_muscle,
-      secondary_muscles: body.secondary_muscles ?? [],
-      equipment: body.equipment ?? null,
-      exercise_type: body.exercise_type ?? 'strength',
-      unilateral: body.unilateral ?? false,
-      notes: body.notes?.trim() || null,
+      ...result.value,
       is_system: false,
     })
     .select().single()
