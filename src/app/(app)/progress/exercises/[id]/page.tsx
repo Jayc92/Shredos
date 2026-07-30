@@ -68,6 +68,8 @@ export default async function ExerciseProgressDetailPage({
         completed: true,
         is_warmup: false,
         notes: null,
+        duration_seconds: null,
+        distance_meters: null,
         created_at: detail.mostRecentBest.workoutDate,
       }
     : null

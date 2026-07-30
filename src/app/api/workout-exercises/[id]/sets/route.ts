@@ -40,7 +40,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const body = await request.json().catch(() => ({}))
 
-  const allowed = new Set<string>([...MODE_ALLOWED_FIELDS[trackingMode], ...COMMON_FIELDS])
+  const allowed = new Set<string>([
+    ...Array.from(MODE_ALLOWED_FIELDS[trackingMode]),
+    ...Array.from(COMMON_FIELDS),
+  ])
   const unsupported = Object.keys(body).filter((key) => !allowed.has(key))
   if (unsupported.length > 0) {
     return NextResponse.json(
