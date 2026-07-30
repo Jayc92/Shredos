@@ -137,16 +137,49 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   async function handleAddSet() {
     if (readOnly) return
     setAddingSet(true)
-    const lastSet = sets.length > 0 ? sets[sets.length - 1] : null
+    const lastSet = sets.length > 0 ? (sets[sets.length - 1] as any) : null
+    const trackingMode = we.exercise.tracking_mode
+
+    // Phase 2S: only send fields this exercise's tracking_mode
+    // actually allows -- the API rejects any incompatible key outright,
+    // so this must match exactly, not just "extra harmless fields."
+    let payload: Record<string, unknown>
+    if (trackingMode === 'weight_reps') {
+      payload = {
+        weight_lbs: lastSet?.weight_kg ? displayWeight(lastSet.weight_kg) : null,
+        reps:       lastSet?.reps ?? null,
+        is_warmup:  false,
+        completed:  false,
+      }
+    } else if (trackingMode === 'bodyweight') {
+      // Unlike weight_reps, bodyweight also copies RPE and the last
+      // set's warm-up status, per the approved add-set behavior.
+      payload = {
+        reps:       lastSet?.reps ?? null,
+        rpe:        lastSet?.rpe ?? null,
+        is_warmup:  lastSet?.is_warmup ?? false,
+        weight_lbs: lastSet?.weight_kg ? displayWeight(lastSet.weight_kg) : null,
+        completed:  false,
+      }
+    } else if (trackingMode === 'cardio') {
+      payload = {
+        duration_seconds: lastSet?.duration_seconds ?? null,
+        distance_meters:  lastSet?.distance_meters ?? null,
+        completed: false,
+      }
+    } else {
+      // timed
+      payload = {
+        duration_seconds: lastSet?.duration_seconds ?? null,
+        rpe:               lastSet?.rpe ?? null,
+        completed: false,
+      }
+    }
+
     await fetch(`/api/workout-exercises/${we.id}/sets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        weight_lbs: (lastSet as any)?.weight_kg ? displayWeight((lastSet as any).weight_kg) : null,
-        reps:       (lastSet as any)?.reps ?? null,
-        is_warmup:  false,
-        completed:  false,
-      }),
+      body: JSON.stringify(payload),
     })
     setAddingSet(false)
     router.refresh()
@@ -296,10 +329,33 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
         <div className="pl-6">
           <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
             <span className="w-5 text-center">#</span>
-            <span className="flex-1 text-center">Reps</span>
-            <span className="flex-1 text-center">Weight</span>
-            <span className="w-12 text-center">RPE</span>
-            <span className="w-6"></span>
+            {we.exercise.tracking_mode === 'weight_reps' && (
+              <>
+                <span className="flex-1 text-center">Reps</span>
+                <span className="flex-1 text-center">Weight</span>
+                <span className="w-12 text-center">RPE</span>
+                <span className="w-6"></span>
+              </>
+            )}
+            {we.exercise.tracking_mode === 'bodyweight' && (
+              <>
+                <span className="flex-1 text-center">Reps</span>
+                <span className="w-12 text-center">RPE</span>
+                <span className="w-6"></span>
+              </>
+            )}
+            {we.exercise.tracking_mode === 'cardio' && (
+              <>
+                <span className="flex-1 text-center">Duration</span>
+                <span className="flex-1 text-center">Distance</span>
+              </>
+            )}
+            {we.exercise.tracking_mode === 'timed' && (
+              <>
+                <span className="flex-1 text-center">Duration</span>
+                <span className="w-12 text-center">RPE</span>
+              </>
+            )}
             <span className="w-7"></span>
             <span className="w-6"></span>
           </div>
@@ -308,6 +364,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
               key={s.id}
               set={s}
               isUnilateral={we.exercise.unilateral}
+              trackingMode={we.exercise.tracking_mode}
               prType={setPRs[s.id] ?? null}
               targetFeedbackLabel={targetFeedbackBySetId[s.id]}
               readOnly={readOnly}

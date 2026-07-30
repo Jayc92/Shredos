@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
 import type { PRType } from '@/lib/workout'
 import { Trash2, AlertCircle } from 'lucide-react'
-import type { WorkoutSet } from '@/types/database'
+import type { WorkoutSet, TrackingMode } from '@/types/database'
 
 // Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
 // specifically, not "1RM PR" -- it's a formula-derived estimate, not a
@@ -18,15 +18,24 @@ const PR_LABELS: Record<Exclude<PRType, null>, string> = {
   bodyweight_reps: 'Rep PR',
 }
 
+// Phase 2S: local, non-exported conversion -- distance is stored in
+// meters (matching distance_meters) but displayed in miles, the same
+// metric-storage/US-display split this app already uses for weight
+// (weight_kg / lbsToKg / displayWeight in lib/units.ts). Kept local
+// here rather than added to lib/units.ts, since that file isn't part
+// of this phase's approved scope.
+const METERS_PER_MILE = 1609.34
+
 interface SetRowProps {
   set: WorkoutSet
   isUnilateral: boolean
+  trackingMode: TrackingMode
   prType?: PRType
   targetFeedbackLabel?: string
   readOnly?: boolean
 }
 
-export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnly = false }: SetRowProps) {
+export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedbackLabel, readOnly = false }: SetRowProps) {
   const router = useRouter()
   const [reps,      setReps]      = useState(set.reps      !== null ? String(set.reps)      : '')
   const [lbs,       setLbs]       = useState(set.weight_kg !== null ? String(displayWeight(set.weight_kg)) : '')
@@ -35,6 +44,22 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnl
   const [isWarmup,  setIsWarmup]  = useState(set.is_warmup)
   const [busy,      setBusy]      = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Phase 2S: cardio/timed duration as a minutes + seconds pair rather
+  // than one ambiguous "total seconds" field. Bodyweight's added-weight
+  // box starts expanded only if a value already exists -- otherwise
+  // collapsed behind a "+ Added weight" affordance, matching the
+  // approved smallest-safe design.
+  const [durationMin, setDurationMin] = useState(
+    set.duration_seconds !== null ? String(Math.floor(set.duration_seconds / 60)) : ''
+  )
+  const [durationSec, setDurationSec] = useState(
+    set.duration_seconds !== null ? String(set.duration_seconds % 60) : ''
+  )
+  const [distanceMi, setDistanceMi] = useState(
+    set.distance_meters !== null ? String(Math.round((set.distance_meters / METERS_PER_MILE) * 100) / 100) : ''
+  )
+  const [addedWeightExpanded, setAddedWeightExpanded] = useState(set.weight_kg !== null)
 
   async function patch(update: Record<string, unknown>) {
     // Phase 2I backstop: the UI hides/disables every mutation control
@@ -77,6 +102,36 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnl
     if (!isNaN(n) && n >= 1 && n <= 10 && n !== set.rpe) await patch({ rpe: n })
   }
 
+  // Phase 2S: combines the minutes + seconds pair into one
+  // duration_seconds PATCH. Both fields empty clears duration back to
+  // null; otherwise each empty field is treated as 0 for the total.
+  async function handleDurationBlur() {
+    if (readOnly) return
+    if (durationMin.trim() === '' && durationSec.trim() === '') {
+      if (set.duration_seconds !== null) await patch({ duration_seconds: null })
+      return
+    }
+    const m = parseInt(durationMin) || 0
+    const s = parseInt(durationSec) || 0
+    const total = m * 60 + s
+    if (total !== (set.duration_seconds ?? -1)) await patch({ duration_seconds: total })
+  }
+
+  async function handleDistanceBlur() {
+    if (readOnly) return
+    if (distanceMi.trim() === '') {
+      if (set.distance_meters !== null) await patch({ distance_meters: null })
+      return
+    }
+    const mi = parseFloat(distanceMi)
+    if (isNaN(mi) || mi <= 0) {
+      if (set.distance_meters !== null) await patch({ distance_meters: null })
+      return
+    }
+    const meters = Math.round(mi * METERS_PER_MILE * 100) / 100
+    if (meters !== set.distance_meters) await patch({ distance_meters: meters })
+  }
+
   async function toggleComplete() {
     if (readOnly) return
     const next = !completed
@@ -108,6 +163,7 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnl
 
   const inputCls = 'w-full min-w-0 px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
   const weightSuffix = isUnilateral ? 'per side' : 'lbs'
+  const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'
 
   // Phase 2C/2G: combined PR + target-feedback label — only one PR type
   // shown, priority already resolved by evaluateSetPRs, and target
@@ -134,68 +190,142 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnl
         {isWarmup ? 'WU' : set.set_number}
       </span>
 
-      {/* Reps */}
-      <div className="flex-1 min-w-0">
-        <input type="number" inputMode="numeric" value={reps}
-          onChange={e => setReps(e.target.value)}
-          onFocus={e => e.target.select()}
-          onBlur={handleRepsBlur}
-          placeholder="reps" min="0" step="1"
-          aria-label="Reps"
-          readOnly={readOnly}
-          aria-readonly={readOnly}
-          className={inputCls} />
-      </div>
+      {(trackingMode === 'weight_reps' || trackingMode === 'bodyweight') && (
+        <>
+          {/* Reps */}
+          <div className="flex-1 min-w-0">
+            <input type="number" inputMode="numeric" value={reps}
+              onChange={e => setReps(e.target.value)}
+              onFocus={e => e.target.select()}
+              onBlur={handleRepsBlur}
+              placeholder="reps" min="0" step="1"
+              aria-label="Reps"
+              readOnly={readOnly}
+              aria-readonly={readOnly}
+              className={inputCls} />
+          </div>
 
-      {/* Weight */}
-      <div className="flex-1 min-w-0">
-        <div className="relative">
-          <input type="number" inputMode="decimal" value={lbs}
-            onChange={e => setLbs(e.target.value)}
-            onFocus={e => e.target.select()}
-            onBlur={handleWeightBlur}
-            placeholder="0" min="0" step="0.5"
-            aria-label={isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs'}
-            readOnly={readOnly}
-            aria-readonly={readOnly}
-            className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
-            {weightSuffix}
-          </span>
-        </div>
-      </div>
+          {/* Weight — always visible for weight_reps; only for bodyweight
+              once "+ Added weight" has been expanded */}
+          {(trackingMode === 'weight_reps' || addedWeightExpanded) && (
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <input type="number" inputMode="decimal" value={lbs}
+                  onChange={e => setLbs(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  onBlur={handleWeightBlur}
+                  placeholder="0" min="0" step="0.5"
+                  aria-label={trackingMode === 'bodyweight'
+                    ? (isUnilateral ? 'Added weight per side in lbs' : 'Added weight in lbs')
+                    : (isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs')}
+                  readOnly={readOnly}
+                  aria-readonly={readOnly}
+                  className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
+                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
+                  {weightSuffix}
+                </span>
+              </div>
+            </div>
+          )}
 
-      {/* RPE — Rate of Perceived Exertion 1–10 */}
-      <div className="w-12 flex-shrink-0">
-        <input type="number" inputMode="decimal" value={rpe}
-          onChange={e => setRpe(e.target.value)}
-          onFocus={e => e.target.select()}
-          onBlur={handleRpeBlur}
-          placeholder="RPE" min="1" max="10" step="0.5"
-          title="Rate of Perceived Exertion (1–10). RPE 10 = max effort. RPE 8 ≈ 2 reps in reserve."
-          aria-label="RPE — Rate of Perceived Exertion, 1 to 10"
-          readOnly={readOnly}
-          aria-readonly={readOnly}
-          className={inputCls} />
-      </div>
+          {/* RPE — Rate of Perceived Exertion 1–10 */}
+          <div className="w-12 flex-shrink-0">
+            <input type="number" inputMode="decimal" value={rpe}
+              onChange={e => setRpe(e.target.value)}
+              onFocus={e => e.target.select()}
+              onBlur={handleRpeBlur}
+              placeholder="RPE" min="1" max="10" step="0.5"
+              title="Rate of Perceived Exertion (1–10). RPE 10 = max effort. RPE 8 ≈ 2 reps in reserve."
+              aria-label="RPE — Rate of Perceived Exertion, 1 to 10"
+              readOnly={readOnly}
+              aria-readonly={readOnly}
+              className={inputCls} />
+          </div>
+        </>
+      )}
 
-      {/* Warm-up toggle — WU with tooltip */}
-      <button
-        type="button"
-        onClick={toggleWarmup}
-        disabled={readOnly}
-        title="Warm-up set — excluded from progressive overload and volume calculations"
-        aria-label="Warm-up set"
-        aria-pressed={isWarmup}
-        className={cn(
-          'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium disabled:opacity-70',
-          isWarmup
-            ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-            : 'border-border text-muted-foreground hover:border-muted-foreground'
-        )}
-      >
-        WU
-      </button>
+      {(trackingMode === 'cardio' || trackingMode === 'timed') && (
+        <>
+          {/* Duration — minutes : seconds pair */}
+          <div className="flex-1 min-w-0 flex items-center gap-1">
+            <input type="number" inputMode="numeric" value={durationMin}
+              onChange={e => setDurationMin(e.target.value)}
+              onFocus={e => e.target.select()}
+              onBlur={handleDurationBlur}
+              placeholder="min" min="0" step="1"
+              aria-label="Duration — minutes"
+              readOnly={readOnly}
+              aria-readonly={readOnly}
+              className={inputCls} />
+            <span className="text-xs text-muted-foreground flex-shrink-0">:</span>
+            <input type="number" inputMode="numeric" value={durationSec}
+              onChange={e => setDurationSec(e.target.value)}
+              onFocus={e => e.target.select()}
+              onBlur={handleDurationBlur}
+              placeholder="sec" min="0" max="59" step="1"
+              aria-label="Duration — seconds"
+              readOnly={readOnly}
+              aria-readonly={readOnly}
+              className={inputCls} />
+          </div>
+
+          {/* Distance — cardio only, optional */}
+          {trackingMode === 'cardio' && (
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <input type="number" inputMode="decimal" value={distanceMi}
+                  onChange={e => setDistanceMi(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  onBlur={handleDistanceBlur}
+                  placeholder="0" min="0" step="0.01"
+                  aria-label="Distance in miles"
+                  readOnly={readOnly}
+                  aria-readonly={readOnly}
+                  className={cn(inputCls, 'pr-7')} />
+                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
+                  mi
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* RPE — timed only, optional */}
+          {trackingMode === 'timed' && (
+            <div className="w-12 flex-shrink-0">
+              <input type="number" inputMode="decimal" value={rpe}
+                onChange={e => setRpe(e.target.value)}
+                onFocus={e => e.target.select()}
+                onBlur={handleRpeBlur}
+                placeholder="RPE" min="1" max="10" step="0.5"
+                title="Rate of Perceived Exertion (1–10). RPE 10 = max effort. RPE 8 ≈ 2 reps in reserve."
+                aria-label="RPE — Rate of Perceived Exertion, 1 to 10"
+                readOnly={readOnly}
+                aria-readonly={readOnly}
+                className={inputCls} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Warm-up toggle — not applicable to cardio/timed (Phase 2S) */}
+      {showWarmupToggle && (
+        <button
+          type="button"
+          onClick={toggleWarmup}
+          disabled={readOnly}
+          title="Warm-up set — excluded from progressive overload and volume calculations"
+          aria-label="Warm-up set"
+          aria-pressed={isWarmup}
+          className={cn(
+            'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium disabled:opacity-70',
+            isWarmup
+              ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
+              : 'border-border text-muted-foreground hover:border-muted-foreground'
+          )}
+        >
+          WU
+        </button>
+      )}
 
       {/* Complete */}
       <button
@@ -229,6 +359,20 @@ export function SetRow({ set, isUnilateral, prType, targetFeedbackLabel, readOnl
         </button>
       )}
       </div>
+
+      {/* Phase 2S: collapsed "Added weight" affordance for bodyweight,
+          shown below the main row once (before the PR/target line) --
+          same pattern as the row itself, just a second line rather than
+          squeezing into an already-full single-line layout on mobile. */}
+      {trackingMode === 'bodyweight' && !addedWeightExpanded && !readOnly && (
+        <button
+          type="button"
+          onClick={() => setAddedWeightExpanded(true)}
+          className="text-xs text-muted-foreground hover:text-foreground pl-7 mt-1 transition-colors"
+        >
+          + Added weight
+        </button>
+      )}
 
       {/* Phase 2C/2G: combined PR + target-feedback line */}
       {combinedLabel && (

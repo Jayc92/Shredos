@@ -323,6 +323,9 @@ export interface WorkoutSet {
   completed: boolean
   is_warmup: boolean
   notes: string | null
+  // Phase 2S: tracking-aware set entry for cardio/timed exercises.
+  duration_seconds: number | null
+  distance_meters: number | null
   created_at: string
 }
 export type WorkoutSetInsert = Omit<WorkoutSet,'id'|'created_at'> & { id?:string; created_at?:string }
