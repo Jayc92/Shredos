@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RoutineCard } from './RoutineCard'
 import { RoutineForm } from './RoutineForm'
+import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Plus, BookOpen } from 'lucide-react'
 import type { WorkoutRoutine } from '@/types/database'
 
@@ -44,6 +45,8 @@ export function RoutinesPageClient({ initialRoutines }: RoutinesPageClientProps)
         </button>
       </div>
 
+      <WorkoutsSubNav />
+
       {/* Inline create form */}
       {creating && (
         <div className="shred-card">
@@ -83,10 +86,6 @@ export function RoutinesPageClient({ initialRoutines }: RoutinesPageClientProps)
           )}
         </div>
       )}
-
-      <div className="pt-2 border-t border-border">
-        <a href="/workouts" className="text-sm text-primary hover:underline">← Back to workouts</a>
-      </div>
     </div>
   )
 }

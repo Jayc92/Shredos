@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { fetchUserProfile, fetchRecentSessions, fetchWorkoutWeekStats } from '@/lib/supabase/server'
 import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
@@ -8,6 +7,7 @@ import { SessionCard } from '@/components/workout/SessionCard'
 import { MuscleVolumeSummary } from '@/components/workout/MuscleVolumeSummary'
 import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { CreateWorkoutButton } from '@/components/workout/CreateWorkoutButton'
+import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { fetchCoachSummary } from '@/lib/workout-coach'
 import { todayISO } from '@/lib/dates'
 import { Dumbbell } from 'lucide-react'
@@ -52,10 +52,9 @@ export default async function WorkoutsPage() {
         <h1 className="text-xl font-bold flex items-center gap-2">
           <Dumbbell className="w-5 h-5" aria-hidden="true" /> Workouts
         </h1>
-        <Link href="/workouts/exercises" className="text-xs text-primary hover:underline">
-          Exercise library →
-        </Link>
       </div>
+
+      <WorkoutsSubNav />
 
       {/* Week summary + create button */}
       <div className="shred-card">

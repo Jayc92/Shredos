@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { PRIMARY_MUSCLES } from '@/lib/constants'
 import { ExerciseListItem } from './ExerciseListItem'
 import { ExerciseForm } from './ExerciseForm'
+import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Check, Search, Plus } from 'lucide-react'
 import type { Exercise } from '@/types/database'
 
@@ -48,6 +49,9 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
           <Plus className="w-4 h-4" aria-hidden="true" /> New
         </button>
       </div>
+
+      <WorkoutsSubNav />
+
       {creating && (
         <div className="shred-card">
           <ExerciseForm onClose={() => { setCreating(false); router.refresh() }} />
@@ -90,9 +94,6 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
           {inactive.map(e => <ExerciseListItem key={e.id} exercise={e} />)}
         </div>
       )}
-      <div className="pt-2 border-t border-border">
-        <a href="/workouts" className="text-sm text-primary hover:underline">← Back to workouts</a>
-      </div>
     </div>
   )
 }
