@@ -8,6 +8,125 @@ import type { WorkoutSet, TrackingMode, ExerciseEquipment, WorkoutExerciseWithDe
 import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 
+// ── Phase 2T: tracking-aware duration/distance display ─────────────
+// Local, non-exported conversion constant -- matches the exact same
+// precedent already established in SetRow.tsx (Phase 2S): distance is
+// stored in meters but displayed in miles, and this constant is kept
+// local rather than added to lib/units.ts, which isn't part of this
+// phase's audited scope.
+const METERS_PER_MILE = 1609.34
+
+/**
+ * Formats a set/session duration for display (Phase 2T).
+ * Under one hour: M:SS. One hour or more: H:MM:SS.
+ * A null, undefined, or non-positive duration returns null -- a zero
+ * or missing duration is never presented as a valid result, matching
+ * Phase 2S's own completion requirement that duration must be > 0.
+ */
+export function formatDurationSeconds(seconds: number | null | undefined): string | null {
+  if (seconds === null || seconds === undefined || seconds <= 0) return null
+  const totalSeconds = Math.round(seconds)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const secs = totalSeconds % 60
+  const paddedSecs = String(secs).padStart(2, '0')
+  if (hours > 0) {
+    const paddedMinutes = String(minutes).padStart(2, '0')
+    return `${hours}:${paddedMinutes}:${paddedSecs}`
+  }
+  return `${minutes}:${paddedSecs}`
+}
+
+/**
+ * Formats a distance for display (Phase 2T). Stored in meters,
+ * displayed in miles at a fixed two decimal places, matching every
+ * given example exactly (0.25 mi, 1.00 mi, 3.10 mi). A null or
+ * non-positive distance returns null -- callers omit it entirely
+ * rather than showing "0.00 mi" or a trailing separator with nothing
+ * after it.
+ */
+export function formatDistanceMeters(meters: number | null | undefined): string | null {
+  if (meters === null || meters === undefined || meters <= 0) return null
+  const miles = meters / METERS_PER_MILE
+  return `${miles.toFixed(2)} mi`
+}
+
+/**
+ * Shared shape for "format one representative set's summary,
+ * tracking-mode-aware" (Phase 2T) -- used by both buildPreviousBestSummary
+ * (a real WorkoutSet, translated to this shape below) and
+ * ExerciseHistoryRows (ExerciseHistoryEntry, already close to this
+ * shape). camelCase throughout, matching ExerciseHistoryEntry's own
+ * existing convention rather than WorkoutSet's snake_case.
+ */
+export interface TrackingAwareSetSummaryInput {
+  reps: number | null
+  weightKg: number | null
+  rpe: number | null
+  isWarmup?: boolean
+  durationSeconds: number | null
+  distanceMeters: number | null
+}
+
+/**
+ * The single formatter behind both "Last: ..." (active workout) and
+ * "Recent" history rows -- previously two independent, duplicated
+ * implementations (Phase 2B/2C-era), neither of which understood
+ * cardio/timed at all. Exact output matches every given Phase 2T
+ * example literally:
+ *   weight_reps: "10 reps × 135 lbs", "8 reps × 155 lbs · RPE 8",
+ *                "WU · 10 reps × 45 lbs"
+ *   bodyweight:  "12 reps", "8 reps · +25 lbs", "10 reps · RPE 8",
+ *                "WU · 8 reps"
+ *   cardio:      "20:00", "32:15 · 3.10 mi"
+ *   timed:       "1:30", "2:00 · RPE 7"
+ * Deliberately does NOT include "est. 1RM" (the two prior
+ * implementations both did) -- no given example shows it, and adding
+ * it back as an optional extra would be scope beyond matching the
+ * approved examples exactly. Flagged explicitly in the delivery notes
+ * as a real, intentional behavior change to this display text.
+ */
+export function formatTrackingAwareSetSummary(
+  set: TrackingAwareSetSummaryInput,
+  trackingMode: TrackingMode
+): string {
+  const prefix = set.isWarmup ? 'WU · ' : ''
+
+  if (trackingMode === 'cardio' || trackingMode === 'timed') {
+    const duration = formatDurationSeconds(set.durationSeconds)
+    if (!duration) return ''
+    const parts = [duration]
+    if (trackingMode === 'cardio') {
+      const distance = formatDistanceMeters(set.distanceMeters)
+      if (distance) parts.push(distance)
+    } else {
+      if (set.rpe !== null) parts.push(`RPE ${set.rpe}`)
+    }
+    return prefix + parts.join(' · ')
+  }
+
+  if (trackingMode === 'bodyweight') {
+    if (set.reps === null) return ''
+    const parts = [`${set.reps} reps`]
+    if (set.weightKg !== null && set.weightKg > 0) {
+      parts.push(`+${displayWeight(set.weightKg)} lbs`)
+    }
+    if (set.rpe !== null) parts.push(`RPE ${set.rpe}`)
+    return prefix + parts.join(' · ')
+  }
+
+  // weight_reps
+  if (!set.weightKg || set.weightKg <= 0) {
+    return set.reps !== null ? `${prefix}${set.reps} reps` : ''
+  }
+  const lbs = displayWeight(set.weightKg)
+  const parts: string[] = []
+  if (set.reps !== null) parts.push(`${set.reps} reps × ${lbs} lbs`)
+  else parts.push(`${lbs} lbs`)
+  if (set.rpe !== null) parts.push(`RPE ${set.rpe}`)
+  return prefix + parts.join(' · ')
+}
+
 // ── Epley 1RM ─────────────────────────────────────────────────────
 
 /**
@@ -94,27 +213,21 @@ export function progressColor(signal: ProgressSignal): string {
 
 // ── Previous best summary string ──────────────────────────────────
 
-export function buildPreviousBestSummary(best: WorkoutSet | null): string {
+export function buildPreviousBestSummary(best: WorkoutSet | null, trackingMode: TrackingMode): string {
   if (!best) return ''
-
-  // Bodyweight exercise
-  if (!best.weight_kg || best.weight_kg === 0) {
-    return best.reps ? `${best.reps} reps` : ''
-  }
-
-  // Weighted exercise
-  const lbs = Math.round(kgToLbs(best.weight_kg))
-  const rm   = best.reps ? epley1RM(best.weight_kg, best.reps) : null
-  const parts: string[] = []
-  if (best.reps) parts.push(`${lbs} lbs × ${best.reps}`)
-  else parts.push(`${lbs} lbs`)
-  if (rm) parts.push(`est. 1RM ${Math.round(kgToLbs(rm))} lbs`)
-  return parts.join(' · ')
+  return formatTrackingAwareSetSummary({
+    reps: best.reps,
+    weightKg: best.weight_kg,
+    rpe: best.rpe,
+    isWarmup: best.is_warmup,
+    durationSeconds: best.duration_seconds,
+    distanceMeters: best.distance_meters,
+  }, trackingMode)
 }
 
-export function formatPreviousBest(best: WorkoutSet | null): string {
+export function formatPreviousBest(best: WorkoutSet | null, trackingMode: TrackingMode): string {
   if (!best) return 'No prior data'
-  return buildPreviousBestSummary(best)
+  return buildPreviousBestSummary(best, trackingMode)
 }
 
 // ── Next-target suggestion ─────────────────────────────────────────
@@ -387,6 +500,13 @@ export function suggestNextTarget(
   trend?: ProgressionTrend,
   repRange?: RepRange
 ): NextTargetSuggestion {
+  if (trackingMode === 'cardio' || trackingMode === 'timed') {
+    return {
+      action: 'no_suggestion',
+      message: '',
+    }
+  }
+
   if (!previousBest) {
     return {
       action: 'unavailable',
@@ -496,6 +616,9 @@ export interface ExerciseHistoryEntry {
   reps: number | null
   rpe: number | null
   estimated1RmKg: number | null
+  // Phase 2T: cardio/timed history.
+  durationSeconds: number | null
+  distanceMeters: number | null
 }
 
 // ── PR detection (Phase 2C) ─────────────────────────────────────────
@@ -613,6 +736,12 @@ export interface WorkoutEffortSummary {
 export interface ExerciseCompletionSummary {
   workoutExerciseId: string
   exerciseName: string
+  // Phase 2T: needed so the "log RPE for better coaching" attention
+  // rule below can exclude cardio -- RPE is not a collectible field
+  // for cardio (Phase 2S), so every cardio exercise would otherwise
+  // trivially satisfy "100% missing RPE" and always trigger this
+  // suggestion, even though logging RPE isn't possible for it.
+  trackingMode: TrackingMode
   completedWorkingSets: number
   targetCounts: WorkoutTargetCounts
   highEffortCount: number
@@ -718,6 +847,7 @@ export function summarizeWorkout(
     exerciseSummaries.push({
       workoutExerciseId: we.id,
       exerciseName: we.exercise.name,
+      trackingMode: we.exercise.tracking_mode,
       completedWorkingSets: workingSets.length,
       targetCounts: exTargetCounts,
       highEffortCount: exHighEffort,
@@ -764,7 +894,16 @@ export function summarizeWorkout(
       continue
     }
 
-    if (ex.completedWorkingSets > 0 && ex.missingRpeCount === ex.completedWorkingSets) {
+    // Phase 2T: cardio structurally never has RPE (Phase 2S rejects it),
+    // so without this exclusion every cardio exercise would trivially
+    // satisfy "100% missing RPE" and always trigger this suggestion --
+    // an impossible-to-act-on message for a mode that can't log RPE at
+    // all. Timed remains eligible: RPE is optional but real for timed.
+    if (
+      ex.trackingMode !== 'cardio' &&
+      ex.completedWorkingSets > 0 &&
+      ex.missingRpeCount === ex.completedWorkingSets
+    ) {
       attention.push(`${ex.exerciseName}: log RPE for better coaching`)
       continue
     }

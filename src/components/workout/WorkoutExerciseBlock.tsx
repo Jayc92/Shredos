@@ -51,7 +51,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const sets    = we.workout_sets ?? []
   const curBest = bestSet(sets)
   const signal  = progressSignal(curBest, previousBest)
-  const prevSummary = formatPreviousBest(previousBest)
+  const prevSummary = formatPreviousBest(previousBest, we.exercise.tracking_mode)
   const nextTarget = suggestNextTarget(
     previousBest,
     we.exercise.unilateral,
@@ -307,12 +307,14 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           {previousBest && (
             <p className="text-xs text-muted-foreground">Last: {prevSummary}</p>
           )}
-          <p className="text-xs text-muted-foreground">{nextTarget.message}</p>
+          {nextTarget.action !== 'no_suggestion' && (
+            <p className="text-xs text-muted-foreground">{nextTarget.message}</p>
+          )}
         </div>
       )}
 
       {open && (
-        <ExerciseHistoryRows entries={history} isUnilateral={we.exercise.unilateral} />
+        <ExerciseHistoryRows entries={history} isUnilateral={we.exercise.unilateral} trackingMode={we.exercise.tracking_mode} />
       )}
 
       {open && (we.target_sets || we.target_reps) && (

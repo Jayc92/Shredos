@@ -74,7 +74,7 @@ export default async function ExerciseProgressDetailPage({
       }
     : null
 
-  const prevSummary = formatPreviousBest(previousBestSet)
+  const prevSummary = formatPreviousBest(previousBestSet, detail.trackingMode)
   const nextTarget = suggestNextTarget(
     previousBestSet,
     detail.isUnilateral,

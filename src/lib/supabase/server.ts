@@ -3,7 +3,36 @@ import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
 import { setScore, epley1RM } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
-import type { WorkoutSet } from '@/types/database'
+import type { WorkoutSet, TrackingMode } from '@/types/database'
+
+/**
+ * Picks the representative set from a list of same-session qualifying
+ * sets for one exercise (Phase 2T). weight_reps/bodyweight use the
+ * existing setScore comparison, unchanged. cardio/timed use the
+ * longest logged duration within THIS SESSION only.
+ *
+ * Deliberately NOT an extension of setScore itself -- setScore is also
+ * reused by workout.ts's progressSignal for cross-session improved/
+ * declined/same comparisons, and teaching it to understand duration
+ * would make progressSignal start producing "improved: longer
+ * duration" signals for cardio, which is cardio/timed progression
+ * coaching -- explicitly out of scope for Phase 2T. This helper only
+ * ever selects among sets already known to belong to one session; it
+ * never compares across sessions and is not used for any PR or
+ * progression purpose.
+ */
+function pickRepresentativeSet(sets: any[], trackingMode: TrackingMode): any {
+  if (trackingMode === 'cardio' || trackingMode === 'timed') {
+    return sets.reduce(
+      (best: any, s: any) => ((s.duration_seconds ?? 0) > (best.duration_seconds ?? 0) ? s : best),
+      sets[0]
+    )
+  }
+  return sets.reduce(
+    (best: any, s: any) => (setScore(s as WorkoutSet) > setScore(best as WorkoutSet) ? s : best),
+    sets[0]
+  )
+}
 
 /**
  * Creates a Supabase client for use in server components, server actions,
@@ -416,7 +445,8 @@ export async function fetchPreviousBests(
       id, workout_date,
       workout_exercises (
         exercise_id,
-        workout_sets ( reps, weight_kg, rpe, is_warmup, completed )
+        exercise:exercises ( tracking_mode ),
+        workout_sets ( reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
       )
     `)
     .eq('user_id', userId)
@@ -430,15 +460,23 @@ export async function fetchPreviousBests(
   for (const session of history ?? []) {
     for (const we of (session.workout_exercises as Array<{
       exercise_id: string
-      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean }>
+      exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[]
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean; duration_seconds: number|null; distance_meters: number|null }>
     }>) ?? []) {
       if (!exerciseIds.includes(we.exercise_id)) continue
       if (bests[we.exercise_id]) continue // already found a more recent session
 
-      // Include weighted AND bodyweight sets (null weight_kg counts via reps)
+      const trackingMode: TrackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
+
+      // Phase 2T: include weighted, bodyweight, AND duration-based
+      // (cardio/timed) sets -- previously only the first two, which
+      // meant a cardio/timed exercise's history was silently invisible
+      // here, not merely unlabeled.
       const working = (we.workout_sets ?? []).filter(
         (s: any) => s.completed && !s.is_warmup && (
-          (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+          (s.weight_kg !== null && s.weight_kg > 0) ||
+          (s.reps !== null && s.reps > 0) ||
+          (s.duration_seconds !== null && s.duration_seconds > 0)
         )
       )
       if (working.length === 0) continue
@@ -446,11 +484,9 @@ export async function fetchPreviousBests(
       // Pick best set — reuses the same scoring workout.ts's bestSet and
       // fetchExerciseHistory use, so "best set" means the same thing
       // everywhere in the app (Phase 2B: previously duplicated this
-      // scoring inline).
-      const best = working.reduce(
-        (b: any, s: any) => (setScore(s as WorkoutSet) > setScore(b as WorkoutSet) ? s : b),
-        working[0]
-      )
+      // scoring inline). Phase 2T: routes through pickRepresentativeSet,
+      // which uses duration for cardio/timed instead of setScore.
+      const best = pickRepresentativeSet(working, trackingMode)
 
       bests[we.exercise_id] = {
         // Full WorkoutSet-compatible shape
@@ -468,6 +504,9 @@ export async function fetchPreviousBests(
         completed: true,
         is_warmup: false,
         notes: null,
+        // Phase 2T: cardio/timed history.
+        duration_seconds: best.duration_seconds ?? null,
+        distance_meters: best.distance_meters ?? null,
         created_at: session.workout_date,
       }
     }
@@ -510,7 +549,8 @@ export async function fetchExerciseHistory(
       id, workout_date,
       workout_exercises (
         exercise_id,
-        workout_sets ( reps, weight_kg, rpe, is_warmup, completed )
+        exercise:exercises ( tracking_mode ),
+        workout_sets ( reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
       )
     `)
     .eq('user_id', userId)
@@ -532,29 +572,36 @@ export async function fetchExerciseHistory(
     // this one session first, so a repeated exercise still produces
     // exactly one history row for that session, not two.
     const bestInSession: Record<string, any> = {}
+    const trackingModeByExerciseId: Record<string, TrackingMode> = {}
 
     for (const we of (session.workout_exercises as Array<{
       exercise_id: string
-      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean }>
+      exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[]
+      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean; duration_seconds: number|null; distance_meters: number|null }>
     }>) ?? []) {
       if (!exerciseIds.includes(we.exercise_id)) continue
 
+      const trackingMode: TrackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
+      trackingModeByExerciseId[we.exercise_id] = trackingMode
+
+      // Phase 2T: include duration-based (cardio/timed) sets alongside
+      // weighted/bodyweight — see the matching comment in
+      // fetchPreviousBests above.
       const working = (we.workout_sets ?? []).filter(
         (s: any) => s.completed && !s.is_warmup && (
-          (s.weight_kg !== null && s.weight_kg > 0) || (s.reps !== null && s.reps > 0)
+          (s.weight_kg !== null && s.weight_kg > 0) ||
+          (s.reps !== null && s.reps > 0) ||
+          (s.duration_seconds !== null && s.duration_seconds > 0)
         )
       )
       if (working.length === 0) continue
 
-      const localBest = working.reduce(
-        (b: any, s: any) => (setScore(s as WorkoutSet) > setScore(b as WorkoutSet) ? s : b),
-        working[0]
-      )
+      const localBest = pickRepresentativeSet(working, trackingMode)
 
       const existing = bestInSession[we.exercise_id]
-      if (!existing || setScore(localBest as WorkoutSet) > setScore(existing as WorkoutSet)) {
-        bestInSession[we.exercise_id] = localBest
-      }
+      bestInSession[we.exercise_id] = existing
+        ? pickRepresentativeSet([existing, localBest], trackingMode)
+        : localBest
     }
 
     for (const [exerciseId, best] of Object.entries(bestInSession)) {
@@ -570,6 +617,9 @@ export async function fetchExerciseHistory(
         reps: b.reps,
         rpe: b.rpe ?? null,
         estimated1RmKg,
+        // Phase 2T: cardio/timed history.
+        durationSeconds: b.duration_seconds ?? null,
+        distanceMeters: b.distance_meters ?? null,
       })
     }
   }
