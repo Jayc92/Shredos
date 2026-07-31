@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal } from '@/lib/workout'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
@@ -49,8 +49,17 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const [removing, setRemoving]   = useState(false)
 
   const sets    = we.workout_sets ?? []
-  const curBest = bestSet(sets)
-  const signal  = progressSignal(curBest, previousBest)
+  // Phase 2U: cardio/timed use the tracking-aware representative-set
+  // picker and comparison signal -- bestSet()/progressSignal() would
+  // always return null/'same' for these modes, since bestSet's filter
+  // structurally excludes duration-based sets (no weight_kg, no reps).
+  const isCardioOrTimed = we.exercise.tracking_mode === 'cardio' || we.exercise.tracking_mode === 'timed'
+  const curBest = isCardioOrTimed
+    ? pickRepresentativeCardioSet(sets, we.exercise.tracking_mode)
+    : bestSet(sets)
+  const signal  = isCardioOrTimed
+    ? trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)
+    : progressSignal(curBest, previousBest)
   const prevSummary = formatPreviousBest(previousBest, we.exercise.tracking_mode)
   const nextTarget = suggestNextTarget(
     previousBest,

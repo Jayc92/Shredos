@@ -1,32 +1,35 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
-import { setScore, epley1RM } from '@/lib/workout'
+import { setScore, epley1RM, pickRepresentativeCardioSet } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { WorkoutSet, TrackingMode } from '@/types/database'
 
 /**
  * Picks the representative set from a list of same-session qualifying
- * sets for one exercise (Phase 2T). weight_reps/bodyweight use the
- * existing setScore comparison, unchanged. cardio/timed use the
- * longest logged duration within THIS SESSION only.
+ * sets for one exercise (Phase 2T; cardio/timed refined in Phase 2U).
+ * weight_reps/bodyweight use the existing setScore comparison,
+ * unchanged. cardio/timed now delegate to workout.ts's
+ * pickRepresentativeCardioSet -- the pace-aware algorithm (best pace,
+ * tie-break by distance, tie-break by duration, or longest duration
+ * when no set has a valid pace) is defined exactly once there, used
+ * identically here (server-side, for historical sessions) and in
+ * WorkoutExerciseBlock.tsx (client-side, for the live session's own
+ * sets) -- not duplicated in a second place.
  *
  * Deliberately NOT an extension of setScore itself -- setScore is also
  * reused by workout.ts's progressSignal for cross-session improved/
  * declined/same comparisons, and teaching it to understand duration
  * would make progressSignal start producing "improved: longer
  * duration" signals for cardio, which is cardio/timed progression
- * coaching -- explicitly out of scope for Phase 2T. This helper only
+ * coaching handled by the SEPARATE, parallel
+ * trackingAwareProgressSignal (Phase 2U) instead. This helper only
  * ever selects among sets already known to belong to one session; it
- * never compares across sessions and is not used for any PR or
- * progression purpose.
+ * never compares across sessions and is not used for any PR purpose.
  */
 function pickRepresentativeSet(sets: any[], trackingMode: TrackingMode): any {
   if (trackingMode === 'cardio' || trackingMode === 'timed') {
-    return sets.reduce(
-      (best: any, s: any) => ((s.duration_seconds ?? 0) > (best.duration_seconds ?? 0) ? s : best),
-      sets[0]
-    )
+    return pickRepresentativeCardioSet(sets as WorkoutSet[], trackingMode) ?? sets[0]
   }
   return sets.reduce(
     (best: any, s: any) => (setScore(s as WorkoutSet) > setScore(best as WorkoutSet) ? s : best),

@@ -52,6 +52,26 @@ export function formatDistanceMeters(meters: number | null | undefined): string 
 }
 
 /**
+ * Formats average pace as minutes-per-mile (Phase 2U). Reuses
+ * formatDurationSeconds' exact M:SS / H:MM:SS shape on the computed
+ * seconds-per-mile value, so pace and duration always render with the
+ * same formatting rules -- no separate pace-specific time formatter.
+ * Returns null when either input is missing or non-positive; never
+ * divides by zero, never produces NaN/Infinity.
+ */
+export function formatPaceSecondsPerMile(
+  durationSeconds: number | null | undefined,
+  distanceMeters: number | null | undefined
+): string | null {
+  if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0) return null
+  if (distanceMeters === null || distanceMeters === undefined || distanceMeters <= 0) return null
+  const miles = distanceMeters / METERS_PER_MILE
+  const paceSecondsPerMile = durationSeconds / miles
+  const formatted = formatDurationSeconds(paceSecondsPerMile)
+  return formatted ? `${formatted} /mi` : null
+}
+
+/**
  * Shared shape for "format one representative set's summary,
  * tracking-mode-aware" (Phase 2T) -- used by both buildPreviousBestSummary
  * (a real WorkoutSet, translated to this shape below) and
@@ -99,6 +119,10 @@ export function formatTrackingAwareSetSummary(
     if (trackingMode === 'cardio') {
       const distance = formatDistanceMeters(set.distanceMeters)
       if (distance) parts.push(distance)
+      // Phase 2U: pace only ever appears alongside distance -- it's
+      // derived from duration+distance together, never shown alone.
+      const pace = formatPaceSecondsPerMile(set.durationSeconds, set.distanceMeters)
+      if (pace) parts.push(pace)
     } else {
       if (set.rpe !== null) parts.push(`RPE ${set.rpe}`)
     }
@@ -177,6 +201,66 @@ export function bestSet(sets: WorkoutSet[]): WorkoutSet | null {
   return working.reduce((best, s) => setScore(s) > setScore(best) ? s : best)
 }
 
+// ── Tracking-aware representative set (cardio/timed) ────────────────
+
+/**
+ * Selects the representative completed, non-warmup set for a cardio or
+ * timed exercise from a list of sets -- typically all sets belonging
+ * to ONE session (Phase 2U). Deliberately parallel to bestSet(), never
+ * calling setScore or reusing any strength-only comparison.
+ *
+ * timed: longest duration_seconds wins outright.
+ *
+ * cardio: if any qualifying set has a valid pace (duration AND
+ * distance both present and positive), the best (lowest) pace wins,
+ * tie-broken by greater distance, then by longer duration. If NO
+ * qualifying set has a valid pace (duration-only cardio, or distance
+ * genuinely never logged), falls back to longest duration_seconds --
+ * exactly mirroring timed's rule, and Phase 2T's original behavior for
+ * this case.
+ *
+ * A pace-valid set always outranks a pace-invalid one, even if the
+ * pace-invalid set has a longer raw duration -- a session's real
+ * comparable pace data is more informative than an incomparable raw
+ * duration from a different (distance-less) set in the same session.
+ */
+export function pickRepresentativeCardioSet(
+  sets: WorkoutSet[],
+  trackingMode: TrackingMode
+): WorkoutSet | null {
+  const qualifying = sets.filter(
+    (s) => s.completed && !s.is_warmup && s.duration_seconds !== null && s.duration_seconds > 0
+  )
+  if (qualifying.length === 0) return null
+
+  const byLongestDuration = (a: WorkoutSet, b: WorkoutSet) =>
+    (b.duration_seconds as number) > (a.duration_seconds as number) ? b : a
+
+  if (trackingMode === 'timed') {
+    return qualifying.reduce(byLongestDuration)
+  }
+
+  // cardio
+  const paceValid = qualifying.filter((s) => s.distance_meters !== null && s.distance_meters > 0)
+  if (paceValid.length === 0) {
+    return qualifying.reduce(byLongestDuration)
+  }
+
+  const paceOf = (s: WorkoutSet) => (s.duration_seconds as number) / ((s.distance_meters as number) / METERS_PER_MILE)
+
+  return paceValid.reduce((best, s) => {
+    const paceS = paceOf(s)
+    const paceBest = paceOf(best)
+    if (paceS < paceBest) return s
+    if (paceS > paceBest) return best
+    // Tie on pace -> greater distance wins.
+    if ((s.distance_meters as number) > (best.distance_meters as number)) return s
+    if ((s.distance_meters as number) < (best.distance_meters as number)) return best
+    // Tie on pace and distance -> longer duration wins.
+    return (s.duration_seconds as number) > (best.duration_seconds as number) ? s : best
+  })
+}
+
 // ── Progressive overload signal ───────────────────────────────────
 
 export function progressSignal(
@@ -190,6 +274,68 @@ export function progressSignal(
   if (prev === 0) return 'new'
   if (curr > prev * 1.01) return 'improved'
   if (curr < prev * 0.99) return 'declined'
+  return 'same'
+}
+
+/**
+ * Cardio/timed's parallel to progressSignal() (Phase 2U) -- same
+ * 1%-threshold shape and the same 4-value ProgressSignal result, but
+ * never calls setScore, since setScore's bodyweight-reps-as-proxy
+ * fallback would silently treat every cardio/timed set (which always
+ * has null weight_kg AND null reps) as a worthless "0" score,
+ * producing a meaningless "same" result every time.
+ *
+ * timed: duration_seconds only, exact same comparison shape as
+ * progressSignal (>1% higher = improved, >1% lower = declined).
+ *
+ * cardio: if BOTH sets have a valid pace (duration and distance both
+ * present), pace is the primary comparison -- LOWER seconds-per-mile
+ * is better, so "improved" fires when current pace is at least 1%
+ * lower than previous. Within ±1% pace, greater distance breaks the
+ * tie; if distance is also within ±1%, the result is 'same'. If
+ * EITHER set lacks a valid pace (duration-only cardio, or one session
+ * has distance and the other doesn't -- Phase 2U's approved "mixed
+ * historical data" case), this deliberately falls back to a plain
+ * duration_seconds comparison instead, using the identical shape as
+ * the timed branch -- pace is never claimed to have improved or
+ * declined when it can't honestly be compared.
+ */
+export function trackingAwareProgressSignal(
+  currentBest: WorkoutSet | null,
+  previousBest: WorkoutSet | null,
+  trackingMode: TrackingMode
+): ProgressSignal {
+  if (!previousBest) return 'new'
+  if (!currentBest)  return 'same'
+
+  const currHasPace = trackingMode === 'cardio'
+    && currentBest.duration_seconds !== null && currentBest.duration_seconds > 0
+    && currentBest.distance_meters !== null && currentBest.distance_meters > 0
+  const prevHasPace = trackingMode === 'cardio'
+    && previousBest.duration_seconds !== null && previousBest.duration_seconds > 0
+    && previousBest.distance_meters !== null && previousBest.distance_meters > 0
+
+  if (currHasPace && prevHasPace) {
+    const currPace = (currentBest.duration_seconds as number) / ((currentBest.distance_meters as number) / METERS_PER_MILE)
+    const prevPace = (previousBest.duration_seconds as number) / ((previousBest.distance_meters as number) / METERS_PER_MILE)
+    if (prevPace <= 0) return 'new'
+    if (currPace < prevPace * 0.99) return 'improved'
+    if (currPace > prevPace * 1.01) return 'declined'
+    // Pace within ±1% -> greater distance is the tie-breaker.
+    const currDist = currentBest.distance_meters as number
+    const prevDist = previousBest.distance_meters as number
+    if (currDist > prevDist * 1.01) return 'improved'
+    if (currDist < prevDist * 0.99) return 'declined'
+    return 'same'
+  }
+
+  // Duration-only fallback: duration-only cardio, timed, or mixed
+  // pace/no-pace historical data -- same threshold shape throughout.
+  const prevDuration = previousBest.duration_seconds
+  if (prevDuration === null || prevDuration <= 0) return 'new'
+  const currDuration = currentBest.duration_seconds ?? 0
+  if (currDuration > prevDuration * 1.01) return 'improved'
+  if (currDuration < prevDuration * 0.99) return 'declined'
   return 'same'
 }
 
@@ -244,6 +390,30 @@ const TOP_OF_RANGE_REPS = 8
 const MANAGEABLE_RPE_MAX = 8
 const SUGGESTED_WEIGHT_INCREASE_LBS = 5
 const SUGGESTED_REP_INCREASE = 1
+
+// Phase 2U: cardio/timed next-target thresholds. Bucket boundaries and
+// increase amounts verified numerically against every literal example
+// in the approved spec before implementation (5:00->5:30, 20:00->21:00,
+// 45:00->47:00 for cardio duration-only; 0:45->0:50, 2:00->2:10,
+// 5:54@RPE9->repeat for timed).
+const CARDIO_SHORT_THRESHOLD_SEC = 600   // 10 minutes
+const CARDIO_LONG_THRESHOLD_SEC = 1800   // 30 minutes
+const CARDIO_SHORT_INCREASE_SEC = 30
+const CARDIO_MID_INCREASE_SEC = 60
+const CARDIO_LONG_INCREASE_SEC = 120
+
+const TIMED_SHORT_THRESHOLD_SEC = 60     // 1 minute
+const TIMED_LONG_THRESHOLD_SEC = 300     // 5 minutes
+const TIMED_SHORT_INCREASE_SEC = 5
+const TIMED_MID_INCREASE_SEC = 10
+const TIMED_LONG_INCREASE_SEC = 15
+const TIMED_HIGH_RPE_THRESHOLD = 9
+
+// 1.5% pace improvement -- the midpoint of the approved "approximately
+// 1-2%" range. Deliberately unused in the displayed message itself
+// (see buildCardioPaceSuggestion) to avoid presenting an artificially
+// precise target pace; kept here only as documentation of the intent.
+const CARDIO_PACE_IMPROVEMENT_TARGET = 0.015
 
 export type NextTargetAction = 'unavailable' | 'increase' | 'repeat' | 'reduce_volume' | 'no_suggestion'
 
@@ -344,6 +514,95 @@ function buildIncreaseSuggestion(
   // conservative repeat rather than a broken message (matches Phase
   // 2C's original behavior of falling through when lbs was null).
   return buildRepeatSuggestion(previousBest, false, suffix, 'log RPE next time for a sharper suggestion')
+}
+
+// ── Cardio/timed next-target suggestions (Phase 2U) ──────────────────
+// Deliberately separate from buildIncreaseSuggestion/buildRepeatSuggestion
+// above -- no reps, no weight, no RPE-based "was high" strength framing.
+// Both builders assume previousBest is non-null; the null case is
+// handled once in suggestNextTarget's own cardio/timed branch below.
+
+/**
+ * cardio's next-target message. When the previous set has a valid
+ * pace (duration AND distance both present), recommends repeating the
+ * SAME distance "slightly faster than" the previous pace -- no new
+ * target pace number is computed or displayed, deliberately avoiding
+ * the "impossible precision" the approved spec warns against (a
+ * 1-2%-faster target pace often rounds to the exact same M:SS as the
+ * current pace for typical durations, which would read as a broken,
+ * no-op suggestion). This is the one deterministic rule chosen for
+ * the duration+distance case, per the spec's own instruction to pick
+ * one and document it. Never simultaneously suggests more distance
+ * AND more speed.
+ *
+ * Otherwise (duration-only, i.e. no valid pace on the previous set)
+ * falls back to the fixed duration-increase buckets, verified against
+ * all 3 given examples (5:00->5:30, 20:00->21:00, 45:00->47:00).
+ */
+function buildCardioNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
+  const hasPace = previousBest.duration_seconds !== null && previousBest.duration_seconds > 0
+    && previousBest.distance_meters !== null && previousBest.distance_meters > 0
+
+  if (hasPace) {
+    const distance = formatDistanceMeters(previousBest.distance_meters)
+    const pace = formatPaceSecondsPerMile(previousBest.duration_seconds, previousBest.distance_meters)
+    // Both guaranteed non-null here -- hasPace already confirmed
+    // duration_seconds and distance_meters are both present and positive.
+    return {
+      action: 'increase',
+      message: `Try the same ${distance} slightly faster than ${pace} next time`,
+    }
+  }
+
+  const prevDuration = previousBest.duration_seconds
+  if (prevDuration === null || prevDuration <= 0) {
+    return { action: 'unavailable', message: 'Log a completed set to start tracking targets.' }
+  }
+
+  let increase: number
+  if (prevDuration < CARDIO_SHORT_THRESHOLD_SEC) increase = CARDIO_SHORT_INCREASE_SEC
+  else if (prevDuration <= CARDIO_LONG_THRESHOLD_SEC) increase = CARDIO_MID_INCREASE_SEC
+  else increase = CARDIO_LONG_INCREASE_SEC
+
+  return {
+    action: 'increase',
+    message: `Try ${formatDurationSeconds(prevDuration + increase)} next time`,
+  }
+}
+
+/**
+ * timed's next-target message: duration-only, with an RPE modifier.
+ * Prior RPE >= 9 recommends repeating the same duration rather than
+ * increasing it -- RPE is used as context to adjust the recommendation
+ * conservatively, never as the sole basis for an improved/declined
+ * classification (that stays entirely inside
+ * trackingAwareProgressSignal). A null prior RPE still produces the
+ * normal duration-based recommendation. Verified against all 3 given
+ * examples (0:45->0:50, 2:00@RPE7->2:10, 5:54@RPE9->repeat 5:54).
+ */
+function buildTimedNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
+  const prevDuration = previousBest.duration_seconds
+  if (prevDuration === null || prevDuration <= 0) {
+    return { action: 'unavailable', message: 'Log a completed set to start tracking targets.' }
+  }
+
+  const prevRpe = previousBest.rpe
+  if (prevRpe !== null && prevRpe >= TIMED_HIGH_RPE_THRESHOLD) {
+    return {
+      action: 'repeat',
+      message: `Repeat ${formatDurationSeconds(prevDuration)} next time`,
+    }
+  }
+
+  let increase: number
+  if (prevDuration < TIMED_SHORT_THRESHOLD_SEC) increase = TIMED_SHORT_INCREASE_SEC
+  else if (prevDuration <= TIMED_LONG_THRESHOLD_SEC) increase = TIMED_MID_INCREASE_SEC
+  else increase = TIMED_LONG_INCREASE_SEC
+
+  return {
+    action: 'increase',
+    message: `Try ${formatDurationSeconds(prevDuration + increase)} next time`,
+  }
 }
 
 type ResolvedRepTargetMode = 'range' | 'single' | 'ceiling_only' | 'none'
@@ -501,10 +760,15 @@ export function suggestNextTarget(
   repRange?: RepRange
 ): NextTargetSuggestion {
   if (trackingMode === 'cardio' || trackingMode === 'timed') {
-    return {
-      action: 'no_suggestion',
-      message: '',
+    if (!previousBest) {
+      return {
+        action: 'unavailable',
+        message: 'Log a completed set to start tracking targets.',
+      }
     }
+    return trackingMode === 'cardio'
+      ? buildCardioNextTarget(previousBest)
+      : buildTimedNextTarget(previousBest)
   }
 
   if (!previousBest) {
