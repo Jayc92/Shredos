@@ -20,6 +20,13 @@ import {
   progressLabel,
 } from '@/lib/workout'
 import type { ExerciseHistoryEntry } from '@/lib/workout'
+import {
+  buildWeightRepsTrend,
+  buildBodyweightTrends,
+  buildCardioTrends,
+  buildTimedTrend,
+} from '@/lib/progress-charts'
+import ExerciseTrendChart from '@/components/progress/ExerciseTrendChart'
 import { kgToLbs } from '@/lib/units'
 import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
 import type { WorkoutSet, TrackingMode, ExerciseEquipment, PrimaryMuscle } from '@/types/database'
@@ -31,6 +38,12 @@ const PR_HISTORY_INITIAL_CAP = 10
 // Phase 2V: recent history is 5 sessions for every tracking mode (the
 // shared detail-page requirement) — previously 10, weight_reps only.
 const RECENT_HISTORY_LIMIT = 5
+// Phase 2W: trend charts read up to 15 sessions — fetchExerciseHistory's
+// own scan window, so this asks for everything one call can return.
+// The Phase 2V header count, history lists, and entries[0]/entries[1]
+// signal all keep working from a slice(0, RECENT_HISTORY_LIMIT) of the
+// same result, so their behavior is unchanged.
+const CHART_HISTORY_LIMIT = 15
 
 /** Human-readable label lookup against the constants.ts option lists. */
 function optionLabel(
@@ -103,7 +116,7 @@ export default async function ExerciseProgressDetailPage({
   // from the dedicated aggregate scans instead, because "one
   // representative set per session" can miss the true all-time best.
   const [historyMap, strengthDetail, cardioTimedDetail] = await Promise.all([
-    fetchExerciseHistory(supabase, user.id, [exercise.id], undefined, RECENT_HISTORY_LIMIT),
+    fetchExerciseHistory(supabase, user.id, [exercise.id], undefined, CHART_HISTORY_LIMIT),
     isCardioTimed
       ? Promise.resolve(null)
       : fetchExerciseProgressDetail(supabase, user.id, exercise.id),
@@ -111,7 +124,12 @@ export default async function ExerciseProgressDetailPage({
       ? fetchCardioTimedProgressDetail(supabase, user.id, exercise.id)
       : Promise.resolve(null),
   ])
-  const recentEntries = historyMap[exercise.id] ?? []
+  // Phase 2W: chartEntries feeds the trend charts (up to 15 sessions);
+  // recentEntries keeps the exact Phase 2V shape — same newest-first
+  // order, capped at 5 — for the header count, history lists, and the
+  // entries[0]/entries[1] comparable-session signal.
+  const chartEntries = historyMap[exercise.id] ?? []
+  const recentEntries = chartEntries.slice(0, RECENT_HISTORY_LIMIT)
 
   // ── Shared header pieces ─────────────────────────────────────────
   const headerParts = [
@@ -147,12 +165,14 @@ export default async function ExerciseProgressDetailPage({
           exerciseId={exercise.id}
           aggregate={cardioTimedDetail!}
           recentEntries={recentEntries}
+          chartEntries={chartEntries}
         />
       ) : (
         <StrengthSections
           trackingMode={trackingMode}
           detail={strengthDetail!}
           recentEntries={recentEntries}
+          chartEntries={chartEntries}
           suffix={suffix}
         />
       )}
@@ -166,14 +186,21 @@ function StrengthSections({
   trackingMode,
   detail,
   recentEntries,
+  chartEntries,
   suffix,
 }: {
   trackingMode: TrackingMode
   detail: ExerciseProgressDetail
   recentEntries: ExerciseHistoryEntry[]
+  chartEntries: ExerciseHistoryEntry[]
   suffix: string
 }) {
   const isBodyweightMode = trackingMode === 'bodyweight'
+
+  // Phase 2W trend charts — pure adapters over the same history the
+  // rest of the page uses; no new metric or representative-set rules.
+  const weightRepsTrend = isBodyweightMode ? null : buildWeightRepsTrend(chartEntries)
+  const bodyweightTrends = isBodyweightMode ? buildBodyweightTrends(chartEntries) : null
 
   // Synthetic WorkoutSet for suggestNextTarget/formatPreviousBest —
   // same convention fetchPreviousBests already establishes elsewhere.
@@ -289,6 +316,35 @@ function StrengthSections({
         )}
       </div>
 
+      {/* A2. Trend charts (Phase 2W) — after records, before coaching.
+          weight_reps: one chart, estimated 1RM preferred over best
+          working weight (never both). bodyweight: a reps chart plus a
+          separate, smaller, conditional added-weight chart — never
+          two metrics on one axis. */}
+      {isBodyweightMode ? (
+        <>
+          <ExerciseTrendChart
+            title="Reps"
+            points={bodyweightTrends?.reps?.points ?? []}
+            summary={bodyweightTrends?.reps?.summary}
+          />
+          {bodyweightTrends?.addedWeight && (
+            <ExerciseTrendChart
+              title={bodyweightTrends.addedWeight.title}
+              points={bodyweightTrends.addedWeight.points}
+              summary={bodyweightTrends.addedWeight.summary}
+              compact
+            />
+          )}
+        </>
+      ) : (
+        <ExerciseTrendChart
+          title={weightRepsTrend?.title ?? 'Strength trend'}
+          points={weightRepsTrend?.points ?? []}
+          summary={weightRepsTrend?.summary}
+        />
+      )}
+
       {/* B. Current coaching */}
       <div className="shred-card space-y-1.5">
         <h2 className="text-sm font-semibold text-foreground">Current coaching</h2>
@@ -387,6 +443,7 @@ function CardioTimedSections({
   exerciseId,
   aggregate,
   recentEntries,
+  chartEntries,
 }: {
   trackingMode: TrackingMode
   exerciseId: string
@@ -397,8 +454,15 @@ function CardioTimedSections({
     bestPaceDistanceMeters: number | null
   }
   recentEntries: ExerciseHistoryEntry[]
+  chartEntries: ExerciseHistoryEntry[]
 }) {
   const isCardio = trackingMode === 'cardio'
+
+  // Phase 2W trend charts. cardio: pace → duration → distance
+  // priority, distance as a conditional secondary chart. timed:
+  // duration only, RPE in tooltips.
+  const cardioTrends = isCardio ? buildCardioTrends(chartEntries) : null
+  const timedTrend = isCardio ? null : buildTimedTrend(chartEntries)
 
   // Formatters return null for missing/non-positive values, so a
   // metric that doesn't exist is omitted entirely — never rendered as
@@ -457,6 +521,33 @@ function CardioTimedSections({
           </div>
         )}
       </div>
+
+      {/* A2. Trend charts (Phase 2W) — after all-time records, before
+          most recent session. */}
+      {isCardio ? (
+        <>
+          <ExerciseTrendChart
+            title={cardioTrends?.primary?.title ?? 'Cardio trend'}
+            points={cardioTrends?.primary?.points ?? []}
+            summary={cardioTrends?.primary?.summary}
+            footnote={cardioTrends?.primary?.footnote}
+          />
+          {cardioTrends?.secondary && (
+            <ExerciseTrendChart
+              title={cardioTrends.secondary.title}
+              points={cardioTrends.secondary.points}
+              summary={cardioTrends.secondary.summary}
+              compact
+            />
+          )}
+        </>
+      ) : (
+        <ExerciseTrendChart
+          title={timedTrend?.title ?? 'Duration'}
+          points={timedTrend?.points ?? []}
+          summary={timedTrend?.summary}
+        />
+      )}
 
       {/* B. Most recent session */}
       <div className="shred-card space-y-1.5">
