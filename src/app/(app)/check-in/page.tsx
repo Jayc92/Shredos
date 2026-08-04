@@ -5,15 +5,85 @@ import {
   fetchUserProfile,
   fetchCurrentNutritionTarget,
 } from '@/lib/supabase/server'
-import { fetchWeeklyReview } from '@/lib/weekly-review'
-import { kgToLbs } from '@/lib/units'
+import { fetchWeeklyReviewSummary } from '@/lib/weekly-review'
+import type { UnifiedWeeklyReview } from '@/lib/weekly-review'
+import type { ExerciseProgressOverviewRow, OverviewStatus } from '@/lib/progress-overview'
+import { progressColor } from '@/lib/workout'
+import type { ProgressSignal } from '@/types/app'
+import { formatDuration } from '@/lib/fasting'
+import { cn } from '@/lib/utils'
 import { todayISO } from '@/lib/dates'
 import { format, parseISO } from 'date-fns'
+import { TRACKING_MODES } from '@/lib/constants'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Weekly check-in' }
+export const metadata: Metadata = { title: 'Weekly review' }
 
-export default async function CheckInPage() {
+// Same status labels/colors the Progress overview uses (Phase 2X) —
+// text always present, never color-alone.
+const STATUS_LABELS: Record<OverviewStatus, string> = {
+  improved: '↑ Improving',
+  same: '→ Steady',
+  declined: '↓ Declining',
+  needs_data: 'More data needed',
+}
+
+function StatusBadge({ status }: { status: OverviewStatus }) {
+  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        progressColor(signalForColor)
+      )}
+    >
+      {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+function NotableExerciseRow({ row }: { row: ExerciseProgressOverviewRow }) {
+  const modeLabel = TRACKING_MODES.find((m) => m.value === row.trackingMode)?.label
+  return (
+    <div className="space-y-0.5 pb-3 border-b border-border/40 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          href={`/progress/exercises/${row.exerciseId}`}
+          className="text-sm font-semibold text-foreground hover:underline"
+        >
+          {row.exerciseName}
+        </Link>
+        <StatusBadge status={row.status} />
+      </div>
+      {row.latestSummary && (
+        <p className="text-xs text-muted-foreground">
+          {format(parseISO(row.latestWorkoutDate), 'MMM d')} — {row.latestSummary}
+          {modeLabel ? ` · ${modeLabel}` : ''}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">Latest comparison</p>
+    </div>
+  )
+}
+
+function trainingLine(training: UnifiedWeeklyReview['training']): string {
+  const parts = [
+    `${training.completedWorkouts} workout${training.completedWorkouts !== 1 ? 's' : ''}`,
+    `${training.completedWorkingSets} working set${
+      training.completedWorkingSets !== 1 ? 's' : ''
+    }`,
+  ]
+  if (training.completedDurationSeconds !== null) {
+    parts.push(formatDuration(Math.round(training.completedDurationSeconds / 60)))
+  }
+  return parts.join(' · ')
+}
+
+export default async function CheckInPage({
+  searchParams,
+}: {
+  searchParams?: { week?: string | string[] }
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -28,71 +98,69 @@ export default async function CheckInPage() {
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
-  // Round-trip 2: 3-4 bounded queries inside fetchWeeklyReview
-  const today  = todayISO()
-  const review = await fetchWeeklyReview(
+  // Round-trip 2: 4-5 bounded queries inside fetchWeeklyReviewSummary
+  // (Phase 3A — the completed-week review; the coach keeps its own
+  // current-week fetchWeeklyReview data source, untouched).
+  const review = await fetchWeeklyReviewSummary(
     supabase,
     user.id,
-    today,
+    todayISO(),
+    searchParams?.week,
     target,
-    profile.main_goal,
-    profile.fasting_enabled,
-    profile.step_goal
+    profile.fasting_enabled
   )
 
-  const weekStartDate = parseISO(review.weekStart)
-  const weekEndDate   = parseISO(review.weekEnd)
-  const sameMonth = format(weekStartDate, 'yyyy-MM') === format(weekEndDate, 'yyyy-MM')
-  const sameYear  = format(weekStartDate, 'yyyy') === format(weekEndDate, 'yyyy')
-  const startLabel = format(weekStartDate, sameYear ? 'MMM d' : 'MMM d, yyyy')
-  // End label always includes the month when the week crosses a month
-  // boundary (e.g. "Jul 28–Aug 3"), and the year when it crosses a year
-  // boundary (e.g. "Dec 30–Jan 5, 2027").
-  const endLabel = format(
-    weekEndDate,
-    sameMonth ? 'd' : sameYear ? 'MMM d' : 'MMM d, yyyy'
-  )
-
-  const weightLbs =
-    review.latestWeightKg !== null
-      ? Math.round(kgToLbs(review.latestWeightKg) * 10) / 10
-      : null
+  const { range, navigation, confidence, weight, nutrition, training } = review
+  const { exerciseProgress, activity, fasting, focusItems } = review
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
-      {/* Header */}
+      {/* 1. Review header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground">Weekly check-in</h1>
-        <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-sm text-muted-foreground">
-            {startLabel}–{endLabel} · Day {review.daysElapsed} of 7
-          </p>
-          {review.daysRemaining > 0 && (
-            <span className="text-xs text-muted-foreground">
-              ({review.daysRemaining} day{review.daysRemaining !== 1 ? 's' : ''} remaining)
-            </span>
+        <h1 className="text-xl font-bold text-foreground">Weekly review</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{range.label}</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Review your completed week across weight, nutrition, training, activity,
+          and fasting.
+        </p>
+        <nav aria-label="Review week navigation" className="flex flex-wrap gap-3 mt-2">
+          <Link
+            href={`/check-in?week=${navigation.previousWeekStart}`}
+            className="text-xs text-primary hover:underline"
+          >
+            ← Previous week
+          </Link>
+          {navigation.nextWeekStart && (
+            <Link
+              href={`/check-in?week=${navigation.nextWeekStart}`}
+              className="text-xs text-primary hover:underline"
+            >
+              Next week →
+            </Link>
           )}
-        </div>
-        {review.daysElapsed < 3 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Week is just getting started — check back after a few more days.
-          </p>
-        )}
-        {review.weekBriefText && review.daysElapsed >= 3 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {review.weekBriefText}
-          </p>
-        )}
+          {!navigation.isLatest && (
+            <Link href="/check-in" className="text-xs text-primary hover:underline">
+              Latest week →
+            </Link>
+          )}
+        </nav>
       </div>
 
-      {/* Empty state */}
+      {/* 2. Data confidence */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">Data confidence</h2>
+        <p className="text-sm text-foreground">{confidence.label}</p>
+        <p className="text-xs text-muted-foreground">{confidence.detail}</p>
+      </div>
+
+      {/* Whole-week empty banner (individual sections still render
+          their own explicit states below). */}
       {!review.hasAnyData && (
-        <div className="shred-card text-center py-8 space-y-2">
-          <p className="text-sm text-muted-foreground">Nothing logged yet this week.</p>
-          <p className="text-xs text-muted-foreground">
-            Your check-in will fill in as you log food, workouts, and weigh-ins.
+        <div className="shred-card text-center py-6 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            No data was logged for this review period.
           </p>
-          <div className="flex items-center justify-center gap-4 pt-2">
+          <div className="flex items-center justify-center gap-4 pt-1 flex-wrap">
             <Link href="/food" className="text-xs text-primary hover:underline">
               Log food →
             </Link>
@@ -106,245 +174,248 @@ export default async function CheckInPage() {
         </div>
       )}
 
-      {/* Weight */}
-      {review.hasAnyData && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Weight</h2>
-          {review.weighInsThisWeek === 0 ? (
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">No weigh-in logged this week.</p>
-              <Link href="/weigh-in" className="text-xs text-primary hover:underline">
-                Log weigh-in →
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {weightLbs !== null && (
-                <p className="text-2xl font-bold tabular-nums">{weightLbs} lb</p>
-              )}
-              {review.weeklyChangeLbs !== null ? (
-                <p
-                  className={`text-sm font-medium ${
-                    review.weeklyChangeLbs < 0
-                      ? 'text-green-400'
-                      : review.weeklyChangeLbs > 0
-                      ? 'text-red-400'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  {review.weeklyChangeLbs > 0 ? '+' : ''}
-                  {review.weeklyChangeLbs} lb vs prior weigh-in
-                </p>
-              ) : review.latestWeightKg !== null ? (
-                <p className="text-xs text-muted-foreground">
-                  Log another weigh-in to see your weekly change.
-                </p>
-              ) : null}
-              <p className="text-xs text-muted-foreground">
-                {review.weighInsThisWeek} weigh-in
-                {review.weighInsThisWeek !== 1 ? 's' : ''} this week
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Nutrition — gated like Weight: suppressed only when the whole
-          week is empty, to avoid repeating the general empty-state banner.
-          Still shows its own empty message when some OTHER data exists
-          this week (e.g. workouts logged but no food). */}
-      {review.hasAnyData && (
-      <div className="shred-card space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
-        {review.foodLoggedDays === 0 ? (
+      {/* 3. Body weight */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">Weight</h2>
+        {weight.loggedDays === 0 ? (
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">No food logged this week.</p>
+            <p className="text-sm text-muted-foreground">No weigh-ins this week.</p>
+            <Link href="/weigh-in" className="text-xs text-primary hover:underline">
+              Weigh-in →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {weight.latestWeightLbs !== null && (
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-bold tabular-nums">
+                  {weight.latestWeightLbs.toFixed(1)} lbs
+                </span>
+                <span className="text-sm text-muted-foreground">Latest this week</span>
+              </div>
+            )}
+            {weight.averageWeightLbs !== null && (
+              <p className="text-xs text-muted-foreground">
+                Weekly average: {weight.averageWeightLbs.toFixed(1)} lbs
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {weight.comparisonLabel ?? 'Not enough weigh-ins for a weekly comparison'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {weight.loggedDays} weigh-in day{weight.loggedDays !== 1 ? 's' : ''}
+            </p>
+            <Link href="/weigh-in" className="text-xs text-primary hover:underline">
+              Weigh-in details →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Nutrition */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
+        {nutrition.loggedDays === 0 ? (
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">No nutrition logs this week.</p>
             <Link href="/food" className="text-xs text-primary hover:underline">
               Log food →
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {review.foodLoggedDays}/7
+          <div className="space-y-1.5">
+            <p className="text-sm text-foreground">
+              {nutrition.loggedDays} of 7 days logged
+            </p>
+            {nutrition.averageCalories !== null && (
+              <p className="text-xs text-muted-foreground">
+                {nutrition.averageCalories.toLocaleString()} average calories · Based on{' '}
+                {nutrition.calorieDays} logged day{nutrition.calorieDays !== 1 ? 's' : ''}
+              </p>
+            )}
+            {nutrition.averageProteinGrams !== null && (
+              <p className="text-xs text-muted-foreground">
+                {nutrition.averageProteinGrams}g average protein
+              </p>
+            )}
+            {nutrition.proteinTargetMetDays !== null &&
+              nutrition.proteinTargetEligibleDays !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Protein target met on {nutrition.proteinTargetMetDays} of{' '}
+                  {nutrition.proteinTargetEligibleDays} eligible day
+                  {nutrition.proteinTargetEligibleDays !== 1 ? 's' : ''}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
+              )}
+            {nutrition.comparisonLabels.length > 0 ? (
+              <div className="space-y-0.5">
+                {nutrition.comparisonLabels.map((label, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">
+                    {label}
+                  </p>
+                ))}
               </div>
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {review.avgCaloriesLogged !== null
-                    ? review.avgCaloriesLogged.toLocaleString()
-                    : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">avg cal</p>
-              </div>
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {review.avgProteinLogged !== null
-                    ? `${review.avgProteinLogged}g`
-                    : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">avg protein</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              {review.calorieTrend === 'on-track' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
-                  Calories on track
-                </span>
-              )}
-              {review.calorieTrend === 'above' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                  Calories above target
-                </span>
-              )}
-              {review.calorieTrend === 'below' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
-                  Calories below target
-                </span>
-              )}
-              {review.proteinStatus === 'meeting' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
-                  Protein on target
-                </span>
-              )}
-              {review.proteinStatus === 'close' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                  Protein slightly under
-                </span>
-              )}
-              {review.proteinStatus === 'low' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-medium">
-                  Protein low
-                </span>
-              )}
-            </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Not enough prior data for a weekly comparison.
+              </p>
+            )}
+            <Link href="/nutrition" className="text-xs text-primary hover:underline">
+              Nutrition details →
+            </Link>
           </div>
         )}
       </div>
-      )}
 
-      {/* Training — same gating rationale as Nutrition above */}
-      {review.hasAnyData && (
-      <div className="shred-card space-y-3">
+      {/* 5. Training */}
+      <div className="shred-card space-y-1.5">
         <h2 className="text-sm font-semibold text-foreground">Training</h2>
-        {review.sessionsCompleted === 0 && !review.hasActiveSession ? (
+        {training.completedWorkouts === 0 ? (
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">No workouts logged this week.</p>
+            <p className="text-sm text-muted-foreground">No completed workouts this week.</p>
+            {training.skippedWorkouts > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {training.skippedWorkouts} workout
+                {training.skippedWorkouts !== 1 ? 's' : ''} skipped
+              </p>
+            )}
             <Link href="/workouts" className="text-xs text-primary hover:underline">
-              Start a workout →
+              Workouts →
             </Link>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-bold tabular-nums">
-                {review.sessionsCompleted}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                session{review.sessionsCompleted !== 1 ? 's' : ''}
-              </span>
-              {review.totalSetsCompleted > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  · {review.totalSetsCompleted} sets
-                </span>
-              )}
-            </div>
-            {review.sessionDates.length > 0 && (
-              <div className="flex gap-1.5 flex-wrap">
-                {review.sessionDates.map((date, i) => (
-                  <span
-                    key={i}
-                    className="text-xs bg-secondary rounded-md px-2 py-0.5 text-muted-foreground"
-                  >
-                    {format(parseISO(date), 'EEE')}
-                  </span>
-                ))}
-              </div>
+          <div className="space-y-1.5">
+            <p className="text-sm text-foreground">{trainingLine(training)}</p>
+            {training.skippedWorkouts > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {training.skippedWorkouts} workout
+                {training.skippedWorkouts !== 1 ? 's' : ''} skipped
+              </p>
             )}
-            {review.hasActiveSession && (
-              <p className="text-xs text-amber-400">Workout currently in progress.</p>
-            )}
+            <Link href="/workouts" className="text-xs text-primary hover:underline">
+              Workouts →
+            </Link>
           </div>
         )}
       </div>
-      )}
 
-      {/* Fasting (only when profile.fasting_enabled) */}
-      {review.fastingEnabled && (
-        <div className="shred-card space-y-3">
+      {/* 6. Exercise progression */}
+      <div className="shred-card space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Exercise progression</h2>
+        {exerciseProgress.improving +
+          exerciseProgress.steady +
+          exerciseProgress.declining +
+          exerciseProgress.needsData ===
+        0 ? (
+          <p className="text-sm text-muted-foreground">
+            No exercises had a qualifying session this week.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {exerciseProgress.improving}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">improving</p>
+              </div>
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">{exerciseProgress.steady}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">steady</p>
+              </div>
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {exerciseProgress.declining}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">declining</p>
+              </div>
+              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+                <p className="text-base font-bold tabular-nums">
+                  {exerciseProgress.needsData}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">need more data</p>
+              </div>
+            </div>
+            {exerciseProgress.notableExercises.length > 0 && (
+              <div className="space-y-3">
+                {exerciseProgress.notableExercises.map((row) => (
+                  <NotableExerciseRow key={row.exerciseId} row={row} />
+                ))}
+              </div>
+            )}
+            <Link href="/progress" className="text-xs text-primary hover:underline">
+              Full progress →
+            </Link>
+          </>
+        )}
+      </div>
+
+      {/* 7. Activity */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">Activity</h2>
+        {activity.loggedDays === 0 ? (
+          <p className="text-sm text-muted-foreground">No activity logged this week.</p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-sm text-foreground">
+              {activity.loggedDays} of 7 days logged
+            </p>
+            {activity.averageSteps !== null && (
+              <p className="text-xs text-muted-foreground">
+                {activity.averageSteps.toLocaleString()} average steps across logged days
+              </p>
+            )}
+            {activity.totalSteps !== null && (
+              <p className="text-xs text-muted-foreground">
+                {activity.totalSteps.toLocaleString()} total steps
+              </p>
+            )}
+            <Link href="/activity" className="text-xs text-primary hover:underline">
+              Activity →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* 8. Fasting (only when enabled — existing convention) */}
+      {fasting !== null && (
+        <div className="shred-card space-y-1.5">
           <h2 className="text-sm font-semibold text-foreground">Fasting</h2>
-          {review.fastsCompletedThisWeek === 0 ? (
-            <p className="text-sm text-muted-foreground">No fasts completed this week.</p>
+          {fasting.completedFasts === 0 ? (
+            <p className="text-sm text-muted-foreground">No completed fasts this week.</p>
           ) : (
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-bold tabular-nums">
-                {review.fastsCompletedThisWeek}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                fast{review.fastsCompletedThisWeek !== 1 ? 's' : ''}
-              </span>
-              {review.avgFastHours !== null && (
-                <span className="text-sm text-muted-foreground">
-                  · {review.avgFastHours}h avg
-                </span>
+            <div className="space-y-1.5">
+              <p className="text-sm text-foreground">
+                {fasting.completedFasts} completed fast
+                {fasting.completedFasts !== 1 ? 's' : ''} ·{' '}
+                {formatDuration(fasting.totalDurationMinutes)} total
+              </p>
+              {fasting.longestDurationMinutes !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Longest fast: {formatDuration(fasting.longestDurationMinutes)}
+                </p>
               )}
+              <Link href="/fasting" className="text-xs text-primary hover:underline">
+                Fasting →
+              </Link>
             </div>
           )}
         </div>
       )}
 
-      {/* Activity (Phase 1H) — informational only, own independent empty
-          state, not gated on hasAnyData (steps aren’t part of that flag).
-          Always rendered: shows data when logged, its own empty message
-          otherwise — does not depend on whether a step goal is set. */}
-      <div className="shred-card space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Activity</h2>
-        {review.stepLoggedDays === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No steps logged this week yet.
-          </p>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-              <p className="text-base font-bold tabular-nums">
-                {review.stepLoggedDays}/7
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
-            </div>
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-              <p className="text-base font-bold tabular-nums">
-                {review.avgStepsLogged !== null
-                  ? review.avgStepsLogged.toLocaleString()
-                  : '—'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">avg steps</p>
-            </div>
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-              <p className="text-base font-bold tabular-nums">
-                {review.stepGoalDaysHit !== null ? review.stepGoalDaysHit : '—'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">goal days</p>
-            </div>
-          </div>
-        )}
+      {/* 9. Next-week focus — deterministic rules, max three items */}
+      <div className="shred-card space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Next-week focus</h2>
+        <ul className="space-y-1.5">
+          {focusItems.map((item, i) => (
+            <li key={i} className="text-sm text-foreground flex items-start gap-2">
+              <span className="text-primary">•</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* Primary focus */}
-      {review.primaryFocus && (
-        <div className="shred-card space-y-1.5">
-          <p className="text-xs text-muted-foreground">This week’s focus</p>
-          <p className="text-sm text-foreground leading-relaxed">
-            {review.primaryFocus}
-          </p>
-        </div>
-      )}
-
-      {/* Bottom links (new for Phase 1J — this page had no bottom link
-          row before; added to mirror /coach's existing pattern) */}
+      {/* Bottom links */}
       <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
         <Link href="/coach" className="text-xs text-primary hover:underline">
           Coach actions →
