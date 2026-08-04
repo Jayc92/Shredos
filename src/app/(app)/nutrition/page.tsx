@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { calculateNutritionTargets } from '@/lib/nutrition'
+import {
+  buildNutritionTrendSummary,
+  fetchNutritionTrendLogs,
+} from '@/lib/nutrition-trends'
+import type { RawFoodLogLike } from '@/lib/nutrition-trends'
+import { NutritionTrendSection } from '@/components/nutrition/NutritionTrendSection'
 import { kgToLbs } from '@/lib/units'
 import type { NutritionTarget, UserProfile } from '@/types/database'
 
@@ -12,6 +18,10 @@ export default function NutritionPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [target, setTarget] = useState<NutritionTarget | null>(null)
+  // Phase 2Z: raw rows for the trend summary/charts — fetched once in
+  // the same load() batch below (bounded, RLS-scoped); all math is
+  // pure and happens at render time.
+  const [trendLogs, setTrendLogs] = useState<RawFoodLogLike[]>([])
   const [loading, setLoading] = useState(true)
 
   // Override fields
@@ -30,7 +40,7 @@ export default function NutritionPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [{ data: p }, { data: t }] = await Promise.all([
+      const [{ data: p }, { data: t }, logs] = await Promise.all([
         supabase.from('user_profiles').select('*').eq('user_id', user.id).single(),
         supabase
           .from('nutrition_targets')
@@ -40,10 +50,14 @@ export default function NutritionPage() {
           .order('effective_date', { ascending: false })
           .limit(1)
           .single(),
+        // Phase 2Z: bounded trend fetch (latest logged date + the
+        // 28-day window ending on it), same helper /progress uses.
+        fetchNutritionTrendLogs(supabase, user.id),
       ])
 
       setProfile(p ?? null)
       setTarget(t ?? null)
+      setTrendLogs(logs)
 
       if (t) {
         setCalories(String(t.calories))
@@ -77,22 +91,42 @@ export default function NutritionPage() {
     const today = new Date().toISOString().split('T')[0]
     const lowCarbWarning = carb < 75
 
-    // Save new versioned nutrition target
-    const { error: targetError } = await supabase.from('nutrition_targets').upsert({
-      user_id: user.id,
-      effective_date: today,
-      calories: cal,
-      protein_g: pro,
-      carbs_g: carb,
-      fat_g: f,
-      low_carb_warning: lowCarbWarning,
-      notes: notes || null,
-    }, { onConflict: 'user_id,effective_date' })
+    // Save new versioned nutrition target. The saved row rides back on
+    // the same upsert request (.select().single() — no extra query) so
+    // local state can be updated to the new authoritative target.
+    const { data: savedTarget, error: targetError } = await supabase
+      .from('nutrition_targets')
+      .upsert({
+        user_id: user.id,
+        effective_date: today,
+        calories: cal,
+        protein_g: pro,
+        carbs_g: carb,
+        fat_g: f,
+        low_carb_warning: lowCarbWarning,
+        notes: notes || null,
+      }, { onConflict: 'user_id,effective_date' })
+      .select()
+      .single()
 
     if (targetError) {
       setSaveError(targetError.message)
       setSaving(false)
       return
+    }
+
+    // Phase 2Z stale-state fix: the trend section derives its
+    // protein-target adherence from this page's `target` state at
+    // render time, but the save previously never updated that state —
+    // so adherence kept using the pre-save target until a manual
+    // reload (router.refresh() re-renders server components, not this
+    // client page's useEffect state). The row saved with today's
+    // effective_date IS the latest effective target — the same single
+    // authority the initial load queries — so updating state from the
+    // upsert's returned row recomputes the trend summary immediately,
+    // with no food-log refetch and no second target source.
+    if (savedTarget) {
+      setTarget(savedTarget)
     }
 
     // Log decision
@@ -140,6 +174,11 @@ export default function NutritionPage() {
         })
       : null
 
+  // Phase 2Z: pure trend math over the fetched rows. Adherence uses
+  // the SAME authoritative target this page already edits
+  // (nutrition_targets.protein_g) — no new target formula.
+  const trendSummary = buildNutritionTrendSummary(trendLogs, target?.protein_g ?? null)
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
       <div>
@@ -148,6 +187,10 @@ export default function NutritionPage() {
           Edit your daily targets. Each change is versioned and logged.
         </p>
       </div>
+
+      {/* Phase 2Z: nutrition trend summary + 28-day charts, ahead of
+          the existing targets content, which is preserved unchanged. */}
+      <NutritionTrendSection summary={trendSummary} />
 
       {/* Calculated suggestion */}
       {calculated && (

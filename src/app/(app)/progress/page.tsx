@@ -7,7 +7,11 @@ import {
   fetchRecentWeighIns,
 } from '@/lib/supabase/server'
 import { buildWeightTrendSummary, MIN_DATES_FOR_AVERAGE } from '@/lib/weight-trends'
-import { fetchProgressSummary } from '@/lib/progress-summary'
+import {
+  buildNutritionTrendSummary,
+  fetchNutritionTrendLogs,
+  MIN_LOGGED_DAYS_FOR_AVERAGE,
+} from '@/lib/nutrition-trends'
 import { fetchStrengthRecords } from '@/lib/strength-records'
 import {
   fetchTrackingAwareProgressOverview,
@@ -19,7 +23,6 @@ import { progressColor } from '@/lib/workout'
 import type { ProgressSignal } from '@/types/app'
 import { cn } from '@/lib/utils'
 import { kgToLbs } from '@/lib/units'
-import { todayISO } from '@/lib/dates'
 import { format, parseISO } from 'date-fns'
 import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
 import type { Metadata } from 'next'
@@ -151,32 +154,32 @@ export default async function ProgressPage({
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
-  // Round-trip 2: fetchProgressSummary (5 bounded 28-day queries),
-  // fetchStrengthRecords (one all-time query, still the Recent PRs
-  // source), and fetchTrackingAwareProgressOverview (Phase 2X, one
-  // all-time query + pure reducer) are independent — run in parallel.
-  const today = todayISO()
-  const [summary, strengthRecords, overviewRows, weighIns] = await Promise.all([
-    fetchProgressSummary(
-      supabase,
-      user.id,
-      today,
-      target,
-      profile.main_goal,
-      profile.fasting_enabled,
-      profile.step_goal
-    ),
+  // Round-trip 2: independent reads run in parallel. Phase 2Z note:
+  // fetchProgressSummary is no longer called here — its only remaining
+  // consumer on this page was the old 28-day Nutrition card, which the
+  // 7-day trend card below replaces (the Weight card moved off it in
+  // Phase 2Y). The helper itself is unchanged and still serves
+  // /weigh-in's 28-day summary via computeWeightProgress.
+  const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs] = await Promise.all([
     fetchStrengthRecords(supabase, user.id),
     fetchTrackingAwareProgressOverview(supabase, user.id),
     // Phase 2Y: same existing helper + 50-row bound /weigh-in uses.
     fetchRecentWeighIns(supabase, user.id, 50),
+    // Phase 2Z: bounded trend fetch (latest logged date + the 28-day
+    // window ending on it) — same helper /nutrition uses.
+    fetchNutritionTrendLogs(supabase, user.id),
   ])
-
-  const { nutrition } = summary
 
   // Phase 2Y: compact 7-day-average trend for the Weight section —
   // derived by the same pure helper /weigh-in uses, no chart here.
   const weightTrend = buildWeightTrendSummary(weighIns, profile.goal_weight_kg)
+
+  // Phase 2Z: compact 7-day nutrition trend — adherence uses the
+  // already-fetched authoritative target (nutrition_targets.protein_g).
+  const nutritionTrend = buildNutritionTrendSummary(
+    nutritionTrendLogs,
+    target?.protein_g ?? null
+  )
 
   // ?mode= filter: invalid or missing values fall back to All. The
   // summary tiles always reflect ALL tracked exercises; only the
@@ -351,63 +354,71 @@ export default async function ProgressPage({
         )}
       </div>
 
-      {/* 6. Nutrition consistency — the existing Nutrition section,
-          calculations and semantics unchanged. */}
+      {/* 6. Nutrition consistency — compact 7-day trend (Phase 2Z).
+          Literal language only; averages divide by logged days, never
+          by 7, and missing days are never zero-calorie days. Charts
+          live on /nutrition, not here. */}
       <div className="shred-card space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
-        {nutrition.loggedDays === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No food logged in the last 4 weeks.
-          </p>
+        {!nutritionTrend.latestLoggedDate ? (
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Log food to begin tracking nutrition consistency.
+            </p>
+            <Link href="/food" className="text-xs text-primary hover:underline">
+              Log food →
+            </Link>
+          </div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {nutrition.loggedDays}/28
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
-              </div>
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {nutrition.avgCaloriesLogged !== null
-                    ? nutrition.avgCaloriesLogged.toLocaleString()
-                    : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">avg cal</p>
-              </div>
-              <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                <p className="text-base font-bold tabular-nums">
-                  {nutrition.avgProteinLogged !== null
-                    ? `${nutrition.avgProteinLogged}g`
-                    : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">avg protein</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              {nutrition.confidence === 'consistent' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
-                  Consistent logging
+          <div className="space-y-1.5">
+            <p className="text-sm text-foreground">
+              {nutritionTrend.currentLoggedDays} of 7 days logged
+              {nutritionTrend.currentWindowLabel && (
+                <span className="text-xs text-muted-foreground">
+                  {' '}· {nutritionTrend.currentWindowLabel}
                 </span>
               )}
-              {nutrition.confidence === 'building' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                  Building consistency
-                </span>
-              )}
-              {nutrition.confidence === 'low' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
-                  Low logging so far
-                </span>
-              )}
-              {nutrition.proteinHitDays !== null && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
-                  Protein hit {nutrition.proteinHitDays} days
-                </span>
-              )}
-            </div>
+            </p>
+            {nutritionTrend.totalLoggedDays < MIN_LOGGED_DAYS_FOR_AVERAGE ? (
+              <p className="text-xs text-muted-foreground">
+                Log nutrition on at least two days to calculate a seven-day average.
+              </p>
+            ) : (
+              <>
+                {nutritionTrend.currentAverageCalories !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {nutritionTrend.currentAverageCalories.toLocaleString()} average calories
+                    · Based on {nutritionTrend.currentCalorieDays} logged day
+                    {nutritionTrend.currentCalorieDays !== 1 ? 's' : ''}
+                  </p>
+                )}
+                {nutritionTrend.currentAverageProteinGrams !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {nutritionTrend.currentAverageProteinGrams}g average protein
+                  </p>
+                )}
+                {nutritionTrend.proteinTargetMetDays !== null &&
+                  nutritionTrend.proteinTargetEligibleDays !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Protein target met on {nutritionTrend.proteinTargetMetDays} of{' '}
+                      {nutritionTrend.proteinTargetEligibleDays} logged day
+                      {nutritionTrend.proteinTargetEligibleDays !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                {nutritionTrend.calorieComparisonLabel ? (
+                  <p className="text-xs text-muted-foreground">
+                    {nutritionTrend.calorieComparisonLabel}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Not enough prior data for a seven-day comparison.
+                  </p>
+                )}
+              </>
+            )}
+            <Link href="/nutrition" className="text-xs text-primary hover:underline">
+              Nutrition details →
+            </Link>
           </div>
         )}
       </div>
