@@ -4,9 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserProfile,
   fetchCurrentNutritionTarget,
+  fetchCardioTimedRecords,
 } from '@/lib/supabase/server'
 import { fetchProgressSummary } from '@/lib/progress-summary'
 import { fetchStrengthRecords } from '@/lib/strength-records'
+import {
+  formatDurationSeconds,
+  formatDistanceMeters,
+  formatPaceSecondsPerMile,
+} from '@/lib/workout'
+import { TRACKING_MODES } from '@/lib/constants'
 import { kgToLbs } from '@/lib/units'
 import { todayISO } from '@/lib/dates'
 import { format, parseISO } from 'date-fns'
@@ -29,11 +36,12 @@ export default async function ProgressPage() {
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
-  // Round-trip 2: fetchProgressSummary (5 bounded 28-day queries) and
-  // fetchStrengthRecords (one all-time query) are independent of each
-  // other — run in parallel.
+  // Round-trip 2: fetchProgressSummary (5 bounded 28-day queries),
+  // fetchStrengthRecords (one all-time query), and
+  // fetchCardioTimedRecords (Phase 2V, one all-time query) are all
+  // independent of each other — run in parallel.
   const today = todayISO()
-  const [summary, strengthRecords] = await Promise.all([
+  const [summary, strengthRecords, cardioTimedRecords] = await Promise.all([
     fetchProgressSummary(
       supabase,
       user.id,
@@ -44,6 +52,7 @@ export default async function ProgressPage() {
       profile.step_goal
     ),
     fetchStrengthRecords(supabase, user.id),
+    fetchCardioTimedRecords(supabase, user.id),
   ])
 
   const windowStartDate = parseISO(summary.windowStart)
@@ -170,6 +179,65 @@ export default async function ProgressPage() {
               )
             })}
           </ul>
+        )}
+      </div>
+
+      {/* Cardio & Timed (Phase 2V) — all-time, same independence from
+          the 28-day summary as Strength Records above. Duration/
+          distance/pace only: weight and estimated-1RM framings never
+          apply to these modes, so no such placeholder is ever shown. */}
+      <div className="shred-card space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Cardio &amp; Timed</h2>
+        {cardioTimedRecords.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No cardio or timed sessions yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {cardioTimedRecords.map((r) => {
+              const modeLabel = TRACKING_MODES.find((m) => m.value === r.trackingMode)?.label
+              const longestDuration = formatDurationSeconds(r.longestDurationSeconds)
+              const bestDistance =
+                r.trackingMode === 'cardio' ? formatDistanceMeters(r.bestDistanceMeters) : null
+              const bestPace =
+                r.trackingMode === 'cardio'
+                  ? formatPaceSecondsPerMile(r.bestPaceDurationSeconds, r.bestPaceDistanceMeters)
+                  : null
+
+              return (
+                <div
+                  key={r.exerciseId}
+                  className="space-y-1 pb-4 border-b border-border/40 last:border-0 last:pb-0"
+                >
+                  <p className="text-sm font-semibold text-foreground">
+                    {r.exerciseName}
+                    {modeLabel && (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {' '}· {modeLabel}
+                      </span>
+                    )}
+                  </p>
+                  {bestDistance && (
+                    <p className="text-xs text-muted-foreground">Best distance: {bestDistance}</p>
+                  )}
+                  {longestDuration && (
+                    <p className="text-xs text-muted-foreground">
+                      Longest duration: {longestDuration}
+                    </p>
+                  )}
+                  {bestPace && (
+                    <p className="text-xs text-muted-foreground">Best pace: {bestPace}</p>
+                  )}
+                  <Link
+                    href={`/progress/exercises/${r.exerciseId}`}
+                    className="text-xs text-primary hover:underline inline-block pt-0.5"
+                  >
+                    View progress →
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 

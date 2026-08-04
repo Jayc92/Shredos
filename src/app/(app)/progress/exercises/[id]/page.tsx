@@ -2,17 +2,68 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase/server'
-import { fetchUserProfile, fetchExerciseHistory } from '@/lib/supabase/server'
+import {
+  fetchUserProfile,
+  fetchExerciseHistory,
+  fetchCardioTimedProgressDetail,
+} from '@/lib/supabase/server'
 import { fetchExerciseProgressDetail } from '@/lib/strength-records'
-import type { PREvent } from '@/lib/strength-records'
-import { formatPreviousBest, suggestNextTarget } from '@/lib/workout'
+import type { ExerciseProgressDetail, PREvent } from '@/lib/strength-records'
+import {
+  formatPreviousBest,
+  suggestNextTarget,
+  formatTrackingAwareSetSummary,
+  formatDurationSeconds,
+  formatDistanceMeters,
+  formatPaceSecondsPerMile,
+  trackingAwareProgressSignal,
+  progressLabel,
+} from '@/lib/workout'
+import type { ExerciseHistoryEntry } from '@/lib/workout'
 import { kgToLbs } from '@/lib/units'
-import type { WorkoutSet } from '@/types/database'
+import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
+import type { WorkoutSet, TrackingMode, ExerciseEquipment, PrimaryMuscle } from '@/types/database'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Exercise progress' }
 
 const PR_HISTORY_INITIAL_CAP = 10
+// Phase 2V: recent history is 5 sessions for every tracking mode (the
+// shared detail-page requirement) — previously 10, weight_reps only.
+const RECENT_HISTORY_LIMIT = 5
+
+/** Human-readable label lookup against the constants.ts option lists. */
+function optionLabel(
+  options: readonly { value: string; label: string }[],
+  value: string | null
+): string | null {
+  if (!value) return null
+  return options.find((o) => o.value === value)?.label ?? null
+}
+
+/**
+ * Minimal synthetic WorkoutSet adapter (Phase 2V): lets the page feed
+ * ExerciseHistoryEntry pairs into workout.ts's
+ * trackingAwareProgressSignal instead of reproducing the cardio/timed
+ * comparison rules here. Same synthetic-set convention
+ * fetchPreviousBests and this page's own coaching input already use.
+ */
+function toSyntheticWorkoutSet(entry: ExerciseHistoryEntry, exerciseId: string): WorkoutSet {
+  return {
+    id: '',
+    workout_exercise_id: exerciseId,
+    set_number: 0,
+    weight_kg: entry.weightKg,
+    reps: entry.reps,
+    rpe: entry.rpe,
+    completed: true,
+    is_warmup: false,
+    notes: null,
+    duration_seconds: entry.durationSeconds,
+    distance_meters: entry.distanceMeters,
+    created_at: entry.workoutDate,
+  }
+}
 
 export default async function ExerciseProgressDetailPage({
   params,
@@ -28,29 +79,101 @@ export default async function ExerciseProgressDetailPage({
   const profile = await fetchUserProfile(supabase, user.id)
   if (!profile) redirect('/onboarding')
 
-  const detail = await fetchExerciseProgressDetail(supabase, user.id, params.id)
-  if (!detail) notFound()
+  // Page-local, RLS-respecting metadata query (Phase 2V): the shared
+  // header needs primary_muscle, which the strength detail return type
+  // deliberately doesn't include — strength-records.ts stays unchanged
+  // and strength-only, so the page fetches its own display metadata.
+  const { data: exercise } = await supabase
+    .from('exercises')
+    .select('id, name, primary_muscle, equipment, tracking_mode, unilateral')
+    .eq('id', params.id)
+    .eq('user_id', user.id)
+    .single()
 
-  // Cardio/timed don't get a strength-progression detail page —
-  // /progress's own Strength Records list already excludes them (via
-  // tracking_mode, Phase 2R), so this only matters for someone hitting
-  // the URL directly.
-  if (detail.trackingMode === 'cardio' || detail.trackingMode === 'timed') {
-    redirect('/progress')
-  }
+  if (!exercise) notFound()
 
-  // Recent best sets — reuse fetchExerciseHistory exactly as the
-  // workout-detail page does. No current session to exclude (this
-  // page has no session context at all), and a higher display limit
-  // than the compact in-session view needs.
-  const historyMap = await fetchExerciseHistory(
-    supabase,
-    user.id,
-    [detail.exerciseId],
-    undefined,
-    10
+  const trackingMode = exercise.tracking_mode as TrackingMode
+  const isCardioTimed = trackingMode === 'cardio' || trackingMode === 'timed'
+  const isUnilateral = !!exercise.unilateral
+
+  // Recent history (all four modes) + the mode-appropriate all-time
+  // aggregate, in parallel. fetchExerciseHistory is the SOLE source
+  // for latest timed RPE, the most recent session summary, recent
+  // history, and the comparable-session signal — all-time cards come
+  // from the dedicated aggregate scans instead, because "one
+  // representative set per session" can miss the true all-time best.
+  const [historyMap, strengthDetail, cardioTimedDetail] = await Promise.all([
+    fetchExerciseHistory(supabase, user.id, [exercise.id], undefined, RECENT_HISTORY_LIMIT),
+    isCardioTimed
+      ? Promise.resolve(null)
+      : fetchExerciseProgressDetail(supabase, user.id, exercise.id),
+    isCardioTimed
+      ? fetchCardioTimedProgressDetail(supabase, user.id, exercise.id)
+      : Promise.resolve(null),
+  ])
+  const recentEntries = historyMap[exercise.id] ?? []
+
+  // ── Shared header pieces ─────────────────────────────────────────
+  const headerParts = [
+    optionLabel(PRIMARY_MUSCLES, exercise.primary_muscle as PrimaryMuscle | null),
+    optionLabel(EXERCISE_EQUIPMENT, exercise.equipment as ExerciseEquipment | null),
+    optionLabel(TRACKING_MODES, trackingMode),
+    isUnilateral ? 'Unilateral' : null,
+  ].filter((part): part is string => part !== null)
+
+  const suffix = isUnilateral ? ' per side' : ''
+
+  return (
+    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+      <Link href="/progress" className="text-xs text-muted-foreground hover:text-foreground">
+        ← Progress
+      </Link>
+
+      <div>
+        <h1 className="text-xl font-bold text-foreground">{exercise.name}</h1>
+        {headerParts.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-0.5">{headerParts.join(' · ')}</p>
+        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          {recentEntries.length === 0
+            ? 'No recent sessions'
+            : `${recentEntries.length} recent session${recentEntries.length !== 1 ? 's' : ''}`}
+        </p>
+      </div>
+
+      {isCardioTimed ? (
+        <CardioTimedSections
+          trackingMode={trackingMode}
+          exerciseId={exercise.id}
+          aggregate={cardioTimedDetail!}
+          recentEntries={recentEntries}
+        />
+      ) : (
+        <StrengthSections
+          trackingMode={trackingMode}
+          detail={strengthDetail!}
+          recentEntries={recentEntries}
+          suffix={suffix}
+        />
+      )}
+    </div>
   )
-  const recentBestSets = historyMap[detail.exerciseId] ?? []
+}
+
+// ── weight_reps / bodyweight sections ───────────────────────────────
+
+function StrengthSections({
+  trackingMode,
+  detail,
+  recentEntries,
+  suffix,
+}: {
+  trackingMode: TrackingMode
+  detail: ExerciseProgressDetail
+  recentEntries: ExerciseHistoryEntry[]
+  suffix: string
+}) {
+  const isBodyweightMode = trackingMode === 'bodyweight'
 
   // Synthetic WorkoutSet for suggestNextTarget/formatPreviousBest —
   // same convention fetchPreviousBests already establishes elsewhere.
@@ -83,7 +206,6 @@ export default async function ExerciseProgressDetailPage({
     detail.trend
   )
 
-  const suffix = detail.isUnilateral ? ' per side' : ''
   const trendLabel =
     detail.trend === 'improving'
       ? 'Improving'
@@ -93,8 +215,22 @@ export default async function ExerciseProgressDetailPage({
       ? 'Steady'
       : null // 'needs-data' — don't pretend a trend exists
 
-  const hasAnyRecord =
-    detail.maxWeightKg !== null || detail.maxEstimated1RmKg !== null || detail.maxBodyweightReps !== null
+  // Bodyweight (Phase 2V): Best added weight only when a genuinely
+  // positive added weight exists — never "0 lbs" (the display-rounded
+  // value must also be positive, so 0.1 kg doesn't round down to a
+  // nonsensical zero). Estimated 1RM is omitted entirely: a
+  // body-plus-added-weight rep isn't a barbell 1RM candidate.
+  const addedWeightLbs =
+    isBodyweightMode && detail.maxWeightKg !== null
+      ? Math.round(kgToLbs(detail.maxWeightKg))
+      : null
+  const showAddedWeight = addedWeightLbs !== null && addedWeightLbs > 0
+
+  const hasAnyRecord = isBodyweightMode
+    ? detail.maxBodyweightReps !== null || showAddedWeight
+    : detail.maxWeightKg !== null ||
+      detail.maxEstimated1RmKg !== null ||
+      detail.maxBodyweightReps !== null
 
   function formatPrEventLine(e: PREvent) {
     const dateLabel = format(parseISO(e.workoutDate), 'MMM d')
@@ -115,20 +251,25 @@ export default async function ExerciseProgressDetailPage({
   const remainingPrHistory = detail.prHistory.slice(PR_HISTORY_INITIAL_CAP)
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
-      <Link href="/progress" className="text-xs text-muted-foreground hover:text-foreground">
-        ← Progress
-      </Link>
-
-      <div>
-        <h1 className="text-xl font-bold text-foreground">{detail.exerciseName}</h1>
-      </div>
-
+    <>
       {/* A. Current records */}
       <div className="shred-card space-y-1.5">
         <h2 className="text-sm font-semibold text-foreground">Current records</h2>
         {!hasAnyRecord ? (
           <p className="text-sm text-muted-foreground">No records yet.</p>
+        ) : isBodyweightMode ? (
+          <div className="space-y-1">
+            {detail.maxBodyweightReps !== null && (
+              <p className="text-sm text-foreground">
+                Best reps: {detail.maxBodyweightReps} reps{suffix}
+              </p>
+            )}
+            {showAddedWeight && (
+              <p className="text-sm text-foreground">
+                Best added weight: +{addedWeightLbs} lbs{suffix}
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-1">
             {detail.maxWeightKg !== null && (
@@ -161,13 +302,27 @@ export default async function ExerciseProgressDetailPage({
       {/* C. Recent best sets */}
       <div className="shred-card space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Recent best sets</h2>
-        {recentBestSets.length === 0 ? (
+        {recentEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">No completed sets yet.</p>
         ) : (
           <ul className="space-y-1">
-            {recentBestSets.map((entry, i) => {
-              const isBodyweight = !entry.weightKg || entry.weightKg <= 0
-              const mainText = isBodyweight
+            {recentEntries.map((entry, i) => {
+              // Bodyweight mode renders through the shared
+              // tracking-aware formatter ("12 reps · +25 lbs"), so an
+              // added-weight set never reads like a barbell lift.
+              // weight_reps keeps its established rendering, est. 1RM
+              // extra included.
+              if (isBodyweightMode) {
+                const summary = formatTrackingAwareSetSummary(entry, trackingMode)
+                if (!summary) return null
+                return (
+                  <li key={i} className="text-xs text-muted-foreground">
+                    {format(parseISO(entry.workoutDate), 'MMM d')} — {summary}
+                  </li>
+                )
+              }
+              const isBodyweightSet = !entry.weightKg || entry.weightKg <= 0
+              const mainText = isBodyweightSet
                 ? entry.reps !== null
                   ? `${entry.reps} reps`
                   : '—'
@@ -176,7 +331,7 @@ export default async function ExerciseProgressDetailPage({
                 : `${Math.round(kgToLbs(entry.weightKg as number))} lbs${suffix}`
               const extras: string[] = []
               if (entry.rpe !== null) extras.push(`RPE ${entry.rpe}`)
-              if (!isBodyweight && entry.estimated1RmKg !== null) {
+              if (!isBodyweightSet && entry.estimated1RmKg !== null) {
                 extras.push(`est. 1RM ${Math.round(kgToLbs(entry.estimated1RmKg))} lbs`)
               }
               return (
@@ -221,6 +376,126 @@ export default async function ExerciseProgressDetailPage({
           </>
         )}
       </div>
-    </div>
+    </>
+  )
+}
+
+// ── cardio / timed sections (Phase 2V) ──────────────────────────────
+
+function CardioTimedSections({
+  trackingMode,
+  exerciseId,
+  aggregate,
+  recentEntries,
+}: {
+  trackingMode: TrackingMode
+  exerciseId: string
+  aggregate: {
+    bestDistanceMeters: number | null
+    longestDurationSeconds: number | null
+    bestPaceDurationSeconds: number | null
+    bestPaceDistanceMeters: number | null
+  }
+  recentEntries: ExerciseHistoryEntry[]
+}) {
+  const isCardio = trackingMode === 'cardio'
+
+  // Formatters return null for missing/non-positive values, so a
+  // metric that doesn't exist is omitted entirely — never rendered as
+  // a zero, a dash placeholder, or a dangling separator.
+  const longestDuration = formatDurationSeconds(aggregate.longestDurationSeconds)
+  const bestDistance = isCardio ? formatDistanceMeters(aggregate.bestDistanceMeters) : null
+  const bestPace = isCardio
+    ? formatPaceSecondsPerMile(aggregate.bestPaceDurationSeconds, aggregate.bestPaceDistanceMeters)
+    : null
+
+  const hasAnyRecord = longestDuration !== null || bestDistance !== null || bestPace !== null
+
+  const latest = recentEntries[0] ?? null
+  const priorComparable = recentEntries[1] ?? null
+
+  const latestSummary = latest ? formatTrackingAwareSetSummary(latest, trackingMode) : ''
+
+  // Comparable-session signal: reuse trackingAwareProgressSignal
+  // through the synthetic-WorkoutSet adapter — the comparison rules
+  // (pace-primary for cardio, duration-only fallback, ±1% thresholds)
+  // live only in workout.ts. Only shown when a prior comparable
+  // session actually exists; a first-ever session gets no badge
+  // rather than a meaningless "New exercise".
+  const signal =
+    latest && priorComparable
+      ? trackingAwareProgressSignal(
+          toSyntheticWorkoutSet(latest, exerciseId),
+          toSyntheticWorkoutSet(priorComparable, exerciseId),
+          trackingMode
+        )
+      : null
+
+  // Latest timed RPE comes from history (entries[0]) only — the
+  // aggregate deliberately doesn't duplicate it.
+  const latestRpe = !isCardio && latest && latest.rpe !== null ? latest.rpe : null
+
+  return (
+    <>
+      {/* A. All-time records */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">All-time records</h2>
+        {!hasAnyRecord ? (
+          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+        ) : (
+          <div className="space-y-1">
+            {bestDistance && (
+              <p className="text-sm text-foreground">Best distance: {bestDistance}</p>
+            )}
+            {longestDuration && (
+              <p className="text-sm text-foreground">Longest duration: {longestDuration}</p>
+            )}
+            {bestPace && <p className="text-sm text-foreground">Best pace: {bestPace}</p>}
+            {latestRpe !== null && (
+              <p className="text-sm text-foreground">Latest RPE: {latestRpe}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* B. Most recent session */}
+      <div className="shred-card space-y-1.5">
+        <h2 className="text-sm font-semibold text-foreground">Most recent session</h2>
+        {!latest || !latestSummary ? (
+          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+        ) : (
+          <div className="space-y-1">
+            <p className="text-sm text-foreground">
+              {format(parseISO(latest.workoutDate), 'MMM d')} — {latestSummary}
+            </p>
+            {signal && (
+              <p className="text-xs text-muted-foreground">
+                Vs. previous session: {progressLabel(signal)}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* C. Recent history */}
+      <div className="shred-card space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Recent history</h2>
+        {recentEntries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+        ) : (
+          <ul className="space-y-1">
+            {recentEntries.map((entry, i) => {
+              const summary = formatTrackingAwareSetSummary(entry, trackingMode)
+              if (!summary) return null
+              return (
+                <li key={i} className="text-xs text-muted-foreground">
+                  {format(parseISO(entry.workoutDate), 'MMM d')} — {summary}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </>
   )
 }

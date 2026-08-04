@@ -706,6 +706,220 @@ export async function fetchExercisePRBaseline(
   return result
 }
 
+// ── Phase 2V — cardio/timed all-time records ──────────────────────
+// The cardio/timed parallel to strength-records.ts's all-time reads.
+// Deliberately NOT derived from fetchExerciseHistory above: that
+// helper returns one representative set per session, but the all-time
+// best distance, longest duration, and best pace may each come from
+// DIFFERENT sets, so these helpers scan every qualifying historical
+// set instead. Lives here (not strength-records.ts) because
+// strength-records.ts is intentionally strength-only.
+
+export interface CardioTimedAggregate {
+  bestDistanceMeters: number | null
+  longestDurationSeconds: number | null
+  /** Raw duration/distance of the single best-pace set. Formatting
+   * (via formatPaceSecondsPerMile) is the caller's job — no
+   * preformatted pace string is ever returned from here. */
+  bestPaceDurationSeconds: number | null
+  bestPaceDistanceMeters: number | null
+}
+
+export interface CardioTimedRecord extends CardioTimedAggregate {
+  exerciseId: string
+  exerciseName: string
+  trackingMode: TrackingMode
+  isUnilateral: boolean
+}
+
+interface CardioTimedRawSet {
+  duration_seconds: number | null
+  distance_meters: number | null
+  is_warmup: boolean
+  completed: boolean
+}
+
+function freshCardioTimedAggregate(): CardioTimedAggregate {
+  return {
+    bestDistanceMeters: null,
+    longestDurationSeconds: null,
+    bestPaceDurationSeconds: null,
+    bestPaceDistanceMeters: null,
+  }
+}
+
+/**
+ * The ONE pure reducer shared by fetchCardioTimedRecords and
+ * fetchCardioTimedProgressDetail. Folds a batch of raw sets into an
+ * aggregate. Qualifying sets are completed, non-warm-up, with a
+ * positive duration — the same rule pickRepresentativeCardioSet uses
+ * (Phase 2S requires duration > 0 to complete a cardio/timed set, so
+ * a distance-only set cannot legitimately exist).
+ *
+ * Best pace is tracked as the raw duration+distance of the single
+ * lowest-ratio set. seconds-per-meter is proportional to
+ * seconds-per-mile, so comparing the raw ratio needs no unit
+ * conversion; display formatting stays in workout.ts's
+ * formatPaceSecondsPerMile, defined exactly once.
+ */
+function reduceCardioTimedSets(
+  aggregate: CardioTimedAggregate,
+  sets: CardioTimedRawSet[]
+): CardioTimedAggregate {
+  const next = { ...aggregate }
+
+  for (const s of sets) {
+    if (!s.completed || s.is_warmup) continue
+    if (s.duration_seconds === null || s.duration_seconds <= 0) continue
+    const durationSeconds = s.duration_seconds
+
+    if (next.longestDurationSeconds === null || durationSeconds > next.longestDurationSeconds) {
+      next.longestDurationSeconds = durationSeconds
+    }
+
+    if (s.distance_meters !== null && s.distance_meters > 0) {
+      const distanceMeters = s.distance_meters
+
+      if (next.bestDistanceMeters === null || distanceMeters > next.bestDistanceMeters) {
+        next.bestDistanceMeters = distanceMeters
+      }
+
+      const paceRatio = durationSeconds / distanceMeters
+      const bestPaceRatio =
+        next.bestPaceDurationSeconds !== null && next.bestPaceDistanceMeters !== null && next.bestPaceDistanceMeters > 0
+          ? next.bestPaceDurationSeconds / next.bestPaceDistanceMeters
+          : null
+
+      if (bestPaceRatio === null || paceRatio < bestPaceRatio) {
+        next.bestPaceDurationSeconds = durationSeconds
+        next.bestPaceDistanceMeters = distanceMeters
+      }
+    }
+  }
+
+  return next
+}
+
+/**
+ * Fetches all-time cardio/timed records for EVERY cardio/timed
+ * exercise — the /progress index's parallel to fetchStrengthRecords.
+ * Scans all completed sessions (no session-count bound: an all-time
+ * claim must be all-time-correct, same reasoning as
+ * fetchExercisePRBaseline above). Exercises with no qualifying set
+ * are dropped, mirroring fetchStrengthRecords' own "at least one
+ * qualifying set" rule. Sorted by exercise name for a deterministic
+ * index listing.
+ */
+export async function fetchCardioTimedRecords(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<CardioTimedRecord[]> {
+  const { data: sessions, error } = await supabase
+    .from('workout_sessions')
+    .select(`
+      id,
+      workout_exercises (
+        exercise_id,
+        exercise:exercises ( id, name, tracking_mode, unilateral ),
+        workout_sets ( duration_seconds, distance_meters, is_warmup, completed )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+
+  if (error) console.error('fetchCardioTimedRecords error:', error)
+
+  type CardioTimedMeta = { name: string; trackingMode: TrackingMode; isUnilateral: boolean }
+  const meta: Record<string, CardioTimedMeta> = {}
+  const aggregates: Record<string, CardioTimedAggregate> = {}
+
+  for (const session of sessions ?? []) {
+    for (const we of (session.workout_exercises as Array<{
+      exercise_id: string
+      exercise: { id: string; name: string; tracking_mode: TrackingMode; unilateral: boolean }
+        | { id: string; name: string; tracking_mode: TrackingMode; unilateral: boolean }[]
+        | null
+      workout_sets: CardioTimedRawSet[]
+    }>) ?? []) {
+      const ex = Array.isArray(we.exercise) ? we.exercise[0] : we.exercise
+      if (!ex) continue
+      if (ex.tracking_mode !== 'cardio' && ex.tracking_mode !== 'timed') continue
+
+      const exerciseId = we.exercise_id
+      if (!meta[exerciseId]) {
+        meta[exerciseId] = {
+          name: ex.name,
+          trackingMode: ex.tracking_mode,
+          isUnilateral: !!ex.unilateral,
+        }
+      }
+
+      aggregates[exerciseId] = reduceCardioTimedSets(
+        aggregates[exerciseId] ?? freshCardioTimedAggregate(),
+        we.workout_sets ?? []
+      )
+    }
+  }
+
+  return Object.entries(meta)
+    .map(([exerciseId, m]) => ({
+      exerciseId,
+      exerciseName: m.name,
+      trackingMode: m.trackingMode,
+      isUnilateral: m.isUnilateral,
+      ...(aggregates[exerciseId] ?? freshCardioTimedAggregate()),
+    }))
+    // Only exercises with at least one qualifying set become a record
+    // (duration > 0 is the qualification gate, so longestDuration
+    // being null means nothing qualified at all).
+    .filter((r) => r.longestDurationSeconds !== null)
+    .sort((a, b) => a.exerciseName.localeCompare(b.exerciseName))
+}
+
+/**
+ * Fetches the all-time cardio/timed aggregate for ONE exercise,
+ * targeted at the query level with the same workout_exercises!inner
+ * embedded-resource filter pattern fetchExerciseProgressDetail
+ * (strength-records.ts) uses. Same defensive exercise_id re-check on
+ * already-fetched data. Callers are responsible for confirming the
+ * exercise exists, belongs to the user, and is cardio/timed — the
+ * detail page already holds that metadata before calling this.
+ */
+export async function fetchCardioTimedProgressDetail(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  exerciseId: string
+): Promise<CardioTimedAggregate> {
+  const { data: sessions, error } = await supabase
+    .from('workout_sessions')
+    .select(`
+      id,
+      workout_exercises!inner (
+        exercise_id,
+        workout_sets ( duration_seconds, distance_meters, is_warmup, completed )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .eq('workout_exercises.exercise_id', exerciseId)
+
+  if (error) console.error('fetchCardioTimedProgressDetail error:', error)
+
+  let aggregate = freshCardioTimedAggregate()
+
+  for (const session of sessions ?? []) {
+    for (const we of (session.workout_exercises as Array<{
+      exercise_id: string
+      workout_sets: CardioTimedRawSet[]
+    }>) ?? []) {
+      if (we.exercise_id !== exerciseId) continue
+      aggregate = reduceCardioTimedSets(aggregate, we.workout_sets ?? [])
+    }
+  }
+
+  return aggregate
+}
+
 // ── Phase 1D — routine fetch helpers ─────────────────────────────
 
 export async function fetchRoutines(
