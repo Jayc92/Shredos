@@ -34,6 +34,15 @@ interface ExerciseTrendChartProps {
   footnote?: string
   /** Smaller plot for secondary charts (added weight, distance). */
   compact?: boolean
+  /**
+   * Optional minimum y-domain span, in the same unit as point values
+   * (Phase 2Y). When the data range is narrower, the domain expands
+   * symmetrically around its midpoint so tiny fluctuations aren't
+   * exaggerated to full plot height — used by the body-weight chart
+   * (~2 lbs). Omitted by every exercise chart, whose scaling is
+   * unchanged.
+   */
+  minVisibleRange?: number
 }
 
 const VIEW_WIDTH = 600
@@ -49,6 +58,7 @@ export default function ExerciseTrendChart({
   summary,
   footnote,
   compact = false,
+  minVisibleRange,
 }: ExerciseTrendChartProps) {
   if (points.length < 2) {
     return (
@@ -71,8 +81,19 @@ export default function ExerciseTrendChart({
   // A flat series still deserves a visible centered line: pad the
   // domain artificially so the line sits mid-plot instead of on an
   // edge. The pad is display-only; values and labels are untouched.
-  const domainMin = isFlat ? minValue - Math.max(1, minValue * 0.05) : minValue
-  const domainMax = isFlat ? maxValue + Math.max(1, maxValue * 0.05) : maxValue
+  let domainMin = isFlat ? minValue - Math.max(1, minValue * 0.05) : minValue
+  let domainMax = isFlat ? maxValue + Math.max(1, maxValue * 0.05) : maxValue
+
+  // Phase 2Y: optional minimum visible range — expand a too-narrow
+  // domain symmetrically so small fluctuations aren't visually
+  // exaggerated. No caller-omitted behavior changes (exercise charts
+  // never pass it), and the flat-series pad above already guarantees
+  // domainMax > domainMin, so scaling can never divide by zero.
+  if (minVisibleRange !== undefined && domainMax - domainMin < minVisibleRange) {
+    const midpoint = (domainMax + domainMin) / 2
+    domainMin = midpoint - minVisibleRange / 2
+    domainMax = midpoint + minVisibleRange / 2
+  }
 
   const xAt = (index: number): number =>
     PAD_LEFT + (points.length === 1 ? 0 : (index / (points.length - 1)) * innerWidth)

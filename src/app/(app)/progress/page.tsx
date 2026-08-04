@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserProfile,
   fetchCurrentNutritionTarget,
+  fetchRecentWeighIns,
 } from '@/lib/supabase/server'
+import { buildWeightTrendSummary, MIN_DATES_FOR_AVERAGE } from '@/lib/weight-trends'
 import { fetchProgressSummary } from '@/lib/progress-summary'
 import { fetchStrengthRecords } from '@/lib/strength-records'
 import {
@@ -154,7 +156,7 @@ export default async function ProgressPage({
   // source), and fetchTrackingAwareProgressOverview (Phase 2X, one
   // all-time query + pure reducer) are independent — run in parallel.
   const today = todayISO()
-  const [summary, strengthRecords, overviewRows] = await Promise.all([
+  const [summary, strengthRecords, overviewRows, weighIns] = await Promise.all([
     fetchProgressSummary(
       supabase,
       user.id,
@@ -166,9 +168,15 @@ export default async function ProgressPage({
     ),
     fetchStrengthRecords(supabase, user.id),
     fetchTrackingAwareProgressOverview(supabase, user.id),
+    // Phase 2Y: same existing helper + 50-row bound /weigh-in uses.
+    fetchRecentWeighIns(supabase, user.id, 50),
   ])
 
-  const { weight, nutrition } = summary
+  const { nutrition } = summary
+
+  // Phase 2Y: compact 7-day-average trend for the Weight section —
+  // derived by the same pure helper /weigh-in uses, no chart here.
+  const weightTrend = buildWeightTrendSummary(weighIns, profile.goal_weight_kg)
 
   // ?mode= filter: invalid or missing values fall back to All. The
   // summary tiles always reflect ALL tracked exercises; only the
@@ -290,46 +298,55 @@ export default async function ProgressPage({
         )}
       </div>
 
-      {/* 5. Body progress — the existing Weight section, semantics
-          unchanged (28-day window, same trend states, same weigh-in
-          link). */}
+      {/* 5. Body progress — compact 7-day-average weight trend
+          (Phase 2Y). Literal language only: direction is never
+          colored or framed as good/bad. Full 28-day chart lives on
+          /weigh-in, not here. */}
       <div className="shred-card space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Weight</h2>
-        {weight.weighInCount === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No weigh-ins logged in the last 4 weeks.
-          </p>
-        ) : weight.trend === 'insufficient-data' ? (
+        {!weightTrend.latest ? (
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">
-              Only one weigh-in logged so far.
+              Log your first weigh-in to begin tracking body weight.
             </p>
             <Link href="/weigh-in" className="text-xs text-primary hover:underline">
-              Log another weigh-in →
+              Log a weigh-in →
             </Link>
           </div>
         ) : (
           <div className="space-y-1.5">
-            <p
-              className={`text-2xl font-bold tabular-nums ${
-                weight.trend === 'down'
-                  ? 'text-green-400'
-                  : weight.trend === 'up'
-                  ? 'text-red-400'
-                  : 'text-foreground'
-              }`}
-            >
-              {weight.deltaLbs !== null && weight.deltaLbs > 0 ? '+' : ''}
-              {weight.deltaLbs} lb
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {weight.trend === 'down' && 'Trending down over the last 4 weeks'}
-              {weight.trend === 'up' && 'Trending up over the last 4 weeks'}
-              {weight.trend === 'stable' && 'Holding steady over the last 4 weeks'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {weight.weighInCount} weigh-in{weight.weighInCount !== 1 ? 's' : ''} logged
-            </p>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold tabular-nums">
+                {weightTrend.latest.weightLbs.toFixed(1)} lbs
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Latest · {format(parseISO(weightTrend.latest.date), 'MMM d')}
+              </span>
+            </div>
+            {weightTrend.currentAverageLbs !== null ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  7-day average: {weightTrend.currentAverageLbs.toFixed(1)} lbs · Based on{' '}
+                  {weightTrend.currentAverageCount} weigh-in
+                  {weightTrend.currentAverageCount !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {weightTrend.averageChangeLabel ??
+                    'Not enough prior data for a seven-day comparison.'}
+                </p>
+              </>
+            ) : weightTrend.distinctDateCount < MIN_DATES_FOR_AVERAGE ? (
+              <p className="text-xs text-muted-foreground">
+                Log at least two weigh-ins to see a weight trend.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Not enough recent weigh-ins for a seven-day average.
+              </p>
+            )}
+            <Link href="/weigh-in" className="text-xs text-primary hover:underline">
+              Weigh-in details →
+            </Link>
           </div>
         )}
       </div>

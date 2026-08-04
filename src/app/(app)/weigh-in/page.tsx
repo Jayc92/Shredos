@@ -4,6 +4,8 @@ import { WeighInForm } from '@/components/weigh-in/WeighInForm'
 import { WeighInHistory } from '@/components/weigh-in/WeighInHistory'
 import { WeighInSummary } from '@/components/weigh-in/WeighInSummary'
 import { BodyMeasurementsSummary } from '@/components/weigh-in/BodyMeasurementsSummary'
+import { WeightTrendSection } from '@/components/weigh-in/WeightTrendSection'
+import { buildWeightTrendSummary } from '@/lib/weight-trends'
 import { getNextWeighInDate, getTrendConfidence } from '@/lib/weighIn'
 import { computeWeightProgress } from '@/lib/progress-summary'
 import { cmToInches } from '@/lib/units'
@@ -36,6 +38,13 @@ export default async function WeighInPage() {
   )
 
   const confidence = getTrendConfidence(profile.preferred_weigh_in_cadence, weighIns.length)
+
+  // Phase 2Y: 7-day averages + 28-day chart, derived from the SAME
+  // already-fetched weighIns array (no new query; the existing
+  // 50-row fetch bound is unchanged). Trend math deduplicates to one
+  // entry per calendar date internally — the stored records and the
+  // visible history below are untouched.
+  const weightTrend = buildWeightTrendSummary(weighIns, profile.goal_weight_kg)
 
   // Phase 1L: 28-day summary, derived from the already-fetched weighIns
   // array (no new query). computeWeightProgress is the exact same helper
@@ -116,6 +125,10 @@ export default async function WeighInPage() {
       )}
 
       <WeighInForm />
+
+      {/* Phase 2Y: trend summary + 28-day chart, after the entry form
+          and before the existing 28-day summary block. */}
+      <WeightTrendSection summary={weightTrend} />
 
       <WeighInSummary summary={weightProgress} userGoal={profile.main_goal} />
 
