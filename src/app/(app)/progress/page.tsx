@@ -4,24 +4,137 @@ import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserProfile,
   fetchCurrentNutritionTarget,
-  fetchCardioTimedRecords,
 } from '@/lib/supabase/server'
 import { fetchProgressSummary } from '@/lib/progress-summary'
 import { fetchStrengthRecords } from '@/lib/strength-records'
 import {
-  formatDurationSeconds,
-  formatDistanceMeters,
-  formatPaceSecondsPerMile,
-} from '@/lib/workout'
-import { TRACKING_MODES } from '@/lib/constants'
+  fetchTrackingAwareProgressOverview,
+  filterOverviewRows,
+  parseTrackingModeFilter,
+} from '@/lib/progress-overview'
+import type { ExerciseProgressOverviewRow, OverviewStatus } from '@/lib/progress-overview'
+import { progressColor } from '@/lib/workout'
+import type { ProgressSignal } from '@/types/app'
+import { cn } from '@/lib/utils'
 import { kgToLbs } from '@/lib/units'
 import { todayISO } from '@/lib/dates'
 import { format, parseISO } from 'date-fns'
+import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Progress' }
 
-export default async function ProgressPage() {
+// Phase 2X: spec'd status labels — text always present, never
+// color-alone (the badge colors reuse workout.ts's existing
+// progressColor conventions).
+const STATUS_LABELS: Record<OverviewStatus, string> = {
+  improved: '↑ Improving',
+  same: '→ Steady',
+  declined: '↓ Declining',
+  needs_data: 'More data needed',
+}
+
+/** Human-readable label lookup against the constants.ts option lists. */
+function optionLabel(
+  options: readonly { value: string; label: string }[],
+  value: string | null
+): string | null {
+  if (!value) return null
+  return options.find((o) => o.value === value)?.label ?? null
+}
+
+function StatusBadge({ status }: { status: OverviewStatus }) {
+  // needs_data borrows the existing 'new' badge treatment — both mean
+  // "no baseline to compare against yet".
+  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        progressColor(signalForColor)
+      )}
+    >
+      {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+function FilterLink({
+  href,
+  label,
+  active,
+}: {
+  href: string
+  label: string
+  active: boolean
+}) {
+  // Active state is conveyed by aria-current + weight + fill — never
+  // color alone.
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'rounded-full border px-3 py-1 text-xs',
+        active
+          ? 'border-primary bg-primary/15 font-semibold text-foreground'
+          : 'border-border bg-secondary font-medium text-muted-foreground hover:text-foreground'
+      )}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function ExerciseOverviewCard({ row }: { row: ExerciseProgressOverviewRow }) {
+  const metaParts = [
+    optionLabel(PRIMARY_MUSCLES, row.primaryMuscle),
+    optionLabel(EXERCISE_EQUIPMENT, row.equipment),
+    optionLabel(TRACKING_MODES, row.trackingMode),
+    row.isUnilateral ? 'Unilateral' : null,
+  ].filter((part): part is string => part !== null)
+
+  return (
+    <div className="shred-card space-y-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          href={`/progress/exercises/${row.exerciseId}`}
+          className="text-sm font-semibold text-foreground hover:underline"
+        >
+          {row.exerciseName}
+        </Link>
+        <StatusBadge status={row.status} />
+      </div>
+      {metaParts.length > 0 && (
+        <p className="text-xs text-muted-foreground">{metaParts.join(' · ')}</p>
+      )}
+      {row.latestSummary && (
+        <p className="text-sm text-foreground">
+          {format(parseISO(row.latestWorkoutDate), 'MMM d')} — {row.latestSummary}
+        </p>
+      )}
+      {row.secondarySummary && (
+        <p className="text-xs text-muted-foreground">{row.secondarySummary}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {row.recentSessionCount} recent session{row.recentSessionCount !== 1 ? 's' : ''}
+      </p>
+      <Link
+        href={`/progress/exercises/${row.exerciseId}`}
+        aria-label={`View ${row.exerciseName} progress`}
+        className="text-xs text-primary hover:underline inline-block pt-0.5"
+      >
+        View progress →
+      </Link>
+    </div>
+  )
+}
+
+export default async function ProgressPage({
+  searchParams,
+}: {
+  searchParams?: { mode?: string | string[] }
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -37,11 +150,11 @@ export default async function ProgressPage() {
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
   // Round-trip 2: fetchProgressSummary (5 bounded 28-day queries),
-  // fetchStrengthRecords (one all-time query), and
-  // fetchCardioTimedRecords (Phase 2V, one all-time query) are all
-  // independent of each other — run in parallel.
+  // fetchStrengthRecords (one all-time query, still the Recent PRs
+  // source), and fetchTrackingAwareProgressOverview (Phase 2X, one
+  // all-time query + pure reducer) are independent — run in parallel.
   const today = todayISO()
-  const [summary, strengthRecords, cardioTimedRecords] = await Promise.all([
+  const [summary, strengthRecords, overviewRows] = await Promise.all([
     fetchProgressSummary(
       supabase,
       user.id,
@@ -52,108 +165,103 @@ export default async function ProgressPage() {
       profile.step_goal
     ),
     fetchStrengthRecords(supabase, user.id),
-    fetchCardioTimedRecords(supabase, user.id),
+    fetchTrackingAwareProgressOverview(supabase, user.id),
   ])
 
-  const windowStartDate = parseISO(summary.windowStart)
-  const windowEndDate = parseISO(summary.windowEnd)
-  const sameMonth =
-    format(windowStartDate, 'yyyy-MM') === format(windowEndDate, 'yyyy-MM')
-  const sameYear =
-    format(windowStartDate, 'yyyy') === format(windowEndDate, 'yyyy')
-  const startLabel = format(windowStartDate, sameYear ? 'MMM d' : 'MMM d, yyyy')
-  const endLabel = format(
-    windowEndDate,
-    sameMonth ? 'd' : sameYear ? 'MMM d' : 'MMM d, yyyy'
-  )
+  const { weight, nutrition } = summary
 
-  const { weight, nutrition, training, activity, fasting, wins } = summary
+  // ?mode= filter: invalid or missing values fall back to All. The
+  // summary tiles always reflect ALL tracked exercises; only the
+  // Exercise progress list is filtered.
+  const activeMode = parseTrackingModeFilter(searchParams?.mode)
+  const filteredRows = filterOverviewRows(overviewRows, activeMode)
+
+  const improvingCount = overviewRows.filter((r) => r.status === 'improved').length
+  const needsDataCount = overviewRows.filter((r) => r.status === 'needs_data').length
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
-      {/* Header */}
+      {/* 1. Page header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">Progress</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {startLabel}–{endLabel} · Last {summary.daysCovered} days
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          A read-only look at the last 4 weeks — for day-to-day, see your
-          weekly check-in or coach actions.
+          Review exercise trends, personal records, body weight, and nutrition
+          consistency.
         </p>
       </div>
 
-      {/* Strength Records (Phase 2D) — all-time, independent of the
-          28-day summary below, so this has its own empty state rather
-          than being gated on summary.hasAnyData. */}
-      <div className="shred-card space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">Strength Records</h2>
-        {strengthRecords.records.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No strength records yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {strengthRecords.records.map((r) => {
-              const suffix = r.isUnilateral ? ' per side' : ''
-              const trendLabel =
-                r.trend === 'improving' ? 'Improving'
-                : r.trend === 'stalling' ? 'Possible stall'
-                : r.trend === 'steady'   ? 'Steady'
-                : null // 'needs-data' — don't pretend a trend exists
+      {/* 2. Progress summary — every value computed from the same
+          overview/PR data shown below; nothing invented. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+          <p className="text-base font-bold tabular-nums">{overviewRows.length}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">exercises tracked</p>
+        </div>
+        <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+          <p className="text-base font-bold tabular-nums">{improvingCount}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">improving</p>
+        </div>
+        <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+          <p className="text-base font-bold tabular-nums">{needsDataCount}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">need more data</p>
+        </div>
+        <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+          <p className="text-base font-bold tabular-nums">
+            {strengthRecords.recentPREvents.length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">recent PRs</p>
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={r.exerciseId}
-                  className="space-y-1 pb-4 border-b border-border/40 last:border-0 last:pb-0"
-                >
-                  <p className="text-sm font-semibold text-foreground">{r.exerciseName}</p>
-                  {r.maxWeightKg !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      Weight PR: {Math.round(kgToLbs(r.maxWeightKg))} lbs{suffix}
-                    </p>
-                  )}
-                  {r.maxEstimated1RmKg !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      Est. 1RM: {Math.round(kgToLbs(r.maxEstimated1RmKg))} lbs{suffix}
-                    </p>
-                  )}
-                  {r.maxBodyweightReps !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      Rep PR: {r.maxBodyweightReps} reps
-                    </p>
-                  )}
-                  {r.mostRecentBest && (
-                    <p className="text-xs text-muted-foreground">
-                      Recent best:{' '}
-                      {r.mostRecentBest.weightKg !== null
-                        ? `${Math.round(kgToLbs(r.mostRecentBest.weightKg))} lbs${
-                            r.mostRecentBest.reps !== null ? ` × ${r.mostRecentBest.reps}` : ''
-                          }${suffix}`
-                        : r.mostRecentBest.reps !== null
-                        ? `${r.mostRecentBest.reps} reps`
-                        : '—'}
-                    </p>
-                  )}
-                  {trendLabel && (
-                    <p className="text-xs text-muted-foreground">Trend: {trendLabel}</p>
-                  )}
-                  <Link
-                    href={`/progress/exercises/${r.exerciseId}`}
-                    className="text-xs text-primary hover:underline inline-block pt-0.5"
-                  >
-                    View progress →
-                  </Link>
-                </div>
-              )
-            })}
+      {/* 3. Exercise progress — unified tracking-aware overview,
+          replacing the previous separate Strength Records and
+          Cardio & Timed lists. */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Exercise progress</h2>
+
+        {overviewRows.length === 0 ? (
+          <div className="shred-card">
+            <p className="text-sm text-muted-foreground">
+              Complete a workout to begin tracking exercise progress.
+            </p>
           </div>
+        ) : (
+          <>
+            <nav aria-label="Filter exercises by tracking mode" className="flex flex-wrap gap-2">
+              <FilterLink href="/progress" label="All" active={activeMode === null} />
+              {TRACKING_MODES.map((m) => (
+                <FilterLink
+                  key={m.value}
+                  href={`/progress?mode=${m.value}`}
+                  label={m.label}
+                  active={activeMode === m.value}
+                />
+              ))}
+            </nav>
+
+            {filteredRows.length === 0 ? (
+              <div className="shred-card">
+                <p className="text-sm text-muted-foreground">
+                  No tracked exercises match this filter yet.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredRows.map((row) => (
+                  <ExerciseOverviewCard key={row.exerciseId} row={row} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Recent PRs (Phase 2D) */}
+      {/* 4. Recent PRs (Phase 2D semantics preserved — strength-record
+          based; no cardio/timed PR events exist or are invented). */}
       <div className="shred-card space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Recent PRs</h2>
         {strengthRecords.recentPREvents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No PRs yet.</p>
+          <p className="text-sm text-muted-foreground">No personal records yet.</p>
         ) : (
           <ul className="space-y-1.5">
             {strengthRecords.recentPREvents.map((e, i) => {
@@ -182,296 +290,110 @@ export default async function ProgressPage() {
         )}
       </div>
 
-      {/* Cardio & Timed (Phase 2V) — all-time, same independence from
-          the 28-day summary as Strength Records above. Duration/
-          distance/pace only: weight and estimated-1RM framings never
-          apply to these modes, so no such placeholder is ever shown. */}
-      <div className="shred-card space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">Cardio &amp; Timed</h2>
-        {cardioTimedRecords.length === 0 ? (
+      {/* 5. Body progress — the existing Weight section, semantics
+          unchanged (28-day window, same trend states, same weigh-in
+          link). */}
+      <div className="shred-card space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Weight</h2>
+        {weight.weighInCount === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No cardio or timed sessions yet.
+            No weigh-ins logged in the last 4 weeks.
           </p>
+        ) : weight.trend === 'insufficient-data' ? (
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Only one weigh-in logged so far.
+            </p>
+            <Link href="/weigh-in" className="text-xs text-primary hover:underline">
+              Log another weigh-in →
+            </Link>
+          </div>
         ) : (
-          <div className="space-y-4">
-            {cardioTimedRecords.map((r) => {
-              const modeLabel = TRACKING_MODES.find((m) => m.value === r.trackingMode)?.label
-              const longestDuration = formatDurationSeconds(r.longestDurationSeconds)
-              const bestDistance =
-                r.trackingMode === 'cardio' ? formatDistanceMeters(r.bestDistanceMeters) : null
-              const bestPace =
-                r.trackingMode === 'cardio'
-                  ? formatPaceSecondsPerMile(r.bestPaceDurationSeconds, r.bestPaceDistanceMeters)
-                  : null
-
-              return (
-                <div
-                  key={r.exerciseId}
-                  className="space-y-1 pb-4 border-b border-border/40 last:border-0 last:pb-0"
-                >
-                  <p className="text-sm font-semibold text-foreground">
-                    {r.exerciseName}
-                    {modeLabel && (
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {' '}· {modeLabel}
-                      </span>
-                    )}
-                  </p>
-                  {bestDistance && (
-                    <p className="text-xs text-muted-foreground">Best distance: {bestDistance}</p>
-                  )}
-                  {longestDuration && (
-                    <p className="text-xs text-muted-foreground">
-                      Longest duration: {longestDuration}
-                    </p>
-                  )}
-                  {bestPace && (
-                    <p className="text-xs text-muted-foreground">Best pace: {bestPace}</p>
-                  )}
-                  <Link
-                    href={`/progress/exercises/${r.exerciseId}`}
-                    className="text-xs text-primary hover:underline inline-block pt-0.5"
-                  >
-                    View progress →
-                  </Link>
-                </div>
-              )
-            })}
+          <div className="space-y-1.5">
+            <p
+              className={`text-2xl font-bold tabular-nums ${
+                weight.trend === 'down'
+                  ? 'text-green-400'
+                  : weight.trend === 'up'
+                  ? 'text-red-400'
+                  : 'text-foreground'
+              }`}
+            >
+              {weight.deltaLbs !== null && weight.deltaLbs > 0 ? '+' : ''}
+              {weight.deltaLbs} lb
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {weight.trend === 'down' && 'Trending down over the last 4 weeks'}
+              {weight.trend === 'up' && 'Trending up over the last 4 weeks'}
+              {weight.trend === 'stable' && 'Holding steady over the last 4 weeks'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {weight.weighInCount} weigh-in{weight.weighInCount !== 1 ? 's' : ''} logged
+            </p>
           </div>
         )}
       </div>
 
-      {/* Empty state */}
-      {!summary.hasAnyData && (
-        <div className="shred-card text-center py-8 space-y-2">
+      {/* 6. Nutrition consistency — the existing Nutrition section,
+          calculations and semantics unchanged. */}
+      <div className="shred-card space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
+        {nutrition.loggedDays === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing logged in the last 4 weeks yet.
+            No food logged in the last 4 weeks.
           </p>
-          <p className="text-xs text-muted-foreground">
-            Come back after a few weeks of logging to see your trends here.
-          </p>
-        </div>
-      )}
-
-      {/* Weight */}
-      {summary.hasAnyData && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Weight</h2>
-          {weight.weighInCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No weigh-ins logged in the last 4 weeks.
-            </p>
-          ) : weight.trend === 'insufficient-data' ? (
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                Only one weigh-in logged so far.
-              </p>
-              <Link href="/weigh-in" className="text-xs text-primary hover:underline">
-                Log another weigh-in →
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <p
-                className={`text-2xl font-bold tabular-nums ${
-                  weight.trend === 'down'
-                    ? 'text-green-400'
-                    : weight.trend === 'up'
-                    ? 'text-red-400'
-                    : 'text-foreground'
-                }`}
-              >
-                {weight.deltaLbs !== null && weight.deltaLbs > 0 ? '+' : ''}
-                {weight.deltaLbs} lb
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {weight.trend === 'down' && 'Trending down over the last 4 weeks'}
-                {weight.trend === 'up' && 'Trending up over the last 4 weeks'}
-                {weight.trend === 'stable' && 'Holding steady over the last 4 weeks'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {weight.weighInCount} weigh-in{weight.weighInCount !== 1 ? 's' : ''} logged
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Nutrition */}
-      {summary.hasAnyData && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Nutrition</h2>
-          {nutrition.loggedDays === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No food logged in the last 4 weeks.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                  <p className="text-base font-bold tabular-nums">
-                    {nutrition.loggedDays}/28
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
-                </div>
-                <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                  <p className="text-base font-bold tabular-nums">
-                    {nutrition.avgCaloriesLogged !== null
-                      ? nutrition.avgCaloriesLogged.toLocaleString()
-                      : '—'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">avg cal</p>
-                </div>
-                <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
-                  <p className="text-base font-bold tabular-nums">
-                    {nutrition.avgProteinLogged !== null
-                      ? `${nutrition.avgProteinLogged}g`
-                      : '—'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">avg protein</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                {nutrition.confidence === 'consistent' && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
-                    Consistent logging
-                  </span>
-                )}
-                {nutrition.confidence === 'building' && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">
-                    Building consistency
-                  </span>
-                )}
-                {nutrition.confidence === 'low' && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
-                    Low logging so far
-                  </span>
-                )}
-                {nutrition.proteinHitDays !== null && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
-                    Protein hit {nutrition.proteinHitDays} days
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Training */}
-      {summary.hasAnyData && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Training</h2>
-          {training.completedCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No workouts logged in the last 4 weeks.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-3">
-                <span className="text-2xl font-bold tabular-nums">
-                  {training.completedCount}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  workout{training.completedCount !== 1 ? 's' : ''}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  · {training.avgPerWeek}/wk avg
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Best week: {training.bestWeekCount} workout
-                {training.bestWeekCount !== 1 ? 's' : ''}
-                {training.mostRecentDate &&
-                  ` · Last workout ${format(parseISO(training.mostRecentDate), 'MMM d')}`}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Activity */}
-      {summary.hasAnyData && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Activity</h2>
-          {activity.loggedDays === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No steps logged in the last 4 weeks.
-            </p>
-          ) : (
+        ) : (
+          <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
                 <p className="text-base font-bold tabular-nums">
-                  {activity.loggedDays}/28
+                  {nutrition.loggedDays}/28
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
               </div>
               <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
                 <p className="text-base font-bold tabular-nums">
-                  {activity.avgSteps !== null ? activity.avgSteps.toLocaleString() : '—'}
+                  {nutrition.avgCaloriesLogged !== null
+                    ? nutrition.avgCaloriesLogged.toLocaleString()
+                    : '—'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">avg steps</p>
+                <p className="text-xs text-muted-foreground mt-0.5">avg cal</p>
               </div>
               <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
                 <p className="text-base font-bold tabular-nums">
-                  {activity.goalDays !== null ? activity.goalDays : '—'}
+                  {nutrition.avgProteinLogged !== null
+                    ? `${nutrition.avgProteinLogged}g`
+                    : '—'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">goal days</p>
+                <p className="text-xs text-muted-foreground mt-0.5">avg protein</p>
               </div>
             </div>
-          )}
-          {activity.bestDaySteps !== null && activity.bestDaySteps > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Best day: {activity.bestDaySteps.toLocaleString()} steps
-            </p>
-          )}
-        </div>
-      )}
 
-      {/* Fasting (only when profile.fasting_enabled) */}
-      {fasting && (
-        <div className="shred-card space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Fasting</h2>
-          {fasting.completedCount === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No fasts completed in the last 4 weeks.
-            </p>
-          ) : (
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-bold tabular-nums">
-                {fasting.completedCount}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                fast{fasting.completedCount !== 1 ? 's' : ''}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                · {fasting.totalHours}h total
-              </span>
-              {fasting.longestHours !== null && (
-                <span className="text-sm text-muted-foreground">
-                  · {fasting.longestHours}h longest
+            <div className="flex gap-2 flex-wrap">
+              {nutrition.confidence === 'consistent' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
+                  Consistent logging
+                </span>
+              )}
+              {nutrition.confidence === 'building' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-medium">
+                  Building consistency
+                </span>
+              )}
+              {nutrition.confidence === 'low' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+                  Low logging so far
+                </span>
+              )}
+              {nutrition.proteinHitDays !== null && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+                  Protein hit {nutrition.proteinHitDays} days
                 </span>
               )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Wins (only when non-empty) */}
-      {wins.length > 0 && (
-        <div className="shred-card space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Wins</h2>
-          <ul className="space-y-1.5">
-            {wins.map((win, i) => (
-              <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                <span className="text-primary">•</span>
-                <span>{win}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Bottom links */}
       <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
