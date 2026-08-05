@@ -48,6 +48,7 @@ import type {
   ExerciseProgressOverviewRow,
   RawOverviewSession,
 } from '@/lib/progress-overview'
+import { getFastingDuration } from '@/lib/fasting'
 
 // ── Thresholds ───────────────────────────────────────────────────
 // Phase 1K: these previously mirrored nutrition-coach.ts's own local
@@ -202,6 +203,89 @@ function buildWeekBriefText(
   return parts.length > 0 ? parts.join(' · ') : null
 }
 
+// ── Legacy weekly training normalization (Phase 3B repair) ──────────
+
+/** The exact embedded relation shape the legacy sessions query returns. */
+export interface LegacyWeeklySessionRow {
+  status: string
+  workout_date: string
+  workout_exercises: Array<{
+    workout_sets: Array<{ completed: boolean; is_warmup: boolean }> | null
+  }> | null
+}
+
+export interface LegacyWeeklyTrainingTotals {
+  sessionsCompleted: number
+  totalSetsCompleted: number
+  sessionDates: string[]
+  hasActiveSession: boolean
+}
+
+/** The persisted fasting fields these helpers read — fasting_logs has
+ * NO duration_minutes column (migration 001 stores started_at +
+ * ended_at only; the database types file documents "duration_minutes
+ * is NOT stored — calculated in app"). */
+export interface RawCompletedFastRow {
+  started_at: string
+  ended_at: string | null
+}
+
+/**
+ * Derives completed-fast durations (in minutes) from the persisted
+ * timestamps using the app's ONE authoritative convention —
+ * getFastingDuration (fasting.ts), the same derivation the fasting
+ * page and computeFastingWeekStats already use. Rows without an
+ * ended_at (active fasts) and non-positive derived durations
+ * (degenerate/invalid records) are excluded. Pure; never mutates.
+ */
+export function deriveCompletedFastMinutes(rows: RawCompletedFastRow[]): number[] {
+  const minutes: number[] = []
+  for (const row of rows) {
+    if (!row.started_at || !row.ended_at) continue
+    const derived = getFastingDuration(row.started_at, row.ended_at).minutes
+    if (Number.isFinite(derived) && derived > 0) minutes.push(derived)
+  }
+  return minutes
+}
+
+/**
+ * Pure, typed normalization boundary for the legacy weekly training
+ * rows (Phase 3B). Before this repair, the query selected a
+ * nonexistent workout_sets.status column (the schema column is
+ * `completed BOOLEAN`, migration 003), PostgREST rejected the whole
+ * embedded query, and the silently-swallowed error left the coach's
+ * training data permanently empty.
+ *
+ * Rules (unchanged semantics, now actually applied to real data):
+ *   - completed sessions only for the completed count and set totals
+ *   - completed, non-warm-up sets only for the working-set count
+ *   - in_progress presence sets hasActiveSession (never counted as
+ *     completed); skipped/planned sessions count as nothing
+ *   - null embedded relations are tolerated
+ * Pure — never mutates the input rows.
+ */
+export function normalizeLegacyWeeklySessionRows(
+  rows: LegacyWeeklySessionRow[]
+): LegacyWeeklyTrainingTotals {
+  const completedSessions = rows.filter((s) => s.status === 'completed')
+
+  let totalSetsCompleted = 0
+  for (const session of completedSessions) {
+    for (const we of session.workout_exercises ?? []) {
+      for (const set of we.workout_sets ?? []) {
+        if (set.completed && !set.is_warmup) totalSetsCompleted++
+      }
+    }
+  }
+
+  return {
+    sessionsCompleted: completedSessions.length,
+    totalSetsCompleted,
+    sessionDates: completedSessions.map((s) => s.workout_date),
+    hasActiveSession: rows.some((s) => s.status === 'in_progress'),
+  }
+}
+
 // ── Main export ──────────────────────────────────────────────────────
 
 /**
@@ -257,7 +341,7 @@ export async function fetchWeeklyReview(
         status,
         workout_date,
         workout_exercises (
-          workout_sets ( status, is_warmup )
+          workout_sets ( completed, is_warmup )
         )
       `)
       .eq('user_id', userId)
@@ -270,10 +354,13 @@ export async function fetchWeeklyReview(
     // week and completes this week is counted in the week it finished.
     // ended_at IS NOT NULL already guarantees only completed fasts qualify;
     // an active/incomplete fast has no ended_at and is correctly excluded.
+    // Phase 3B: previously selected a nonexistent duration_minutes
+    // column (duration is never persisted — it is derived from the
+    // timestamps in app code), which PostgREST rejected outright.
     fastingEnabled
       ? supabase
           .from('fasting_logs')
-          .select('started_at, ended_at, duration_minutes')
+          .select('started_at, ended_at')
           .eq('user_id', userId)
           .not('ended_at', 'is', null)
           .gte('ended_at', `${weekStart}T00:00:00`)
@@ -289,9 +376,21 @@ export async function fetchWeeklyReview(
       .lte('logged_date', queryEnd),
   ])
 
+  // Phase 3B: query failures previously vanished into `?? []`, which
+  // is exactly how the workout_sets.status schema bug went unnoticed —
+  // the sessions query was rejected outright and the coach saw an
+  // empty training week forever. Failures now log (the repo's
+  // fetch-helper convention) while the page stays stable on the same
+  // safe empty results; raw errors are never shown to the user.
+  if (metricsRes.error)  console.error('fetchWeeklyReview (body_metrics) error:', metricsRes.error)
+  if (foodRes.error)     console.error('fetchWeeklyReview (food_logs) error:', foodRes.error)
+  if (sessionRes.error)  console.error('fetchWeeklyReview (workout_sessions) error:', sessionRes.error)
+  if (fastingRes.error)  console.error('fetchWeeklyReview (fasting_logs) error:', fastingRes.error)
+  if (activityRes.error) console.error('fetchWeeklyReview (daily_activity_logs) error:', activityRes.error)
+
   const allMetrics  = metricsRes.data ?? []
   const foodLogs    = foodRes.data ?? []
-  const sessions    = sessionRes.data ?? []
+  const sessions: LegacyWeeklySessionRow[] = sessionRes.data ?? []
   const fasts       = fastingRes.data ?? []
   const activityLogs: Array<{ logged_date: string; steps: number }> = activityRes.data ?? []
 
@@ -340,29 +439,22 @@ export async function fetchWeeklyReview(
   const proteinStatus = categorizeProteinStatus(avgProteinLogged, proteinTarget)
 
   // ── Training ─────────────────────────────────────────────────────────────
-  const completedSessions = sessions.filter((s: any) => s.status === 'completed')
-  const hasActiveSession  = sessions.some((s: any) => s.status === 'in_progress')
-  const sessionsCompleted = completedSessions.length
-  const sessionDates: string[] = completedSessions.map((s: any) => s.workout_date)
-
-  let totalSetsCompleted = 0
-  for (const session of completedSessions) {
-    for (const ex of (session as any).workout_exercises ?? []) {
-      for (const set of ex.workout_sets ?? []) {
-        if (set.status === 'completed' && !set.is_warmup) {
-          totalSetsCompleted++
-        }
-      }
-    }
-  }
+  // Phase 3B: typed pure normalizer replaces the inline reduction that
+  // filtered on the nonexistent workout_sets.status column. Same
+  // intended semantics, real schema columns, testable in isolation.
+  const { sessionsCompleted, totalSetsCompleted, sessionDates, hasActiveSession } =
+    normalizeLegacyWeeklySessionRows(sessions)
 
   // ── Fasting ──────────────────────────────────────────────────────────────
-  const fastsCompletedThisWeek = fasts.length
+  // Phase 3B: durations are now derived from started_at/ended_at via
+  // the app's authoritative getFastingDuration convention (they were
+  // never persisted). Same average math as before; rows whose derived
+  // duration is non-positive no longer count as completed fasts.
+  const completedFastMinutes = deriveCompletedFastMinutes(fasts as RawCompletedFastRow[])
+  const fastsCompletedThisWeek = completedFastMinutes.length
   let avgFastHours: number | null = null
   if (fastsCompletedThisWeek > 0) {
-    const totalMins = fasts.reduce(
-      (s: number, f: any) => s + (f.duration_minutes ?? 0), 0
-    )
+    const totalMins = completedFastMinutes.reduce((s, m) => s + m, 0)
     avgFastHours =
       Math.round((totalMins / fastsCompletedThisWeek / 60) * 10) / 10
   }
@@ -1157,16 +1249,30 @@ export async function fetchWeeklyReviewSummary(
       .gte('logged_date', bounds.startDate)
       .lte('logged_date', bounds.endDate),
 
+    // Phase 3B correction: this query originally selected the
+    // nonexistent duration_minutes column (the same schema-mismatch
+    // class as the legacy workout_sets.status bug — durations are
+    // derived, never persisted). It now selects the real timestamps;
+    // the derived minutes are mapped at this fetch boundary so the
+    // pure computeWeeklyFasting reducer's contract is unchanged.
     fastingEnabled
       ? supabase
           .from('fasting_logs')
-          .select('duration_minutes')
+          .select('started_at, ended_at')
           .eq('user_id', userId)
           .not('ended_at', 'is', null)
           .gte('ended_at', `${bounds.startDate}T00:00:00`)
           .lte('ended_at', `${bounds.endDate}T23:59:59.999`)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
   ])
+
+  // Phase 3B: failures are observable (repo fetch-helper convention)
+  // while the page stays stable on safe empty results.
+  if (metricsRes.error)  console.error('fetchWeeklyReviewSummary (body_metrics) error:', metricsRes.error)
+  if (foodRes.error)     console.error('fetchWeeklyReviewSummary (food_logs) error:', foodRes.error)
+  if (sessionRes.error)  console.error('fetchWeeklyReviewSummary (workout_sessions) error:', sessionRes.error)
+  if (activityRes.error) console.error('fetchWeeklyReviewSummary (daily_activity_logs) error:', activityRes.error)
+  if (fastingRes.error)  console.error('fetchWeeklyReviewSummary (fasting_logs) error:', fastingRes.error)
 
   return assembleWeeklyReview({
     todayStr,
@@ -1175,7 +1281,9 @@ export async function fetchWeeklyReviewSummary(
     foodLogRows: foodRes.data ?? [],
     sessionRows: sessionRes.data ?? [],
     activityRows: activityRes.data ?? [],
-    fastRows: fastingRes.data ?? [],
+    fastRows: deriveCompletedFastMinutes(
+      (fastingRes.data ?? []) as RawCompletedFastRow[]
+    ).map((minutes) => ({ duration_minutes: minutes })),
     proteinTargetGrams: target?.protein_g ?? null,
     fastingEnabled,
   })
