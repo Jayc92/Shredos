@@ -283,17 +283,29 @@ async function runAsyncSections() {
     broken.hasActiveSession === false)
   check('query error is observable via development logging', loggedError)
 
-  // Thresholds/priority/wording/decision metadata unchanged: zero
-  // workouts on day 5 of a cutting week with no weigh-ins → the same
-  // pre-existing rules fire in the same order with the same text.
-  const actions = buildCoachActions(broken, NEUTRAL_NUTRITION_SUMMARY, 'fat_loss')
+  // Thresholds/priority/wording/decision metadata unchanged for
+  // EQUIVALENT VALID INPUT: confirmed-zero data on day 5 of a cutting
+  // week → the same pre-existing rules fire in the same order with the
+  // same text. (Phase 3C: a FAILED query no longer fires the
+  // zero-workout rule — that suppression is verified separately in
+  // verify-phase3c.ts; here the training rule is exercised with a
+  // successful query returning genuinely empty data.)
+  const validEmpty = mockSupabase({
+    body_metrics: { data: [], error: null },
+    food_logs: { data: [], error: null },
+    workout_sessions: { data: [], error: null },
+    fasting_logs: { data: [], error: null },
+    daily_activity_logs: { data: [], error: null },
+  })
+  const emptyReview = await fetchWeeklyReview(validEmpty, 'user-1', TODAY, null, 'fat_loss', false, null)
+  const actions = buildCoachActions(emptyReview, NEUTRAL_NUTRITION_SUMMARY, 'fat_loss')
   check('recommendation priority unchanged (weigh-in rule leads)',
     actions.primaryAction?.type === 'log_weigh_in' && actions.primaryAction.priority === 1)
   check('recommendation wording unchanged',
     actions.primaryAction?.title === 'Log a weigh-in this week' &&
     actions.secondaryActions.some((a) => a.title === 'Get a workout in this week'))
   check('threshold gates unchanged (early week still returns no actions)',
-    buildCoachActions({ ...broken, daysElapsed: 2 }, NEUTRAL_NUTRITION_SUMMARY, 'fat_loss')
+    buildCoachActions({ ...emptyReview, daysElapsed: 2 }, NEUTRAL_NUTRITION_SUMMARY, 'fat_loss')
       .hasEnoughData === false)
   check('decision metadata unchanged',
     actions.primaryAction?.decisionType === 'coach_log_weigh_in' &&

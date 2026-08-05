@@ -62,6 +62,23 @@ import { getFastingDuration } from '@/lib/fasting'
 export type CalorieTrend = 'on-track' | 'above' | 'below' | 'insufficient-data'
 export type ProteinStatus = 'meeting' | 'close' | 'low' | 'insufficient-data'
 
+/**
+ * Phase 3C: per-domain availability — distinguishes "the query
+ * succeeded and the data is genuinely empty/zero" from "the query
+ * FAILED and we know nothing". A failed workout query must never be
+ * treated as a confirmed zero-workout week (Phase 3B made failures
+ * observable; this makes them actionable): coach rules that depend on
+ * an unavailable domain are suppressed instead of firing on false
+ * zeros.
+ */
+export interface WeeklyDomainAvailability {
+  weight: boolean
+  nutrition: boolean
+  training: boolean
+  activity: boolean
+  fasting: boolean
+}
+
 export interface WeeklyReviewSummary {
   weekStart:     string
   weekEnd:       string
@@ -102,6 +119,9 @@ export interface WeeklyReviewSummary {
 
   userGoal:   string | null
   hasAnyData: boolean
+
+  /** Phase 3C: which domains' queries actually succeeded. */
+  availability: WeeklyDomainAvailability
 }
 
 // ── Pure helpers ─────────────────────────────────────────────────────
@@ -319,17 +339,21 @@ export async function fetchWeeklyReview(
 
   // ── Run queries in parallel ─────────────────────────────────────────────
   const [metricsRes, foodRes, sessionRes, fastingRes, activityRes] = await Promise.all([
+    // Phase 3C: created_at added so same-day weigh-ins deduplicate via
+    // the authoritative Phase 2Y rule (latest record per date).
     supabase
       .from('body_metrics')
-      .select('logged_date, weight_kg')
+      .select('logged_date, weight_kg, created_at')
       .eq('user_id', userId)
       .gte('logged_date', twentyEightDaysAgo)
       .not('weight_kg', 'is', null)
       .order('logged_date', { ascending: false }),
 
+    // Phase 3C: carbs_g/fat_g added so the authoritative Phase 2Z
+    // meaningful-entry rule can evaluate every macro.
     supabase
       .from('food_logs')
-      .select('logged_date, calories, protein_g')
+      .select('logged_date, calories, protein_g, carbs_g, fat_g')
       .eq('user_id', userId)
       .gte('logged_date', weekStart)
       .lte('logged_date', queryEnd),
@@ -388,6 +412,17 @@ export async function fetchWeeklyReview(
   if (fastingRes.error)  console.error('fetchWeeklyReview (fasting_logs) error:', fastingRes.error)
   if (activityRes.error) console.error('fetchWeeklyReview (daily_activity_logs) error:', activityRes.error)
 
+  // Phase 3C: a failed query is "unavailable", never a confirmed zero.
+  // (The fasting branch resolves { data: [] } with no error field when
+  // fasting is disabled, which correctly reads as available.)
+  const availability: WeeklyDomainAvailability = {
+    weight: !metricsRes.error,
+    nutrition: !foodRes.error,
+    training: !sessionRes.error,
+    activity: !activityRes.error,
+    fasting: !fastingRes.error,
+  }
+
   const allMetrics  = metricsRes.data ?? []
   const foodLogs    = foodRes.data ?? []
   const sessions: LegacyWeeklySessionRow[] = sessionRes.data ?? []
@@ -395,14 +430,22 @@ export async function fetchWeeklyReview(
   const activityLogs: Array<{ logged_date: string; steps: number }> = activityRes.data ?? []
 
   // ── Weight ───────────────────────────────────────────────────────────────
-  const thisWeekMetrics = allMetrics.filter(
-    (m: any) => m.logged_date >= weekStart && m.logged_date <= queryEnd
+  // Phase 3C alignment: distinct weigh-in DATES via the authoritative
+  // Phase 2Y dedup (latest same-day record wins) — previously raw row
+  // counts, which double-counted same-day weigh-ins. The zero-weigh-in
+  // coach rule is unaffected (zero rows ⇔ zero dates); only the count's
+  // meaning and the latest/prior selection are normalized.
+  const dailyWeights = dedupeDailyWeights(allMetrics as RawWeighInLike[])
+  const thisWeekDaily = dailyWeights.filter(
+    (p) => p.date >= weekStart && p.date <= queryEnd
   )
-  const priorMetrics = allMetrics.filter((m: any) => m.logged_date < weekStart)
+  const priorDaily = dailyWeights.filter((p) => p.date < weekStart)
 
-  const weighInsThisWeek = thisWeekMetrics.length
-  const latestWeightKg   = thisWeekMetrics[0]?.weight_kg ?? null
-  const priorWeightKg    = priorMetrics[0]?.weight_kg ?? null
+  const weighInsThisWeek = thisWeekDaily.length
+  const latestWeightKg =
+    thisWeekDaily.length > 0 ? thisWeekDaily[thisWeekDaily.length - 1].weightKg : null
+  const priorWeightKg =
+    priorDaily.length > 0 ? priorDaily[priorDaily.length - 1].weightKg : null
 
   let weeklyChangeLbs: number | null = null
   if (latestWeightKg !== null && priorWeightKg !== null) {
@@ -411,27 +454,23 @@ export async function fetchWeeklyReview(
   }
 
   // ── Nutrition ────────────────────────────────────────────────────────────
-  const dayTotals: Record<string, { calories: number; protein: number }> = {}
-  for (const log of foodLogs) {
-    if (!dayTotals[log.logged_date]) {
-      dayTotals[log.logged_date] = { calories: 0, protein: 0 }
-    }
-    dayTotals[log.logged_date].calories += log.calories ?? 0
-    dayTotals[log.logged_date].protein  += Number(log.protein_g ?? 0)
-  }
-
-  const foodLoggedDays = Object.keys(dayTotals).length
-  let avgCaloriesLogged: number | null = null
-  let avgProteinLogged:  number | null = null
-  if (foodLoggedDays > 0) {
-    const vals = Object.values(dayTotals)
-    avgCaloriesLogged = Math.round(
-      vals.reduce((s, d) => s + d.calories, 0) / foodLoggedDays
-    )
-    avgProteinLogged = Math.round(
-      vals.reduce((s, d) => s + d.protein, 0) / foodLoggedDays
-    )
-  }
+  // Phase 3C alignment: daily aggregation via the authoritative Phase
+  // 2Z normalizer. Corrections this brings to the coach's inputs:
+  //   - all-zero/invalid placeholder rows no longer create logged days
+  //   - a day logged without protein data no longer drags the protein
+  //     average toward zero (previously `?? 0` sums), so a "protein
+  //     low" suggestion can't be manufactured by calorie-only logging
+  //   - averages need two contributing days (2Z's shared minimum);
+  //     with fewer, the statuses read insufficient-data instead of
+  //     pretending one day is a weekly average
+  // Rules, thresholds, and wording are unchanged — only these inputs.
+  const dailyNutrition = buildDailyNutritionTotals(foodLogs as RawFoodLogLike[])
+  const weekNutrition = dailyNutrition.filter(
+    (d) => d.date >= weekStart && d.date <= queryEnd
+  )
+  const foodLoggedDays = weekNutrition.length
+  const avgCaloriesLogged = averageAcrossLoggedDays(weekNutrition, 'calories').average
+  const avgProteinLogged = averageAcrossLoggedDays(weekNutrition, 'proteinGrams').average
 
   const calorieTarget = target?.calories  ?? 0
   const proteinTarget = target?.protein_g ?? 0
@@ -520,6 +559,7 @@ export async function fetchWeeklyReview(
     weekBriefText,
     userGoal,
     hasAnyData,
+    availability,
   }
 }
 

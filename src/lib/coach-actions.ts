@@ -225,32 +225,48 @@ export function buildCoachActions(
     }
   }
 
+  // Phase 3C: a rule may only fire when its domain's query actually
+  // succeeded — a FAILED query is "unavailable", never a confirmed
+  // zero, so e.g. a failed workout query can no longer manufacture
+  // "Get a workout in this week". Every threshold, priority, and
+  // wording below is unchanged; availability is purely a gate.
+  const { availability } = weeklyReview
+
   const candidates: CoachAction[] = []
 
   // 1. Missing weigh-in (cutting goals only, enough week elapsed)
-  if (isCutting && weeklyReview.weighInsThisWeek === 0 && daysElapsed >= 4) {
+  if (availability.weight && isCutting && weeklyReview.weighInsThisWeek === 0 && daysElapsed >= 4) {
     candidates.push(actionLogWeighIn(weeklyReview.weighInsThisWeek))
   }
 
   // 2. No / poor food logging
-  if (weeklyReview.foodLoggedDays === 0 && daysElapsed >= 3) {
+  if (availability.nutrition && weeklyReview.foodLoggedDays === 0 && daysElapsed >= 3) {
     candidates.push(actionLogFood(weeklyReview.foodLoggedDays))
-  } else if (weeklyReview.foodLoggedDays < MIN_RELIABLE_LOGGED_DAYS && daysElapsed >= 5) {
+  } else if (
+    availability.nutrition &&
+    weeklyReview.foodLoggedDays < MIN_RELIABLE_LOGGED_DAYS &&
+    daysElapsed >= 5
+  ) {
     candidates.push(actionLogFood(weeklyReview.foodLoggedDays))
   }
 
   // 3. Protein consistently low
-  if (weeklyReview.proteinStatus === 'low' && weeklyReview.foodLoggedDays >= 3) {
+  if (
+    availability.nutrition &&
+    weeklyReview.proteinStatus === 'low' &&
+    weeklyReview.foodLoggedDays >= 3
+  ) {
     candidates.push(actionHitProtein())
   }
 
   // 4. No workouts this week
-  if (weeklyReview.sessionsCompleted === 0 && daysElapsed >= 4) {
+  if (availability.training && weeklyReview.sessionsCompleted === 0 && daysElapsed >= 4) {
     candidates.push(actionCompleteWorkout())
   }
 
   // 5. Steps consistency (only meaningful if a step goal exists)
   if (
+    availability.activity &&
     weeklyReview.stepGoal !== null &&
     weeklyReview.stepLoggedDays < MIN_RELIABLE_LOGGED_DAYS &&
     daysElapsed >= 5
@@ -270,11 +286,21 @@ export function buildCoachActions(
     candidates.push(actionKeepCaloriesSteady())
   }
 
-  // 7. Fallback: maintain plan, or recovery focus for high training volume
+  // 7. Fallback: maintain plan, or recovery focus for high training
+  // volume. Phase 3C: "Keep your plan as-is" asserts everything is on
+  // track — a claim that can't honestly be made when a core domain's
+  // data is unavailable, so the fallback is withheld in that case and
+  // the page renders its quiet header-only state instead (no
+  // misleading claim, no technical error exposed).
   if (candidates.length === 0) {
-    if (weeklyReview.sessionsCompleted >= 4) {
+    const coreDomainsAvailable =
+      availability.weight &&
+      availability.nutrition &&
+      availability.training &&
+      availability.activity
+    if (availability.training && weeklyReview.sessionsCompleted >= 4) {
       candidates.push(actionRecoveryFocus())
-    } else {
+    } else if (coreDomainsAvailable) {
       candidates.push(actionMaintainPlan())
     }
   }
