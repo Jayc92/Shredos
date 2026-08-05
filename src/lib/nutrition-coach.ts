@@ -24,8 +24,10 @@ import {
 export const NUTRITION_MIN_LOGGED_DAYS = MIN_RELIABLE_LOGGED_DAYS
 // Weigh-ins needed for a weight trend signal
 const NUTRITION_MIN_WEIGH_INS = 2
-// Never suggest going below this calorie floor
-const MIN_CALORIES_FLOOR = 1200
+// Never suggest going below this calorie floor. Phase 3E: exported so
+// the goal-adjustment review shares the SAME floor instead of
+// duplicating the threshold.
+export const MIN_CALORIES_FLOOR = 1200
 
 // Weight trend thresholds (lbs/week)
 const WEIGHT_LOSING_THRESHOLD  = -0.1  // ≤ -0.1 lb/wk = losing

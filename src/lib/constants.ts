@@ -94,10 +94,27 @@ export const DECISION_TYPE_LABELS: Record<string, string> = {
   step_goal_changed: 'Step goal changed',
   fasting_goal_changed: 'Fasting goal changed',
   weigh_in_cadence_changed: 'Weigh-in schedule changed',
+  main_goal_changed: 'Main goal changed',
   no_change_low_confidence: 'No change — low data confidence',
   protein_target_change: 'Protein target changed',
   training_adjustment: 'Training adjustment',
 }
+
+// Phase 3E QA fix: main_goal was only settable during onboarding —
+// the Profile page now exposes it. Values are EXACTLY the persisted
+// MainGoal enum (database CHECK constraint, migration 001); labels
+// and descriptions mirror onboarding's Step2Goals copy. The
+// onboarding component keeps its own inline list untouched this
+// phase; this constant is the Profile page's (and any future
+// consumer's) source.
+export const MAIN_GOAL_OPTIONS = [
+  { value: 'fat_loss',      label: 'Fat loss',         description: 'Lose fat while preserving muscle' },
+  { value: 'muscle_gain',   label: 'Muscle gain',      description: 'Build muscle in a calorie surplus' },
+  { value: 'strength',      label: 'Strength',         description: 'Focus on getting stronger' },
+  { value: 'recomposition', label: 'Recomposition',    description: 'Lose fat and gain muscle simultaneously' },
+  { value: 'maintenance',   label: 'Maintenance',      description: 'Hold current weight and improve fitness' },
+  { value: 'running',       label: 'Running / cardio', description: 'Improve endurance and pace' },
+] as const
 
 export const DECISION_STATUS_LABELS: Record<string, string> = {
   suggested: 'Suggested',

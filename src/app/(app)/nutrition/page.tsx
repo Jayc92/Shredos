@@ -10,6 +10,7 @@ import {
 } from '@/lib/nutrition-trends'
 import type { RawFoodLogLike } from '@/lib/nutrition-trends'
 import { NutritionTrendSection } from '@/components/nutrition/NutritionTrendSection'
+import { GoalAdjustmentReviewCard } from '@/components/nutrition/GoalAdjustmentReviewCard'
 import { kgToLbs } from '@/lib/units'
 import type { NutritionTarget, UserProfile } from '@/types/database'
 
@@ -191,6 +192,20 @@ export default function NutritionPage() {
       {/* Phase 2Z: nutrition trend summary + 28-day charts, ahead of
           the existing targets content, which is preserved unchanged. */}
       <NutritionTrendSection summary={trendSummary} />
+
+      {/* Phase 3E: the ONE authoritative adjustment-review surface.
+          Server-computed evidence, explicit user approval; a
+          successful apply also updates this page's target state (the
+          same stale-state pattern the 3D review-date fix uses). */}
+      <GoalAdjustmentReviewCard
+        onApplied={(newTarget) => {
+          setTarget(newTarget)
+          setCalories(String(newTarget.calories))
+          setProtein(String(newTarget.protein_g))
+          setCarbs(String(newTarget.carbs_g))
+          setFat(String(newTarget.fat_g))
+        }}
+      />
 
       {/* Calculated suggestion */}
       {calculated && (

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   lbsToKg, kgToLbs, feetInchesToCm, cmToFeetInches, parseFloat2, parseInt2,
 } from '@/lib/units'
-import { WEIGH_IN_DAYS, FASTING_GOAL_OPTIONS } from '@/lib/constants'
+import { WEIGH_IN_DAYS, FASTING_GOAL_OPTIONS, MAIN_GOAL_OPTIONS } from '@/lib/constants'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -67,6 +67,10 @@ export default function ProfilePage() {
   const [weightLbs, setWeightLbs] = useState('')
   const [goalWeightLbs, setGoalWeightLbs] = useState('')
   const [bfPct, setBfPct] = useState('')
+  // Phase 3E QA fix: main_goal was previously only settable during
+  // onboarding — invisible and unchangeable here even though it
+  // drives the goal-adjustment review's eligibility.
+  const [mainGoal, setMainGoal] = useState('')
   const [activityLevel, setActivityLevel] = useState('moderately_active')
   const [stepGoal, setStepGoal] = useState('8000')
   const [cadence, setCadence] = useState('weekly')
@@ -93,6 +97,7 @@ export default function ProfilePage() {
         if (p.current_weight_kg) setWeightLbs(String(kgToLbs(p.current_weight_kg)))
         if (p.goal_weight_kg)    setGoalWeightLbs(String(kgToLbs(p.goal_weight_kg)))
         if (p.bf_pct)            setBfPct(String(p.bf_pct))
+        setMainGoal(p.main_goal ?? '')
         setActivityLevel(p.activity_level ?? 'moderately_active')
         setStepGoal(String(p.step_goal))
         setCadence(p.preferred_weigh_in_cadence)
@@ -116,8 +121,13 @@ export default function ProfilePage() {
     const prevCadence    = profile?.preferred_weigh_in_cadence
     const prevStepGoal   = profile?.step_goal
     const prevFastGoal   = profile?.default_fasting_goal_hours
+    const prevGoal       = profile?.main_goal ?? null
     const newStepGoal    = parseInt2(stepGoal) ?? 8000
     const newFastGoal    = parseFloat2(fastingGoalHours)
+    // Explicit selection only — an untouched (never-set) goal stays
+    // exactly as persisted; the database CHECK constraint rejects any
+    // value outside the real enum server-side.
+    const newGoal        = mainGoal || prevGoal
 
     const { error: upErr } = await supabase.from('user_profiles').update({
       display_name:                displayName,
@@ -128,6 +138,7 @@ export default function ProfilePage() {
       current_weight_kg:           weightLbs     ? lbsToKg(parseFloat(weightLbs))     : (profile?.current_weight_kg ?? null),
       goal_weight_kg:              goalWeightLbs ? lbsToKg(parseFloat(goalWeightLbs)) : (profile?.goal_weight_kg    ?? null),
       bf_pct:                      parseFloat2(bfPct),
+      main_goal:                   newGoal,
       activity_level:              activityLevel,
       step_goal:                   newStepGoal,
       preferred_weigh_in_cadence:  cadence,
@@ -144,6 +155,13 @@ export default function ProfilePage() {
     if (prevCadence  !== cadence)      changes.push({ type: 'weigh_in_cadence_changed', title: `Weigh-in schedule changed to ${cadence}`, summary: `From ${prevCadence} to ${cadence}.`, prev: { cadence: prevCadence }, next: { cadence } })
     if (prevStepGoal !== newStepGoal)  changes.push({ type: 'step_goal_changed', title: `Step goal to ${newStepGoal.toLocaleString()}`, summary: `From ${prevStepGoal?.toLocaleString()} to ${newStepGoal.toLocaleString()}.`, prev: { step_goal: prevStepGoal }, next: { step_goal: newStepGoal } })
     if (prevFastGoal !== newFastGoal)  changes.push({ type: 'fasting_goal_changed', title: 'Fasting goal changed', summary: `From ${prevFastGoal ?? 'none'} to ${newFastGoal ?? 'none'} hrs.`, prev: { fasting_goal_hours: prevFastGoal }, next: { fasting_goal_hours: newFastGoal } })
+    // Phase 3E QA fix: goal changes use the SAME existing profile
+    // decision-logging pattern — never a calorie_adjustment, never a
+    // target mutation.
+    if (prevGoal !== newGoal && newGoal) {
+      const goalLabel = (v: string | null) => MAIN_GOAL_OPTIONS.find((o) => o.value === v)?.label ?? 'not set'
+      changes.push({ type: 'main_goal_changed', title: `Main goal changed to ${goalLabel(newGoal)}`, summary: `From ${goalLabel(prevGoal)} to ${goalLabel(newGoal)}.`, prev: { main_goal: prevGoal }, next: { main_goal: newGoal } })
+    }
 
     for (const c of changes) {
       await supabase.from('decision_logs').insert({
@@ -204,6 +222,30 @@ export default function ProfilePage() {
             <NumField label="Current weight" value={weightLbs} onChange={setWeightLbs} placeholder="185" min="50" max="700" step="0.1" unit="lbs" />
             <NumField label="Goal weight"    value={goalWeightLbs} onChange={setGoalWeightLbs} placeholder="165" min="50" max="700" step="0.1" unit="lbs" />
           </div>
+        </div>
+
+        {/* Main goal (Phase 3E QA fix — previously onboarding-only) */}
+        <div className="shred-card space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Main goal</h3>
+          <p className="text-xs text-muted-foreground">
+            Drives goal-aware coaching and the target adjustment review. Changing it does
+            not change your nutrition targets automatically — review them on the Nutrition
+            page.
+          </p>
+          <div className="space-y-2">
+            {MAIN_GOAL_OPTIONS.map(({ value, label, description }) => (
+              <OptionCard
+                key={value}
+                selected={mainGoal === value}
+                onClick={() => setMainGoal(value)}
+                label={label}
+                description={description}
+              />
+            ))}
+          </div>
+          {!mainGoal && (
+            <p className="text-xs text-muted-foreground">No goal set yet — choose one above.</p>
+          )}
         </div>
 
         {/* Activity level */}
