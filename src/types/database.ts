@@ -137,6 +137,18 @@ export type FastingLogInsert = Omit<FastingLog, 'id' | 'created_at' | 'updated_a
 export type FastingLogUpdate = Partial<Omit<FastingLog, 'id' | 'user_id' | 'created_at'>>
 
 // ── decision_logs ─────────────────────────────────────────────────
+// Phase 3D: manual follow-through and outcome review. All new fields
+// are additive (migration 012) with safe defaults; historical rows
+// read as not_started / null.
+export type FollowThroughStatus = 'not_started' | 'completed' | 'abandoned' | 'not_applicable'
+export type DecisionOutcome =
+  | 'positive'
+  | 'neutral'
+  | 'negative'
+  | 'mixed'
+  | 'unclear'
+  | 'needs_more_time'
+
 export interface DecisionLog {
   id: string
   user_id: string
@@ -153,12 +165,32 @@ export interface DecisionLog {
   updated_at: string
   applied_at: string | null
   notes: string | null
+  // Phase 3D (migration 012)
+  follow_through_status: FollowThroughStatus
+  completed_at: string | null
+  review_on: string | null // date-only 'YYYY-MM-DD'
+  reviewed_at: string | null
+  outcome: DecisionOutcome | null
+  outcome_notes: string | null
 }
 
-export type DecisionLogInsert = Omit<DecisionLog, 'id' | 'created_at' | 'updated_at'> & {
+export type DecisionLogInsert = Omit<
+  DecisionLog,
+  | 'id' | 'created_at' | 'updated_at'
+  | 'follow_through_status' | 'completed_at' | 'review_on'
+  | 'reviewed_at' | 'outcome' | 'outcome_notes'
+> & {
   id?: string
   created_at?: string
   updated_at?: string
+  // Phase 3D fields are never supplied at creation — the database
+  // defaults apply; follow-through begins after a decision exists.
+  follow_through_status?: FollowThroughStatus
+  completed_at?: string | null
+  review_on?: string | null
+  reviewed_at?: string | null
+  outcome?: DecisionOutcome | null
+  outcome_notes?: string | null
 }
 
 export type DecisionLogUpdate = Partial<Omit<DecisionLog, 'id' | 'user_id' | 'created_at'>>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateDecisionUpdate } from '@/lib/decisions'
 import type { DecisionLogInsert } from '@/types/database'
 
 /** POST /api/decisions — create a new decision log entry */
@@ -59,13 +60,35 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    // Phase 3D: raw database messages stay in server logs, never in
+    // the response body.
+    console.error('POST /api/decisions error:', error)
+    return NextResponse.json({ error: 'Unable to record decision.' }, { status: 500 })
   }
 
   return NextResponse.json({ data }, { status: 201 })
 }
 
-/** PATCH /api/decisions?id=<uuid> — update status (accept/dismiss) */
+/**
+ * PATCH /api/decisions?id=<uuid> — explicit user-driven decision
+ * updates (Phase 3D rewrite). Previously this passed arbitrary
+ * client-submitted status strings straight to the database (no
+ * transition validation; the CHECK constraint's raw error leaked to
+ * the client). Now:
+ *   1. the decision is loaded first, scoped to the authenticated user
+ *      (unknown/foreign ids → a safe 404, indistinguishable by
+ *      design),
+ *   2. the pure state-model validator (lib/decisions.ts) judges the
+ *      patch — allowed transitions only, enum values only, unknown
+ *      fields ignored, notes trimmed/length-limited, review dates
+ *      strictly date-only,
+ *   3. same-value patches are idempotent successes returning the
+ *      unchanged row,
+ *   4. database failures log server-side and return a generic
+ *      message.
+ * No automatic writes happen anywhere else — every field persisted
+ * here originates from an explicit user action in the UI.
+ */
 export async function PATCH(request: NextRequest) {
   const supabase = await createClient()
 
@@ -81,30 +104,49 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 })
   }
 
-  const body = await request.json() as { status: string; notes?: string }
-
-  const updateData: Record<string, unknown> = {
-    status: body.status,
+  let body: Record<string, unknown>
+  try {
+    body = await request.json() as Record<string, unknown>
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  if (body.status === 'accepted' || body.status === 'applied') {
-    updateData.applied_at = new Date().toISOString()
+  const { data: existing, error: fetchError } = await supabase
+    .from('decision_logs')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id) // RLS also enforces this, but be explicit
+    .maybeSingle()
+
+  if (fetchError) {
+    console.error('PATCH /api/decisions fetch error:', fetchError)
+    return NextResponse.json({ error: 'Unable to update decision.' }, { status: 500 })
+  }
+  if (!existing) {
+    return NextResponse.json({ error: 'Decision not found.' }, { status: 404 })
   }
 
-  if (body.notes) {
-    updateData.notes = body.notes
+  const result = validateDecisionUpdate(existing, body, new Date().toISOString())
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
+  }
+
+  // Idempotent no-op (same values resubmitted): nothing to write.
+  if (Object.keys(result.update).length === 0) {
+    return NextResponse.json({ data: existing })
   }
 
   const { data, error } = await supabase
     .from('decision_logs')
-    .update(updateData)
+    .update(result.update)
     .eq('id', id)
-    .eq('user_id', user.id) // RLS also enforces this, but be explicit
+    .eq('user_id', user.id)
     .select()
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('PATCH /api/decisions update error:', error)
+    return NextResponse.json({ error: 'Unable to update decision.' }, { status: 500 })
   }
 
   return NextResponse.json({ data })

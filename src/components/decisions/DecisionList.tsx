@@ -2,33 +2,54 @@
 
 import { useState } from 'react'
 import { DecisionCard } from './DecisionCard'
+import { isDueForReview, needsFollowThrough } from '@/lib/decisions'
+import { todayISO } from '@/lib/dates'
 import type { DecisionLog, DecisionStatus } from '@/types/database'
 
 interface DecisionListProps {
   decisions: DecisionLog[]
 }
 
-const FILTERS: { value: DecisionStatus | 'all'; label: string }[] = [
+// Phase 3D: two follow-through filters join the existing status
+// filters. Kept deliberately short for mobile usability; "Reviewed"
+// was considered and skipped — reviewed decisions remain visible
+// under All and their status filters.
+type FilterValue = DecisionStatus | 'all' | 'needs_follow_through' | 'due_review'
+
+const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'suggested', label: 'Pending' },
   { value: 'applied', label: 'Applied' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'dismissed', label: 'Dismissed' },
+  { value: 'needs_follow_through', label: 'Needs follow-through' },
+  { value: 'due_review', label: 'Due for review' },
 ]
+
+export function filterDecisions(
+  decisions: DecisionLog[],
+  filter: FilterValue,
+  todayStr: string
+): DecisionLog[] {
+  if (filter === 'all') return decisions
+  if (filter === 'needs_follow_through') return decisions.filter((d) => needsFollowThrough(d))
+  if (filter === 'due_review') return decisions.filter((d) => isDueForReview(d, todayStr))
+  return decisions.filter((d) => d.status === filter)
+}
 
 export function DecisionList({ decisions: initialDecisions }: DecisionListProps) {
   const [decisions, setDecisions] = useState(initialDecisions)
-  const [filter, setFilter] = useState<DecisionStatus | 'all'>('all')
+  const [filter, setFilter] = useState<FilterValue>('all')
+  const today = todayISO()
 
-  function handleStatusChange(id: string, status: string) {
-    setDecisions((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: status as DecisionStatus } : d))
-    )
+  // Phase 3D: cards report the full normalized row the API returned,
+  // so list state always mirrors the database (never an optimistic
+  // guess).
+  function handleDecisionChange(updated: DecisionLog) {
+    setDecisions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
   }
 
-  const filtered =
-    filter === 'all' ? decisions : decisions.filter((d) => d.status === filter)
-
+  const filtered = filterDecisions(decisions, filter, today)
   const pendingCount = decisions.filter((d) => d.status === 'suggested').length
 
   return (
@@ -59,13 +80,19 @@ export function DecisionList({ decisions: initialDecisions }: DecisionListProps)
       {filtered.length === 0 ? (
         <div className="shred-card text-center py-8">
           <p className="text-sm text-muted-foreground">
-            {filter === 'suggested' ? 'No pending recommendations.' : 'No entries for this filter.'}
+            {filter === 'suggested'
+              ? 'No pending recommendations.'
+              : filter === 'needs_follow_through'
+              ? 'No decisions awaiting follow-through.'
+              : filter === 'due_review'
+              ? 'No decisions due for review.'
+              : 'No entries for this filter.'}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((d) => (
-            <DecisionCard key={d.id} decision={d} onStatusChange={handleStatusChange} />
+            <DecisionCard key={d.id} decision={d} onDecisionChange={handleDecisionChange} />
           ))}
         </div>
       )}
