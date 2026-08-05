@@ -80,7 +80,7 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
         <div className="space-y-1.5">
           {progress.warnings.map((w, i) => (
             <div key={i} className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              <p className="text-xs text-amber-300">⚠️ {w}</p>
+              <p className="text-xs text-amber-300">{w}</p>
             </div>
           ))}
         </div>

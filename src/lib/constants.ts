@@ -218,7 +218,7 @@ export const WORKOUT_STATUS_LABELS: Record<string, string> = {
 
 
 
-export const APP_NAME = 'ShredOS'
+export const APP_NAME = 'ForgeFitOS'
 
 // ── Phase 1D — routine constants ─────────────────────────────────
 export const ROUTINE_GOALS = [

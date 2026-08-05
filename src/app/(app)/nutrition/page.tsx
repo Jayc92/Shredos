@@ -230,7 +230,7 @@ export default function NutritionPage() {
           {calculated.warnings.length > 0 && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
               {calculated.warnings.map((w, i) => (
-                <p key={i} className="text-xs text-amber-300">⚠️ {w}</p>
+                <p key={i} className="text-xs text-amber-300">{w}</p>
               ))}
             </div>
           )}
@@ -282,7 +282,7 @@ export default function NutritionPage() {
         {parseInt(carbs) > 0 && parseInt(carbs) < 75 && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             <p className="text-xs text-amber-300">
-              ⚠️ Carbs are below 75g/day. This may affect training energy and adherence. You can save
+              Carbs are below 75g/day. This may affect training energy and adherence. You can save
               these targets, but consider increasing carbs if performance suffers.
             </p>
           </div>

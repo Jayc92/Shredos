@@ -170,7 +170,7 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
       </div>
 
       {crossCheck && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-3 py-2">⚠️ {crossCheck}</p>
+        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-3 py-2">{crossCheck}</p>
       )}
 
       {/* Autopilot */}

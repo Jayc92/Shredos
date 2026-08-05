@@ -105,7 +105,7 @@ export default function SavedMealsPage() {
       {autopilot.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <span>⚡</span> Autopilot meals
+            Autopilot meals
           </h2>
           {autopilot.map(meal => (
             <SavedMealCard key={meal.id} meal={meal} />

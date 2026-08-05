@@ -367,25 +367,27 @@ console.log('\n15. Phase boundary')
   check('no migration 014 added',
     !existsSync('supabase/migrations/014_phase4c_dashboard_layout.sql') &&
     !existsSync('supabase/migrations/014_phase3f.sql'))
-  check('no rebrand strings in production source',
+  check('rebrand stayed surface-level (package/repo name never renamed)',
     (() => {
-      // Only docs/ may mention the future name.
-      const files = [
-        'src/app/layout.tsx', 'src/app/(app)/layout.tsx',
-        'src/components/layout/TopBar.tsx', 'src/lib/constants.ts', 'package.json',
-      ]
-      return files.every((f) => !readFileSync(f, 'utf8').includes('ForgeFitOS'))
+      // Phase 4A deferred the visible rebrand to 4B; Phase 4B.1 then
+      // executed it as a brand shell only. The durable 4A invariant is
+      // that the rebrand NEVER renames the package, repo, or routes.
+      const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+      return pkg.name === 'shredos'
     })())
   check('no route renames (all 21 page files still present)',
     existsSync('src/app/(app)/dashboard/page.tsx') &&
     existsSync('src/app/(app)/check-in/page.tsx') &&
     !existsSync('src/app/(app)/today') && !existsSync('src/app/(app)/review'))
-  check('no new dependencies added',
+  check('no dependencies beyond the sanctioned set',
     (() => {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
       const deps = Object.keys(pkg.dependencies)
-      // The exact Phase 3E-era dependency set.
-      return deps.length === 21 && deps.includes('next') && !deps.some((d) => /font|chart|dnd|framer/i.test(d))
+      // The exact Phase 3E-era set, plus 'geist' — the single addition
+      // Phase 4A decided on and Phase 4B.1 executed. Nothing else.
+      const extras = deps.filter((d) => d === 'geist')
+      return deps.length === 21 + extras.length && deps.includes('next') &&
+        !deps.some((d) => /chart|dnd|framer/i.test(d))
     })())
   check('no target logic changes (goal-adjustments untouched)',
     readFileSync('src/lib/goal-adjustments.ts', 'utf8').includes('CALORIE_STEP_SMALL = 100'))
@@ -434,13 +436,18 @@ console.log('\n17. Resolved product decisions')
   check('Geist license documented', has('SIL Open Font License 1.1'))
   check('Geist Mono restricted to rare utility contexts',
     has('Geist Mono') && has('not** a general second family'))
-  check('no font installed in Phase 4A (decision + reality)',
+  check('font decision honored: Geist Sans is the only font package',
     has('no font package is added or loaded in Phase 4A') &&
     (() => {
+      // 4A decided Geist Sans (deferred install); 4B.1 installed it.
+      // The durable invariant: 'geist' is the ONLY font-related
+      // package, and no second family is loaded in the root layout.
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-      return !Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })
-        .some((d) => /geist|font/i.test(d)) &&
-        !readFileSync('src/app/layout.tsx', 'utf8').includes('geist')
+      const fontDeps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })
+        .filter((d) => /geist|font/i.test(d))
+      const layout = readFileSync('src/app/layout.tsx', 'utf8')
+      return fontDeps.length <= 1 && (fontDeps.length === 0 || fontDeps[0] === 'geist') &&
+        !layout.includes('GeistMono')
     })())
   check('brand accent decided: mint/teal retained and de-overloaded',
     has('mint/teal brand family is retained'))

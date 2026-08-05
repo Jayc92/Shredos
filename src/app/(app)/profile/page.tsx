@@ -268,7 +268,7 @@ export default function ProfilePage() {
         {/* Weigh-in schedule */}
         <div className="shred-card space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Weigh-in schedule</h3>
-          <p className="text-xs text-muted-foreground">ShredOS tracks your weight on your schedule. No daily pressure.</p>
+          <p className="text-xs text-muted-foreground">ForgeFitOS tracks your weight on your schedule. No daily pressure.</p>
           <div className="space-y-2">
             <OptionCard selected={cadence === 'weekly'}   onClick={() => setCadence('weekly')}   label="Once per week"        description="Recommended — consistent data without obsessing" />
             <OptionCard selected={cadence === 'biweekly'} onClick={() => setCadence('biweekly')} label="Once every two weeks" description="Less frequent — good for longer-term trends" />

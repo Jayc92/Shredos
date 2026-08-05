@@ -160,7 +160,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
         </div>
 
         {crossCheck && (
-          <p className="text-xs text-amber-400">⚠️ {crossCheck}</p>
+          <p className="text-xs text-amber-400">{crossCheck}</p>
         )}
         {error && (
           <p className="text-xs text-destructive">{error}</p>

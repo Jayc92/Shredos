@@ -26,12 +26,12 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-semibold">Schedule &amp; preferences</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">ShredOS works on your schedule.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">ForgeFitOS works on your schedule.</p>
       </div>
 
       <div className="bg-primary/10 border border-primary/30 rounded-lg px-4 py-3">
         <p className="text-sm text-foreground leading-relaxed">
-          ShredOS tracks your weight on your schedule. Most users weigh in once a week on Friday
+          ForgeFitOS tracks your weight on your schedule. Most users weigh in once a week on Friday
           morning. You can change this anytime.{' '}
           <strong className="text-primary">No daily pressure.</strong>
         </p>

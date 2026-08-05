@@ -19,6 +19,19 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Phase 4B.1 (ForgeFitOS) semantic status variants — color
+        // never carries meaning alone; badge text does.
+        neutral:
+          "bg-[hsl(var(--surface-raised))] text-[hsl(var(--text-secondary))]",
+        brand:
+          "bg-[hsl(var(--brand-subtle))] text-[hsl(var(--brand))]",
+        success:
+          "bg-[hsl(var(--success-subtle))] text-[hsl(var(--success))]",
+        caution:
+          "bg-[hsl(var(--caution-subtle))] text-[hsl(var(--caution))]",
+        critical:
+          "bg-[hsl(var(--critical-subtle))] text-[hsl(var(--critical))]",
+        info: "bg-[hsl(var(--info-subtle))] text-[hsl(var(--info))]",
       },
     },
     defaultVariants: {

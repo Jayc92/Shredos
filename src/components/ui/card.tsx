@@ -2,17 +2,48 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Phase 4B.1 (ForgeFitOS): surface-hierarchy variants. `default`
+// keeps the pre-existing rendering byte-compatible; the new variants
+// map to the semantic surface/border/elevation tokens so 4B.3–4B.6
+// can replace ad-hoc shred-card divs route by route. Selection is
+// never color-only — `selected` pairs the tinted surface with a
+// visible border; callers still add a check/label.
+const cardVariants = {
+  default: "bg-card ring-1 ring-foreground/10",
+  elevated:
+    "bg-[hsl(var(--surface-raised))] shadow-raised ring-1 ring-[hsl(var(--border-subtle))]",
+  interactive:
+    "bg-[hsl(var(--surface))] ring-1 ring-[hsl(var(--border-subtle))] transition-colors hover:bg-[hsl(var(--surface-interactive))] focus-within:ring-[hsl(var(--focus-ring))]",
+  selected:
+    "bg-[hsl(var(--surface-selected))] ring-2 ring-[hsl(var(--brand))]",
+  metric:
+    "bg-[hsl(var(--surface))] ring-1 ring-[hsl(var(--border-subtle))]",
+  action:
+    "bg-[hsl(var(--surface-raised))] ring-1 ring-[hsl(var(--brand-subtle))] shadow-raised",
+  status:
+    "bg-[hsl(var(--surface))] ring-1 ring-[hsl(var(--border-default))]",
+  subtle: "bg-transparent ring-0",
+} as const
+
+type CardVariant = keyof typeof cardVariants
+
 function Card({
   className,
   size = "default",
+  variant = "default",
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & {
+  size?: "default" | "sm"
+  variant?: CardVariant
+}) {
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-variant={variant}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-xl py-4 text-sm text-card-foreground has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        cardVariants[variant],
         className
       )}
       {...props}

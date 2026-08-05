@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { LogOut, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NAV_ITEMS } from '@/components/layout/nav-items'
+import { BrandMark } from '@/components/layout/BrandMark'
 
 interface TopBarProps {
   displayName?: string
@@ -21,7 +22,7 @@ export function TopBar({ displayName }: TopBarProps) {
   const currentPage =
     NAV_ITEMS.find(
       (item) => pathname === item.href || pathname.startsWith(item.href + '/')
-    )?.label ?? 'ShredOS'
+    )?.label ?? 'ForgeFitOS'
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -35,9 +36,7 @@ export function TopBar({ displayName }: TopBarProps) {
       {/* Mobile top bar */}
       <header className="flex items-center justify-between px-4 h-14 bg-card border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-xs">S</span>
-          </div>
+          <BrandMark className="size-7" />
           <span className="font-semibold text-sm text-foreground">{currentPage}</span>
         </div>
 

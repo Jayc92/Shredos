@@ -139,16 +139,24 @@
 }
 
 @layer utilities {
-  /* ShredOS status indicators */
-  .status-success { @apply text-green-400; }
-  .status-warning { @apply text-amber-400; }
-  .status-danger  { @apply text-red-400; }
-  .status-info    { @apply text-blue-400; }
+  /* Status indicators — transitional aliases now resolving to the
+     ForgeFitOS semantic state tokens (Phase 4B.1). Status text must
+     always be accompanied by words; these carry color only. */
+  .status-success { color: hsl(var(--success)); }
+  .status-warning { color: hsl(var(--caution)); }
+  .status-danger  { color: hsl(var(--critical)); }
+  .status-info    { color: hsl(var(--info)); }
   .status-muted   { @apply text-muted-foreground; }
 
-  /* Card style used throughout dashboard */
+  /* Legacy card utility — TRANSITIONAL ALIAS (Phase 4B.1): now maps
+     to the ForgeFitOS default surface (see Card variants in
+     src/components/ui/card.tsx). Route-by-route 4B phases replace
+     usages with <Card variant>; do not use shred-card in new code. */
   .shred-card {
-    @apply bg-card rounded-xl border border-border p-4;
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border-subtle));
+    border-radius: var(--radius-card);
+    @apply p-4;
   }
 
   /* Large metric number display */
@@ -158,5 +166,184 @@
 
   .metric-label {
     @apply text-xs font-medium text-muted-foreground uppercase tracking-wider;
+  }
+}
+/* ════════════════════════════════════════════════════════════════
+   ForgeFitOS Foundation (Phase 4B.1)
+   Everything below is ADDITIVE. All legacy tokens above remain
+   defined and functional; transitional aliases are documented in
+   docs/phase4b1-foundation-notes.md. All new tokens are HSL triplets
+   (consumed as hsl(var(--token)) via tailwind.config.ts) — one
+   consistent format for the new system.
+
+   THEME REALITY (4B.1 QA correction): the legacy shadcn tokens above
+   are oklch() values consumed through hsl(var(--token)) in
+   tailwind.config.ts. hsl(oklch(…)) is invalid CSS, so every
+   oklch-backed utility (bg-background, bg-card, border-border, …)
+   falls back — the app has always RENDERED LIGHT (white canvas,
+   black text) despite the hard-applied html.dark class; only the
+   valid HSL triplets under .dark (--primary mint, --ring) take
+   effect. The ForgeFitOS tokens are therefore LIGHT-FIRST so that
+   not-yet-redesigned routes stay visually coherent. The system stays
+   dark-capable: a real dark theme lands later as a scoped override
+   of these same token names — no consumer changes needed. No theme
+   toggle is introduced in this phase.
+   ════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* ── Canvas & surfaces (light — matches the de facto rendered
+       theme; see THEME REALITY above) ── */
+    --canvas: 0 0% 100%;
+    --canvas-subtle: 0 0% 97%;
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;    /* elevation carried by shadow */
+    --surface-sunken: 0 0% 92%;     /* inset wells, skeletons */
+    --surface-interactive: 0 0% 96%;
+    --surface-selected: 163 45% 94%;
+
+    /* ── Text ── */
+    --text-primary: 0 0% 10%;
+    --text-secondary: 0 0% 30%;
+    --text-muted: 0 0% 44%;
+    --text-inverse: 0 0% 98%;
+
+    /* ── Borders ── */
+    --border-subtle: 0 0% 88%;
+    --border-default: 0 0% 80%;
+    --border-strong: 0 0% 62%;
+
+    /* ── Brand (mint/teal retained, de-overloaded — Phase 4A
+       decision). Brand = identity + primary interaction ONLY;
+       success/selection/links/trends get their own roles. Matches
+       the legacy mint --primary the app already renders. ── */
+    --brand: 163 65% 50%;
+    --brand-hover: 163 65% 44%;     /* darken on hover (light theme) */
+    --brand-active: 163 65% 39%;
+    --brand-subtle: 163 50% 92%;
+    --brand-foreground: 0 0% 7%;
+
+    /* ── Semantic states (distinct hues from brand; darkened for
+       readability on the light canvas) ── */
+    --success: 142 60% 34%;
+    --success-subtle: 142 50% 93%;
+    --caution: 38 92% 40%;
+    --caution-subtle: 38 90% 92%;
+    --critical: 0 70% 45%;
+    --critical-subtle: 0 80% 95%;
+    --info: 252 60% 55%;          /* violet — visibly distinct from teal */
+    --info-subtle: 252 70% 95%;
+
+    /* ── Focus (deep teal — visible against the light canvas) ── */
+    --focus-ring: 163 85% 30%;
+
+    /* ── Charts (multi-hue by design — never one family) ── */
+    --chart-1: 163 60% 38%;
+    --chart-2: 252 60% 55%;
+    --chart-3: 200 75% 40%;
+    --chart-4: 38 90% 42%;
+    --chart-5: 330 55% 45%;
+    --chart-6: 0 0% 45%;
+
+    /* ── Workout readiness (align with semantic states) ── */
+    --readiness-ready: 142 60% 34%;
+    --readiness-caution: 38 92% 40%;
+    --readiness-recovery: 0 70% 45%;
+
+    --overlay: 0 0% 10%;
+
+    /* ── Spacing scale (4px base). Density guidance:
+       compact = 4/8/12 within cards on mobile,
+       default = 8/12/16 general,
+       spacious = 24/32/48 between page sections. ── */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+
+    /* ── Shape ── */
+    --radius-control: 0.5rem;   /* inputs, buttons */
+    --radius-card: 0.75rem;     /* cards */
+    --radius-panel: 1rem;       /* sheets, large panels */
+    --radius-badge: 9999px;     /* badges, chips, pills */
+    --radius-modal: 1rem;
+
+    /* ── Elevation (restrained; no neon glow, no glassmorphism) ── */
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.08);
+    --shadow-floating: 0 4px 12px rgb(0 0 0 / 0.10), 0 12px 32px rgb(0 0 0 / 0.14);
+  }
+
+  /* Deterministic canvas (QA correction). The legacy
+     `body { @apply bg-background }` resolves to an INVALID value
+     (oklch inside hsl()), leaving the body transparent — so the page
+     color came from the browser's default canvas and flipped with the
+     viewer's OS color scheme (white on light machines, near-black on
+     dark ones). Pin the canvas and base text to valid tokens, and pin
+     native form controls light, so every viewer sees the same light
+     rendering until routes migrate. */
+  :root {
+    color-scheme: light;
+  }
+  /* html body (specificity 0,0,2): Tailwind's @layer hoisting does not
+     preserve source order across all base blocks, so a plain `body`
+     rule here can end up BEFORE the legacy invalid one in the emitted
+     CSS. Higher specificity wins regardless of emission order. */
+  html body {
+    background-color: hsl(var(--canvas));
+    color: hsl(var(--text-primary));
+  }
+
+  /* Global visible focus treatment — never removed without
+     replacement; component-level focus-visible rings still apply. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--focus-ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ── Typography roles (Geist Sans everywhere; one family) ──
+     display > page title > section title > card title > body >
+     support; metric is the only "loud" numeric role. */
+  .text-display        { @apply text-3xl font-semibold tracking-tight; }
+  .text-page-title     { @apply text-xl font-semibold tracking-tight; }
+  .text-section-title  { @apply text-sm font-semibold; }
+  .text-card-title     { @apply text-sm font-medium; }
+  .text-body           { @apply text-sm; }
+  .text-support        { @apply text-xs; color: hsl(var(--text-muted)); }
+  .text-metric         { @apply text-2xl font-semibold tabular-nums; font-feature-settings: 'tnum'; }
+  .text-label          { @apply text-xs font-medium uppercase tracking-wider; color: hsl(var(--text-muted)); }
+  .text-button         { @apply text-sm font-medium; }
+  .text-badge          { @apply text-xs font-medium; }
+  .text-chart-annotation { @apply text-[10px]; color: hsl(var(--text-muted)); }
+
+  /* ── Skeleton primitives (calm pulse; honors reduced motion;
+     approximate final geometry to avoid layout shift). ── */
+  .skeleton {
+    border-radius: var(--radius-control);
+    background-color: hsl(var(--surface-sunken));
+    animation: ff-skeleton-pulse 1.8s ease-in-out infinite;
+  }
+  .skeleton-text   { @apply skeleton h-4 w-full; }
+  .skeleton-metric { @apply skeleton h-8 w-24; }
+  .skeleton-card   { border-radius: var(--radius-card); @apply skeleton h-28 w-full; }
+}
+
+@keyframes ff-skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton, .skeleton-text, .skeleton-metric, .skeleton-card {
+    animation: none;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

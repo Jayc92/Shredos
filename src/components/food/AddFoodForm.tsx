@@ -188,10 +188,10 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
 
       {/* Soft warnings */}
       {highCalWarning && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">⚠️ {highCalWarning}</p>
+        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">{highCalWarning}</p>
       )}
       {crossCheck && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">⚠️ {crossCheck}</p>
+        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">{crossCheck}</p>
       )}
 
       {/* Optional fields */}

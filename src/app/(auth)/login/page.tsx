@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { APP_NAME } from '@/lib/constants'
+import { BrandMark } from '@/components/layout/BrandMark'
 
 type Mode = 'signin' | 'signup' | 'magic'
 
@@ -73,9 +74,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-xl">S</span>
-          </div>
+          <BrandMark className="size-12 mx-auto" />
           <h1 className="text-2xl font-bold">{APP_NAME}</h1>
           <p className="text-sm text-muted-foreground">Private performance coaching dashboard</p>
         </div>

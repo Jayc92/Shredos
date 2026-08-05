@@ -27,12 +27,12 @@ export default async function AppLayout({
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* TopBar — mobile only */}
         <div className="md:hidden flex-shrink-0">
-          <TopBar displayName={user.email ?? 'ShredOS'} />
+          <TopBar displayName={user.email ?? 'ForgeFitOS'} />
         </div>
 
         {/* Desktop topbar (name + signout) */}
         <div className="hidden md:flex items-center justify-end px-6 h-12 border-b border-border bg-card flex-shrink-0">
-          <span className="text-sm text-muted-foreground">{user.email ?? 'ShredOS'}</span>
+          <span className="text-sm text-muted-foreground">{user.email ?? 'ForgeFitOS'}</span>
           <form action="/api/auth/signout" method="POST" className="ml-4">
             <button
               type="submit"

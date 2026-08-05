@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/components/layout/nav-items'
+import { BrandWordmark } from '@/components/layout/BrandMark'
 
 interface SidebarProps {
   className?: string
@@ -19,6 +20,10 @@ export function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
+      {/* Phase 4B.1: ForgeFitOS brand header */}
+      <div className="flex items-center px-4 h-12 border-b border-border flex-shrink-0">
+        <BrandWordmark />
+      </div>
       <div className="flex-1 p-3 overflow-y-auto">
         <div className="space-y-0.5">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {

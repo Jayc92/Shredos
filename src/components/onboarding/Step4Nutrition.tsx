@@ -114,7 +114,7 @@ export function Step4Nutrition({ form, update, onBack, onComplete, saving }: Ste
                   key={i}
                   className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3"
                 >
-                  <p className="text-xs text-amber-300 leading-relaxed">⚠️ {w}</p>
+                  <p className="text-xs text-amber-300 leading-relaxed">{w}</p>
                 </div>
               ))}
             </div>

@@ -30,7 +30,7 @@ import type { ExerciseHistoryEntry } from '@/lib/workout'
 
 // Local, non-exported conversion constant — the exact same precedent
 // SetRow.tsx (Phase 2S) and workout.ts (Phase 2T) already establish:
-// each file that needs the meters↔miles conversion keeps the constant
+// each file that needs the meters-to-miles conversion keeps the constant
 // local rather than widening lib/units.ts. Used only to compute the
 // numeric seconds-per-mile pace VALUE for plotting and differencing;
 // all pace DISPLAY goes through formatPaceSecondsPerMile.

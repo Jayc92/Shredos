@@ -142,7 +142,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
           disabled={loading}
           className="w-full py-3 rounded-lg bg-destructive/20 text-destructive border border-destructive/30 font-semibold text-sm hover:bg-destructive/30 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Ending...' : '⏹ End fast'}
+          {loading ? 'Ending...' : 'End fast'}
         </button>
       ) : (
         /* Start fast */
@@ -165,7 +165,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
             disabled={loading}
             className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Starting...' : '▶ Start fast now'}
+            {loading ? 'Starting...' : 'Start fast now'}
           </button>
         </div>
       )}
