@@ -5,6 +5,7 @@
 // ============================================================
 
 import { UtensilsCrossed } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import { computeDailyTotals, computeNutritionProgress, progressColor, remainingColor } from '@/lib/food'
 import { todayISO } from '@/lib/dates'
@@ -37,14 +38,14 @@ function MacroBar({ label, consumed, target, pct, remaining, isCalories = false 
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums text-foreground">
+        <span className="text-ink-muted">{label}</span>
+        <span className="tabular-nums text-ink">
           {fmt(consumed)}{unit}
           {' '}
-          <span className="text-muted-foreground">/ {fmt(target)}{unit}</span>
+          <span className="text-ink-muted">/ {fmt(target)}{unit}</span>
         </span>
       </div>
-      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+      <div className="h-1.5 bg-surface-sunken rounded-full overflow-hidden">
         <div
           className={`h-full ${barColor} rounded-full transition-all`}
           style={{ width: `${Math.min(100, pct)}%` }}
@@ -63,16 +64,18 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
   // ── No target set ──────────────────────────────────────────────
   if (!target) {
     return (
-      <div className="shred-card space-y-3">
-        <div className="flex items-center gap-2">
-          <UtensilsCrossed className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Nutrition</span>
-        </div>
-        <p className="text-sm text-muted-foreground">No nutrition targets set.</p>
-        <Link href="/nutrition" className="text-sm text-primary hover:underline">
-          Set up targets →
-        </Link>
-      </div>
+      <Card variant="metric" className="gap-0 py-4">
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed className="w-4 h-4 text-ink-muted" aria-hidden="true" />
+            <span className="text-sm font-medium text-ink-muted">Nutrition</span>
+          </div>
+          <p className="text-sm text-ink-muted">No nutrition targets set.</p>
+          <Link href="/nutrition" className="text-sm text-brand hover:underline">
+            Set up targets →
+          </Link>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -83,14 +86,15 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
   const progress  = computeNutritionProgress(totals, target, nowHour)
 
   return (
-    <div className="shred-card space-y-4">
+    <Card variant="metric" className="gap-0 py-4">
+      <CardContent className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <UtensilsCrossed className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Nutrition</span>
+          <UtensilsCrossed className="w-4 h-4 text-ink-muted" />
+          <span className="text-sm font-medium text-ink-muted">Nutrition</span>
         </div>
-        <Link href="/food" className="text-xs text-primary hover:underline">
+        <Link href="/food" className="text-xs text-brand hover:underline">
           Log food →
         </Link>
       </div>
@@ -98,8 +102,8 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
       {/* No entries yet */}
       {todayLogs.length === 0 ? (
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">No food logged yet today.</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-ink-muted">No food logged yet today.</p>
+          <p className="text-xs text-ink-muted">
             Target: {target.calories.toLocaleString()} cal · {target.protein_g}g protein
           </p>
         </div>
@@ -162,14 +166,14 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
 
       {/* Phase 1F: compact coaching context (only when data exists) */}
       {nutritionSummary && nutritionSummary.loggedDaysLast7 > 0 && (
-        <div className="pt-2 border-t border-border space-y-2">
+        <div className="pt-2 border-t border-edge-subtle space-y-2">
           {/* Weekly logged days + average */}
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
+            <span className="text-ink-muted">
               {nutritionSummary.loggedDaysLast7}/7 days logged
             </span>
             {nutritionSummary.avgCaloriesLast7 !== null && (
-              <span className="tabular-nums text-muted-foreground">
+              <span className="tabular-nums text-ink-muted">
                 {nutritionSummary.avgCaloriesLast7.toLocaleString()} cal avg
               </span>
             )}
@@ -194,12 +198,13 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
 
           {/* Single primary nudge */}
           {nutritionSummary.primaryNudge && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-ink-muted leading-relaxed">
               {nutritionSummary.primaryNudge}
             </p>
           )}
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

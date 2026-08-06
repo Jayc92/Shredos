@@ -1,4 +1,5 @@
 import { Dumbbell } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { format, parseISO } from 'date-fns'
 import { formatWorkoutDuration } from '@/lib/workout'
 import type { WorkoutWeekStats } from '@/types/app'
@@ -11,23 +12,24 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
   const { sessions_this_week, last_session, last_session_exercise_count, active_routine_count } = stats
 
   return (
-    <div className="shred-card space-y-3">
+    <Card variant="elevated" className="gap-0 py-4">
+      <CardContent className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Dumbbell className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Workouts</span>
+          <Dumbbell className="w-4 h-4 text-ink-muted" />
+          <span className="text-sm font-medium text-ink-muted">Workouts</span>
         </div>
-        <a href="/workouts" className="text-xs text-primary hover:underline">
+        <a href="/workouts" className="text-xs text-brand hover:underline">
           {last_session?.status === 'in_progress' ? 'Continue →' : 'Log workout →'}
         </a>
       </div>
 
       {last_session ? (
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm font-semibold text-ink">
             {last_session.title || 'Workout'}
           </p>
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-ink-muted">
             <span>{format(parseISO(last_session.workout_date), 'EEE, MMM d')}</span>
             {last_session_exercise_count > 0 && (
               <span>{last_session_exercise_count} exercise{last_session_exercise_count !== 1 ? 's' : ''}</span>
@@ -39,11 +41,11 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No workouts yet.</p>
+        <p className="text-sm text-ink-muted">No workouts yet.</p>
       )}
 
-      <div className="flex items-center justify-between pt-1 border-t border-border">
-        <span className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between pt-1 border-t border-edge-subtle">
+        <span className="text-xs text-ink-muted">
           {sessions_this_week} session{sessions_this_week !== 1 ? 's' : ''} this week
         </span>
         {/* Dots capped at 5 — text count is the source of truth for >5 */}
@@ -54,21 +56,22 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
             }`} />
           ))}
           {sessions_this_week > 5 && (
-            <span className="text-xs text-muted-foreground ml-0.5">+</span>
+            <span className="text-xs text-ink-muted ml-0.5">+</span>
           )}
         </div>
       </div>
       {/* Phase 1D: routine count + start link */}
       {active_routine_count > 0 && (
-        <div className="flex items-center justify-between pt-1 border-t border-border">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-center justify-between pt-1 border-t border-edge-subtle">
+          <span className="text-xs text-ink-muted">
             {active_routine_count} routine{active_routine_count !== 1 ? 's' : ''} saved
           </span>
-          <a href="/workouts/routines" className="text-xs text-primary hover:underline">
+          <a href="/workouts/routines" className="text-xs text-brand hover:underline">
             Start a routine →
           </a>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

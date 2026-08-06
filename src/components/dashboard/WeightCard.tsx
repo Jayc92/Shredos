@@ -1,4 +1,5 @@
 import { Scale, TrendingDown, TrendingUp, Minus, Calendar } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs, calculateBMI } from '@/lib/units'
 import { getTrendConfidence, confidenceLabel, computeWeightChange, getNextWeighInDate, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import { formatDateShort } from '@/lib/dates'
@@ -50,12 +51,13 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
       : Minus
 
   return (
-    <div className="shred-card space-y-4">
+    <Card variant="metric" className="gap-0 py-4">
+      <CardContent className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Scale className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Weight</span>
+          <Scale className="w-4 h-4 text-ink-muted" />
+          <span className="text-sm font-medium text-ink-muted">Weight</span>
         </div>
         <span className={`text-xs font-medium ${confColor}`}>{confLabel}</span>
       </div>
@@ -65,7 +67,7 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
         <div className="space-y-1">
           <div className="flex items-end gap-3">
             <span className="metric-value">{latestWeightLbs.toFixed(1)}</span>
-            <span className="text-muted-foreground text-sm mb-1">lbs</span>
+            <span className="text-ink-muted text-sm mb-1">lbs</span>
             {change && (
               <div className={`flex items-center gap-1 mb-1 ${changeColor}`}>
                 <ChangeIcon className="w-3.5 h-3.5" />
@@ -75,7 +77,7 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
           </div>
 
           {latest?.logged_date && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Logged {formatDateShort(latest.logged_date + 'T00:00:00')}
             </p>
           )}
@@ -83,7 +85,7 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
           {/* Goal progress */}
           {goalWeightLbs !== null && (
             <div className="flex items-center gap-2 pt-1">
-              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className="flex-1 h-1.5 bg-surface-sunken rounded-full overflow-hidden">
                 {profile.current_weight_kg && profile.goal_weight_kg && (
                   <div
                     className="h-full bg-primary rounded-full transition-all"
@@ -101,7 +103,7 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
                   />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
+              <span className="text-xs text-ink-muted whitespace-nowrap">
                 Goal: {goalWeightLbs.toFixed(1)} lbs
               </span>
             </div>
@@ -109,17 +111,17 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
 
           {/* BMI note */}
           {bmi && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               BMI {bmi} — rough estimate only
             </p>
           )}
         </div>
       ) : (
         <div className="py-2">
-          <p className="text-muted-foreground text-sm">No weigh-in recorded yet.</p>
+          <p className="text-ink-muted text-sm">No weigh-in recorded yet.</p>
           <a
             href="/weigh-in"
-            className="inline-block mt-2 text-sm text-primary hover:underline"
+            className="inline-block mt-2 text-sm text-brand hover:underline"
           >
             Log your first weigh-in →
           </a>
@@ -127,13 +129,13 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
       )}
 
       {/* Next weigh-in */}
-      <div className="pt-2 border-t border-border">
+      <div className="pt-2 border-t border-edge-subtle">
         <div className="flex items-center gap-2">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <Calendar className="w-3.5 h-3.5 text-ink-muted" />
           {profile.preferred_weigh_in_cadence === 'manual' ? (
-            <span className="text-xs text-muted-foreground">Manual schedule — weigh in when ready.</span>
+            <span className="text-xs text-ink-muted">Manual schedule — weigh in when ready.</span>
           ) : nextDate ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-ink-muted">
               Next weigh-in: {formatDateShort(nextDate)} (
               {getDayName(profile.preferred_weigh_in_day)},{' '}
               {profile.preferred_weigh_in_time})
@@ -144,10 +146,11 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
 
       {/* Confidence note */}
       {confidence !== 'high' && (
-        <p className="text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
+        <p className="text-xs text-ink-muted bg-surface-sunken rounded-lg px-3 py-2">
           {confNote}
         </p>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

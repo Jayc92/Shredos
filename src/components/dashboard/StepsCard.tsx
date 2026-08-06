@@ -5,6 +5,7 @@
 // ============================================================
 
 import { Footprints } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import type { DailyActivityLog } from '@/types/database'
 
@@ -22,26 +23,27 @@ export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
   const goalMet = stepGoal ? steps >= stepGoal : false
 
   return (
-    <div className="shred-card space-y-3">
+    <Card variant="metric" className="gap-0 py-4">
+      <CardContent className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Footprints className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Steps</span>
+          <Footprints className="w-4 h-4 text-ink-muted" />
+          <span className="text-sm font-medium text-ink-muted">Steps</span>
         </div>
-        <Link href="/activity" className="text-xs text-primary hover:underline">
+        <Link href="/activity" className="text-xs text-brand hover:underline">
           Log steps →
         </Link>
       </div>
 
       {!hasLoggedToday ? (
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">No steps logged yet today.</p>
+          <p className="text-sm text-ink-muted">No steps logged yet today.</p>
           {stepGoal ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Goal: {stepGoal.toLocaleString()} steps
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Set a step goal in your profile to track progress.
             </p>
           )}
@@ -51,23 +53,24 @@ export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
           <p className="text-2xl font-bold tabular-nums">{steps.toLocaleString()}</p>
           {stepGoal ? (
             <>
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className="h-1.5 bg-surface-sunken rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all"
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-muted">
                 {goalMet ? 'Goal met' : `${remaining!.toLocaleString()} steps to goal`}
               </p>
             </>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Set a step goal in your profile to track progress.
             </p>
           )}
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }
