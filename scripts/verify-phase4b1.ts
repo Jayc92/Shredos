@@ -54,8 +54,12 @@ console.log('\n1. Checkpoint and brand')
     read('src/lib/constants.ts').includes("export const APP_NAME = 'ForgeFitOS'") &&
     read('src/app/(auth)/login/page.tsx').includes('{APP_NAME}'))
   check('app shell brand fallbacks updated',
+    // 4B.2: the page-label fallback moved from TopBar into the single
+    // routeLabel() source (route-match.ts); the email fallback stays
+    // in the app layout. Both still resolve to the brand, never to
+    // the legacy name.
     read('src/app/(app)/layout.tsx').includes("user.email ?? 'ForgeFitOS'") &&
-    read('src/components/layout/TopBar.tsx').includes("?? 'ForgeFitOS'"))
+    read('src/components/layout/route-match.ts').includes("?? 'ForgeFitOS'"))
   check('onboarding shell brand copy updated',
     read('src/components/onboarding/Step3Schedule.tsx').includes('ForgeFitOS works on your schedule'))
   check('no active user-facing ShredOS copy in src (comments/docs exempt)',
@@ -290,8 +294,9 @@ console.log('\n10. Focus and accessibility')
     read('src/components/ui/button.tsx').includes('disabled:opacity-50'))
   check('decorative icons aria-hidden (brand + notices)',
     read('src/components/layout/BrandMark.tsx').includes("aria-hidden={decorative ? 'true' : undefined}"))
-  check('icon-only controls accessible (menu toggle labeled)',
-    read('src/components/layout/TopBar.tsx').includes('aria-label="Toggle menu"'))
+  check('icon-only controls accessible (shell menu trigger labeled)',
+    // 4B.2 replaced the old drawer toggle with the More trigger.
+    read('src/components/layout/MoreSheet.tsx').includes('aria-label="More options"'))
   check('no fake WCAG claim',
     !/WCAG\s+2[.\d]*\s+(AA\s+)?compliant/i.test(globals + notes))
 }
@@ -348,7 +353,7 @@ console.log('\n11. Brand shell and icons')
   check('icon size conventions documented',
     notes.includes('16px inline') && notes.includes('navigation'))
   check('nav labels remain visible alongside icons',
-    read('src/components/layout/Sidebar.tsx').includes('<span>{label}</span>'))
+    read('src/components/layout/Sidebar.tsx').includes('<span>{route.label}</span>'))
   check('nav-items transitional state documented (4B.2)',
     notes.includes('nav-items.ts') && notes.includes('4B.2'))
 }

@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 const WORKOUT_SECTIONS = [
   { href: '/workouts', label: 'Workouts' },
   { href: '/workouts/routines', label: 'Routines' },
-  { href: '/workouts/exercises', label: 'Library' },
+  { href: '/workouts/exercises', label: 'Exercise library' },
 ] as const
 
 /**

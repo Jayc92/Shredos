@@ -25,7 +25,7 @@ import { fetchCoachSummary } from '@/lib/workout-coach'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Dashboard' }
+export const metadata: Metadata = { title: 'Today' }
 
 export default async function DashboardPage() {
   const supabase = await createClient()

@@ -1,111 +1,53 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { cn } from '@/lib/utils'
-import { LogOut, Menu, X } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { NAV_ITEMS } from '@/components/layout/nav-items'
+// ============================================================
+// ForgeFitOS — Top bar (Phase 4B.2)
+//
+// One responsive component, two densities:
+//
+//   Mobile (< md): brand mark + route-aware page label + the More
+//   trigger (MoreSheet). The old homemade drawer is retired — the
+//   More surface (Radix sheet) replaces it with real dialog
+//   semantics. The bottom navigation carries the five pillars, so
+//   the top bar stays minimal.
+//
+//   Desktop (md+): a slim strip with the route label only. The
+//   wordmark lives in the Sidebar (no duplication); the account
+//   email + Sign out moved to the Sidebar utility footer, so the
+//   old right-aligned email strip is gone.
+//
+// The label comes from routeLabel() — the same single label source
+// the navigation uses — so /dashboard shows "Today" and /check-in
+// shows "Weekly review". It is a <span>, not a heading: every page
+// keeps its own real H1.
+// ============================================================
+
+import { usePathname } from 'next/navigation'
 import { BrandMark } from '@/components/layout/BrandMark'
+import { MoreSheet } from '@/components/layout/MoreSheet'
+import { routeLabel } from '@/components/layout/route-match'
 
 interface TopBarProps {
+  fastingEnabled: boolean
   displayName?: string
 }
 
-export function TopBar({ displayName }: TopBarProps) {
+export function TopBar({ fastingEnabled, displayName }: TopBarProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
-
-  const currentPage =
-    NAV_ITEMS.find(
-      (item) => pathname === item.href || pathname.startsWith(item.href + '/')
-    )?.label ?? 'ForgeFitOS'
-
-  async function handleSignOut() {
-    setSigningOut(true)
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+  const label = routeLabel(pathname)
 
   return (
-    <>
-      {/* Mobile top bar */}
-      <header className="flex items-center justify-between px-4 h-14 bg-card border-b border-border">
-        <div className="flex items-center gap-3">
-          <BrandMark className="size-7" />
-          <span className="font-semibold text-sm text-foreground">{currentPage}</span>
-        </div>
+    <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-edge-subtle bg-surface px-4 lg:h-12 lg:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <BrandMark className="size-7 lg:hidden" />
+        <span className="truncate text-sm font-semibold text-ink">{label}</span>
+      </div>
 
-        <div className="flex items-center gap-2">
-          {displayName && (
-            <span className="text-xs text-muted-foreground hidden sm:block">{displayName}</span>
-          )}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-lg hover:bg-secondary transition-colors"
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </header>
-
-      {/* Mobile drawer menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
-          <div
-            className="absolute right-0 top-0 h-full w-64 bg-card border-l border-border flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border">
-              <span className="font-semibold text-sm">Menu</span>
-              <button onClick={() => setMenuOpen(false)} className="p-1">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href || pathname.startsWith(href + '/')
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMenuOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-primary/15 text-primary'
-                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    )}
-                  >
-                    <Icon className="w-4 h-4" aria-hidden />
-                    <span>{label}</span>
-                  </Link>
-                )
-              })}
-            </nav>
-
-            <div className="p-2 border-t border-border">
-              {displayName && (
-                <p className="px-3 py-1 text-xs text-muted-foreground">{displayName}</p>
-              )}
-              <button
-                onClick={handleSignOut}
-                disabled={signingOut}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                <LogOut className="w-4 h-4" aria-hidden />
-                <span>{signingOut ? 'Signing out...' : 'Sign out'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+      {/* More trigger — mobile only; desktop reaches everything via
+          the grouped sidebar. */}
+      <div className="lg:hidden">
+        <MoreSheet fastingEnabled={fastingEnabled} displayName={displayName} />
+      </div>
+    </header>
   )
 }

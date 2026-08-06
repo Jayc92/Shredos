@@ -80,14 +80,22 @@ console.log('\n2. Components and navigation')
   const nav = readFileSync('src/components/layout/nav-items.ts', 'utf8')
   const NAV = ['Dashboard', 'Weigh-in', 'Workouts', 'Food', 'Activity', 'Nutrition',
     'Fasting', 'Check-in', 'Coach', 'Progress', 'Decisions', 'Profile']
-  check('current navigation inventory exact (12 flat items, actual order)',
-    NAV.every((l) => nav.includes(`label: '${l}'`)) &&
-    (nav.match(/href: '/g) ?? []).length === 12 &&
+  check('every 4A-audited destination URL retained (grouped model, 4B.2)',
+    // 4B.2 replaced the flat 12-item list with the grouped model in
+    // route-match.ts; the durable 4A invariant is that every audited
+    // destination URL survives, and the audit doc still records the
+    // 4A-era inventory it was written against.
+    (() => {
+      const model = readFileSync('src/components/layout/route-match.ts', 'utf8')
+      return ['/dashboard', '/weigh-in', '/workouts', '/food', '/activity',
+        '/nutrition', '/fasting', '/check-in', '/coach', '/progress',
+        '/decisions', '/profile'].every((h) => model.includes(`href: '${h}'`))
+    })() &&
     has('Dashboard, Weigh-in, Workouts, Food, Activity, Nutrition, Fasting, Check-in, Coach, Progress, Decisions, Profile'))
-  check('duplicate Food/Nutrition icon documented and real',
-    (nav.match(/UtensilsCrossed/g) ?? []).length >= 3 && has('UtensilsCrossed'))
-  check('fasting nav shown even when disabled — documented',
-    has('Fasting appears in navigation even when') && !nav.includes('fasting_enabled'))
+  check('duplicate Food/Nutrition icon finding recorded (resolved in 4B.2)',
+    has('UtensilsCrossed'))
+  check('fasting always-visible finding recorded (gating landed in 4B.2)',
+    has('Fasting appears in navigation even when'))
 }
 
 // ── 3. Product pillars and navigation recommendations ────────────────
@@ -404,8 +412,11 @@ console.log('\n15. Phase boundary')
   check('user control principle preserved in the brief',
     has('User-control principle (binding)'))
   check('existing responsive behavior documented against reality',
+    // The audit recorded the 4A-era single md split; the durable
+    // invariant is that the shell keeps ONE coordinated split (moved
+    // md -> lg by the 4B.2 responsive correction).
     has('one split') &&
-    readFileSync('src/app/(app)/layout.tsx', 'utf8').includes('hidden md:flex'))
+    readFileSync('src/app/(app)/layout.tsx', 'utf8').includes('hidden lg:flex'))
   check('current global CSS audited (metric utilities noted)',
     has('metric-value') &&
     readFileSync('src/app/globals.css', 'utf8').includes('.metric-value'))
