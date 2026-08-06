@@ -9,6 +9,7 @@
 
 import { getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import type { WeightProgress } from '@/lib/progress-summary'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface WeighInSummaryProps {
   summary: WeightProgress
@@ -29,13 +30,15 @@ export function WeighInSummary({ summary, userGoal }: WeighInSummaryProps) {
 
   if (trend === 'insufficient-data') {
     return (
-      <div className="shred-card space-y-2">
-        <h3 className="text-sm font-medium text-foreground">Last 28 days</h3>
-        <p className="text-sm text-muted-foreground">
+      <Card variant="metric" className="gap-0 py-4">
+        <CardContent className="space-y-2">
+        <h3 className="text-sm font-medium text-ink">Last 28 days</h3>
+        <p className="text-sm text-ink-muted">
           {weighInCount} weigh-in{weighInCount !== 1 ? 's' : ''} logged — log one more
           to see a trend.
         </p>
-      </div>
+      </CardContent>
+      </Card>
     )
   }
 
@@ -47,17 +50,19 @@ export function WeighInSummary({ summary, userGoal }: WeighInSummaryProps) {
   const deltaLabel = deltaLbs !== null ? `${deltaLbs > 0 ? '+' : ''}${deltaLbs} lbs` : '—'
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="metric" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-foreground">Last 28 days</h3>
+        <h3 className="text-sm font-medium text-ink">Last 28 days</h3>
         <span className={`text-xs font-medium ${color}`}>{note}</span>
       </div>
       <div className="flex items-baseline gap-3">
         <span className="text-2xl font-bold tabular-nums">{deltaLabel}</span>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-ink-muted">
           {weighInCount} weigh-in{weighInCount !== 1 ? 's' : ''} in the last 28 days
         </span>
       </div>
-    </div>
+    </CardContent>
+    </Card>
   )
 }

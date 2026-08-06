@@ -10,6 +10,8 @@ import {
 import { ActivityLogForm } from '@/components/activity/ActivityLogForm'
 import { todayISO } from '@/lib/dates'
 import { format, addDays, subDays, parseISO, isToday, isFuture } from 'date-fns'
+import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
+import { Card, CardContent } from '@/components/ui/card'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Activity' }
@@ -26,18 +28,18 @@ function DateNav({ date }: { date: string }) {
     <div className="flex items-center justify-between">
       <Link
         href={`/activity?date=${prev}`}
-        className="p-2 rounded-lg hover:bg-secondary transition-colors"
+        className="p-2 rounded-lg hover:bg-surface-interactive transition-colors"
         aria-label="Previous day"
       >
         <ChevronLeft className="w-5 h-5" />
       </Link>
 
       <div className="text-center">
-        <p className="text-base font-semibold text-foreground">
+        <p className="text-base font-semibold text-ink">
           {isCurrentToday ? 'Today' : format(current, 'EEEE, MMMM d')}
         </p>
         {!isCurrentToday && (
-          <Link href="/activity" className="text-xs text-primary hover:underline">
+          <Link href="/activity" className="text-xs text-brand hover:underline">
             Back to today
           </Link>
         )}
@@ -46,7 +48,7 @@ function DateNav({ date }: { date: string }) {
       <Link
         href={isNextFuture ? '#' : `/activity?date=${next}`}
         className={`p-2 rounded-lg transition-colors ${
-          isNextFuture ? 'opacity-30 pointer-events-none' : 'hover:bg-secondary'
+          isNextFuture ? 'opacity-30 pointer-events-none' : 'hover:bg-surface-interactive'
         }`}
         aria-label="Next day"
         aria-disabled={isNextFuture}
@@ -96,47 +98,51 @@ export default async function ActivityPage({
     : null
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Activity</h1>
+        <h1 className="text-xl font-bold text-ink">Activity</h1>
       </div>
+
+      <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
       <DateNav date={date} />
 
       <ActivityLogForm date={date} existingLog={existingLog} isFutureDate={isFutureDate} />
 
       {stepGoal && (
-        <p className="text-xs text-muted-foreground text-center">
+        <p className="text-xs text-ink-muted text-center">
           Daily goal: {stepGoal.toLocaleString()} steps
         </p>
       )}
 
       {/* Last 7 days — logged-days-only average, consistent with Phase 1F/1G */}
-      <div className="shred-card space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Last 7 days</h2>
+      <Card variant="metric" className="gap-0 py-4">
+        <CardContent className="space-y-3">
+        <h2 className="text-sm font-semibold text-ink">Last 7 days</h2>
         {loggedDays === 0 ? (
-          <p className="text-sm text-muted-foreground">No steps logged this week yet.</p>
+          <p className="text-sm text-ink-muted">No steps logged this week yet.</p>
         ) : (
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+            <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
               <p className="text-base font-bold tabular-nums">{loggedDays}/7</p>
-              <p className="text-xs text-muted-foreground mt-0.5">days logged</p>
+              <p className="text-xs text-ink-muted mt-0.5">days logged</p>
             </div>
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+            <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
               <p className="text-base font-bold tabular-nums">
                 {avgSteps !== null ? avgSteps.toLocaleString() : '—'}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">avg steps</p>
+              <p className="text-xs text-ink-muted mt-0.5">avg steps</p>
             </div>
-            <div className="bg-secondary rounded-lg px-2 py-2.5 text-center">
+            <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
               <p className="text-base font-bold tabular-nums">
                 {goalDaysHit !== null ? goalDaysHit : '—'}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">goal days</p>
+              <p className="text-xs text-ink-muted mt-0.5">goal days</p>
             </div>
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

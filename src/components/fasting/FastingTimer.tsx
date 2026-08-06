@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { addHours } from 'date-fns'
 import { getFastingDuration, formatDurationHMS, getCurrentMilestone, getNextMilestone } from '@/lib/fasting'
 import { formatTime } from '@/lib/dates'
+import { Card, CardContent } from '@/components/ui/card'
 import type { FastingLog } from '@/types/database'
 
 interface FastingTimerProps {
@@ -48,23 +49,24 @@ export function FastingTimer({ fast }: FastingTimerProps) {
     : null
 
   return (
-    <div className="shred-card space-y-5">
+    <Card variant="status" className="gap-0 py-4">
+      <CardContent className="space-y-5">
       {/* Timer */}
       <div className="text-center space-y-2">
         <p className="metric-label">Active fast</p>
-        <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
+        <p className="text-5xl font-bold tabular-nums tracking-tight text-ink">
           {formatDurationHMS(mins, secs)}
         </p>
         {fast.goal_hours && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-muted">
             Goal: {fast.goal_hours}h
             {goalReached && (
-              <span className="ml-2 text-green-400 font-medium">✓ Reached!</span>
+              <span className="ml-2 text-success font-medium">✓ Reached!</span>
             )}
           </p>
         )}
         {projectedEndTime && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-muted">
             Ends around {projectedEndTime}
           </p>
         )}
@@ -73,27 +75,27 @@ export function FastingTimer({ fast }: FastingTimerProps) {
       {/* Goal progress bar */}
       {goalPct !== null && (
         <div className="space-y-1">
-          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+          <div className="h-2 bg-surface-sunken rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-1000"
               style={{ width: `${goalPct}%` }}
             />
           </div>
-          <p className="text-right text-xs text-muted-foreground">{Math.round(goalPct)}%</p>
+          <p className="text-right text-xs text-ink-muted">{Math.round(goalPct)}%</p>
         </div>
       )}
 
       {/* Current milestone */}
       {milestone && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 space-y-1">
-          <p className="text-sm font-medium text-primary">{milestone.label}</p>
-          <p className="text-xs text-muted-foreground">{milestone.note}</p>
+        <div className="bg-brand-subtle border border-brand/20 rounded-lg p-3 space-y-1">
+          <p className="text-sm font-medium text-ink">{milestone.label}</p>
+          <p className="text-xs text-ink-muted">{milestone.note}</p>
         </div>
       )}
 
       {/* Next milestone countdown */}
       {nextMilestone && nextMilestoneMinutesAway !== null && (
-        <div className="flex items-center justify-between text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
+        <div className="flex items-center justify-between text-xs text-ink-muted bg-surface-sunken rounded-lg px-3 py-2">
           <span>Next: {nextMilestone.label}</span>
           <span className="tabular-nums">
             {nextMilestoneMinutesAway >= 60
@@ -103,6 +105,7 @@ export function FastingTimer({ fast }: FastingTimerProps) {
           </span>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

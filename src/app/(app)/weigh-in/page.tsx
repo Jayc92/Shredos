@@ -11,6 +11,7 @@ import { computeWeightProgress } from '@/lib/progress-summary'
 import { cmToInches } from '@/lib/units'
 import { getDayName, formatDateShort, todayISO } from '@/lib/dates'
 import { subDays, format, parseISO } from 'date-fns'
+import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weigh-in' }
@@ -97,10 +98,10 @@ export default async function WeighInPage() {
       : null
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
       <div>
-        <h1 className="text-xl font-bold">Weigh-in</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="text-xl font-bold text-ink">Weigh-in</h1>
+        <p className="text-sm text-ink-muted mt-1">
           Schedule:{' '}
           {profile.preferred_weigh_in_cadence === 'manual'
             ? 'Manual'
@@ -109,14 +110,17 @@ export default async function WeighInPage() {
         </p>
       </div>
 
-      {/* Confidence summary bar */}
+      <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
+
+      {/* Evidence-coverage bar — same thresholds and copy, semantic
+          state tokens (coverage statement, not a performance score). */}
       {confidence !== 'none' && (
         <div className={`rounded-lg px-4 py-2.5 text-sm ${
           confidence === 'high'
-            ? 'bg-green-500/10 text-green-400'
+            ? 'bg-success-subtle text-success'
             : confidence === 'medium'
-            ? 'bg-yellow-500/10 text-yellow-400'
-            : 'bg-amber-500/10 text-amber-400'
+            ? 'bg-info-subtle text-info'
+            : 'bg-caution-subtle text-caution'
         }`}>
           {confidence === 'high' && '✓ High confidence — enough data for trend analysis.'}
           {confidence === 'medium' && `Building confidence — ${weighIns.length} weigh-ins recorded. A few more before strong recommendations.`}
@@ -124,11 +128,15 @@ export default async function WeighInPage() {
         </div>
       )}
 
-      <WeighInForm />
+      {/* Upper two-column area at lg: log form beside the latest/
+          trend summary. One column below lg. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <WeighInForm />
 
-      {/* Phase 2Y: trend summary + 28-day chart, after the entry form
-          and before the existing 28-day summary block. */}
-      <WeightTrendSection summary={weightTrend} />
+        {/* Phase 2Y: trend summary + 28-day chart, after the entry
+            form and before the existing 28-day summary block. */}
+        <WeightTrendSection summary={weightTrend} />
+      </div>
 
       <WeighInSummary summary={weightProgress} userGoal={profile.main_goal} />
 

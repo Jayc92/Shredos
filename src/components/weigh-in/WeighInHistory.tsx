@@ -8,6 +8,7 @@ import { computeWeightChange, getTrendConfidence, confidenceLabel, getGoalAwareW
 import { formatDateShort } from '@/lib/dates'
 import type { BodyMetric, WeighInCadence } from '@/types/database'
 import { Trash2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface WeighInHistoryProps {
   weighIns: BodyMetric[]
@@ -32,23 +33,26 @@ export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryPr
 
   if (weighIns.length === 0) {
     return (
-      <div className="shred-card text-center py-8 space-y-2">
-        <p className="text-muted-foreground text-sm">No weigh-ins recorded yet.</p>
-        <p className="text-xs text-muted-foreground">Log your first weigh-in above.</p>
-      </div>
+      <Card variant="status" className="gap-0 py-4">
+        <CardContent className="text-center py-8 space-y-2">
+        <p className="text-ink-muted text-sm">No weigh-ins recorded yet.</p>
+        <p className="text-xs text-ink-muted">Log your first weigh-in above.</p>
+      </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="shred-card space-y-4">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-4">
       {/* Confidence indicator */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-foreground">History</h3>
+        <h3 className="text-sm font-medium text-ink">History</h3>
         <span className={`text-xs font-medium ${color}`}>{label}</span>
       </div>
 
       {confidence !== 'high' && (
-        <p className="text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">{note}</p>
+        <p className="text-xs text-ink-muted bg-secondary rounded-lg px-3 py-2">{note}</p>
       )}
 
       {/* Weigh-in list */}
@@ -67,14 +71,14 @@ export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryPr
           return (
             <div
               key={w.id}
-              className="flex items-center justify-between py-2 border-b border-border last:border-0"
+              className="flex items-center justify-between py-2 border-b border-edge-subtle last:border-0"
             >
               <div className="flex items-center gap-3">
                 <div>
                   <p className="text-sm font-medium tabular-nums">
                     {lbs !== null ? `${lbs.toFixed(1)} lbs` : '—'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-muted">
                     {formatDateShort(w.logged_date + 'T00:00:00')}
                     {w.bf_pct ? ` · ${w.bf_pct}% BF` : ''}
                     {w.waist_cm ? ` · ${cmToInches(w.waist_cm).toFixed(1)}" waist` : ''}
@@ -88,7 +92,7 @@ export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryPr
               <button
                 onClick={() => handleDelete(w.id)}
                 disabled={deleting === w.id}
-                className="p-1.5 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                className="p-1.5 text-ink-muted hover:text-destructive transition-colors disabled:opacity-40"
                 aria-label="Delete weigh-in"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -98,9 +102,10 @@ export function WeighInHistory({ weighIns, cadence, userGoal }: WeighInHistoryPr
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-muted">
         {weighIns.length} weigh-in{weighIns.length !== 1 ? 's' : ''} recorded.
       </p>
-    </div>
+    </CardContent>
+    </Card>
   )
 }

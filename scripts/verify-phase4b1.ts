@@ -383,10 +383,11 @@ console.log('\n12. Phase boundary')
   check('no nutrition-calculation changes',
     read('src/lib/nutrition.ts').includes('LEAN_MASS_PROTEIN_THRESHOLD'))
   check('no broad page redesign (pages keep their structure markers)',
-    // 4B.4 migrated /check-in off shred-card as chartered; its durable
-    // marker is the Phase 3A completed-week reducer call. /progress is
-    // still pre-migration.
-    read('src/app/(app)/progress/page.tsx').includes('shred-card') &&
+    // 4B.4 migrated /check-in and 4B.5 migrated /progress off
+    // shred-card as chartered; the durable markers are each route's
+    // behavior contract (its reducer/overview call), not the retired
+    // utility class.
+    read('src/app/(app)/progress/page.tsx').includes('fetchTrackingAwareProgressOverview') &&
     read('src/app/(app)/check-in/page.tsx').includes('fetchWeeklyReviewSummary'))
   check('no dashboard customization', !existsSync('src/components/dashboard/WidgetFrame.tsx'))
   check('old CSS token compatibility (legacy vars still defined)',

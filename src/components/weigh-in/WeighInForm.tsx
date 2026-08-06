@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { lbsToKg, inchesToCm } from '@/lib/units'
 import { todayISO } from '@/lib/dates'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface WeighInFormProps {
   onSuccess?: () => void
@@ -81,12 +82,14 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="shred-card space-y-4">
+    <Card variant="action" className="gap-0 py-4">
+      <CardContent>
+      <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="text-base font-semibold">Log weigh-in</h2>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-sm font-medium text-ink">
             Weight <span className="text-destructive">*</span>
           </label>
           <div className="relative">
@@ -99,29 +102,29 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
               max="700"
               step="0.1"
               required
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">lbs</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">lbs</span>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Date</label>
+          <label className="block text-sm font-medium text-ink">Date</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             max={todayISO()}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-sm font-medium text-ink">
             Body fat %{' '}
-            <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            <span className="text-ink-muted font-normal text-xs">(optional)</span>
           </label>
           <div className="relative">
             <input
@@ -132,21 +135,21 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
               min="1"
               max="60"
               step="0.1"
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-8"
+              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-8"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">%</span>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-sm font-medium text-ink">
             Energy{' '}
-            <span className="text-muted-foreground font-normal text-xs">(1–5)</span>
+            <span className="text-ink-muted font-normal text-xs">(1–5)</span>
           </label>
           <select
             value={energy}
             onChange={(e) => setEnergy(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           >
             <option value="">Skip</option>
             <option value="1">1 — Very low</option>
@@ -159,9 +162,9 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-foreground">
+        <label className="block text-sm font-medium text-ink">
           Waist{' '}
-          <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+          <span className="text-ink-muted font-normal text-xs">(optional)</span>
         </label>
         <div className="relative">
           <input
@@ -172,23 +175,23 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
             min="10"
             max="80"
             step="0.1"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">in</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">in</span>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-foreground">
+        <label className="block text-sm font-medium text-ink">
           Notes{' '}
-          <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+          <span className="text-ink-muted font-normal text-xs">(optional)</span>
         </label>
         <input
           type="text"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="e.g. after gym, 8hr sleep"
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
         />
       </div>
 
@@ -210,5 +213,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
         {saving ? 'Saving...' : 'Save weigh-in'}
       </button>
     </form>
+      </CardContent>
+    </Card>
   )
 }

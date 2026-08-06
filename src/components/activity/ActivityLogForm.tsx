@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DailyActivityLog } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface ActivityLogFormProps {
   date: string
@@ -42,9 +43,10 @@ export function ActivityLogForm({ date, existingLog, isFutureDate }: ActivityLog
   }
 
   return (
-    <div className="shred-card space-y-3">
+    <Card variant="action" className="gap-0 py-4">
+      <CardContent className="space-y-3">
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground" htmlFor="steps-input">
+        <label className="text-xs text-ink-muted" htmlFor="steps-input">
           Steps
         </label>
         <input
@@ -57,12 +59,12 @@ export function ActivityLogForm({ date, existingLog, isFutureDate }: ActivityLog
           onChange={(e) => setSteps(e.target.value)}
           disabled={isFutureDate}
           placeholder="0"
-          className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-foreground text-lg font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-ink text-lg font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground" htmlFor="activity-notes-input">
+        <label className="text-xs text-ink-muted" htmlFor="activity-notes-input">
           Notes (optional)
         </label>
         <input
@@ -72,24 +74,25 @@ export function ActivityLogForm({ date, existingLog, isFutureDate }: ActivityLog
           onChange={(e) => setNotes(e.target.value)}
           disabled={isFutureDate}
           placeholder="Long walk, rest day, etc."
-          className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
         />
       </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       {isFutureDate ? (
-        <p className="text-xs text-muted-foreground">Can’t log steps for a future date.</p>
+        <p className="text-xs text-ink-muted">Can’t log steps for a future date.</p>
       ) : (
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="w-full min-h-11 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving…' : existingLog ? 'Update steps' : 'Save steps'}
         </button>
       )}
-    </div>
+    </CardContent>
+    </Card>
   )
 }

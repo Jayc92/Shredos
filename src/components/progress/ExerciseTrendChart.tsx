@@ -23,6 +23,7 @@
 
 import type { TrendPoint } from '@/lib/progress-charts'
 import { EMPTY_TREND_MESSAGE } from '@/lib/progress-charts'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface ExerciseTrendChartProps {
   title: string
@@ -62,10 +63,12 @@ export default function ExerciseTrendChart({
 }: ExerciseTrendChartProps) {
   if (points.length < 2) {
     return (
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{EMPTY_TREND_MESSAGE}</p>
-      </div>
+      <Card variant="subtle" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        <p className="text-sm text-ink-muted">{EMPTY_TREND_MESSAGE}</p>
+      </CardContent>
+      </Card>
     )
   }
 
@@ -129,10 +132,11 @@ export default function ExerciseTrendChart({
   }`
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {summary && <p className="text-xs text-muted-foreground mt-0.5">{summary}</p>}
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        {summary && <p className="text-xs text-ink-muted mt-0.5">{summary}</p>}
       </div>
 
       <svg
@@ -216,7 +220,8 @@ export default function ExerciseTrendChart({
         ))}
       </svg>
 
-      {footnote && <p className="text-xs text-muted-foreground">{footnote}</p>}
-    </div>
+      {footnote && <p className="text-xs text-ink-muted">{footnote}</p>}
+    </CardContent>
+    </Card>
   )
 }

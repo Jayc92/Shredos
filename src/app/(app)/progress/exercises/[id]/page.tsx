@@ -27,6 +27,8 @@ import {
   buildTimedTrend,
 } from '@/lib/progress-charts'
 import ExerciseTrendChart from '@/components/progress/ExerciseTrendChart'
+import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
+import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs } from '@/lib/units'
 import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
 import type { WorkoutSet, TrackingMode, ExerciseEquipment, PrimaryMuscle } from '@/types/database'
@@ -142,22 +144,24 @@ export default async function ExerciseProgressDetailPage({
   const suffix = isUnilateral ? ' per side' : ''
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
-      <Link href="/progress" className="text-xs text-muted-foreground hover:text-foreground">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
+      <Link href="/progress" className="text-xs text-ink-muted hover:text-ink">
         ← Progress
       </Link>
 
       <div>
-        <h1 className="text-xl font-bold text-foreground">{exercise.name}</h1>
+        <h1 className="text-xl font-bold text-ink break-words">{exercise.name}</h1>
         {headerParts.length > 0 && (
-          <p className="text-sm text-muted-foreground mt-0.5">{headerParts.join(' · ')}</p>
+          <p className="text-sm text-ink-muted mt-0.5">{headerParts.join(' · ')}</p>
         )}
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-ink-muted mt-1">
           {recentEntries.length === 0
             ? 'No recent sessions'
             : `${recentEntries.length} recent session${recentEntries.length !== 1 ? 's' : ''}`}
         </p>
       </div>
+
+      <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
       {isCardioTimed ? (
         <CardioTimedSections
@@ -280,19 +284,20 @@ function StrengthSections({
   return (
     <>
       {/* A. Current records */}
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">Current records</h2>
+      <Card variant="elevated" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">Current records</h2>
         {!hasAnyRecord ? (
-          <p className="text-sm text-muted-foreground">No records yet.</p>
+          <p className="text-sm text-ink-muted">No records yet.</p>
         ) : isBodyweightMode ? (
           <div className="space-y-1">
             {detail.maxBodyweightReps !== null && (
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-ink">
                 Best reps: {detail.maxBodyweightReps} reps{suffix}
               </p>
             )}
             {showAddedWeight && (
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-ink">
                 Best added weight: +{addedWeightLbs} lbs{suffix}
               </p>
             )}
@@ -300,21 +305,22 @@ function StrengthSections({
         ) : (
           <div className="space-y-1">
             {detail.maxWeightKg !== null && (
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-ink">
                 Weight PR: {Math.round(kgToLbs(detail.maxWeightKg))} lbs{suffix}
               </p>
             )}
             {detail.maxEstimated1RmKg !== null && (
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-ink">
                 Est. 1RM: {Math.round(kgToLbs(detail.maxEstimated1RmKg))} lbs{suffix}
               </p>
             )}
             {detail.maxBodyweightReps !== null && (
-              <p className="text-sm text-foreground">Rep PR: {detail.maxBodyweightReps} reps</p>
+              <p className="text-sm text-ink">Rep PR: {detail.maxBodyweightReps} reps</p>
             )}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* A2. Trend charts (Phase 2W) — after records, before coaching.
           weight_reps: one chart, estimated 1RM preferred over best
@@ -346,20 +352,23 @@ function StrengthSections({
       )}
 
       {/* B. Current coaching */}
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">Current coaching</h2>
+      <Card variant="status" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">Current coaching</h2>
         {previousBestSet && (
-          <p className="text-sm text-muted-foreground">Last: {prevSummary}</p>
+          <p className="text-sm text-ink-muted">Last: {prevSummary}</p>
         )}
-        <p className="text-sm text-muted-foreground">{nextTarget.message}</p>
-        {trendLabel && <p className="text-sm text-muted-foreground">Trend: {trendLabel}</p>}
-      </div>
+        <p className="text-sm text-ink-muted">{nextTarget.message}</p>
+        {trendLabel && <p className="text-sm text-ink-muted">Trend: {trendLabel}</p>}
+        </CardContent>
+      </Card>
 
       {/* C. Recent best sets */}
-      <div className="shred-card space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">Recent best sets</h2>
+      <Card variant="subtle" className="gap-0 py-4">
+        <CardContent className="space-y-2">
+        <h2 className="text-sm font-semibold text-ink">Recent best sets</h2>
         {recentEntries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No completed sets yet.</p>
+          <p className="text-sm text-ink-muted">No completed sets yet.</p>
         ) : (
           <ul className="space-y-1">
             {recentEntries.map((entry, i) => {
@@ -372,7 +381,7 @@ function StrengthSections({
                 const summary = formatTrackingAwareSetSummary(entry, trackingMode)
                 if (!summary) return null
                 return (
-                  <li key={i} className="text-xs text-muted-foreground">
+                  <li key={i} className="text-xs text-ink-muted">
                     {format(parseISO(entry.workoutDate), 'MMM d')} — {summary}
                   </li>
                 )
@@ -391,7 +400,7 @@ function StrengthSections({
                 extras.push(`est. 1RM ${Math.round(kgToLbs(entry.estimated1RmKg))} lbs`)
               }
               return (
-                <li key={i} className="text-xs text-muted-foreground">
+                <li key={i} className="text-xs text-ink-muted">
                   {format(parseISO(entry.workoutDate), 'MMM d')} — {mainText}
                   {extras.length > 0 ? ` · ${extras.join(' · ')}` : ''}
                 </li>
@@ -399,30 +408,32 @@ function StrengthSections({
             })}
           </ul>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* D. PR history */}
-      <div className="shred-card space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">PR history</h2>
+      <Card variant="default" className="gap-0 py-4">
+        <CardContent className="space-y-2">
+        <h2 className="text-sm font-semibold text-ink">PR history</h2>
         {detail.prHistory.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No PRs yet.</p>
+          <p className="text-sm text-ink-muted">No PRs yet.</p>
         ) : (
           <>
             <ul className="space-y-1.5">
               {visiblePrHistory.map((e, i) => (
-                <li key={i} className="text-xs text-foreground">
+                <li key={i} className="text-xs text-ink">
                   {formatPrEventLine(e)}
                 </li>
               ))}
             </ul>
             {remainingPrHistory.length > 0 && (
               <details>
-                <summary className="text-xs text-primary hover:underline cursor-pointer">
+                <summary className="text-xs text-brand hover:underline cursor-pointer">
                   Show all ({remainingPrHistory.length} more)
                 </summary>
                 <ul className="space-y-1.5 mt-1.5">
                   {remainingPrHistory.map((e, i) => (
-                    <li key={i} className="text-xs text-foreground">
+                    <li key={i} className="text-xs text-ink">
                       {formatPrEventLine(e)}
                     </li>
                   ))}
@@ -431,7 +442,8 @@ function StrengthSections({
             )}
           </>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </>
   )
 }
@@ -502,25 +514,27 @@ function CardioTimedSections({
   return (
     <>
       {/* A. All-time records */}
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">All-time records</h2>
+      <Card variant="elevated" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">All-time records</h2>
         {!hasAnyRecord ? (
-          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+          <p className="text-sm text-ink-muted">No completed sessions yet.</p>
         ) : (
           <div className="space-y-1">
             {bestDistance && (
-              <p className="text-sm text-foreground">Best distance: {bestDistance}</p>
+              <p className="text-sm text-ink">Best distance: {bestDistance}</p>
             )}
             {longestDuration && (
-              <p className="text-sm text-foreground">Longest duration: {longestDuration}</p>
+              <p className="text-sm text-ink">Longest duration: {longestDuration}</p>
             )}
-            {bestPace && <p className="text-sm text-foreground">Best pace: {bestPace}</p>}
+            {bestPace && <p className="text-sm text-ink">Best pace: {bestPace}</p>}
             {latestRpe !== null && (
-              <p className="text-sm text-foreground">Latest RPE: {latestRpe}</p>
+              <p className="text-sm text-ink">Latest RPE: {latestRpe}</p>
             )}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* A2. Trend charts (Phase 2W) — after all-time records, before
           most recent session. */}
@@ -550,43 +564,47 @@ function CardioTimedSections({
       )}
 
       {/* B. Most recent session */}
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">Most recent session</h2>
+      <Card variant="metric" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">Most recent session</h2>
         {!latest || !latestSummary ? (
-          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+          <p className="text-sm text-ink-muted">No completed sessions yet.</p>
         ) : (
           <div className="space-y-1">
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-ink">
               {format(parseISO(latest.workoutDate), 'MMM d')} — {latestSummary}
             </p>
             {signal && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-muted">
                 Vs. previous session: {progressLabel(signal)}
               </p>
             )}
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* C. Recent history */}
-      <div className="shred-card space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">Recent history</h2>
+      <Card variant="subtle" className="gap-0 py-4">
+        <CardContent className="space-y-2">
+        <h2 className="text-sm font-semibold text-ink">Recent history</h2>
         {recentEntries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No completed sessions yet.</p>
+          <p className="text-sm text-ink-muted">No completed sessions yet.</p>
         ) : (
           <ul className="space-y-1">
             {recentEntries.map((entry, i) => {
               const summary = formatTrackingAwareSetSummary(entry, trackingMode)
               if (!summary) return null
               return (
-                <li key={i} className="text-xs text-muted-foreground">
+                <li key={i} className="text-xs text-ink-muted">
                   {format(parseISO(entry.workoutDate), 'MMM d')} — {summary}
                 </li>
               )
             })}
           </ul>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </>
   )
 }

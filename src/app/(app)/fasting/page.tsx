@@ -5,6 +5,7 @@ import { FastingControls } from '@/components/fasting/FastingControls'
 import { FastingHistory } from '@/components/fasting/FastingHistory'
 import { FastingStats } from '@/components/fasting/FastingStats'
 import { computeFastingWeekStats } from '@/lib/fasting'
+import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Fasting' }
@@ -34,13 +35,18 @@ export default async function FastingPage() {
   const weekStats = computeFastingWeekStats(weekFasts)
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
       <div>
-        <h1 className="text-xl font-bold">Fasting</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <h1 className="text-xl font-bold text-ink">Fasting</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
           Fasting is a calorie adherence tool — not magic. Calories still determine fat loss.
         </p>
       </div>
+
+      {/* Contextual nav: the Fasting link inside it follows the
+          profile flag; the direct route itself stays reachable
+          regardless (existing policy, unchanged). */}
+      <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
       {/* Live timer (client component) — only shown when there's an active fast */}
       {activeFast && <FastingTimer fast={activeFast} />}

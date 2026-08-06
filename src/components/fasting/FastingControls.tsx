@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { fastingTypeFromHours, didCompleteGoal } from '@/lib/fasting'
 import { FASTING_GOAL_OPTIONS } from '@/lib/constants'
 import type { FastingLog } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface FastingControlsProps {
   activeFast: FastingLog | null
@@ -128,8 +129,9 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
   }
 
   return (
-    <div className="shred-card space-y-4">
-      <h3 className="text-sm font-medium text-foreground">Controls</h3>
+    <Card variant="elevated" className="gap-0 py-4">
+      <CardContent className="space-y-4">
+      <h3 className="text-sm font-medium text-ink">Controls</h3>
 
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
@@ -148,11 +150,11 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
         /* Start fast */
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground">Goal</label>
+            <label className="block text-xs font-medium text-ink-muted">Goal</label>
             <select
               value={goalHours}
               onChange={(e) => setGoalHours(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">No goal</option>
               {FASTING_GOAL_OPTIONS.map(({ value, label }) => (
@@ -174,44 +176,44 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
       {!activeFast && (
         <button
           onClick={() => setShowManual(!showManual)}
-          className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full py-2 text-xs text-ink-muted hover:text-ink transition-colors"
         >
           {showManual ? '↑ Cancel manual entry' : '+ Add past fast manually'}
         </button>
       )}
 
       {showManual && (
-        <form onSubmit={addManualFast} className="space-y-3 pt-2 border-t border-border">
-          <p className="text-xs font-medium text-foreground">Manual fast entry</p>
+        <form onSubmit={addManualFast} className="space-y-3 pt-2 border-t border-edge-subtle">
+          <p className="text-xs font-medium text-ink">Manual fast entry</p>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Start</label>
+              <label className="text-xs text-ink-muted">Start</label>
               <input
                 type="datetime-local"
                 value={manualStart}
                 onChange={(e) => setManualStart(e.target.value)}
                 required
-                className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">End (optional)</label>
+              <label className="text-xs text-ink-muted">End (optional)</label>
               <input
                 type="datetime-local"
                 value={manualEnd}
                 onChange={(e) => setManualEnd(e.target.value)}
-                className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Goal hours</label>
+            <label className="text-xs text-ink-muted">Goal hours</label>
             <select
               value={manualGoal}
               onChange={(e) => setManualGoal(e.target.value)}
-              className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-2 py-2 rounded-lg bg-secondary border border-border text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
             >
               {FASTING_GOAL_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -224,7 +226,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
             value={manualNotes}
             onChange={(e) => setManualNotes(e.target.value)}
             placeholder="Notes (optional)"
-            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
 
           <button
@@ -236,6 +238,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
           </button>
         </form>
       )}
-    </div>
+    </CardContent>
+    </Card>
   )
 }

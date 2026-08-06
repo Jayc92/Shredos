@@ -31,10 +31,16 @@ export function CoachSubNav() {
   const pathname = usePathname()
 
   return (
-    <nav
-      aria-label="Coach sections"
-      className="flex items-center gap-1 overflow-x-auto border-b border-edge-subtle"
-    >
+    // The full-width border lives on this non-scrolling wrapper: with
+    // overflow-x-auto on the nav, computed overflow-y becomes auto too,
+    // so any child hanging below the nav box (the old -mb-px trick)
+    // created a real 1px vertical scroll range — a visible scrollbar
+    // under macOS "always show scrollbars" (4B.5 QA finding).
+    <div className="border-b border-edge-subtle">
+      <nav
+        aria-label="Coach sections"
+        className="-mb-px flex items-center gap-1 overflow-x-auto"
+      >
       {COACH_SECTIONS.map((section) => {
         const active = pathname === section.href
         return (
@@ -43,7 +49,7 @@ export function CoachSubNav() {
             href={section.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              '-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
+              'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
               active
                 ? 'border-brand font-semibold text-ink'
                 : 'border-transparent font-medium text-ink-muted hover:text-ink'
@@ -53,6 +59,7 @@ export function CoachSubNav() {
           </Link>
         )
       })}
-    </nav>
+      </nav>
+    </div>
   )
 }
