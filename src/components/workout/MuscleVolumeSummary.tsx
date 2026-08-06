@@ -1,3 +1,5 @@
+import { Card, CardContent } from '@/components/ui/card'
+
 interface MuscleVolumeSummaryProps {
   volume: Record<string, number>
 }
@@ -12,16 +14,18 @@ export function MuscleVolumeSummary({ volume }: MuscleVolumeSummaryProps) {
   const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace('_', ' ')
 
   return (
-    <div className="shred-card space-y-1.5">
-      <p className="text-xs font-medium text-muted-foreground">This week by muscle</p>
+    <Card variant="metric" className="gap-0 py-4">
+      <CardContent className="space-y-1.5">
+      <p className="text-xs font-medium text-ink-muted">This week by muscle</p>
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {entries.map(([m, n]) => (
-          <span key={m} className="text-xs text-foreground">
+          <span key={m} className="text-xs text-ink">
             <span className="font-medium">{label(m)}</span>
-            <span className="text-muted-foreground ml-1">{n} set{n !== 1 ? 's' : ''}</span>
+            <span className="text-ink-muted ml-1">{n} set{n !== 1 ? 's' : ''}</span>
           </span>
         ))}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

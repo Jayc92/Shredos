@@ -7,6 +7,7 @@ import { formatRoutineTarget } from '@/lib/routine'
 import { displayWeight } from '@/lib/workout'
 import { lbsToKg } from '@/lib/units'
 import { ChevronUp, ChevronDown, Trash2, Pencil, Check, X, AlertTriangle, Loader2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutRoutineExerciseWithDetails } from '@/types/database'
 
 interface RoutineExerciseRowProps {
@@ -57,60 +58,62 @@ export function RoutineExerciseRow({ re, isFirst, isLast, isReordering = false, 
   }
 
   const displayRe = { ...re, ...snapshot }; const targetSummary = formatRoutineTarget(displayRe as any)
-  const inputCls = 'w-full px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
+  const inputCls = 'w-full px-2 py-1.5 rounded-md bg-background border border-input text-ink text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div className="flex items-center gap-2">
         <div className="flex flex-col gap-1 flex-shrink-0">
           <button onClick={onMoveUp} disabled={isFirst || isReordering} title="Move exercise up" aria-label="Move exercise up"
-            className={cn('p-1.5 rounded transition-colors', isFirst || isReordering ? 'text-border cursor-not-allowed' : 'text-muted-foreground hover:text-foreground hover:bg-secondary active:bg-secondary')}>
+            className={cn('p-1.5 rounded transition-colors', isFirst || isReordering ? 'text-edge cursor-not-allowed' : 'text-ink-muted hover:text-ink hover:bg-surface-interactive active:bg-surface-interactive')}>
             <ChevronUp className="w-4 h-4" />
           </button>
           <button onClick={onMoveDown} disabled={isLast || isReordering} title="Move exercise down" aria-label="Move exercise down"
-            className={cn('p-1.5 rounded transition-colors', isLast || isReordering ? 'text-border cursor-not-allowed' : 'text-muted-foreground hover:text-foreground hover:bg-secondary active:bg-secondary')}>
+            className={cn('p-1.5 rounded transition-colors', isLast || isReordering ? 'text-edge cursor-not-allowed' : 'text-ink-muted hover:text-ink hover:bg-surface-interactive active:bg-surface-interactive')}>
             <ChevronDown className="w-4 h-4" />
           </button>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-foreground truncate">{re.exercise.name}</p>
-            {!re.exercise.is_active && <span className="inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 border bg-amber-500/10 text-amber-500 border-amber-500/25"><AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />Inactive exercise</span>}
-            {isReordering && <Loader2 className="w-3 h-3 text-muted-foreground animate-spin flex-shrink-0" aria-hidden="true" />}
+            <p className="text-sm font-semibold text-ink truncate">{re.exercise.name}</p>
+            {!re.exercise.is_active && <span className="inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 border bg-caution-subtle text-caution border-caution/25"><AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />Inactive exercise</span>}
+            {isReordering && <Loader2 className="w-3 h-3 text-ink-muted animate-spin flex-shrink-0" aria-hidden="true" />}
           </div>
-          {!editing && targetSummary && <p className="text-xs text-muted-foreground">{targetSummary}</p>}
+          {!editing && targetSummary && <p className="text-xs text-ink-muted">{targetSummary}</p>}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {!editing ? (
-            <button onClick={() => { setSaveErr(null); setValidErr(null); setEditing(true) }} aria-label="Edit targets" className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+            <button onClick={() => { setSaveErr(null); setValidErr(null); setEditing(true) }} aria-label="Edit targets" className="p-1.5 text-ink-muted hover:text-ink transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
           ) : (
             <>
-              <button onClick={saveAll} disabled={saving} aria-label={saving ? 'Saving…' : 'Save'} className="p-1.5 text-green-400 hover:text-green-300 disabled:opacity-40 transition-colors">
+              <button onClick={saveAll} disabled={saving} aria-label={saving ? 'Saving…' : 'Save'} className="p-1.5 text-success hover:text-success/80 disabled:opacity-40 transition-colors">
                 {saving ? <span className="text-xs leading-none">…</span> : <Check className="w-3.5 h-3.5" />}
               </button>
-              <button onClick={() => { setEditing(false); setSaveErr(null); setValidErr(null) }} aria-label="Cancel" className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"><X className="w-3.5 h-3.5" /></button>
+              <button onClick={() => { setEditing(false); setSaveErr(null); setValidErr(null) }} aria-label="Cancel" className="p-1.5 text-ink-muted hover:text-ink transition-colors"><X className="w-3.5 h-3.5" /></button>
             </>
           )}
-          <button onClick={handleRemove} disabled={removing} aria-label="Remove exercise from routine" className="p-1.5 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={handleRemove} disabled={removing} aria-label="Remove exercise from routine" className="p-1.5 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
       {editing && (
-        <div className="pl-10 space-y-2 pt-1 border-t border-border/40">
+        <div className="pl-10 space-y-2 pt-1 border-t border-edge-subtle/60">
           <div className="grid grid-cols-3 gap-2">
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">Sets</label><input type="number" inputMode="numeric" value={sets} onChange={e => setSets(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="1" step="1" className={inputCls} /></div>
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">Reps min</label><input type="number" inputMode="numeric" value={repsMin} onChange={e => { setRepsMin(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="1" className={inputCls} /></div>
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">Reps max</label><input type="number" inputMode="numeric" value={repsMax} onChange={e => { setRepsMax(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="1" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">Sets</label><input type="number" inputMode="numeric" value={sets} onChange={e => setSets(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="1" step="1" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">Reps min</label><input type="number" inputMode="numeric" value={repsMin} onChange={e => { setRepsMin(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="1" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">Reps max</label><input type="number" inputMode="numeric" value={repsMax} onChange={e => { setRepsMax(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="1" className={inputCls} /></div>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">Weight (lbs)</label><input type="number" inputMode="decimal" value={lbs} onChange={e => setLbs(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="0" step="0.5" className={inputCls} /></div>
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">RPE</label><input type="number" inputMode="decimal" value={rpe} onChange={e => setRpe(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="1" max="10" step="0.5" className={inputCls} /></div>
-            <div><label className="block text-xs text-muted-foreground mb-1 text-center">Rest (s)</label><input type="number" inputMode="numeric" value={rest} onChange={e => { setRest(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="0" max="3600" step="15" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">Weight (lbs)</label><input type="number" inputMode="decimal" value={lbs} onChange={e => setLbs(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="0" step="0.5" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">RPE</label><input type="number" inputMode="decimal" value={rpe} onChange={e => setRpe(e.target.value)} onFocus={e => e.target.select()} placeholder="—" min="1" max="10" step="0.5" className={inputCls} /></div>
+            <div><label className="block text-xs text-ink-muted mb-1 text-center">Rest (s)</label><input type="number" inputMode="numeric" value={rest} onChange={e => { setRest(e.target.value); setValidErr(null) }} onFocus={e => e.target.select()} placeholder="—" min="0" max="3600" step="15" className={inputCls} /></div>
           </div>
-          <div><label className="block text-xs text-muted-foreground mb-1">Notes</label><input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. supinate at the top" className="w-full px-2 py-1.5 rounded-md bg-background border border-input text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring" /></div>
-          {validErr && <p className="flex items-center gap-1 text-xs text-amber-500"><AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />{validErr}</p>}
-          {saveErr && <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{saveErr}</p>}
+          <div><label className="block text-xs text-ink-muted mb-1">Notes</label><input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. supinate at the top" className="w-full px-2 py-1.5 rounded-md bg-background border border-input text-ink placeholder:text-ink-muted text-xs focus:outline-none focus:ring-1 focus:ring-ring" /></div>
+          {validErr && <p className="flex items-center gap-1 text-xs text-caution"><AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />{validErr}</p>}
+          {saveErr && <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1">{saveErr}</p>}
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

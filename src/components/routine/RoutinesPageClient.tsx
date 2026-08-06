@@ -6,6 +6,7 @@ import { RoutineCard } from './RoutineCard'
 import { RoutineForm } from './RoutineForm'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Plus, BookOpen } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutRoutine } from '@/types/database'
 
 interface RoutinesPageClientProps {
@@ -26,14 +27,14 @@ export function RoutinesPageClient({ initialRoutines }: RoutinesPageClientProps)
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <BookOpen className="w-5 h-5" />
             Routines
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-ink-muted mt-0.5">
             {active.length} saved routine{active.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -49,9 +50,11 @@ export function RoutinesPageClient({ initialRoutines }: RoutinesPageClientProps)
 
       {/* Inline create form */}
       {creating && (
-        <div className="shred-card">
-          <RoutineForm onClose={() => setCreating(false)} onCreated={handleCreated} />
-        </div>
+        <Card variant="elevated" className="gap-0 py-4">
+          <CardContent>
+            <RoutineForm onClose={() => setCreating(false)} onCreated={handleCreated} />
+          </CardContent>
+        </Card>
       )}
 
       {/* Active routines */}
@@ -60,23 +63,25 @@ export function RoutinesPageClient({ initialRoutines }: RoutinesPageClientProps)
           {active.map((r: any) => <RoutineCard key={r.id} routine={r} />)}
         </div>
       ) : !creating && (
-        <div className="shred-card text-center py-10 space-y-3">
-          <p className="text-sm text-muted-foreground">No routines yet.</p>
-          <p className="text-xs text-muted-foreground">
+        <Card variant="status" className="gap-0 py-10">
+          <CardContent className="space-y-3 text-center">
+          <p className="text-sm text-ink-muted">No routines yet.</p>
+          <p className="text-xs text-ink-muted">
             Build a reusable Push Day, Pull Day, or Leg Day and start any workout in one tap.
           </p>
           <button onClick={() => setCreating(true)}
-            className="text-sm text-primary hover:underline">
+            className="text-sm text-brand hover:underline">
             Create your first routine
           </button>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Inactive section */}
       {inactive.length > 0 && (
         <div>
           <button onClick={() => setShowInactive(!showInactive)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            className="text-xs text-ink-muted hover:text-ink transition-colors">
             {showInactive ? 'Hide' : 'Show'} inactive routines ({inactive.length})
           </button>
           {showInactive && (

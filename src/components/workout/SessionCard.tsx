@@ -3,13 +3,15 @@ import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { formatWorkoutDuration } from '@/lib/workout'
 import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
+import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutSession } from '@/types/database'
 
+// Semantic state tokens (Phase 4B.6A) — labels always render text.
 const STATUS_COLORS: Record<string, string> = {
-  in_progress: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
-  completed:   'bg-green-500/15 text-green-400 border-green-500/20',
-  planned:     'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  skipped:     'bg-secondary text-muted-foreground border-border',
+  in_progress: 'bg-caution-subtle text-caution border-caution/20',
+  completed:   'bg-success-subtle text-success border-success/20',
+  planned:     'bg-info-subtle text-info border-info/20',
+  skipped:     'bg-surface-sunken text-ink-muted border-edge-subtle',
 }
 
 interface SessionCardProps {
@@ -23,19 +25,19 @@ export function SessionCard({ session, exerciseCount }: SessionCardProps) {
   const title     = session.title || 'Workout'
 
   return (
-    <Link href={`/workouts/${session.id}`}
-      className="block shred-card hover:border-border/80 transition-colors">
-      <div className="flex items-start justify-between gap-3">
+    <Link href={`/workouts/${session.id}`} className="block">
+      <Card variant="interactive" className="gap-0 py-4">
+      <CardContent className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+          <p className="text-sm font-semibold text-ink truncate">{title}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-xs text-muted-foreground">{dateLabel}</span>
+            <span className="text-xs text-ink-muted">{dateLabel}</span>
             {exerciseCount !== undefined && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-ink-muted">
                 {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
               </span>
             )}
-            {duration && <span className="text-xs text-muted-foreground">{duration}</span>}
+            {duration && <span className="text-xs text-ink-muted">{duration}</span>}
           </div>
         </div>
         <span className={cn(
@@ -44,7 +46,8 @@ export function SessionCard({ session, exerciseCount }: SessionCardProps) {
         )}>
           {WORKOUT_STATUS_LABELS[session.status] ?? session.status}
         </span>
-      </div>
+      </CardContent>
+      </Card>
     </Link>
   )
 }
