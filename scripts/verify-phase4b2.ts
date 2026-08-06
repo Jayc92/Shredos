@@ -403,9 +403,11 @@ console.log('\n10. Contextual navigation')
 // ── 11. Phase boundary: no logic/data/route changes ─────────────────
 console.log('\n11. Phase boundary invariants')
 {
-  check('no page content redesign (route H1s intact)',
-    read('src/app/(app)/coach/page.tsx').includes('Coach actions') &&
-    read('src/app/(app)/decisions/page.tsx').includes('Decision log') &&
+  check('no page content redesign (durable route anchors intact)',
+    // 4B.4 aligned the coach/decisions H1s to the approved labels; the
+    // durable invariant is that each route keeps its behavior anchors.
+    read('src/app/(app)/coach/page.tsx').includes('fetchCoachActions') &&
+    read('src/app/(app)/decisions/page.tsx').includes('Nothing changes silently') &&
     read('src/app/(app)/food/page.tsx').includes('Food log'))
   check('no migration 014',
     !readdirSync('supabase/migrations').some((f) => f.startsWith('014')))

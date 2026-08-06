@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { DecisionCard } from './DecisionCard'
+import { FilterChip } from '@/components/ui/filter-chip'
+import { Card, CardContent } from '@/components/ui/card'
 import { isDueForReview, needsFollowThrough } from '@/lib/decisions'
 import { todayISO } from '@/lib/dates'
 import type { DecisionLog, DecisionStatus } from '@/types/database'
@@ -54,41 +56,37 @@ export function DecisionList({ decisions: initialDecisions }: DecisionListProps)
 
   return (
     <div className="space-y-4">
-      {/* Filter tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      {/* Filter chips — same values, same semantics, same order
+          (Phase 3D set); selection is check + border + weight via the
+          FilterChip primitive, never color alone. */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
         {FILTERS.map(({ value, label }) => (
-          <button
+          <FilterChip
             key={value}
+            selected={filter === value}
             onClick={() => setFilter(value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              filter === value
-                ? 'bg-primary/15 text-primary'
-                : 'bg-secondary text-muted-foreground hover:text-foreground'
-            }`}
+            count={value === 'suggested' ? pendingCount : undefined}
           >
             {label}
-            {value === 'suggested' && pendingCount > 0 && (
-              <span className="ml-1.5 bg-primary/20 text-primary rounded-full px-1.5 py-0.5">
-                {pendingCount}
-              </span>
-            )}
-          </button>
+          </FilterChip>
         ))}
       </div>
 
       {/* Cards */}
       {filtered.length === 0 ? (
-        <div className="shred-card text-center py-8">
-          <p className="text-sm text-muted-foreground">
+        <Card variant="status" className="gap-0 py-8">
+          <CardContent className="text-center">
+          <p className="text-sm text-ink-muted">
             {filter === 'suggested'
               ? 'No pending recommendations.'
               : filter === 'needs_follow_through'
               ? 'No decisions awaiting follow-through.'
               : filter === 'due_review'
               ? 'No decisions due for review.'
-              : 'No entries for this filter.'}
+              : 'No decisions match this filter.'}
           </p>
-        </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((d) => (

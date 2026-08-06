@@ -42,9 +42,9 @@ export function RecordDecisionButton({
 
   if (status === 'saved') {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-muted">
         Recorded as a suggested decision.{' '}
-        <Link href="/decisions" className="text-primary hover:underline">
+        <Link href="/decisions" className="text-brand hover:underline">
           Review it
         </Link>
         .
@@ -58,14 +58,14 @@ export function RecordDecisionButton({
         type="button"
         onClick={handleRecord}
         disabled={status === 'saving'}
-        className="text-xs px-3 py-1.5 rounded-lg border border-input bg-secondary hover:bg-secondary/70 text-foreground font-medium disabled:opacity-50 transition-colors"
+        className="text-xs px-3 py-1.5 rounded-[var(--radius-control)] border border-edge bg-surface hover:bg-surface-interactive text-ink font-medium disabled:opacity-50 transition-colors"
       >
         {status === 'saving' ? 'Recording…' : 'Record this decision'}
       </button>
       {status === 'error' && (
-        <p className="text-xs text-red-400">Couldn’t record that. Try again.</p>
+        <p className="text-xs text-critical">Couldn’t record that. Try again.</p>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-muted">
         Saved as a suggested decision you can accept or dismiss later — nothing changes automatically.
       </p>
     </div>

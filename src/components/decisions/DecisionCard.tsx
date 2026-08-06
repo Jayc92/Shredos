@@ -16,14 +16,32 @@ import {
   isReviewDateSaveable,
 } from '@/lib/decisions'
 import { ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import type { DecisionLog, DecisionOutcome } from '@/types/database'
 
 const STATUS_STYLES: Record<string, string> = {
-  suggested: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  accepted: 'text-green-400 bg-green-400/10 border-green-400/20',
-  dismissed: 'text-muted-foreground bg-secondary border-border',
-  applied: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  reversed: 'text-red-400 bg-red-400/10 border-red-400/20',
+  suggested: 'text-caution bg-caution-subtle border-caution/20',
+  accepted: 'text-success bg-success-subtle border-success/20',
+  dismissed: 'text-ink-muted bg-surface-sunken border-edge-subtle',
+  applied: 'text-info bg-info-subtle border-info/20',
+  reversed: 'text-critical bg-critical-subtle border-critical/20',
+}
+
+/**
+ * Phase 4B.4 state-driven Card variant (deterministic precedence):
+ * a pending suggestion has direct user actions → `action`; a decision
+ * due for review needs attention → `status`; dismissed/reversed are
+ * historical → `subtle`; active accepted/applied decisions → `elevated`.
+ * Presentation only — no state is computed differently.
+ */
+function cardVariantFor(
+  status: string,
+  dueForReview: boolean
+): 'action' | 'status' | 'subtle' | 'elevated' {
+  if (status === 'suggested') return 'action'
+  if (dueForReview) return 'status'
+  if (status === 'dismissed' || status === 'reversed') return 'subtle'
+  return 'elevated'
 }
 
 interface DecisionCardProps {
@@ -84,12 +102,13 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
   const statusStyle = STATUS_STYLES[decision.status] ?? STATUS_STYLES.applied
 
   return (
-    <div className="shred-card space-y-3">
+    <Card variant={cardVariantFor(decision.status, dueForReview)} className="gap-0 py-4">
+      <CardContent className="space-y-3">
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground leading-snug">{decision.decision_title}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-sm font-medium text-ink leading-snug">{decision.decision_title}</p>
+          <p className="text-xs text-ink-muted mt-0.5">
             {DECISION_TYPE_LABELS[decision.decision_type] ?? decision.decision_type} ·{' '}
             {formatRelativeDate(decision.created_at)} ·{' '}
             {decision.created_by === 'user' ? 'You' : decision.created_by === 'coach' ? 'Coach' : 'System'}
@@ -101,27 +120,27 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
       </div>
 
       {/* Summary */}
-      <p className="text-sm text-muted-foreground">{decision.decision_summary}</p>
+      <p className="text-sm text-ink-muted">{decision.decision_summary}</p>
 
       {/* Compact Phase 3D state line — only when something exists */}
       {(followThrough !== 'not_started' || outcome !== null || dueForReview || decision.review_on) && (
         <div className="flex gap-2 flex-wrap">
           {followThrough !== 'not_started' && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-surface-sunken text-ink-muted font-medium">
               Follow-through: {FOLLOW_THROUGH_LABELS[followThrough]}
             </span>
           )}
           {outcome !== null && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-surface-sunken text-ink-muted font-medium">
               Outcome: {OUTCOME_LABELS[outcome]}
             </span>
           )}
           {dueForReview ? (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-caution-subtle text-caution font-medium">
               Review now
             </span>
           ) : decision.review_on && !decision.reviewed_at ? (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-surface-sunken text-ink-muted font-medium">
               Review on {formatDateShort(decision.review_on + 'T00:00:00')}
             </span>
           ) : null}
@@ -131,31 +150,31 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
       {/* Expand/collapse full reason + management */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink transition-colors"
       >
         {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         {expanded ? 'Less detail' : manageable ? 'Details & follow-through' : 'Full reason'}
       </button>
 
       {expanded && (
-        <div className="space-y-3 pt-1 border-t border-border">
-          <p className="text-xs text-muted-foreground leading-relaxed">{decision.reason}</p>
+        <div className="space-y-3 pt-1 border-t border-edge-subtle">
+          <p className="text-xs text-ink-muted leading-relaxed">{decision.reason}</p>
 
           {/* Value change display */}
           {(decision.previous_value || decision.new_value) && (
             <div className="grid grid-cols-2 gap-2 text-xs">
               {decision.previous_value && (
-                <div className="bg-secondary rounded px-2 py-1.5">
-                  <p className="text-muted-foreground mb-1">Before</p>
-                  <pre className="text-foreground font-mono text-xs whitespace-pre-wrap">
+                <div className="bg-surface-sunken rounded px-2 py-1.5">
+                  <p className="text-ink-muted mb-1">Before</p>
+                  <pre className="text-ink font-mono text-xs whitespace-pre-wrap">
                     {JSON.stringify(decision.previous_value, null, 2)}
                   </pre>
                 </div>
               )}
               {decision.new_value && (
-                <div className="bg-primary/5 border border-primary/20 rounded px-2 py-1.5">
-                  <p className="text-muted-foreground mb-1">After</p>
-                  <pre className="text-primary font-mono text-xs whitespace-pre-wrap">
+                <div className="bg-brand-subtle/40 border border-brand/20 rounded px-2 py-1.5">
+                  <p className="text-ink-muted mb-1">After</p>
+                  <pre className="text-ink font-mono text-xs whitespace-pre-wrap">
                     {JSON.stringify(decision.new_value, null, 2)}
                   </pre>
                 </div>
@@ -164,45 +183,45 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
           )}
 
           {decision.applied_at && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Applied: {formatDateShort(new Date(decision.applied_at))}
             </p>
           )}
           {decision.notes && (
-            <p className="text-xs text-muted-foreground italic">{decision.notes}</p>
+            <p className="text-xs text-ink-muted italic">{decision.notes}</p>
           )}
 
           {/* ── Follow-through management (accepted/applied only) ── */}
           {manageable && (
-            <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-3 pt-2 border-t border-edge-subtle">
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-foreground">Follow-through</p>
+                <p className="text-xs font-medium text-ink">Follow-through</p>
                 {followThrough === 'not_started' ? (
                   <div className="flex gap-3 flex-wrap">
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'completed' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-green-400 hover:text-green-300 disabled:opacity-50"
+                      className="text-xs font-medium text-success hover:text-success/80 disabled:opacity-50"
                     >
                       Mark completed
                     </button>
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'abandoned' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Mark abandoned
                     </button>
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'not_applicable' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Not applicable
                     </button>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-muted">
                     {FOLLOW_THROUGH_LABELS[followThrough]}
                     {decision.completed_at &&
                       ` · ${formatDateShort(new Date(decision.completed_at))}`}
@@ -212,13 +231,13 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
 
               {/* Review date */}
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-foreground">Review date</p>
+                <p className="text-xs font-medium text-ink">Review date</p>
                 <div className="flex gap-2 items-center flex-wrap">
                   <input
                     type="date"
                     value={reviewDateInput}
                     onChange={(e) => setReviewDateInput(e.target.value)}
-                    className="px-2 py-1 rounded-md bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="px-2 py-1 rounded-md bg-surface border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                     aria-label="Review date"
                   />
                   <button
@@ -227,7 +246,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                       actioning ||
                       !isReviewDateSaveable(decision.review_on ?? null, reviewDateInput)
                     }
-                    className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                    className="text-xs font-medium text-brand hover:underline disabled:opacity-50"
                   >
                     Set review date
                   </button>
@@ -238,7 +257,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                         handleUpdate({ review_on: null })
                       }}
                       disabled={actioning}
-                      className="text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Clear
                     </button>
@@ -249,9 +268,9 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
               {/* Outcome — only once follow-through is recorded */}
               {isOutcomeEligible(followThrough) && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-foreground">Outcome</p>
+                  <p className="text-xs font-medium text-ink">Outcome</p>
                   {outcome !== null && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-ink-muted">
                       {OUTCOME_LABELS[outcome]}
                       {decision.reviewed_at &&
                         ` · reviewed ${formatDateShort(new Date(decision.reviewed_at))}`}
@@ -262,7 +281,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                     <select
                       value={outcomeInput}
                       onChange={(e) => setOutcomeInput(e.target.value as DecisionOutcome | '')}
-                      className="w-full px-2 py-1.5 rounded-md bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full px-2 py-1.5 rounded-md bg-surface border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                       aria-label="Outcome"
                     >
                       <option value="">Choose an outcome…</option>
@@ -278,7 +297,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                       maxLength={OUTCOME_NOTES_MAX_LENGTH}
                       rows={2}
                       placeholder="Optional note — what happened? (no need to explain why)"
-                      className="w-full px-2 py-1.5 rounded-md bg-secondary border border-border text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full px-2 py-1.5 rounded-md bg-surface border border-edge text-ink text-xs placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring"
                       aria-label="Outcome notes"
                     />
                     <button
@@ -289,7 +308,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                         })
                       }
                       disabled={actioning || outcomeInput === ''}
-                      className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                      className="text-xs font-medium text-brand hover:underline disabled:opacity-50"
                     >
                       {outcome === null ? 'Record outcome' : 'Update outcome'}
                     </button>
@@ -303,16 +322,16 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
 
       {/* Inline error — prior card state stays intact */}
       {error && (
-        <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1.5">{error}</p>
+        <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5">{error}</p>
       )}
 
       {/* Accept / Dismiss actions */}
       {decision.status === 'suggested' && (
-        <div className="flex gap-3 pt-1 border-t border-border">
+        <div className="flex gap-3 pt-1 border-t border-edge-subtle">
           <button
             onClick={() => handleUpdate({ status: 'accepted' })}
             disabled={actioning}
-            className="flex items-center gap-1.5 text-sm font-medium text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-success hover:text-success/80 disabled:opacity-50 transition-colors"
           >
             <CheckCircle className="w-4 h-4" />
             Accept
@@ -320,13 +339,14 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
           <button
             onClick={() => handleUpdate({ status: 'dismissed' })}
             disabled={actioning}
-            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50 transition-colors"
           >
             <XCircle className="w-4 h-4" />
             Dismiss
           </button>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

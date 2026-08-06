@@ -301,9 +301,11 @@ console.log('\n11. Phase boundary invariants')
     read('src/app/layout.tsx').includes('bg-canvas text-ink'))
   check('.shred-card alias still defined for other routes',
     read('src/app/globals.css').includes('.shred-card'))
-  check('other routes unchanged (H1 anchors)',
-    read('src/app/(app)/coach/page.tsx').includes('Coach actions') &&
-    read('src/app/(app)/decisions/page.tsx').includes('Decision log') &&
+  check('other routes unchanged (behavior anchors)',
+    // 4B.4 redesigned the Coach-pillar presentation; durable anchors
+    // are the routes' behavior contracts, not the retired H1 copy.
+    read('src/app/(app)/coach/page.tsx').includes('fetchCoachActions') &&
+    read('src/app/(app)/decisions/page.tsx').includes('Nothing changes silently') &&
     read('src/app/(app)/profile/page.tsx').includes('main_goal_changed'))
   check('no dependency changes',
     Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)
