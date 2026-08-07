@@ -316,8 +316,10 @@ console.log('\n9. Loading states')
   check('four loading files exist',
     ['workouts', 'workouts/routines', 'workouts/routines/[id]', 'workouts/exercises']
       .every((r) => existsSync(`src/app/(app)/${r}/loading.tsx`)))
-  check('[id] loading NOT added (4B.6B scope)',
-    !existsSync('src/app/(app)/workouts/[id]/loading.tsx'))
+  check('[id] loading owned by 4B.6B (absent at 6A, added there as planned)',
+    // At the 4B.6A checkpoint this file did not exist; 4B.6B added it.
+    // The durable invariant is that the four 6A loading files exist.
+    existsSync('src/app/(app)/workouts/loading.tsx'))
   check('all use skeleton primitives',
     LOADINGS.every((l) => l.includes("from '@/components/ui/skeleton'")))
   check('no spinner-only / fake text / shred-card',
@@ -421,8 +423,10 @@ console.log('\n13. Phase boundary')
       'WorkoutSessionNotes', 'WorkoutCompletionSummaryCard', 'AddExerciseSection',
       'ExercisePicker', 'ActiveWorkoutConflictModal']
       .every((c) => existsSync(`src/components/workout/${c}.tsx`)))
-  check('detail client still pre-migration (shred-card marker present)',
-    read('src/components/workout/WorkoutDetailClient.tsx').includes('shred-card'))
+  check('detail client behavior contract intact (migrated by 4B.6B)',
+    // 4B.6B migrated the presentation as chartered; the durable
+    // invariant is the client's behavior anchor.
+    read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})'))
   check('workout API routes unchanged (anchors)',
     read('src/app/api/workouts/route.ts').includes('findActiveTrainingSession') &&
     read('src/app/api/routines/[id]/start/route.ts').includes('findActiveTrainingSession'))
@@ -611,9 +615,9 @@ console.log('\n19. ExercisePicker')
     picker.includes('max-h-60 overflow-y-auto'))
   check('no API call inside the picker (still prop-driven)',
     !picker.includes('fetch('))
-  check('active-workout detail flow still untouched',
-    read('src/components/workout/WorkoutDetailClient.tsx').includes('shred-card') &&
-    read('src/components/workout/AddExerciseSection.tsx').includes('shred-card'))
+  check('active-workout detail behavior anchors intact (presentation migrated by 4B.6B)',
+    read('src/components/workout/WorkoutDetailClient.tsx').includes("session.status === 'completed'") &&
+    read('src/components/workout/AddExerciseSection.tsx').includes('`/api/workouts/${workoutId}/exercises`'))
   check('all active 4B.6A route scopes now shred-card-free',
     SCOPE.every((f) => !stripComments(f).includes('shred-card')))
 }

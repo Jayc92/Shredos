@@ -7,6 +7,7 @@ import { formatWorkoutDuration } from '@/lib/workout'
 import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
 import { format, parseISO } from 'date-fns'
 import { Check, Pencil, Trash2, X } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutSession } from '@/types/database'
 
 // Phase 2N title-error fix: must match WORKOUT_TITLE_MAX_LENGTH in
@@ -103,11 +104,18 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
     } catch { setDeleteError('Network error — please try again.'); setDeleting(false) }
   }
   return (
-    <div className="shred-card space-y-3">
+    // State-driven hierarchy (Phase 4B.6B): the active session is the
+    // page's primary surface (action); completed reads as a settled
+    // elevated card; skipped stays subtle. Status text always renders.
+    <Card
+      variant={isActive ? 'action' : isDone ? 'elevated' : 'subtle'}
+      className="gap-0 py-4"
+    >
+      <CardContent className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         {isDone ? (
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
+            <h1 className="text-base font-semibold text-ink truncate">{title}</h1>
           </div>
         ) : editingTitle ? (
           <div className="flex-1 min-w-0 space-y-1">
@@ -116,64 +124,65 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                 onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') handleTitleCancel() }}
                 maxLength={TITLE_MAX_LENGTH + 20}
                 aria-label="Workout title"
-                className="flex-1 min-w-0 px-2 py-1 rounded-md bg-secondary border border-input text-foreground text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
+                className="flex-1 min-w-0 px-2 py-1 rounded-md bg-secondary border border-input text-ink text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
               <button onClick={saveTitle} disabled={savingTitle || title.trim().length > TITLE_MAX_LENGTH}
                 aria-label="Save title"
-                className="text-green-400 hover:text-green-300 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-colors">
+                className="text-success hover:text-success/80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-colors">
                 <Check className="w-4 h-4" />
               </button>
               <button onClick={handleTitleCancel} disabled={savingTitle}
                 aria-label="Cancel editing title"
-                className="text-muted-foreground hover:text-foreground disabled:opacity-40 flex-shrink-0 transition-colors">
+                className="text-ink-muted hover:text-ink disabled:opacity-40 flex-shrink-0 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className={cn('text-xs', title.length > TITLE_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground')} aria-live="polite">
+            <p className={cn('text-xs', title.length > TITLE_MAX_LENGTH ? 'text-critical' : 'text-ink-muted')} aria-live="polite">
               {title.length} / {TITLE_MAX_LENGTH}
             </p>
             {titleError && (
-              <p className="text-xs text-destructive" aria-live="polite">{titleError}</p>
+              <p className="text-xs text-critical" aria-live="polite">{titleError}</p>
             )}
           </div>
         ) : (
           <button onClick={handleTitleClick} className="flex items-center gap-2 text-left flex-1 min-w-0 group">
-            <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <h1 className="text-base font-semibold text-ink truncate">{title}</h1>
+            <Pencil className="w-3.5 h-3.5 text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </button>
         )}
         <button onClick={handleDelete} disabled={deleting} title="Delete workout session" aria-label="Delete workout session"
-          className="p-1.5 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
+          className="p-1.5 text-ink-muted hover:text-critical transition-colors flex-shrink-0 disabled:opacity-40">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 flex-wrap text-xs text-ink-muted">
         <span>{dateLabel}</span>
         {duration && <span>{duration}</span>}
-        {routineId && routineName && <a href={`/workouts/routines/${routineId}`} className="text-primary hover:underline flex-shrink-0">From: {routineName} →</a>}
+        {routineId && routineName && <a href={`/workouts/routines/${routineId}`} className="text-brand hover:underline flex-shrink-0">From: {routineName} →</a>}
         <span className={cn('rounded-full border px-2 py-0.5 font-medium',
-          isDone ? 'bg-green-500/15 text-green-400 border-green-500/20' : isActive ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-secondary text-muted-foreground border-border')}>
+          isDone ? 'bg-success-subtle text-success border-success/20' : isActive ? 'bg-caution-subtle text-caution border-caution/20' : 'bg-surface-sunken text-ink-muted border-edge-subtle')}>
           {WORKOUT_STATUS_LABELS[session.status] ?? session.status}
         </span>
       </div>
-      {deleteError && <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{deleteError}</p>}
+      {deleteError && <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1">{deleteError}</p>}
       {isActive && (
         <div className="space-y-2">
           <button onClick={handleComplete} disabled={completing}
-            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            className="w-full min-h-11 py-2.5 rounded-[var(--radius-control)] bg-brand text-brand-foreground text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors">
             {completing ? 'Saving…' : 'Complete workout'}
           </button>
-          {completeError && <p className="text-xs text-destructive text-center">{completeError}</p>}
+          {completeError && <p className="text-xs text-critical text-center">{completeError}</p>}
         </div>
       )}
       {isDone && (
         <div className="space-y-2">
           <button onClick={handleReopen} disabled={reopening}
-            className="w-full py-2.5 rounded-lg border border-border text-muted-foreground font-medium text-sm hover:bg-secondary disabled:opacity-50 transition-colors">
+            className="w-full min-h-11 py-2.5 rounded-[var(--radius-control)] border border-edge text-ink-muted font-medium text-sm hover:bg-surface-interactive disabled:opacity-50 transition-colors">
             {reopening ? 'Reopening…' : 'Reopen workout'}
           </button>
-          {reopenError && <p className="text-xs text-destructive text-center">{reopenError}</p>}
+          {reopenError && <p className="text-xs text-critical text-center">{reopenError}</p>}
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

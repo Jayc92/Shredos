@@ -9,6 +9,7 @@ import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline, RepRange } from '@/lib/workout'
 
@@ -20,7 +21,7 @@ const TREND_LABEL: Partial<Record<ProgressionTrend, string>> = {
 }
 const TREND_CLS: Partial<Record<ProgressionTrend, string>> = {
   improving: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
-  steady:    'bg-secondary text-muted-foreground border-border',
+  steady:    'bg-secondary text-ink-muted border-border',
   stalling:  'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
 }
 
@@ -206,18 +207,19 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
   const trendCls   = trend ? TREND_CLS[trend]   : undefined
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div className="flex items-start justify-between gap-2">
         <button type="button" onClick={() => setOpen(!open)}
           className="flex items-start gap-2 flex-1 text-left min-w-0">
           {open
-            ? <ChevronDown  className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            : <ChevronRight className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />}
+            ? <ChevronDown  className="w-4 h-4 text-ink-muted mt-0.5 flex-shrink-0" />
+            : <ChevronRight className="w-4 h-4 text-ink-muted mt-0.5 flex-shrink-0" />}
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-foreground">{we.exercise.name}</span>
+              <span className="text-sm font-semibold text-ink">{we.exercise.name}</span>
               {we.exercise.unilateral && (
-                <span className="text-xs text-muted-foreground">(per side)</span>
+                <span className="text-xs text-ink-muted">(per side)</span>
               )}
               {/* Phase 1E: trend label — only shown for meaningful signals */}
               {trendLabel && trendCls && (
@@ -229,7 +231,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-ink-muted mt-0.5">
               {we.exercise.primary_muscle.charAt(0).toUpperCase() + we.exercise.primary_muscle.slice(1)}
               {we.exercise.equipment ? ` · ${we.exercise.equipment}` : ''}
               {totalSets > 0 && ` · ${completedSets}/${totalSets} sets done`}
@@ -247,7 +249,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           )}
           {!readOnly && (
             <button type="button" onClick={handleRemove} disabled={removing}
-              className="p-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+              className="p-1 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
               aria-label="Remove exercise">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -259,7 +261,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
         <div className="pl-6">
           {editingExerciseNotes ? (
             <div className="space-y-1.5">
-              <label htmlFor={`exercise-notes-${we.exercise.id}`} className="text-xs font-medium text-muted-foreground">
+              <label htmlFor={`exercise-notes-${we.exercise.id}`} className="text-xs font-medium text-ink-muted">
                 Exercise notes
               </label>
               <textarea
@@ -270,10 +272,10 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
                 placeholder="Setup, form cues, equipment differences, or anything to remember next time."
                 maxLength={EXERCISE_NOTES_MAX_LENGTH + 100}
                 rows={3}
-                className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-ink text-xs placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
               />
               <p
-                className={cn('text-xs', exerciseNotesDraft.length > EXERCISE_NOTES_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground')}
+                className={cn('text-xs', exerciseNotesDraft.length > EXERCISE_NOTES_MAX_LENGTH ? 'text-destructive' : 'text-ink-muted')}
                 aria-live="polite"
               >
                 {exerciseNotesDraft.length} / {EXERCISE_NOTES_MAX_LENGTH}
@@ -288,23 +290,23 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
                   {savingExerciseNotes ? 'Saving…' : 'Save'}
                 </button>
                 <button type="button" onClick={handleExerciseNotesCancel} disabled={savingExerciseNotes}
-                  className="px-3 py-1 rounded-md border border-border text-muted-foreground text-xs font-medium hover:bg-secondary disabled:opacity-50 transition-colors">
+                  className="px-3 py-1 rounded-md border border-border text-ink-muted text-xs font-medium hover:bg-secondary disabled:opacity-50 transition-colors">
                   Cancel
                 </button>
               </div>
             </div>
           ) : trimmedExerciseNotes.length > 0 ? (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Exercise notes</p>
-              <p className="text-xs text-foreground whitespace-pre-wrap break-words">{trimmedExerciseNotes}</p>
+              <p className="text-xs font-medium text-ink-muted">Exercise notes</p>
+              <p className="text-xs text-ink whitespace-pre-wrap break-words">{trimmedExerciseNotes}</p>
               {!readOnly && (
-                <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-primary hover:underline">
+                <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-brand hover:underline">
                   Edit notes
                 </button>
               )}
             </div>
           ) : (
-            <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={startEditingExerciseNotes} className="text-xs text-ink-muted hover:text-ink transition-colors">
               + Add exercise notes
             </button>
           )}
@@ -314,10 +316,10 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
       {open && (
         <div className="pl-6 space-y-0.5">
           {previousBest && (
-            <p className="text-xs text-muted-foreground">Last: {prevSummary}</p>
+            <p className="text-xs text-ink-muted">Last: {prevSummary}</p>
           )}
           {nextTarget.action !== 'no_suggestion' && (
-            <p className="text-xs text-muted-foreground">{nextTarget.message}</p>
+            <p className="text-xs text-ink-muted">{nextTarget.message}</p>
           )}
         </div>
       )}
@@ -327,7 +329,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
       )}
 
       {open && (we.target_sets || we.target_reps) && (
-        <p className="text-xs text-muted-foreground pl-6">
+        <p className="text-xs text-ink-muted pl-6">
           Target: {[
             we.target_sets   && `${we.target_sets} sets`,
             we.target_reps   && `${we.target_reps} reps`,
@@ -338,7 +340,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
 
       {open && sets.length > 0 && (
         <div className="pl-6">
-          <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 mb-1 text-xs text-ink-muted">
             <span className="w-5 text-center">#</span>
             {we.exercise.tracking_mode === 'weight_reps' && (
               <>
@@ -393,6 +395,7 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           </button>
         </div>
       )}
-    </div>
+    </CardContent>
+    </Card>
   )
 }

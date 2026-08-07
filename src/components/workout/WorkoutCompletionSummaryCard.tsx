@@ -1,3 +1,4 @@
+import { Card, CardContent } from '@/components/ui/card'
 import { formatWorkoutDuration } from '@/lib/workout'
 import type { WorkoutCompletionSummary } from '@/lib/workout'
 
@@ -40,23 +41,24 @@ export function WorkoutCompletionSummaryCard({
   ].filter(Boolean)
 
   return (
-    <div className="shred-card space-y-3">
+    <Card variant="elevated" className="gap-0 py-4">
+      <CardContent className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">Workout complete</h2>
+        <h2 className="text-sm font-semibold text-ink">Workout complete</h2>
         {duration && (
-          <p className="text-xs text-muted-foreground mt-0.5">Duration: {duration}</p>
+          <p className="text-xs text-ink-muted mt-0.5">Duration: {duration}</p>
         )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap text-sm text-foreground">
+      <div className="flex items-center gap-2 flex-wrap text-sm text-ink">
         <span>
           {summary.completedExerciseCount} of {summary.exerciseCount} exercises
         </span>
-        <span className="text-muted-foreground">·</span>
+        <span className="text-ink-muted">·</span>
         <span>{summary.workingSetCount} working sets</span>
         {summary.prSetCount > 0 && (
           <>
-            <span className="text-muted-foreground">·</span>
+            <span className="text-ink-muted">·</span>
             <span>
               {summary.prSetCount} PR set{summary.prSetCount !== 1 ? 's' : ''}
             </span>
@@ -66,8 +68,8 @@ export function WorkoutCompletionSummaryCard({
 
       {showTargetExecution && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Target execution</p>
-          <p className="text-sm text-foreground">
+          <p className="text-xs font-medium text-ink-muted mb-1">Target execution</p>
+          <p className="text-sm text-ink">
             {targetCounts.belowTarget} below · {targetCounts.inRange} in range ·{' '}
             {targetCounts.topOfRange} top · {targetCounts.aboveTarget} above
           </p>
@@ -76,17 +78,17 @@ export function WorkoutCompletionSummaryCard({
 
       {showEffort && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Effort</p>
-          <p className="text-sm text-foreground">{effortParts.join(' · ')}</p>
+          <p className="text-xs font-medium text-ink-muted mb-1">Effort</p>
+          <p className="text-sm text-ink">{effortParts.join(' · ')}</p>
         </div>
       )}
 
       {summary.highlights.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Highlights</p>
+          <p className="text-xs font-medium text-ink-muted mb-1">Highlights</p>
           <ul className="space-y-1">
             {summary.highlights.map((h, i) => (
-              <li key={i} className="text-sm text-foreground">
+              <li key={i} className="text-sm text-ink">
                 {h}
               </li>
             ))}
@@ -96,10 +98,10 @@ export function WorkoutCompletionSummaryCard({
 
       {summary.attention.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Attention</p>
+          <p className="text-xs font-medium text-ink-muted mb-1">Attention</p>
           <ul className="space-y-1">
             {summary.attention.map((a, i) => (
-              <li key={i} className="text-sm text-foreground">
+              <li key={i} className="text-sm text-ink">
                 {a}
               </li>
             ))}
@@ -109,10 +111,11 @@ export function WorkoutCompletionSummaryCard({
 
       {trimmedNotes.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Session notes</p>
-          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{trimmedNotes}</p>
+          <p className="text-xs font-medium text-ink-muted mb-1">Session notes</p>
+          <p className="text-sm text-ink whitespace-pre-wrap break-words">{trimmedNotes}</p>
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

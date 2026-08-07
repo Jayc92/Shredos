@@ -9,6 +9,7 @@ import {
   fetchExercisePRBaseline,
 } from '@/lib/supabase/server'
 import { WorkoutDetailClient } from '@/components/workout/WorkoutDetailClient'
+import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { fetchExerciseTrends } from '@/lib/workout-coach'
 import type { Metadata } from 'next'
 
@@ -45,10 +46,12 @@ export default async function WorkoutDetailPage({ params }: { params: { id: stri
   ])
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
-      <Link href="/workouts" className="text-xs text-muted-foreground hover:text-foreground">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
+      <Link href="/workouts" className="text-xs text-ink-muted hover:text-ink">
         ← Workouts
       </Link>
+
+      <WorkoutsSubNav />
 
       <WorkoutDetailClient
         session={session}

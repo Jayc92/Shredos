@@ -36,9 +36,9 @@ export function AddExerciseSection({ exercises, workoutId }: AddExerciseSectionP
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="w-full shred-card flex items-center justify-center gap-2 py-3 text-sm text-primary hover:border-primary/50 transition-colors border-dashed"
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-edge bg-surface py-3 text-sm text-brand hover:border-brand/50 transition-colors min-h-11"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           Add exercise
         </button>
       )}

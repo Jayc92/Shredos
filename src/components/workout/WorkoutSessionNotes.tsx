@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutStatus } from '@/types/database'
 
 // Phase 2N: must match WORKOUT_NOTES_MAX_LENGTH in
@@ -86,10 +87,12 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
   // Read-only, has notes: plain display, no edit affordance.
   if (!isEditable) {
     return (
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">Session notes</h2>
-        <p className="text-sm text-foreground whitespace-pre-wrap break-words">{trimmedNotes}</p>
-      </div>
+      <Card variant="default" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+          <h2 className="text-sm font-semibold text-ink">Session notes</h2>
+          <p className="text-sm text-ink whitespace-pre-wrap break-words">{trimmedNotes}</p>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -97,15 +100,16 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
   // an "Add session notes" prompt, both leading into the same editor.
   if (!editing) {
     return (
-      <div className="shred-card space-y-1.5">
-        <h2 className="text-sm font-semibold text-foreground">Session notes</h2>
+      <Card variant="default" className="gap-0 py-4">
+        <CardContent className="space-y-1.5">
+        <h2 className="text-sm font-semibold text-ink">Session notes</h2>
         {trimmedNotes.length > 0 ? (
           <>
-            <p className="text-sm text-foreground whitespace-pre-wrap break-words">{trimmedNotes}</p>
+            <p className="text-sm text-ink whitespace-pre-wrap break-words">{trimmedNotes}</p>
             <button
               type="button"
               onClick={startEditing}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-brand hover:underline"
             >
               Edit notes
             </button>
@@ -114,12 +118,13 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           <button
             type="button"
             onClick={startEditing}
-            className="text-sm text-muted-foreground hover:text-foreground text-left transition-colors"
+            className="text-sm text-ink-muted hover:text-ink text-left transition-colors"
           >
             + Add session notes
           </button>
         )}
-      </div>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -128,9 +133,10 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
   const overLimit = draft.trim().length > NOTES_MAX_LENGTH
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div>
-        <label htmlFor="workout-notes-textarea" className="text-sm font-semibold text-foreground">
+        <label htmlFor="workout-notes-textarea" className="text-sm font-semibold text-ink">
           Workout notes
         </label>
         <textarea
@@ -140,10 +146,10 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           placeholder="Energy, pain, substitutions, or anything to remember next time."
           maxLength={NOTES_MAX_LENGTH + 200}
           rows={4}
-          className="mt-1.5 w-full px-3 py-2 rounded-md bg-secondary border border-input text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          className="mt-1.5 w-full px-3 py-2 rounded-md bg-secondary border border-input text-ink text-sm placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
         />
         <p
-          className={`text-xs mt-1 ${overLimit ? 'text-destructive' : 'text-muted-foreground'}`}
+          className={`text-xs mt-1 ${overLimit ? 'text-critical' : 'text-ink-muted'}`}
           aria-live="polite"
         >
           {draft.length} / {NOTES_MAX_LENGTH}
@@ -151,7 +157,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
       </div>
 
       {error && (
-        <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1.5">{error}</p>
+        <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5">{error}</p>
       )}
 
       <div className="flex items-center gap-2">
@@ -159,7 +165,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           type="button"
           onClick={handleSave}
           disabled={saving || overLimit}
-          className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="px-4 py-1.5 rounded-lg bg-brand text-brand-foreground text-xs font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -167,11 +173,12 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           type="button"
           onClick={handleCancel}
           disabled={saving}
-          className="px-4 py-1.5 rounded-lg border border-border text-muted-foreground text-xs font-medium hover:bg-secondary disabled:opacity-50 transition-colors"
+          className="px-4 py-1.5 rounded-lg border border-edge text-ink-muted text-xs font-medium hover:bg-surface-interactive disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

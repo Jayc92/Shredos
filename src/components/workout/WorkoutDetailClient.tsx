@@ -8,6 +8,7 @@ import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
 import { WorkoutCompletionSummaryCard } from '@/components/workout/WorkoutCompletionSummaryCard'
 import { WorkoutSessionNotes } from '@/components/workout/WorkoutSessionNotes'
 import { summarizeWorkout } from '@/lib/workout'
+import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 
@@ -37,10 +38,12 @@ export function WorkoutDetailClient({
 
   if (sessionDeleted) {
     return (
-      <div className="shred-card text-center py-8 space-y-1">
-        <p className="text-sm font-medium text-foreground">Workout deleted.</p>
-        <p className="text-xs text-muted-foreground">Redirecting…</p>
-      </div>
+      <Card variant="status" className="gap-0 py-8">
+        <CardContent className="space-y-1 text-center">
+          <p className="text-sm font-medium text-ink">Workout deleted.</p>
+          <p className="text-xs text-ink-muted">Redirecting…</p>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -80,9 +83,11 @@ export function WorkoutDetailClient({
       />
 
       {exercises.length === 0 && (
-        <div className="shred-card text-center py-6 text-sm text-muted-foreground">
-          No exercises yet. Add your first exercise below.
-        </div>
+        <Card variant="status" className="gap-0 py-6">
+          <CardContent className="text-center text-sm text-ink-muted">
+            No exercises yet. Add your first exercise below.
+          </CardContent>
+        </Card>
       )}
 
       {exercises.map((we: any) => (
