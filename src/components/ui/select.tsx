@@ -92,7 +92,12 @@ const SelectContent = React.forwardRef<
       className={cn(
         // z-[200] sits above all form elements, cards, and sidebars
         "relative z-[200] max-h-96 min-w-[8rem] overflow-hidden",
-        "rounded-lg border border-border bg-popover text-popover-foreground shadow-lg",
+        // Menu surface must use ForgeFitOS semantic tokens: the legacy
+        // --popover/--border custom properties hold oklch() values under
+        // html.dark but are consumed as hsl(var(--…)) — invalid at
+        // computed-value time, so the menu rendered TRANSPARENT and page
+        // content bled through it (4B.6C QA correction).
+        "rounded-lg border border-edge bg-surface text-ink shadow-lg",
         // Radix open/close animations
         "data-[state=open]:animate-in  data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0  data-[state=open]:fade-in-0",
@@ -153,7 +158,9 @@ const SelectItem = React.forwardRef<
     className={cn(
       "relative flex w-full cursor-default select-none items-center",
       "rounded-md py-2 pl-8 pr-3 text-sm outline-none",
-      "focus:bg-accent focus:text-accent-foreground",
+      // Semantic highlight (legacy --accent is oklch under html.dark →
+      // hsl(var(--accent)) is invalid → the old highlight was invisible)
+      "focus:bg-surface-sunken focus:text-ink",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
@@ -177,7 +184,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-border", className)}
+    className={cn("-mx-1 my-1 h-px bg-edge-subtle", className)}
     {...props}
   />
 ))

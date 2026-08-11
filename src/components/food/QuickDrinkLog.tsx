@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { DRINK_PRESETS, computeDrinkLogPayload } from '@/lib/drinks'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface QuickDrinkLogProps {
   date: string
@@ -58,8 +59,10 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="shred-card space-y-3">
-      <h2 className="text-sm font-semibold text-foreground">Quick drink log</h2>
+    <Card variant="subtle" className="gap-0 py-4">
+      <CardContent>
+      <form onSubmit={handleSubmit} className="space-y-3">
+      <h2 className="text-sm font-semibold text-ink">Quick drink log</h2>
 
       {/* Preset pills */}
       <div className="flex flex-wrap gap-2">
@@ -73,7 +76,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
               presetId === preset.id
                 ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                : 'border-border bg-background text-foreground hover:bg-muted'
+                : 'border-border bg-background text-ink hover:bg-muted'
             )}
           >
             {preset.label}
@@ -83,7 +86,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Quantity</label>
+          <label className="block text-sm font-medium text-ink">Quantity</label>
           <input
             type="number"
             inputMode="numeric"
@@ -92,25 +95,25 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
             min={1}
             max={MAX_QUANTITY}
             step={1}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-sm font-medium text-ink">
             Name{' '}
-            <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            <span className="text-ink-muted font-normal text-xs">(optional)</span>
           </label>
           <input
             type="text"
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="e.g. Bud Light"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-muted">
         Estimates vary by brand and pour size.
       </p>
 
@@ -132,5 +135,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
         {saving ? 'Logging…' : 'Log drink'}
       </button>
     </form>
+      </CardContent>
+    </Card>
   )
 }

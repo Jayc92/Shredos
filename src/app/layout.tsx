@@ -46,7 +46,16 @@ export default function RootLayout({
           values, and as class selectors they beat every element-selector
           fallback — leaving the body transparent, so the page color
           followed the viewer's OS color scheme instead of the design. */}
-      <body className={`font-sans antialiased bg-canvas text-ink min-h-screen`}>
+      {/* No sizing class on body (4B.6C QA correction): the
+          authenticated shell is viewport-pinned (fixed inset-0) and
+          out of document flow, and a viewport-unit-sized body box was
+          itself a source of the twin-scrollbar defect — under
+          fractional viewports (zoom rounding, display scaling) a
+          100vh/100dvh box can exceed the root's client box and give
+          the document a phantom scroll range. bg-canvas propagates to
+          the viewport canvas regardless of body height; standalone
+          documents (login) size themselves and scroll normally. */}
+      <body className={`font-sans antialiased bg-canvas text-ink`}>
         {children}
       </body>
     </html>

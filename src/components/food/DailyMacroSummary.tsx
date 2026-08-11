@@ -1,6 +1,7 @@
 import { progressColor, remainingColor } from '@/lib/food'
 import type { NutritionProgress } from '@/types/app'
 import type { NutritionTarget } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface DailyMacroSummaryProps {
   progress: NutritionProgress | null
@@ -26,10 +27,10 @@ function BarRow({ label, consumed, target, pct, remaining, unit = 'g', isCalorie
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground font-medium">{label}</span>
-        <span className="tabular-nums text-foreground">
+        <span className="text-ink-muted font-medium">{label}</span>
+        <span className="tabular-nums text-ink">
           {isCalories ? consumed.toLocaleString() : consumed.toFixed(1)}{isCalories ? '' : unit}
-          <span className="text-muted-foreground"> / {isCalories ? target.toLocaleString() : target}{isCalories ? ' cal' : unit}</span>
+          <span className="text-ink-muted"> / {isCalories ? target.toLocaleString() : target}{isCalories ? ' cal' : unit}</span>
         </span>
       </div>
       <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -50,37 +51,42 @@ function BarRow({ label, consumed, target, pct, remaining, unit = 'g', isCalorie
 export function DailyMacroSummary({ progress, target, compact = false }: DailyMacroSummaryProps) {
   if (!target) {
     return (
-      <div className="shred-card">
-        <p className="text-sm text-muted-foreground">
+      <Card variant="status" className="gap-0 py-4">
+        <CardContent>
+        <p className="text-sm text-ink-muted">
           No nutrition targets set.{' '}
-          <a href="/nutrition" className="text-primary hover:underline">Set targets →</a>
+          <a href="/nutrition" className="text-brand hover:underline">Set targets →</a>
         </p>
-      </div>
+      </CardContent>
+      </Card>
     )
   }
 
   if (!progress) {
     // No food logged yet
     return (
-      <div className={`shred-card space-y-3 ${compact ? 'py-3' : ''}`}>
+      <Card variant="metric" className="gap-0 py-4">
+        <CardContent className="space-y-3 ${compact ? 'py-3' : ''}">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground">Today</span>
-          <span className="text-xs text-muted-foreground">Target: {target.calories.toLocaleString()} cal</span>
+          <span className="text-sm font-medium text-ink">Today</span>
+          <span className="text-xs text-ink-muted">Target: {target.calories.toLocaleString()} cal</span>
         </div>
-        <p className="text-sm text-muted-foreground">No food logged yet today.</p>
-        <a href="/food" className="text-xs text-primary hover:underline">Log food →</a>
-      </div>
+        <p className="text-sm text-ink-muted">No food logged yet today.</p>
+        <a href="/food" className="text-xs text-brand hover:underline">Log food →</a>
+      </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className={`shred-card space-y-${compact ? '2' : '3'}`}>
+    <Card variant="elevated" className="gap-0 py-4">
+      <CardContent className="space-y-${compact ? '2' : '3'}">
       {/* Warnings */}
       {progress.warnings.length > 0 && (
         <div className="space-y-1.5">
           {progress.warnings.map((w, i) => (
-            <div key={i} className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              <p className="text-xs text-amber-300">{w}</p>
+            <div key={i} className="bg-caution-subtle border border-caution/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-caution">{w}</p>
             </div>
           ))}
         </div>
@@ -120,11 +126,12 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
         </>
       )}
 
-      <div className="pt-1 border-t border-border">
-        <a href="/food" className="text-xs text-primary hover:underline">
+      <div className="pt-1 border-t border-edge-subtle">
+        <a href="/food" className="text-xs text-brand hover:underline">
           Log food →
         </a>
       </div>
-    </div>
+    </CardContent>
+    </Card>
   )
 }

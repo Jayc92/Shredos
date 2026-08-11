@@ -10,9 +10,16 @@ import {
 } from '@/lib/nutrition-trends'
 import type { RawFoodLogLike } from '@/lib/nutrition-trends'
 import { NutritionTrendSection } from '@/components/nutrition/NutritionTrendSection'
+import { FuelSubNav } from '@/components/food/FuelSubNav'
+import { Card, CardContent } from '@/components/ui/card'
 import { GoalAdjustmentReviewCard } from '@/components/nutrition/GoalAdjustmentReviewCard'
 import { kgToLbs } from '@/lib/units'
 import type { NutritionTarget, UserProfile } from '@/types/database'
+// The client fetch state reuses the route's own loading.tsx composition,
+// so the skeleton the router shows during navigation and the skeleton
+// this page shows while its client query runs are byte-identical —
+// never a bare text fallback (4B.6C QA correction).
+import NutritionLoading from './loading'
 
 // This page is client-side to support live recalculation
 export default function NutritionPage() {
@@ -155,9 +162,7 @@ export default function NutritionPage() {
   }
 
   if (loading) {
-    return (
-      <div className="p-6 text-center text-muted-foreground text-sm">Loading...</div>
-    )
+    return <NutritionLoading />
   }
 
   const weightLbs = profile?.current_weight_kg
@@ -181,17 +186,45 @@ export default function NutritionPage() {
   const trendSummary = buildNutritionTrendSummary(trendLogs, target?.protein_g ?? null)
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
       <div>
-        <h1 className="text-xl font-bold">Nutrition targets</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <h1 className="text-xl font-bold text-ink">Nutrition targets</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
           Edit your daily targets. Each change is versioned and logged.
         </p>
       </div>
 
-      {/* Phase 2Z: nutrition trend summary + 28-day charts, ahead of
-          the existing targets content, which is preserved unchanged. */}
-      <NutritionTrendSection summary={trendSummary} />
+      <FuelSubNav />
+
+      {/* Current authoritative target (4B.6C) — a display of the SAME
+          already-fetched target the form below edits; the suggestion
+          surfaces further down never visually replace these values
+          before an explicit apply. */}
+      {target && (
+        <Card variant="elevated" className="gap-0 py-4">
+          <CardContent className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-ink">Current target</h2>
+              <span className="text-xs text-ink-muted">
+                Effective {target.effective_date}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              {[
+                { label: 'Calories', value: target.calories.toLocaleString() },
+                { label: 'Protein', value: `${target.protein_g}g` },
+                { label: 'Carbs', value: `${target.carbs_g}g` },
+                { label: 'Fat', value: `${target.fat_g}g` },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-surface-sunken rounded-lg py-3">
+                  <p className="metric-label">{label}</p>
+                  <p className="text-xl font-bold tabular-nums mt-1 text-ink">{value}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Phase 3E: the ONE authoritative adjustment-review surface.
           Server-computed evidence, explicit user approval; a
@@ -209,8 +242,9 @@ export default function NutritionPage() {
 
       {/* Calculated suggestion */}
       {calculated && (
-        <div className="shred-card space-y-3">
-          <h3 className="text-sm font-medium text-foreground">
+        <Card variant="subtle" className="gap-0 py-4">
+          <CardContent className="space-y-3">
+          <h3 className="text-sm font-medium text-ink">
             Calculated from profile
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -228,9 +262,9 @@ export default function NutritionPage() {
           </div>
 
           {calculated.warnings.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <div className="bg-caution-subtle border border-caution/20 rounded-lg px-3 py-2">
               {calculated.warnings.map((w, i) => (
-                <p key={i} className="text-xs text-amber-300">{w}</p>
+                <p key={i} className="text-xs text-caution">{w}</p>
               ))}
             </div>
           )}
@@ -242,16 +276,19 @@ export default function NutritionPage() {
               setCarbs(String(calculated.carbs_g))
               setFat(String(calculated.fat_g))
             }}
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-brand hover:underline"
           >
             Use calculated values ↓
           </button>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Manual edit form */}
-      <form onSubmit={handleSave} className="shred-card space-y-4">
-        <h3 className="text-sm font-medium text-foreground">Override targets</h3>
+      <Card variant="action" className="gap-0 py-4">
+        <CardContent>
+      <form onSubmit={handleSave} className="space-y-4">
+        <h3 className="text-sm font-medium text-ink">Override targets</h3>
 
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -261,7 +298,7 @@ export default function NutritionPage() {
             { label: 'Fat (min)', value: fat, set: setFat, unit: 'g', min: '0', max: '500' },
           ].map(({ label, value, set, unit, min, max }) => (
             <div key={label} className="space-y-1.5">
-              <label className="block text-sm font-medium text-foreground">{label}</label>
+              <label className="block text-sm font-medium text-ink">{label}</label>
               <div className="relative">
                 <input
                   type="number"
@@ -270,9 +307,9 @@ export default function NutritionPage() {
                   min={min}
                   max={max}
                   required
-                  className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+                  className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">{unit}</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">{unit}</span>
               </div>
             </div>
           ))}
@@ -280,8 +317,8 @@ export default function NutritionPage() {
 
         {/* Low-carb warning */}
         {parseInt(carbs) > 0 && parseInt(carbs) < 75 && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-            <p className="text-xs text-amber-300">
+          <div className="bg-caution-subtle border border-caution/20 rounded-lg px-3 py-2">
+            <p className="text-xs text-caution">
               Carbs are below 75g/day. This may affect training energy and adherence. You can save
               these targets, but consider increasing carbs if performance suffers.
             </p>
@@ -289,21 +326,21 @@ export default function NutritionPage() {
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Notes (optional)</label>
+          <label className="block text-sm font-medium text-ink">Notes (optional)</label>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Reason for change..."
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
 
         {saveError && (
-          <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{saveError}</p>
+          <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{saveError}</p>
         )}
         {saveSuccess && (
-          <p className="text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
+          <p className="text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
             ✓ Targets updated and logged.
           </p>
         )}
@@ -311,11 +348,17 @@ export default function NutritionPage() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="w-full py-2.5 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover min-h-11 disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving...' : 'Save targets'}
         </button>
       </form>
+        </CardContent>
+      </Card>
+
+      {/* Phase 2Z trend summary + 28-day charts — values and math
+          unchanged; now the trailing context section (4B.6C order). */}
+      <NutritionTrendSection summary={trendSummary} />
     </div>
   )
 }

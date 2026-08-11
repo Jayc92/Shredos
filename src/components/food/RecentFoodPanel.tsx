@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import type { FoodLog, MealType } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface RecentFoodPanelProps {
   recentFoods: FoodLog[]
@@ -28,18 +29,18 @@ function RecentFoodConfirm({ entry, date, onConfirm, onCancel, saving }: RecentF
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-2">
-      <p className="text-sm font-medium text-foreground">
+      <p className="text-sm font-medium text-ink">
         Add <span className="text-primary">{entry.food_name}</span> to{' '}
         {date === new Date().toISOString().split('T')[0] ? 'today' : date}?
       </p>
-      <div className="text-xs text-muted-foreground space-x-3">
+      <div className="text-xs text-ink-muted space-x-3">
         <span>{entry.calories} cal</span>
         <span>{Number(entry.protein_g).toFixed(1)}g P</span>
         <span>{Number(entry.carbs_g).toFixed(1)}g C</span>
         <span>{Number(entry.fat_g).toFixed(1)}g F</span>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-xs text-muted-foreground flex-shrink-0">Meal type:</label>
+        <label className="text-xs text-ink-muted flex-shrink-0">Meal type:</label>
         <Select value={mealType} onValueChange={(v: string) => setMealType(v as MealType)}>
           <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -51,7 +52,7 @@ function RecentFoodConfirm({ entry, date, onConfirm, onCancel, saving }: RecentF
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="flex-1 py-2 text-xs text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors">
+          className="flex-1 py-2 text-xs text-ink-muted border border-border rounded-lg hover:bg-muted transition-colors">
           Cancel
         </button>
         <button type="button" onClick={() => onConfirm(mealType)} disabled={saving}
@@ -95,10 +96,10 @@ function RecentFoodRow({ entry, date }: { entry: FoodLog; date: string }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+      <div className="flex items-center justify-between py-2 border-b border-edge-subtle/50 last:border-0">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{entry.food_name}</p>
-          <p className="text-xs text-muted-foreground tabular-nums">
+          <p className="text-sm font-medium text-ink truncate">{entry.food_name}</p>
+          <p className="text-xs text-ink-muted tabular-nums">
             {entry.calories} cal · {Number(entry.protein_g).toFixed(1)}g P ·{' '}
             {Number(entry.carbs_g).toFixed(1)}g C · {Number(entry.fat_g).toFixed(1)}g F
             {' · '}
@@ -135,22 +136,26 @@ function RecentFoodRow({ entry, date }: { entry: FoodLog; date: string }) {
 export function RecentFoodPanel({ recentFoods, date }: RecentFoodPanelProps) {
   if (recentFoods.length === 0) {
     return (
-      <div className="shred-card text-center py-4 space-y-1">
-        <p className="text-sm text-muted-foreground">
+      <Card variant="status" className="gap-0 py-4">
+        <CardContent className="text-center py-4 space-y-1">
+        <p className="text-sm text-ink-muted">
           No recent food logs yet — entries you add will show up here for quick repeat.
         </p>
-      </div>
+      </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="shred-card space-y-2">
-      <h2 className="text-sm font-semibold text-foreground">Recent foods</h2>
+    <Card variant="subtle" className="gap-0 py-4">
+      <CardContent className="space-y-2">
+      <h2 className="text-sm font-semibold text-ink">Recent foods</h2>
       <div>
         {recentFoods.map((entry) => (
           <RecentFoodRow key={entry.id} entry={entry} date={date} />
         ))}
       </div>
-    </div>
+    </CardContent>
+    </Card>
   )
 }

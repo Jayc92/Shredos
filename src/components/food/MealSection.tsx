@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { FoodLogEntry } from './FoodLogEntry'
 import { AddFoodForm } from './AddFoodForm'
 import type { FoodLog, MealType } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface MealSectionProps {
   mealType: MealType
@@ -22,7 +23,8 @@ export function MealSection({ mealType, label, entries, date }: MealSectionProps
   const totalPro = entries.reduce((s, e) => s + Number(e.protein_g), 0)
 
   return (
-    <div className="shred-card space-y-1">
+    <Card variant="default" className="gap-0 py-4">
+      <CardContent className="space-y-1">
       {/* Section header */}
       <div className="flex items-center justify-between">
         <button
@@ -32,19 +34,19 @@ export function MealSection({ mealType, label, entries, date }: MealSectionProps
           aria-expanded={open}
         >
           {open ? (
-            <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <ChevronDown className="w-4 h-4 text-ink-muted flex-shrink-0" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-ink-muted flex-shrink-0" />
           )}
-          <span className="text-sm font-semibold text-foreground">{label}</span>
+          <span className="text-sm font-semibold text-ink">{label}</span>
           {hasEntries && (
-            <span className="text-xs text-muted-foreground ml-1">
+            <span className="text-xs text-ink-muted ml-1">
               {entries.length} item{entries.length !== 1 ? 's' : ''}
             </span>
           )}
         </button>
         {hasEntries && (
-          <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
+          <div className="flex items-center gap-3 text-xs text-ink-muted tabular-nums">
             <span>{totalCal} cal</span>
             <span>{Math.round(totalPro * 10) / 10}g P</span>
           </div>
@@ -73,7 +75,7 @@ export function MealSection({ mealType, label, entries, date }: MealSectionProps
             <button
               type="button"
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1"
+              className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-primary transition-colors py-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add {label.toLowerCase()}
@@ -87,12 +89,13 @@ export function MealSection({ mealType, label, entries, date }: MealSectionProps
         <button
           type="button"
           onClick={() => { setOpen(true); setShowAdd(true) }}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-0.5 pl-6"
+          className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-primary transition-colors py-0.5 pl-6"
         >
           <Plus className="w-3 h-3" />
           Add {label.toLowerCase()}
         </button>
       )}
-    </div>
+    </CardContent>
+    </Card>
   )
 }

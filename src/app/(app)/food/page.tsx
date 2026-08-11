@@ -11,6 +11,7 @@ import {
 } from '@/lib/supabase/server'
 import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { DailyMacroSummary } from '@/components/food/DailyMacroSummary'
+import { FuelSubNav } from '@/components/food/FuelSubNav'
 import { MealSection } from '@/components/food/MealSection'
 import { RecentFoodPanel } from '@/components/food/RecentFoodPanel'
 import { QuickDrinkLog } from '@/components/food/QuickDrinkLog'
@@ -41,30 +42,30 @@ function DateNav({ date }: { date: string }) {
     <div className="flex items-center justify-between">
       <Link
         href={`/food?date=${prev}`}
-        className="p-2 rounded-lg hover:bg-secondary transition-colors"
+        className="p-2 rounded-lg hover:bg-surface-interactive transition-colors"
         aria-label="Previous day"
       >
         <ChevronLeft className="w-5 h-5" />
       </Link>
 
       <div className="text-center">
-        <p className="text-base font-semibold text-foreground">
+        <p className="text-base font-semibold text-ink">
           {isCurrentToday ? 'Today' : format(current, 'EEEE, MMMM d')}
         </p>
         {!isCurrentToday && (
-          <Link href="/food" className="text-xs text-primary hover:underline">
+          <Link href="/food" className="text-xs text-brand hover:underline">
             Back to today
           </Link>
         )}
         {oldDate && (
-          <p className="text-xs text-amber-400 mt-0.5">Logging more than 7 days ago</p>
+          <p className="text-xs text-caution mt-0.5">Logging more than 7 days ago</p>
         )}
       </div>
 
       <Link
         href={isNextFuture ? '#' : `/food?date=${next}`}
         className={`p-2 rounded-lg transition-colors ${
-          isNextFuture ? 'opacity-30 pointer-events-none' : 'hover:bg-secondary'
+          isNextFuture ? 'opacity-30 pointer-events-none' : 'hover:bg-surface-interactive'
         }`}
         aria-label="Next day"
         aria-disabled={isNextFuture}
@@ -134,14 +135,16 @@ export default async function FoodPage({
   const progress = target ? computeNutritionProgress(totals, target, nowHour) : null
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Food log</h1>
-        <Link href="/food/saved" className="text-xs text-primary hover:underline">
-          Saved meals →
-        </Link>
+      <div>
+        <h1 className="text-xl font-bold text-ink">Food log</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
+          Log meals for the selected day and track daily totals.
+        </p>
       </div>
+
+      <FuelSubNav />
 
       {/* Phase 1F: coaching panel (today only, hidden until enough data) */}
       {nutritionSummary && (
@@ -158,6 +161,12 @@ export default async function FoodPage({
         compact={false}
       />
 
+      {/* Quick shortcuts — saved-meal quick add + recent foods sit
+          ahead of the meal sections (4B.6C hierarchy); the flows
+          themselves are unchanged. */}
+      <QuickAddPanel savedMeals={savedMeals} date={date} />
+      <RecentFoodPanel recentFoods={recentFoods} date={date} />
+
       {/* Meal sections */}
       {MEAL_TYPES.map(({ value, label }) => (
         <MealSection
@@ -169,17 +178,12 @@ export default async function FoodPage({
         />
       ))}
 
+      {/* Secondary tools */}
       {/* Quick drink log — one aggregate row, e.g. "7 Bud Lights" */}
       <QuickDrinkLog date={date} />
 
       {/* Nutrition label calculator — per-serving label values x servings eaten */}
       <LabelCalculatorForm date={date} />
-
-      {/* Recent foods — repeat a previously-logged entry to the selected date */}
-      <RecentFoodPanel recentFoods={recentFoods} date={date} />
-
-      {/* Quick add panel */}
-      <QuickAddPanel savedMeals={savedMeals} date={date} />
     </div>
   )
 }

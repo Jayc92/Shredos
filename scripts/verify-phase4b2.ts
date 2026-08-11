@@ -389,7 +389,9 @@ console.log('\n10. Contextual navigation')
   check('subnav aligned to approved terminology (Exercise library)',
     subNav.includes("label: 'Exercise library'"))
   check('Food / Saved meals relationship preserved',
-    read('src/app/(app)/food/page.tsx').includes('/food/saved'))
+    // 4B.6C moved the cross-link into the shared FuelSubNav.
+    read('src/components/food/FuelSubNav.tsx').includes("href: '/food/saved'") &&
+    read('src/app/(app)/food/page.tsx').includes('<FuelSubNav />'))
   check('Coach / Weekly review / Decisions relationship preserved (grouped)',
     byId('coach')?.group === 'coach' && byId('weekly-review')?.group === 'coach' &&
     byId('decisions')?.group === 'coach')

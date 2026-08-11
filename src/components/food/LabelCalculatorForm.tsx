@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { MealType } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface LabelCalculatorFormProps {
   date: string
@@ -121,9 +122,11 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="shred-card space-y-3">
-      <h2 className="text-sm font-semibold text-foreground">Nutrition label calculator</h2>
-      <p className="text-xs text-muted-foreground">
+    <Card variant="subtle" className="gap-0 py-4">
+      <CardContent>
+      <form onSubmit={handleSubmit} className="space-y-3">
+      <h2 className="text-sm font-semibold text-ink">Nutrition label calculator</h2>
+      <p className="text-xs text-ink-muted">
         Use the label values per serving, then enter how much you ate.
       </p>
 
@@ -132,12 +135,12 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
         value={f.foodName}
         onChange={(e) => upd({ foodName: e.target.value })}
         placeholder="Food name"
-        className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+        className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
       />
 
       {/* Meal type — pill group, same selected-state convention used elsewhere */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Meal type</p>
+        <p className="text-xs font-medium text-ink-muted">Meal type</p>
         <div className="flex flex-wrap gap-2">
           {MEAL_TYPE_OPTIONS.map(({ value, label }) => (
             <button
@@ -149,7 +152,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 mealType === value
                   ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                  : 'border-border bg-background text-foreground hover:bg-muted'
+                  : 'border-border bg-background text-ink hover:bg-muted'
               )}
             >
               {label}
@@ -160,7 +163,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Servings eaten</label>
+          <label className="block text-sm font-medium text-ink">Servings eaten</label>
           <input
             type="number"
             inputMode="decimal"
@@ -169,11 +172,11 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             min="0.01"
             max={MAX_SERVINGS}
             step="any"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Calories / serving</label>
+          <label className="block text-sm font-medium text-ink">Calories / serving</label>
           <input
             type="number"
             inputMode="decimal"
@@ -182,37 +185,37 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             min="0"
             step="any"
             placeholder="0"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">Protein (g)</label>
+          <label className="block text-xs text-ink-muted">Protein (g)</label>
           <input
             type="number" inputMode="decimal" value={f.protein}
             onChange={(e) => upd({ protein: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">Carbs (g)</label>
+          <label className="block text-xs text-ink-muted">Carbs (g)</label>
           <input
             type="number" inputMode="decimal" value={f.carbs}
             onChange={(e) => upd({ carbs: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">Fat (g)</label>
+          <label className="block text-xs text-ink-muted">Fat (g)</label>
           <input
             type="number" inputMode="decimal" value={f.fat}
             onChange={(e) => upd({ fat: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
@@ -220,43 +223,43 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
       {/* Optional micros */}
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">
+          <label className="block text-xs text-ink-muted">
             Fiber (g) <span className="font-normal">(optional)</span>
           </label>
           <input
             type="number" inputMode="decimal" value={f.fiber}
             onChange={(e) => upd({ fiber: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">
+          <label className="block text-xs text-ink-muted">
             Sugar (g) <span className="font-normal">(optional)</span>
           </label>
           <input
             type="number" inputMode="decimal" value={f.sugar}
             onChange={(e) => upd({ sugar: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs text-muted-foreground">
+          <label className="block text-xs text-ink-muted">
             Sodium (mg) <span className="font-normal">(optional)</span>
           </label>
           <input
             type="number" inputMode="decimal" value={f.sodium}
             onChange={(e) => upd({ sodium: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
 
       {/* Live preview */}
       {showPreview && (
-        <p className="text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
+        <p className="text-xs text-ink-muted bg-secondary rounded-lg px-3 py-2">
           Preview: {previewCal} cal · {previewPro}g protein · {previewCarb}g carbs · {previewFat}g fat
         </p>
       )}
@@ -279,5 +282,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
         {saving ? 'Logging…' : 'Log from label'}
       </button>
     </form>
+      </CardContent>
+    </Card>
   )
 }

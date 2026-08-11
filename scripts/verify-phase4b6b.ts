@@ -382,10 +382,10 @@ console.log('\n14. Phase boundary')
   check('4B.6A routes unchanged (hub anchors)',
     read('src/app/(app)/workouts/page.tsx').includes('findActiveTrainingSession(supabase, user.id).catch(() => null)') &&
     read('src/components/routine/RoutineDetailClient.tsx').includes('<WorkoutsSubNav />'))
-  check('Fuel/Profile untouched (pre-migration markers intact)',
-    read('src/app/(app)/profile/page.tsx').includes('shred-card') &&
-    read('src/app/(app)/nutrition/page.tsx').includes('shred-card') &&
-    read('src/components/food/MealSection.tsx').includes('shred-card'))
+  check('Fuel/Profile behavior anchors intact (migrated by 4B.6C)',
+    read('src/app/(app)/profile/page.tsx').includes('main_goal_changed') &&
+    read('src/app/(app)/nutrition/page.tsx').includes('GoalAdjustmentReviewCard') &&
+    read('src/components/food/MealSection.tsx').includes('MealSection'))
   check('Onboarding untouched',
     read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card'))
   check('shell + navigation unchanged',

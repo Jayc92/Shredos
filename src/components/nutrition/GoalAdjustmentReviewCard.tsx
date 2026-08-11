@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import type { GoalAdjustmentReview } from '@/lib/goal-adjustments'
 import type { NutritionTarget } from '@/types/database'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface GoalAdjustmentReviewCardProps {
   /** Lets the page refresh its own target state after an apply. */
@@ -105,25 +106,26 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
   }
 
   return (
-    <div className="shred-card space-y-2">
+    <Card variant="status" className="gap-0 py-4">
+      <CardContent className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-foreground">Target adjustment review</h3>
+        <h3 className="text-sm font-medium text-ink">Target adjustment review</h3>
         {review && (
-          <span className="text-xs text-muted-foreground">{review.window.label}</span>
+          <span className="text-xs text-ink-muted">{review.window.label}</span>
         )}
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading review…</p>
+        <p className="text-sm text-ink-muted">Loading review…</p>
       ) : !review ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-muted">
           {error ?? 'The adjustment review is unavailable right now.'}
         </p>
       ) : (
         <div className="space-y-1.5">
           {/* Evidence rows — always shown when computed */}
           {review.weight.currentAverageLbs !== null && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Weekly average weight: {review.weight.currentAverageLbs.toFixed(1)} lbs
               {review.weight.priorAverageLbs !== null &&
                 ` · prior week ${review.weight.priorAverageLbs.toFixed(1)} lbs`}
@@ -131,22 +133,22 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
                 ` · ${review.weight.weeklyChangePct > 0 ? '+' : ''}${review.weight.weeklyChangePct.toFixed(2)}% per week`}
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-ink-muted">
             Nutrition logged on {review.nutrition.loggedDays} of 7 days
             {review.nutrition.averageCalories !== null &&
               ` · ${review.nutrition.averageCalories.toLocaleString()} average calories`}
           </p>
           {review.bodyFat.pct !== null && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               Body-fat context: {review.bodyFat.pct}%{' '}
               ({review.bodyFat.source === 'recent_metric' ? 'recent measurement' : 'profile'})
             </p>
           )}
 
           {/* Conclusion */}
-          <p className="text-sm text-foreground">{review.explanation}</p>
+          <p className="text-sm text-ink">{review.explanation}</p>
           {review.eligibility !== 'eligible' && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {ELIGIBILITY_MESSAGES[review.eligibility] ?? ''}
             </p>
           )}
@@ -161,7 +163,7 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
           {review.eligibility === 'eligible' && !confirming && (
             <button
               onClick={() => setConfirming(true)}
-              className="text-xs font-medium text-primary hover:underline"
+              className="text-xs font-medium text-brand hover:underline"
             >
               Review proposed adjustment →
             </button>
@@ -172,32 +174,32 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
             <div className="space-y-2 border border-border rounded-lg p-3 bg-secondary/50">
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="bg-secondary rounded-lg py-2">
-                  <p className="text-xs text-muted-foreground">Current</p>
+                  <p className="text-xs text-ink-muted">Current</p>
                   <p className="text-base font-bold tabular-nums">
                     {review.before?.calories.toLocaleString()} cal
                   </p>
                 </div>
                 <div className="bg-primary/5 border border-primary/20 rounded-lg py-2">
-                  <p className="text-xs text-muted-foreground">Proposed</p>
+                  <p className="text-xs text-ink-muted">Proposed</p>
                   <p className="text-base font-bold tabular-nums text-primary">
                     {review.after?.calories.toLocaleString()} cal
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-muted">
                 {review.adjustmentAmount !== null &&
                   `${review.adjustmentAmount > 0 ? '+' : ''}${review.adjustmentAmount} calories. `}
                 Protein, carb, and fat targets stay unchanged — review macro allocation
                 manually if needed.
               </p>
               {review.suggestedReviewOn && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-muted">
                   A review date of {format(parseISO(review.suggestedReviewOn), 'MMM d')} will be
                   set on the decision.
                 </p>
               )}
               {review.guardrails.length > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-muted">
                   {review.guardrails.join(' ')}
                 </p>
               )}
@@ -212,7 +214,7 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
                 <button
                   onClick={() => setConfirming(false)}
                   disabled={applying}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -227,6 +229,7 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
           )}
         </div>
       )}
-    </div>
+    </CardContent>
+    </Card>
   )
 }

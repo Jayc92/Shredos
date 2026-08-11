@@ -11,7 +11,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { OptionCard } from '@/components/ui/option-card'
+import { Card, CardContent } from '@/components/ui/card'
 import type { UserProfile } from '@/types/database'
+// Client fetch state reuses the route's loading.tsx composition —
+// identical skeleton for router navigation and client query, never a
+// bare text fallback (4B.6C QA correction).
+import ProfileLoading from './loading'
 
 /** Inline numeric input with adjacent unit label */
 function NumField({
@@ -28,7 +33,7 @@ function NumField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-ink mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -40,10 +45,10 @@ function NumField({
           min={min}
           max={max}
           step={step}
-          className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
         />
         {unit && (
-          <span className="text-sm text-muted-foreground flex-shrink-0 w-8 text-center select-none">
+          <span className="text-sm text-ink-muted flex-shrink-0 w-8 text-center select-none">
             {unit}
           </span>
         )}
@@ -174,29 +179,32 @@ export default function ProfilePage() {
     setSaving(false); setSuccess(true); router.refresh()
   }
 
-  if (loading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>
+  if (loading) return <ProfileLoading />
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-5 p-4 lg:p-6">
       <div>
-        <h1 className="text-xl font-bold">Profile</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Biometrics and preferences. Schedule and goal changes are logged automatically.
+        <h1 className="text-xl font-bold text-ink">Profile</h1>
+        <p className="text-sm text-ink-muted mt-0.5">
+          Biometrics and preferences. Changes save when you submit; schedule and
+          goal changes are logged automatically, and changing your main goal never
+          changes nutrition targets on its own.
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
 
         {/* Personal info */}
-        <div className="shred-card space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Personal info</h3>
+        <Card variant="default" className="gap-0 py-4">
+          <CardContent className="space-y-4">
+          <h3 className="text-sm font-semibold text-ink">Personal info</h3>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Name</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">Name</label>
             <input
               type="text" value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               onFocus={e => e.target.select()} required
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -204,17 +212,17 @@ export default function ProfilePage() {
             <NumField label="Body fat %" value={bfPct} onChange={setBfPct} placeholder="22" min="1" max="60" step="0.1" unit="%" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Height</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">Height</label>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-2">
                 <input type="number" inputMode="numeric" value={heightFt} onChange={e => setHeightFt(e.target.value)} onFocus={e => e.target.select()} placeholder="6" min="3" max="8"
-                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <span className="text-sm text-muted-foreground select-none w-6 text-center">ft</span>
+                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <span className="text-sm text-ink-muted select-none w-6 text-center">ft</span>
               </div>
               <div className="flex items-center gap-2">
                 <input type="number" inputMode="numeric" value={heightIn} onChange={e => setHeightIn(e.target.value)} onFocus={e => e.target.select()} placeholder="1" min="0" max="11"
-                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <span className="text-sm text-muted-foreground select-none w-6 text-center">in</span>
+                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <span className="text-sm text-ink-muted select-none w-6 text-center">in</span>
               </div>
             </div>
           </div>
@@ -222,12 +230,14 @@ export default function ProfilePage() {
             <NumField label="Current weight" value={weightLbs} onChange={setWeightLbs} placeholder="185" min="50" max="700" step="0.1" unit="lbs" />
             <NumField label="Goal weight"    value={goalWeightLbs} onChange={setGoalWeightLbs} placeholder="165" min="50" max="700" step="0.1" unit="lbs" />
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Main goal (Phase 3E QA fix — previously onboarding-only) */}
-        <div className="shred-card space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Main goal</h3>
-          <p className="text-xs text-muted-foreground">
+        <Card variant="elevated" className="gap-0 py-4">
+          <CardContent className="space-y-3">
+          <h3 className="text-sm font-semibold text-ink">Main goal</h3>
+          <p className="text-xs text-ink-muted">
             Drives goal-aware coaching and the target adjustment review. Changing it does
             not change your nutrition targets automatically — review them on the Nutrition
             page.
@@ -244,31 +254,35 @@ export default function ProfilePage() {
             ))}
           </div>
           {!mainGoal && (
-            <p className="text-xs text-muted-foreground">No goal set yet — choose one above.</p>
+            <p className="text-xs text-ink-muted">No goal set yet — choose one above.</p>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Activity level */}
-        <div className="shred-card space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Activity level</h3>
+        <Card variant="default" className="gap-0 py-4">
+          <CardContent className="space-y-3">
+          <h3 className="text-sm font-semibold text-ink">Activity level</h3>
           <div className="space-y-2">
             <OptionCard selected={activityLevel === 'sedentary'}         onClick={() => setActivityLevel('sedentary')}         label="Sedentary"         description="Desk job, little exercise (x10)" />
             <OptionCard selected={activityLevel === 'moderately_active'} onClick={() => setActivityLevel('moderately_active')} label="Moderately active" description="3-4 workouts/week (x12)" />
             <OptionCard selected={activityLevel === 'very_active'}       onClick={() => setActivityLevel('very_active')}       label="Very active"       description="5+ workouts/week, active job (x14)" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Step goal: <span className="text-primary font-semibold">{parseInt(stepGoal).toLocaleString()}</span>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Step goal: <span className="text-brand font-semibold">{parseInt(stepGoal).toLocaleString()}</span>
             </label>
             <input type="range" min="2000" max="20000" step="500" value={stepGoal}
-              onChange={e => setStepGoal(e.target.value)} className="w-full accent-primary" />
+              onChange={e => setStepGoal(e.target.value)} className="w-full accent-[hsl(var(--brand))]" />
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Weigh-in schedule */}
-        <div className="shred-card space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Weigh-in schedule</h3>
-          <p className="text-xs text-muted-foreground">ForgeFitOS tracks your weight on your schedule. No daily pressure.</p>
+        <Card variant="default" className="gap-0 py-4">
+          <CardContent className="space-y-3">
+          <h3 className="text-sm font-semibold text-ink">Weigh-in schedule</h3>
+          <p className="text-xs text-ink-muted">ForgeFitOS tracks your weight on your schedule. No daily pressure.</p>
           <div className="space-y-2">
             <OptionCard selected={cadence === 'weekly'}   onClick={() => setCadence('weekly')}   label="Once per week"        description="Recommended — consistent data without obsessing" />
             <OptionCard selected={cadence === 'biweekly'} onClick={() => setCadence('biweekly')} label="Once every two weeks" description="Less frequent — good for longer-term trends" />
@@ -277,7 +291,7 @@ export default function ProfilePage() {
           {cadence !== 'manual' && (
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Day</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Day</label>
                 <Select value={weighInDay} onValueChange={(v: string) => setWeighInDay(v)}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -288,7 +302,7 @@ export default function ProfilePage() {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Time</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Time</label>
                 <Select value={weighInTime} onValueChange={(v: string) => setWeighInTime(v)}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -299,23 +313,25 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Fasting */}
-        <div className="shred-card space-y-3">
+        <Card variant="subtle" className="gap-0 py-4">
+          <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground">Fasting</h3>
+            <h3 className="text-sm font-semibold text-ink">Fasting</h3>
             <button type="button" role="switch" aria-checked={fastingEnabled}
               onClick={() => setFastingEnabled(!fastingEnabled)}
               className={['relative w-11 h-6 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                fastingEnabled ? 'bg-primary' : 'bg-secondary border border-border'].join(' ')}>
+                fastingEnabled ? 'bg-brand' : 'bg-surface-sunken border border-edge'].join(' ')}>
               <span className={['absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
                 fastingEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
             </button>
           </div>
           {fastingEnabled && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Default goal</label>
+              <label className="block text-sm font-medium text-ink mb-1.5">Default goal</label>
               <Select value={fastingGoalHours || 'none'} onValueChange={(v: string) => setFastingGoalHours(v === 'none' ? '' : v)}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="No default" /></SelectTrigger>
                 <SelectContent>
@@ -327,13 +343,14 @@ export default function ProfilePage() {
               </Select>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
-        {error   && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
-        {success && <p className="text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">Profile saved. Changes logged.</p>}
+        {error   && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
+        {success && <p className="text-sm text-success bg-success-subtle rounded-lg px-3 py-2">Profile saved. Changes logged.</p>}
 
         <button type="submit" disabled={saving}
-          className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors">
+          className="w-full py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
           {saving ? 'Saving...' : 'Save profile'}
         </button>
       </form>

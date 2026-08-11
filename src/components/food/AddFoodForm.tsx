@@ -180,10 +180,13 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
 
       {/* Macros: 2-col on mobile, 4-col on sm+ */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* Required indicators mirror the real contract (client check +
+            /api/food-logs): food_name and calories are required; protein,
+            carbs, and fat are optional and default to 0 when unknown. */}
         <MacroField label="Calories *" value={f.calories} onChange={v => upd({ calories: v })} />
-        <MacroField label="Protein *"  value={f.protein}  onChange={v => upd({ protein: v })}  unit="g" />
-        <MacroField label="Carbs *"    value={f.carbs}    onChange={v => upd({ carbs: v })}    unit="g" />
-        <MacroField label="Fat *"      value={f.fat}      onChange={v => upd({ fat: v })}      unit="g" />
+        <MacroField label="Protein"    value={f.protein}  onChange={v => upd({ protein: v })}  unit="g" />
+        <MacroField label="Carbs"      value={f.carbs}    onChange={v => upd({ carbs: v })}    unit="g" />
+        <MacroField label="Fat"        value={f.fat}      onChange={v => upd({ fat: v })}      unit="g" />
       </div>
 
       {/* Soft warnings */}

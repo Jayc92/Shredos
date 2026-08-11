@@ -52,7 +52,17 @@ export default async function AppLayout({
   const displayName = user.email ?? 'ForgeFitOS'
 
   return (
-    <div className="flex h-screen overflow-hidden bg-canvas">
+    // fixed inset-0: the shell is pinned to the viewport and REMOVED
+    // from normal document flow — proven in live Safari (4B.6C QA):
+    // any in-flow shell, however sized (h-screen, h-dvh, h-full all
+    // failed physical QA), leaves the root able to develop its own
+    // scroll range under fractional viewports (zoom rounding, display
+    // scaling, classic scrollbars, URL-bar states), which painted a
+    // second document scrollbar alongside <main>'s. Out of flow, the
+    // document has no in-flow content to scroll, so <main> is the
+    // sole app-content scroll owner by construction. No height class:
+    // inset-0 already binds both edges to the viewport.
+    <div className="fixed inset-0 flex overflow-hidden bg-canvas">
       {/* Grouped sidebar — desktop only */}
       <Sidebar
         fastingEnabled={fastingEnabled}

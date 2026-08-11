@@ -451,9 +451,9 @@ console.log('\n13. Phase boundary')
   check('no .DS_Store', !existsSync('.DS_Store') && !existsSync('src/.DS_Store'))
   check('onboarding untouched (4B.6D scope)',
     read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card'))
-  check('Fuel/Profile untouched (4B.6C scope)',
-    read('src/app/(app)/profile/page.tsx').includes('shred-card') &&
-    read('src/app/(app)/nutrition/page.tsx').includes('shred-card'))
+  check('Fuel/Profile behavior anchors intact (migrated by 4B.6C)',
+    read('src/app/(app)/profile/page.tsx').includes('main_goal_changed') &&
+    read('src/app/(app)/nutrition/page.tsx').includes('GoalAdjustmentReviewCard'))
 }
 
 // ── 14. Untouched-collaborator contracts (deferred files intact) ─────

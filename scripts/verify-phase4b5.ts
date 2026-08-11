@@ -409,9 +409,11 @@ console.log('\n11. Presentation')
 {
   check('no shred-card in the five route scopes',
     SCOPE.every((f) => !stripComments(f).includes('shred-card')))
-  check('shred-card alias retained globally for unmigrated routes',
+  check('shred-card alias retained globally for unmigrated code',
+    // 4B.6C migrated /nutrition; onboarding (4B.6D scope) is the
+    // remaining consumer of the alias.
     read('src/app/globals.css').includes('.shred-card') &&
-    read('src/app/(app)/nutrition/page.tsx').includes('shred-card'))
+    read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card'))
   check('components use the Card primitive',
     COMPONENTS.filter((c) => c !== subNav).every((c) =>
       c.includes("from '@/components/ui/card'")))
