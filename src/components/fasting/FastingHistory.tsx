@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import { getFastingDuration, formatDuration } from '@/lib/fasting'
 import { formatDateShort, formatTime } from '@/lib/dates'
 import { FASTING_TYPE_LABELS } from '@/lib/constants'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { FastingLog } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
+import { EditFastForm } from './EditFastForm'
 
 interface FastingHistoryProps {
   fasts: FastingLog[]
@@ -17,6 +18,9 @@ interface FastingHistoryProps {
 export function FastingHistory({ fasts }: FastingHistoryProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
+  // QA correction: completed records must be correctable — including
+  // clearing End so the same row becomes the active fast again.
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const completed = fasts.filter((f) => f.ended_at !== null)
 
@@ -51,36 +55,51 @@ export function FastingHistory({ fasts }: FastingHistoryProps) {
           return (
             <div
               key={fast.id}
-              className="flex items-center justify-between py-2 border-b border-edge-subtle last:border-0"
+              className="py-2 border-b border-edge-subtle last:border-0"
             >
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium tabular-nums">{formatDuration(minutes)}</p>
-                  {fast.completed_goal === true && (
-                    <span className="text-xs text-green-400">✓ goal</span>
-                  )}
-                  {fast.completed_goal === false && (
-                    <span className="text-xs text-ink-muted">goal not met</span>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium tabular-nums">{formatDuration(minutes)}</p>
+                    {fast.completed_goal === true && (
+                      <span className="text-xs text-success">✓ goal</span>
+                    )}
+                    {fast.completed_goal === false && (
+                      <span className="text-xs text-ink-muted">goal not met</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-ink-muted">
+                    {formatDateShort(startDate)} · {formatTime(startDate)} ·{' '}
+                    {FASTING_TYPE_LABELS[fast.fasting_type] ?? fast.fasting_type}
+                    {fast.goal_hours ? ` · goal ${fast.goal_hours}h` : ''}
+                  </p>
+                  {fast.notes && (
+                    <p className="text-xs text-ink-muted italic">{fast.notes}</p>
                   )}
                 </div>
-                <p className="text-xs text-ink-muted">
-                  {formatDateShort(startDate)} · {formatTime(startDate)} ·{' '}
-                  {FASTING_TYPE_LABELS[fast.fasting_type] ?? fast.fasting_type}
-                  {fast.goal_hours ? ` · goal ${fast.goal_hours}h` : ''}
-                </p>
-                {fast.notes && (
-                  <p className="text-xs text-ink-muted italic">{fast.notes}</p>
-                )}
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditingId(editingId === fast.id ? null : fast.id)}
+                    className="p-1.5 text-ink-muted hover:text-ink transition-colors"
+                    aria-label="Edit fast"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(fast.id)}
+                    disabled={deleting === fast.id}
+                    className="p-1.5 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
+                    aria-label="Delete fast"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <button
-                onClick={() => handleDelete(fast.id)}
-                disabled={deleting === fast.id}
-                className="p-1.5 text-ink-muted hover:text-destructive transition-colors disabled:opacity-40"
-                aria-label="Delete fast"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {editingId === fast.id && (
+                <EditFastForm fast={fast} onDone={() => setEditingId(null)} />
+              )}
             </div>
           )
         })}

@@ -170,3 +170,48 @@ export function fastingTypeFromHours(hours: number): FastingLog['fasting_type'] 
   if (hours <= 36) return 'extended'
   return 'custom'
 }
+
+// ── Manual fast entry validation (Phase 5A.1) ─────────────────────
+// Pure, deterministic validation for the manual-entry form. The
+// datetime-local input yields a LOCAL wall-clock string; `new Date()`
+// parses it in the user's timezone exactly once — no 'Z' suffix, no
+// manual UTC offset arithmetic, no date shifting. A blank End is a
+// first-class result: it means "start an ongoing fast from this
+// time" (ended_at = NULL is the schema's active-fast contract).
+
+/** Clock-skew tolerance only — not a grace period for future fasts. */
+export const MANUAL_FAST_FUTURE_TOLERANCE_MS = 2 * 60 * 1000
+
+export type ManualFastValidation =
+  | { ok: true; startedAt: Date; endedAt: Date | null }
+  | { ok: false; error: string }
+
+export function validateManualFastTimes(
+  startRaw: string,
+  endRaw: string,
+  now: Date = new Date()
+): ManualFastValidation {
+  if (!startRaw) {
+    return { ok: false, error: 'Start time is required.' }
+  }
+  const startedAt = new Date(startRaw)
+  if (isNaN(startedAt.getTime())) {
+    return { ok: false, error: 'Enter a valid start time.' }
+  }
+  if (startedAt.getTime() > now.getTime() + MANUAL_FAST_FUTURE_TOLERANCE_MS) {
+    return { ok: false, error: 'Start time cannot be in the future.' }
+  }
+  if (!endRaw) {
+    // Ongoing fast: any past start is acceptable — no minimum
+    // duration is invented and no age limit is imposed.
+    return { ok: true, startedAt, endedAt: null }
+  }
+  const endedAt = new Date(endRaw)
+  if (isNaN(endedAt.getTime())) {
+    return { ok: false, error: 'Enter a valid end time.' }
+  }
+  if (endedAt.getTime() <= startedAt.getTime()) {
+    return { ok: false, error: 'End time must be after the start time.' }
+  }
+  return { ok: true, startedAt, endedAt }
+}
