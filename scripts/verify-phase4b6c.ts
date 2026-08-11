@@ -334,7 +334,7 @@ console.log('\n10. Legacy style removal')
   check('zero shred-card on all active 4B.6C route scopes',
     CHANGED.every((f) => !stripComments(f).includes('shred-card')))
   check('global alias retained', read('src/app/globals.css').includes('.shred-card'))
-  check('remaining occurrences are onboarding-only (4B.6D scope)',
+  check('no active src consumer remains (4B.6D migrated onboarding)',
     (() => {
       const offenders: string[] = []
       const walk = (dir: string) => {
@@ -347,7 +347,7 @@ console.log('\n10. Legacy style removal')
       }
       walk('src/app')
       walk('src/components')
-      return offenders.length > 0 && offenders.every((f) => f.includes('onboarding'))
+      return offenders.length === 0
     })())
   check('semantic tokens adopted across scope',
     PAGES.every((p) => p.includes('text-ink-muted')))
@@ -461,9 +461,9 @@ console.log('\n15. Phase boundary')
     read('src/app/(app)/progress/page.tsx').includes('fetchTrackingAwareProgressOverview') &&
     read('src/app/(app)/coach/page.tsx').includes('fetchCoachActions') &&
     read('src/app/(app)/dashboard/page.tsx').includes('<TodayPrimaryAction'))
-  check('Onboarding untouched (pre-migration markers intact)',
-    read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card') &&
-    read('src/components/onboarding/Step4Nutrition.tsx').includes('shred-card'))
+  check('Onboarding behavior anchors intact (presentation migrated by 4B.6D)',
+    read('src/components/onboarding/OnboardingWizard.tsx').includes('onboarding_complete: true') &&
+    read('src/components/onboarding/Step4Nutrition.tsx').includes('calculateNutritionTargets'))
   check('shell/nav unchanged',
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins') &&
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')") &&

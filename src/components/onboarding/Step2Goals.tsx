@@ -14,15 +14,15 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold">Goals &amp; experience</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <h2 className="text-lg font-semibold text-ink">Goals &amp; experience</h2>
+        <p className="text-sm text-ink-muted mt-0.5">
           Used to calibrate your plan and targets.
         </p>
       </div>
 
       {/* Main goal */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-2">Main goal</p>
+        <p className="text-sm font-medium text-ink mb-2">Main goal</p>
         <div className="space-y-2">
           {([
             { value: 'fat_loss',      label: 'Fat loss',         description: 'Lose fat while preserving muscle' },
@@ -45,7 +45,7 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
 
       {/* Training experience — compact 3-col */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-2">Training experience</p>
+        <p className="text-sm font-medium text-ink mb-2">Training experience</p>
         <div className="grid grid-cols-3 gap-2">
           {([
             { value: 'beginner',     label: 'Beginner',     description: '< 1 year' },
@@ -65,7 +65,7 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
 
       {/* Activity level */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-2">Activity level</p>
+        <p className="text-sm font-medium text-ink mb-2">Activity level</p>
         <div className="space-y-2">
           {([
             { value: 'sedentary',         label: 'Sedentary',         description: 'Desk job, little exercise (x10)' },
@@ -81,16 +81,16 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
             />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-1.5">
+        <p className="text-xs text-ink-muted mt-1.5">
           Multiplier used for your maintenance calorie estimate. Adjustable on the next step.
         </p>
       </div>
 
       {/* Step goal slider */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
+        <label className="block text-sm font-medium text-ink mb-1.5">
           Daily step goal:{' '}
-          <span className="text-primary font-semibold">
+          <span className="text-brand font-semibold">
             {parseInt(form.step_goal || '8000').toLocaleString()}
           </span>
         </label>
@@ -101,9 +101,9 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
           step="500"
           value={form.step_goal}
           onChange={(e) => update({ step_goal: e.target.value })}
-          className="w-full accent-primary"
+          className="w-full accent-[hsl(var(--brand))]"
         />
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+        <div className="flex justify-between text-xs text-ink-muted mt-1">
           <span>2,000</span>
           <span>10,000</span>
           <span>20,000</span>
@@ -114,14 +114,14 @@ export function Step2Goals({ form, update, onNext, onBack }: Step2Props) {
         <button
           type="button"
           onClick={onBack}
-          className="py-3 rounded-lg border border-border text-muted-foreground font-medium text-sm hover:bg-muted transition-colors"
+          className="py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors"
         >
           Back
         </button>
         <button
           type="button"
           onClick={onNext}
-          className="py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+          className="py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors"
         >
           Continue
         </button>

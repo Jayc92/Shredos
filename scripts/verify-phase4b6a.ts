@@ -449,8 +449,8 @@ console.log('\n13. Phase boundary')
     read('src/lib/progress-summary.ts').includes("select('duration_minutes, ended_at')") &&
     !stripComments(read('src/app/(app)/progress/page.tsx')).includes('fetchProgressSummary('))
   check('no .DS_Store', !existsSync('.DS_Store') && !existsSync('src/.DS_Store'))
-  check('onboarding untouched (4B.6D scope)',
-    read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card'))
+  check('onboarding behavior anchors intact (presentation migrated by 4B.6D)',
+    read('src/components/onboarding/OnboardingWizard.tsx').includes('onboarding_complete: true'))
   check('Fuel/Profile behavior anchors intact (migrated by 4B.6C)',
     read('src/app/(app)/profile/page.tsx').includes('main_goal_changed') &&
     read('src/app/(app)/nutrition/page.tsx').includes('GoalAdjustmentReviewCard'))

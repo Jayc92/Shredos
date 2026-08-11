@@ -386,8 +386,8 @@ console.log('\n14. Phase boundary')
     read('src/app/(app)/profile/page.tsx').includes('main_goal_changed') &&
     read('src/app/(app)/nutrition/page.tsx').includes('GoalAdjustmentReviewCard') &&
     read('src/components/food/MealSection.tsx').includes('MealSection'))
-  check('Onboarding untouched',
-    read('src/components/onboarding/OnboardingWizard.tsx').includes('shred-card'))
+  check('Onboarding behavior anchors intact (presentation migrated by 4B.6D)',
+    read('src/components/onboarding/OnboardingWizard.tsx').includes('onboarding_complete: true'))
   check('shell + navigation unchanged',
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins') &&
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')") &&

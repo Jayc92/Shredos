@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Card, CardContent } from '@/components/ui/card'
 import { Step1Bio } from './Step1Bio'
 import { Step2Goals } from './Step2Goals'
 import { Step3Schedule } from './Step3Schedule'
@@ -42,19 +43,27 @@ export function OnboardingWizard() {
   const [form, setForm] = useState<OnboardingFormState>(INITIAL_STATE)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const topRef = useRef<HTMLDivElement>(null)
 
   function update(patch: Partial<OnboardingFormState>) {
     setForm((prev) => ({ ...prev, ...patch }))
   }
 
+  // Step changes return to the top of the wizard. The authenticated
+  // shell is viewport-pinned (4B.6C), so the scroller is <main>, not
+  // the window — window.scrollTo(0, 0) is a no-op here.
+  function scrollToTop() {
+    topRef.current?.scrollIntoView({ block: 'start' })
+  }
+
   function next() {
     setStep((s) => Math.min(4, s + 1))
-    window.scrollTo(0, 0)
+    scrollToTop()
   }
 
   function back() {
     setStep((s) => Math.max(1, s - 1))
-    window.scrollTo(0, 0)
+    scrollToTop()
   }
 
   async function handleComplete(deficitOverride?: number) {
@@ -188,31 +197,36 @@ export function OnboardingWizard() {
     }
   }
 
-  const STEP_LABELS = ['Bio', 'Goals', 'Schedule', 'Nutrition']
+  const STEP_LABELS = ['Personal details', 'Goals', 'Schedule', 'Nutrition']
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8">
-      <div className="max-w-lg mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <h1 className="text-xl font-bold">Set up your profile</h1>
-          <p className="text-sm text-muted-foreground">Step {step} of 4 — {STEP_LABELS[step - 1]}</p>
-        </div>
+    // No viewport-height wrapper: onboarding lives inside the pinned
+    // shell and scrolls within <main> like every other route.
+    <div ref={topRef} className="mx-auto max-w-lg space-y-6 p-4 lg:p-6">
+      {/* Header */}
+      <div className="text-center space-y-1">
+        <h1 className="text-xl font-bold text-ink">Set up your profile</h1>
+        <p className="text-sm text-ink-muted">Step {step} of 4 — {STEP_LABELS[step - 1]}</p>
+      </div>
 
-        {/* Progress bar */}
-        <div className="flex gap-1.5">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-1 flex-1 rounded-full transition-all ${
-                s <= step ? 'bg-primary' : 'bg-secondary'
-              }`}
-            />
-          ))}
-        </div>
+      {/* Progress segments. Decorative only (aria-hidden): the
+          "Step X of 4" line above is the accessible step state.
+          Completed = brand, current = brand-active, upcoming =
+          sunken — never the current step by color alone. */}
+      <div className="flex gap-1.5" aria-hidden="true">
+        {[1, 2, 3, 4].map((s) => (
+          <div
+            key={s}
+            className={`h-1.5 flex-1 rounded-full transition-all ${
+              s < step ? 'bg-brand' : s === step ? 'bg-brand-active' : 'bg-surface-sunken'
+            }`}
+          />
+        ))}
+      </div>
 
-        {/* Step content */}
-        <div className="shred-card">
+      {/* Step content — the one coherent primary panel */}
+      <Card variant="elevated" className="gap-0 py-5">
+        <CardContent>
           {step === 1 && <Step1Bio form={form} update={update} onNext={next} />}
           {step === 2 && <Step2Goals form={form} update={update} onNext={next} onBack={back} />}
           {step === 3 && <Step3Schedule form={form} update={update} onNext={next} onBack={back} />}
@@ -225,14 +239,14 @@ export function OnboardingWizard() {
               saving={saving}
             />
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
-      </div>
+      {error && (
+        <div className="bg-critical-subtle rounded-lg px-4 py-3">
+          <p className="text-sm text-critical">{error}</p>
+        </div>
+      )}
     </div>
   )
 }

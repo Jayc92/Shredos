@@ -25,21 +25,21 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold">Schedule &amp; preferences</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">ForgeFitOS works on your schedule.</p>
+        <h2 className="text-lg font-semibold text-ink">Schedule &amp; preferences</h2>
+        <p className="text-sm text-ink-muted mt-0.5">ForgeFitOS works on your schedule.</p>
       </div>
 
-      <div className="bg-primary/10 border border-primary/30 rounded-lg px-4 py-3">
-        <p className="text-sm text-foreground leading-relaxed">
+      <div className="bg-brand-subtle rounded-lg px-4 py-3">
+        <p className="text-sm text-ink leading-relaxed">
           ForgeFitOS tracks your weight on your schedule. Most users weigh in once a week on Friday
           morning. You can change this anytime.{' '}
-          <strong className="text-primary">No daily pressure.</strong>
+          <strong className="text-brand">No daily pressure.</strong>
         </p>
       </div>
 
       {/* Weigh-in cadence */}
       <div>
-        <p className="text-sm font-medium text-foreground mb-2">Weigh-in schedule</p>
+        <p className="text-sm font-medium text-ink mb-2">Weigh-in schedule</p>
         <div className="space-y-2">
           <OptionCard
             selected={form.preferred_weigh_in_cadence === 'weekly'}
@@ -66,7 +66,7 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
       {form.preferred_weigh_in_cadence !== 'manual' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Preferred day</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">Preferred day</label>
             <Select
               value={form.preferred_weigh_in_day}
               onValueChange={(v: string) => update({ preferred_weigh_in_day: v })}
@@ -80,7 +80,7 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
             </Select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Time of day</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">Time of day</label>
             <Select
               value={form.preferred_weigh_in_time}
               onValueChange={(v: string) => update({ preferred_weigh_in_time: v })}
@@ -96,11 +96,11 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
       )}
 
       {/* Fasting */}
-      <div className="pt-2 border-t border-border space-y-3">
+      <div className="pt-2 border-t border-edge-subtle space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Enable fasting tracking</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-sm font-medium text-ink">Enable fasting tracking</p>
+            <p className="text-xs text-ink-muted mt-0.5">
               Log fasts as a calorie adherence tool.
             </p>
           </div>
@@ -112,7 +112,7 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
             className={[
               'relative w-11 h-6 rounded-full transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              form.fasting_enabled ? 'bg-primary' : 'bg-secondary border border-border',
+              form.fasting_enabled ? 'bg-brand' : 'bg-surface-sunken border border-edge',
             ].join(' ')}
           >
             <span className={[
@@ -124,7 +124,7 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
 
         {form.fasting_enabled && (
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Default fasting goal</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">Default fasting goal</label>
             <Select
               value={form.default_fasting_goal_hours || 'none'}
               onValueChange={(v: string) =>
@@ -144,9 +144,9 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
       </div>
 
       {/* Dietary prefs */}
-      <div className="pt-2 border-t border-border">
-        <label className="block text-sm font-medium text-foreground mb-2">
-          Dietary preferences <span className="text-muted-foreground font-normal">(optional)</span>
+      <div className="pt-2 border-t border-edge-subtle">
+        <label className="block text-sm font-medium text-ink mb-2">
+          Dietary preferences <span className="text-ink-muted font-normal">(optional)</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {DIETARY_PREF_OPTIONS.map((pref) => (
@@ -163,25 +163,25 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
 
       {/* Injuries */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          Injuries / limitations <span className="text-muted-foreground font-normal">(optional)</span>
+        <label className="block text-sm font-medium text-ink mb-1.5">
+          Injuries / limitations <span className="text-ink-muted font-normal">(optional)</span>
         </label>
         <textarea
           value={form.injuries}
           onChange={(e) => update({ injuries: e.target.value })}
           placeholder="e.g. bad left knee, lower back pain"
           rows={2}
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none"
+          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3 pt-2">
         <button type="button" onClick={onBack}
-          className="py-3 rounded-lg border border-border text-muted-foreground font-medium text-sm hover:bg-muted transition-colors">
+          className="py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors">
           Back
         </button>
         <button type="button" onClick={onNext}
-          className="py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors">
+          className="py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors">
           Review targets
         </button>
       </div>
