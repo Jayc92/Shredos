@@ -57,9 +57,8 @@ console.log('\n1. Checkpoint and schema invariants')
       'supabase/migrations/013_phase3e_goal_adjustments.sql']
       .every((f) => existsSync(f)))
   check('5A.1 notes exist', notes.length > 1500)
-  check('migrations remain 13 (5A.1 adds none; no migration 014)',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('014')))
+  check('5A.1 added no migration (schema through 013 intact; 014_phase5a2 belongs to 5A.2)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('started_at is NOT NULL in schema',
     schema.includes('started_at       TIMESTAMPTZ NOT NULL'))
   check('ended_at nullable = active contract in schema',

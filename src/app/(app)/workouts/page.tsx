@@ -13,6 +13,7 @@ import { SessionCard } from '@/components/workout/SessionCard'
 import { MuscleVolumeSummary } from '@/components/workout/MuscleVolumeSummary'
 import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { CreateWorkoutButton } from '@/components/workout/CreateWorkoutButton'
+import { LogPastWorkoutForm } from '@/components/workout/LogPastWorkoutForm'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Card, CardContent } from '@/components/ui/card'
 import { fetchCoachSummary } from '@/lib/workout-coach'
@@ -118,6 +119,10 @@ export default async function WorkoutsPage() {
           <CreateWorkoutButton />
         </CardContent>
       </Card>
+
+      {/* Phase 5A.2: secondary path for a workout that already
+          happened — never blocks or is blocked by the live flow. */}
+      <LogPastWorkoutForm />
 
       {/* Phase 1E: Muscle readiness — hidden until enough data */}
       <MuscleReadinessPanel summary={coachSummary} />

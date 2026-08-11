@@ -468,8 +468,8 @@ console.log('\n15. Phase boundary')
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins') &&
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')") &&
     read('src/components/layout/Sidebar.tsx').includes('hidden lg:flex'))
-  check('no migration 014, migrations remain 13',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+  check('4B.6C added no migration (schema through 013 intact)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('API routes unchanged (anchors)',
     read('src/app/api/decisions/route.ts').includes('validateDecisionUpdate') &&
     existsSync('src/app/api/saved-meals') && existsSync('src/app/api/food-logs'))

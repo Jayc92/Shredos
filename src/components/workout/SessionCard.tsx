@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { formatWorkoutDuration } from '@/lib/workout'
-import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
+import { formatWorkoutDuration, workoutStatusLabel } from '@/lib/workout'
 import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutSession } from '@/types/database'
 
@@ -44,7 +43,7 @@ export function SessionCard({ session, exerciseCount }: SessionCardProps) {
           'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium flex-shrink-0',
           STATUS_COLORS[session.status] ?? STATUS_COLORS.planned
         )}>
-          {WORKOUT_STATUS_LABELS[session.status] ?? session.status}
+          {workoutStatusLabel(session)}
         </span>
       </CardContent>
       </Card>

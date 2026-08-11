@@ -108,8 +108,8 @@ console.log('\n3. Workout states')
     header.includes("session.status === 'completed'"))
   check('state-driven header variant (action/elevated/subtle)',
     header.includes("variant={isActive ? 'action' : isDone ? 'elevated' : 'subtle'}"))
-  check('status pill text from constants (never color-only)',
-    header.includes('WORKOUT_STATUS_LABELS[session.status]'))
+  check('status pill text via the shared provenance-aware helper (never color-only)',
+    header.includes('{workoutStatusLabel(session)}'))
   check('status pill semantic tokens',
     header.includes('bg-success-subtle text-success') &&
     header.includes('bg-caution-subtle text-caution') &&
@@ -392,8 +392,8 @@ console.log('\n14. Phase boundary')
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins') &&
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')") &&
     read('src/components/layout/Sidebar.tsx').includes('hidden lg:flex'))
-  check('no migration 014, migrations remain 13',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+  check('4B.6B added no migration (schema through 013 intact)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('workout API routes unchanged (anchors)',
     read('src/app/api/workouts/route.ts').includes('findActiveTrainingSession') &&
     read('src/app/api/workout-sets/[id]/route.ts').length > 500)

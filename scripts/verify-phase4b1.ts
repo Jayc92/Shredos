@@ -366,7 +366,10 @@ console.log('\n12. Phase boundary')
       'weigh-in', 'fasting', 'workouts', 'progress', 'activity', 'onboarding']
       .every((r) => existsSync(`src/app/(app)/${r}/page.tsx`)) &&
     !existsSync('src/app/(app)/today'))
-  check('no migration 014', !readdirSync('supabase/migrations').some((f) => f.startsWith('014')))
+  check('4B.1 added no migration (schema through 013 intact; 014_phase5a2 is a later approved phase)',
+    existsSync('supabase/migrations/013_phase3e_goal_adjustments.sql') &&
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13 &&
+    !existsSync('supabase/migrations/014_phase4c_dashboard_layout.sql'))
   check('no Supabase/API behavior change (decisions + goal-adjustment routes intact)',
     read('src/app/api/decisions/route.ts').includes('validateDecisionUpdate(') &&
     read('src/app/api/goal-adjustment/route.ts').includes("'apply_goal_calorie_adjustment'"))

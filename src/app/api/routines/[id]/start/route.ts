@@ -72,6 +72,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       title:      buildSessionTitle((routine as any).name, workout_date),
       status:     'in_progress',
       start_time: new Date().toISOString(),
+      // Phase 5A.2: live provenance written explicitly (migration
+      // 014's default classifies only pre-existing rows as legacy).
+      source:     'live',
       routine_id: (routine as any).id,
     })
     .select('id').single()

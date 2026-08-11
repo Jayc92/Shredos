@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { blockIfSessionCompleted } from '@/lib/supabase/workout-guards'
+import { validateManualWorkoutMetadata } from '@/lib/workout'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -20,10 +21,86 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 const WORKOUT_TITLE_MAX_LENGTH = 100
 const WORKOUT_NOTES_MAX_LENGTH = 2000
 
+// Phase 5A.2: the explicit manual-metadata correction payload. Only
+// these keys are legal in that mode — status, source, end_time and
+// completed_duration_seconds can never be supplied by the client; the
+// server derives timestamps and the frozen duration from the
+// validated local date + start + duration, exactly like creation.
+const MANUAL_METADATA_FIELDS = new Set([
+  'mode', 'workoutDate', 'startTime', 'durationMinutes', 'caloriesBurned',
+])
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json().catch(() => ({}))
+
+  // Phase 5A.2: manual workout metadata correction. Deliberately NOT
+  // behind the completed-row lock below: correcting a finalized
+  // manual workout's date/start/duration/calories is an explicit
+  // metadata correction that never touches status — the row stays
+  // completed (or stays a draft), it is never reopened and never
+  // becomes active. Exercises/sets on a completed row remain
+  // read-only under the existing policy; the reopen route remains
+  // the only status transition.
+  if (body.mode === 'manual_metadata') {
+    const unsupportedManual = Object.keys(body).filter((k) => !MANUAL_METADATA_FIELDS.has(k))
+    if (unsupportedManual.length > 0) {
+      return NextResponse.json(
+        { error: 'Unsupported fields for manual metadata correction.' },
+        { status: 400 }
+      )
+    }
+    const { data: session, error: fetchError } = await supabase
+      .from('workout_sessions')
+      .select('source, status')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (session.source !== 'manual') {
+      // Legacy and live rows keep their captured timestamps; this
+      // correction path exists only for manually logged workouts.
+      return NextResponse.json(
+        { error: 'Only manually logged workouts can be corrected here.' },
+        { status: 400 }
+      )
+    }
+    const validation = validateManualWorkoutMetadata({
+      workoutDate: body.workoutDate,
+      startTime: body.startTime,
+      durationMinutes: body.durationMinutes,
+      caloriesBurned: body.caloriesBurned,
+    })
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    const { workoutDate, startedAt, endedAt, durationSeconds, caloriesBurned } = validation
+
+    // An explicit correction deliberately replaces the frozen manual
+    // duration and re-derives end_time — stale end timestamps are
+    // never preserved past a start/duration correction. Status and
+    // source are untouched: a draft stays a draft, a completed row
+    // stays completed.
+    const { data, error } = await supabase
+      .from('workout_sessions')
+      .update({
+        workout_date: workoutDate,
+        start_time: startedAt.toISOString(),
+        end_time: endedAt.toISOString(),
+        completed_duration_seconds: durationSeconds,
+        calories_burned: caloriesBurned,
+      })
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ data })
+  }
 
   // Phase 2I: a completed workout is read-only, including this generic
   // PATCH — it must not be usable to bypass the dedicated reopen route
@@ -32,8 +109,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // /api/workouts/[id]/reopen.
   const locked = await blockIfSessionCompleted(supabase, params.id, user.id)
   if (locked) return locked
-
-  const body = await request.json().catch(() => ({}))
 
   // Phase 2M: this route is metadata-only. Lifecycle fields (status,
   // start_time, end_time, completed_duration_seconds) and identity/

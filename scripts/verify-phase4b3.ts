@@ -95,7 +95,7 @@ console.log('\n2. Queries and domain behavior')
     page.includes('nutritionTarget, todayFoodLogs, profile.main_goal'))
   check('no new API endpoint, no persistence, no migration 014',
     !existsSync('src/app/api/dashboard') &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('014')) &&
+    !existsSync('supabase/migrations/014_phase4c_dashboard_layout.sql') &&
     ALL_TODAY.every((f) => !f.includes('localStorage')))
   check('no profile write from Today',
     ALL_TODAY.every((f) => !f.includes('.update(') && !f.includes('.upsert(')))
@@ -310,7 +310,7 @@ console.log('\n11. Phase boundary invariants')
   check('no dependency changes',
     Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)
   check('migrations still end at 013',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('no .DS_Store', !existsSync('.DS_Store') && !existsSync('src/.DS_Store'))
   check('page stays a server component (no use client)',
     !page.includes("'use client'") && !hero.includes("'use client'") &&

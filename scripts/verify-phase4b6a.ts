@@ -174,8 +174,8 @@ console.log('\n4. Session card')
   check('duration/date formatting unchanged',
     sessionCard.includes('formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)') &&
     sessionCard.includes("format(parseISO(session.workout_date), 'EEE, MMM d')"))
-  check('status labels from constants (text always)',
-    sessionCard.includes('WORKOUT_STATUS_LABELS[session.status]'))
+  check('status labels via the shared provenance-aware helper (text always)',
+    sessionCard.includes('{workoutStatusLabel(session)}'))
   check('status colors semantic (caution/success/info/muted)',
     sessionCard.includes("in_progress: 'bg-caution-subtle text-caution") &&
     sessionCard.includes("completed:   'bg-success-subtle text-success") &&
@@ -376,7 +376,7 @@ console.log('\n11. Accessibility')
   check('decorative icons aria-hidden',
     hubPage.includes('aria-hidden="true"') && exercisesClient.includes('aria-hidden="true"'))
   check('status not color-only (labels asserted in sections above)',
-    sessionCard.includes('WORKOUT_STATUS_LABELS') && routineRow.includes('Inactive exercise'))
+    sessionCard.includes('workoutStatusLabel') && routineRow.includes('Inactive exercise'))
   check('destructive actions clearly labeled',
     routineDetail.includes('Delete permanently'))
   check('no focus suppression added',
@@ -440,8 +440,8 @@ console.log('\n13. Phase boundary')
   check('navigation model + shell unchanged',
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins') &&
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')"))
-  check('no migration 014, migrations remain 13',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+  check('4B.6A added no migration (schema through 013 intact)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('no package changes',
     JSON.parse(read('package.json')).name === 'shredos' &&
     Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)

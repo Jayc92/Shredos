@@ -1268,3 +1268,151 @@ export function displayWeight(kg: number | null): number | null {
   if (kg === null) return null
   return Math.round(kgToLbs(kg))
 }
+
+// ── Phase 5A.2: provenance-aware status label ──────────────────────
+// A manual-source in_progress session with a frozen duration is a
+// HISTORICAL-ENTRY / correction state, not a workout the user is
+// currently performing. The stored status stays 'in_progress' (the
+// active-session definition — in_progress AND null duration — is
+// untouched); only the user-facing label distinguishes it. The same
+// tuple also matches a reopened manual workout, which is why the
+// label is the universally truthful 'Editing workout' rather than
+// 'Logging past workout'. Shared by SessionHeader and SessionCard so
+// the condition lives in exactly one place.
+
+import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
+
+export function workoutStatusLabel(session: {
+  status: string
+  source?: string | null
+  completed_duration_seconds?: number | null
+}): string {
+  if (
+    session.source === 'manual' &&
+    session.status === 'in_progress' &&
+    session.completed_duration_seconds != null
+  ) {
+    return 'Editing workout'
+  }
+  return WORKOUT_STATUS_LABELS[session.status] ?? session.status
+}
+
+// ── Phase 5A.2: manual/historical workout validation ───────────────
+// Pure, deterministic validation for Log past workout and the manual
+// metadata correction PATCH. The date and time inputs are the user's
+// LOCAL wall-clock intent: they are combined and parsed exactly once
+// with `new Date('YYYY-MM-DDTHH:mm')` (local interpretation) — no 'Z'
+// suffix, no timezone-offset arithmetic. workout_date persists the
+// entered local calendar date verbatim, so an evening or
+// just-before-midnight workout never shifts dates through UTC.
+
+/** Clock-skew tolerance only — not a grace window for future workouts. */
+export const MANUAL_WORKOUT_FUTURE_TOLERANCE_MS = 2 * 60 * 1000
+
+/** Generous finite bound for the WORKOUT model specifically (24h).
+ *  Phase 5A.3 activity sessions define their own semantics. */
+export const MANUAL_WORKOUT_MAX_DURATION_MINUTES = 1440
+
+export type ManualWorkoutMetadataValidation =
+  | {
+      ok: true
+      workoutDate: string
+      startedAt: Date
+      endedAt: Date
+      durationSeconds: number
+      caloriesBurned: number | null
+    }
+  | { ok: false; error: string }
+
+export function validateManualWorkoutMetadata(
+  input: {
+    workoutDate: unknown
+    startTime: unknown
+    durationMinutes: unknown
+    caloriesBurned?: unknown
+  },
+  now: Date = new Date()
+): ManualWorkoutMetadataValidation {
+  const { workoutDate, startTime, durationMinutes, caloriesBurned } = input
+
+  if (typeof workoutDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(workoutDate)) {
+    return { ok: false, error: 'Enter a valid workout date.' }
+  }
+  if (typeof startTime !== 'string' || !/^\d{2}:\d{2}$/.test(startTime)) {
+    return { ok: false, error: 'Enter a valid start time.' }
+  }
+  // Single local parse of the combined date + time (never UTC-shifted).
+  const startedAt = new Date(`${workoutDate}T${startTime}`)
+  if (isNaN(startedAt.getTime())) {
+    return { ok: false, error: 'Enter a valid workout date and start time.' }
+  }
+  if (startedAt.getTime() > now.getTime() + MANUAL_WORKOUT_FUTURE_TOLERANCE_MS) {
+    return { ok: false, error: 'Start time cannot be in the future.' }
+  }
+
+  const minutes = Number(durationMinutes)
+  if (!Number.isInteger(minutes) || minutes <= 0) {
+    return { ok: false, error: 'Duration must be at least 1 minute.' }
+  }
+  if (minutes > MANUAL_WORKOUT_MAX_DURATION_MINUTES) {
+    return { ok: false, error: 'Duration cannot exceed 24 hours.' }
+  }
+
+  // NULL = not recorded; 0 = explicitly recorded as zero. An empty
+  // field clears back to NULL.
+  let calories: number | null = null
+  if (caloriesBurned !== undefined && caloriesBurned !== null && caloriesBurned !== '') {
+    const n = Number(caloriesBurned)
+    if (!Number.isInteger(n) || n < 0) {
+      return { ok: false, error: 'Calories must be a whole number of 0 or more.' }
+    }
+    calories = n
+  }
+
+  const durationSeconds = minutes * 60
+  const endedAt = new Date(startedAt.getTime() + durationSeconds * 1000)
+
+  return { ok: true, workoutDate, startedAt, endedAt, durationSeconds, caloriesBurned: calories }
+}
+
+// ── Phase 5A.2 QA correction: explicit 12-hour time segments ───────
+// Safari's segmented native time control can LOOK fully populated
+// while one segment is still uncommitted, reporting an empty value —
+// so the manual-workout forms use explicit Hour / Minute / AM-PM
+// selects instead. These pure helpers convert between the segments
+// and the local 24-hour 'HH:mm' contract the shared validation and
+// the server already use. No timezone logic here — the composed
+// string stays a LOCAL wall-clock value.
+
+/** Compose explicit 12-hour segments into local 'HH:mm'.
+ *  Returns null while any segment is missing or out of range — an
+ *  incomplete control must never serialize into a misleading value. */
+export function composeTime12To24(
+  hour12: string,
+  minute: string,
+  meridiem: string
+): string | null {
+  if (!hour12 || !minute || !meridiem) return null
+  const h = Number(hour12)
+  const m = Number(minute)
+  if (!Number.isInteger(h) || h < 1 || h > 12) return null
+  if (!Number.isInteger(m) || m < 0 || m > 59) return null
+  if (meridiem !== 'AM' && meridiem !== 'PM') return null
+  // 12 AM -> 00, 12 PM -> 12, 1 PM -> 13, 11 PM -> 23
+  let h24 = h % 12
+  if (meridiem === 'PM') h24 += 12
+  return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** Split a local 24-hour 'HH:mm' into 12-hour segments for prefill. */
+export function splitTime24To12(
+  hhmm: string
+): { hour12: string; minute: string; meridiem: 'AM' | 'PM' } | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(hhmm)
+  if (!match) return null
+  const h = Number(match[1])
+  if (h > 23 || Number(match[2]) > 59) return null
+  const meridiem: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return { hour12: String(h12), minute: match[2], meridiem }
+}

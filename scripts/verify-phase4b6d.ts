@@ -568,9 +568,9 @@ console.log('\n15. Phase boundary')
     read('src/lib/nutrition.ts').includes('calculateNutritionTargets'))
   check('no API route changes (onboarding writes via supabase client, as before)',
     ONBOARDING.every((f) => !f.includes("fetch('/api")))
-  check('migrations remain 13 (no migration 014)',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('014')))
+  check('4B.6D added no migration (schema through 013 intact; 014_phase5a2 is a later approved phase)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13 &&
+    !existsSync('supabase/migrations/014_phase4c_dashboard_layout.sql'))
   check('package.json untouched (22 deps, shredos)',
     read('package.json').includes('"name": "shredos"') &&
     Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)

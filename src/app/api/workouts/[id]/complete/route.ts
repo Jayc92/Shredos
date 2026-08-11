@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   // no stored procedures.
   const { data: existing, error: fetchError } = await supabase
     .from('workout_sessions')
-    .select('start_time, completed_duration_seconds')
+    .select('start_time, end_time, completed_duration_seconds')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -46,7 +46,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     )
   }
 
-  const update: Record<string, unknown> = { status: 'completed', end_time: nowIso }
+  // Phase 5A.2: a manual/historical session already carries its
+  // authoritative end_time from creation — completion must not
+  // replace it with the data-entry moment. Live first completions
+  // and post-reopen recompletions have end_time null here (reopen
+  // clears it), so their behavior is byte-identical to before.
+  const update: Record<string, unknown> = {
+    status: 'completed',
+    end_time: existing.end_time ?? nowIso,
+  }
   // Only set completed_duration_seconds when it isn't already present --
   // this is what makes recompletion after a correction preserve the
   // original duration instead of overwriting it with the (misleading)

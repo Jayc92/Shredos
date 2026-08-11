@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { formatWorkoutDuration } from '@/lib/workout'
-import { WORKOUT_STATUS_LABELS } from '@/lib/constants'
+import { formatWorkoutDuration, workoutStatusLabel, validateManualWorkoutMetadata, composeTime12To24, splitTime24To12 } from '@/lib/workout'
 import { format, parseISO } from 'date-fns'
 import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,6 +32,28 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
   const [reopenError,   setReopenError]   = useState<string | null>(null)
   const [deleting,      setDeleting]      = useState(false)
   const [deleteError,   setDeleteError]   = useState<string | null>(null)
+  // Phase 5A.2: compact metadata correction for manually logged
+  // workouts (source='manual' only). Never touches status/source —
+  // a draft stays a draft, a completed row stays completed.
+  const isManual = session.source === 'manual'
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [detailsDate,     setDetailsDate]     = useState(session.workout_date)
+  // Prefill the explicit 12-hour segments from the stored instant's
+  // LOCAL wall-clock (same proven round-trip; splitTime24To12 keeps
+  // 00:30 -> 12:30 AM and 12:30 -> 12:30 PM correct).
+  const startParts = session.start_time
+    ? splitTime24To12(format(new Date(session.start_time), 'HH:mm'))
+    : null
+  const [detailsHour,     setDetailsHour]     = useState(startParts?.hour12 ?? '')
+  const [detailsMinute,   setDetailsMinute]   = useState(startParts?.minute ?? '00')
+  const [detailsMeridiem, setDetailsMeridiem] = useState<string>(startParts?.meridiem ?? '')
+  const [detailsDuration, setDetailsDuration] = useState(
+    session.completed_duration_seconds != null
+      ? String(Math.round(session.completed_duration_seconds / 60)) : '')
+  const [detailsCalories, setDetailsCalories] = useState(
+    session.calories_burned != null ? String(session.calories_burned) : '')
+  const [savingDetails,   setSavingDetails]   = useState(false)
+  const [detailsError,    setDetailsError]    = useState<string | null>(null)
   const dateLabel = format(parseISO(session.workout_date), 'EEEE, MMMM d')
   const duration  = formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)
   const isActive  = session.status === 'in_progress'
@@ -103,6 +124,48 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
       onSessionDeleted?.()
     } catch { setDeleteError('Network error — please try again.'); setDeleting(false) }
   }
+  async function handleSaveDetails(e: React.FormEvent) {
+    e.preventDefault()
+    setDetailsError(null)
+    const detailsStart = composeTime12To24(detailsHour, detailsMinute, detailsMeridiem)
+    if (!detailsStart) {
+      setDetailsError('Enter a complete start time.')
+      return
+    }
+    const validation = validateManualWorkoutMetadata({
+      workoutDate: detailsDate,
+      startTime: detailsStart,
+      durationMinutes: detailsDuration === '' ? NaN : Number(detailsDuration),
+      caloriesBurned: detailsCalories,
+    })
+    if (!validation.ok) { setDetailsError(validation.error); return }
+    setSavingDetails(true)
+    try {
+      const res = await fetch(`/api/workouts/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'manual_metadata',
+          workoutDate: detailsDate,
+          startTime: detailsStart,
+          durationMinutes: Number(detailsDuration),
+          caloriesBurned: detailsCalories === '' ? null : Number(detailsCalories),
+        }),
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        setDetailsError(b.error ?? 'Could not save workout details. Please try again.')
+        setSavingDetails(false)
+        return
+      }
+      setSavingDetails(false)
+      setEditingDetails(false)
+      router.refresh()
+    } catch {
+      setDetailsError('Network error — please try again.')
+      setSavingDetails(false)
+    }
+  }
   return (
     // State-driven hierarchy (Phase 4B.6B): the active session is the
     // page's primary surface (action); completed reads as a settled
@@ -160,8 +223,12 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
         {routineId && routineName && <a href={`/workouts/routines/${routineId}`} className="text-brand hover:underline flex-shrink-0">From: {routineName} →</a>}
         <span className={cn('rounded-full border px-2 py-0.5 font-medium',
           isDone ? 'bg-success-subtle text-success border-success/20' : isActive ? 'bg-caution-subtle text-caution border-caution/20' : 'bg-surface-sunken text-ink-muted border-edge-subtle')}>
-          {WORKOUT_STATUS_LABELS[session.status] ?? session.status}
+          {workoutStatusLabel(session)}
         </span>
+        {isManual && isDone && <span>Logged manually</span>}
+        {isDone && session.calories_burned != null && (
+          <span>Calories burned {session.calories_burned}</span>
+        )}
       </div>
       {deleteError && <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1">{deleteError}</p>}
       {isActive && (
@@ -180,6 +247,86 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             {reopening ? 'Reopening…' : 'Reopen workout'}
           </button>
           {reopenError && <p className="text-xs text-critical text-center">{reopenError}</p>}
+        </div>
+      )}
+      {isManual && (
+        <div className="space-y-2">
+          <button type="button"
+            onClick={() => { setEditingDetails(!editingDetails); setDetailsError(null) }}
+            className="w-full py-2 rounded-[var(--radius-control)] border border-edge text-ink-muted text-xs font-medium hover:bg-surface-sunken transition-colors">
+            {editingDetails ? 'Close details' : 'Edit workout details'}
+          </button>
+          {editingDetails && (
+            <form onSubmit={handleSaveDetails} className="space-y-3 pt-2 border-t border-edge-subtle">
+              {detailsError && (
+                <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{detailsError}</p>
+              )}
+              {/* Same Safari intrinsic-minimum fix as LogPastWorkoutForm:
+                  1-col mobile, 2-col sm:+, min-w-0 cells. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1 min-w-0">
+                  <label className="block text-xs text-ink-muted">Date</label>
+                  <input type="date" value={detailsDate} required
+                    onChange={e => setDetailsDate(e.target.value)}
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <span className="block text-xs text-ink-muted">Start time</span>
+                  <div className="grid grid-cols-3 gap-1 min-w-0" role="group" aria-label="Start time">
+                    <select aria-label="Hour" value={detailsHour}
+                      onChange={e => setDetailsHour(e.target.value)}
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      <option value="">Hour</option>
+                      {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <select aria-label="Minute" value={detailsMinute}
+                      onChange={e => setDetailsMinute(e.target.value)}
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select aria-label="AM or PM" value={detailsMeridiem}
+                      onChange={e => setDetailsMeridiem(e.target.value)}
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      <option value="">AM/PM</option>
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1 min-w-0">
+                  <label className="block text-xs text-ink-muted">Duration (minutes)</label>
+                  <input type="number" inputMode="numeric" value={detailsDuration} required
+                    min="1" max="1440" step="1"
+                    onChange={e => setDetailsDuration(e.target.value)}
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <label className="block text-xs text-ink-muted">Calories burned (optional)</label>
+                  <input type="number" inputMode="numeric" value={detailsCalories}
+                    min="0" step="1" placeholder="Not recorded"
+                    onChange={e => setDetailsCalories(e.target.value)}
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => { setEditingDetails(false); setDetailsError(null) }}
+                  disabled={savingDetails}
+                  className="py-2.5 rounded-lg border border-edge text-ink-muted text-sm font-medium hover:bg-surface-sunken disabled:opacity-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={savingDetails}
+                  className="py-2.5 rounded-lg bg-brand text-brand-foreground text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors">
+                  {savingDetails ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
       </CardContent>

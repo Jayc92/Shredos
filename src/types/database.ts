@@ -311,6 +311,11 @@ export interface Exercise {
 export type ExerciseInsert = Omit<Exercise,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
 export type ExerciseUpdate  = Partial<Omit<Exercise,'id'|'user_id'|'created_at'>>
 
+// Phase 5A.2 (migration 014): capture provenance. 'legacy' = rows
+// predating the migration (capture method unknowable — never falsely
+// labeled 'live'); 'imported' is reserved, no import behavior exists.
+export type WorkoutSource = 'legacy' | 'live' | 'manual' | 'imported'
+
 export interface WorkoutSession {
   id: string
   user_id: string
@@ -322,6 +327,8 @@ export interface WorkoutSession {
   notes: string | null
   routine_id: string | null  // Phase 1D: nullable FK; null = manually started session
   completed_duration_seconds: number | null  // Phase 2J: persisted at first completion, preserved through reopen/recomplete corrections
+  calories_burned: number | null  // Phase 5A.2: user-entered, informational only; NULL = not recorded, 0 = explicitly zero
+  source: WorkoutSource  // Phase 5A.2: capture provenance (migration 014)
   created_at: string
   updated_at: string
 }

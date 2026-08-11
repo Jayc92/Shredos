@@ -529,8 +529,8 @@ console.log('\n13. Phase boundary')
     read('src/components/layout/nav-items.ts').includes('export const NAV_ICONS'))
   check('shell layout unchanged',
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')"))
-  check('no migration 014, migrations remain 13',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+  check('4B.4 added no migration (schema through 013 intact)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('no API files changed (decisions route anchors intact)',
     decisionsApi.includes('export async function POST') &&
     decisionsApi.includes('export async function PATCH') &&

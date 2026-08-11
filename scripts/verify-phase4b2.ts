@@ -411,13 +411,13 @@ console.log('\n11. Phase boundary invariants')
     read('src/app/(app)/coach/page.tsx').includes('fetchCoachActions') &&
     read('src/app/(app)/decisions/page.tsx').includes('Nothing changes silently') &&
     read('src/app/(app)/food/page.tsx').includes('Food log'))
-  check('no migration 014',
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('014')))
+  check('4B.2 added no migration (014_phase5a2 is a later approved phase)',
+    !existsSync('supabase/migrations/014_phase4c_dashboard_layout.sql'))
   check('no new persistence in shell',
     [sidebar, topBar, bottomNav, moreSheet, sheet].every((f) =>
       !f.includes('localStorage') && !f.includes('sessionStorage')))
   check('no Supabase changes (migrations dir unchanged count)',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('no API changes (signout route byte-anchored)',
     read('src/app/api/auth/signout/route.ts').includes('export async function POST'))
   check('no target logic changes',

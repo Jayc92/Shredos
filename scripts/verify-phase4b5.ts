@@ -587,8 +587,8 @@ console.log('\n16. Phase boundary')
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins'))
   check('shell unchanged',
     read('src/app/(app)/layout.tsx').includes("select('fasting_enabled')"))
-  check('no migration 014, migrations remain 13',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 13)
+  check('4B.5 added no migration (schema through 013 intact)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '014').length === 13)
   check('activity API file behavior anchors intact',
     activityApi.includes('upsertActivityLogForDate') && !existsSync('src/app/api/progress'))
   check('no package changes',
