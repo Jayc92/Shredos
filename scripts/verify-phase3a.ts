@@ -284,8 +284,8 @@ console.log('\n6. Weekly activity')
     { logged_date: '2026-07-31', steps: null },  // invalid — excluded
   ], bounds)
   check('activity logged-day count', a.loggedDays === 3)
-  check('average steps across logged days only (missing days not zero)',
-    a.averageSteps === 10000)
+  check('authoritative 7-day average (missing days count as zero) — 30,000/7',
+    a.averageSteps === 4286)
   check('total steps across logged days', a.totalSteps === 30000)
   const empty = computeWeeklyActivity([], bounds)
   check('no activity → nulls, never fake zeros',

@@ -6,9 +6,13 @@ import {
   fetchUserProfile,
   fetchActivityLogForDate,
   fetchActivityLogsForRange,
+  fetchRecentActivitySessions,
 } from '@/lib/supabase/server'
 import { ActivityLogForm } from '@/components/activity/ActivityLogForm'
+import { AddActivityForm } from '@/components/activity/AddActivityForm'
+import { ActivitySessionList } from '@/components/activity/ActivitySessionList'
 import { todayISO } from '@/lib/dates'
+import { averageDailySteps } from '@/lib/weekly-review'
 import { format, addDays, subDays, parseISO, isToday, isFuture } from 'date-fns'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import { Card, CardContent } from '@/components/ui/card'
@@ -76,22 +80,26 @@ export default async function ActivityPage({
 
   const sevenDaysAgo = format(subDays(parseISO(todayStr), 6), 'yyyy-MM-dd')
 
-  const [profile, existingLog, recentLogs] = await Promise.all([
+  const [profile, existingLog, recentLogs, activitySessions] = await Promise.all([
     fetchUserProfile(supabase, user.id),
     fetchActivityLogForDate(supabase, user.id, date),
     fetchActivityLogsForRange(supabase, user.id, sevenDaysAgo, todayStr),
+    fetchRecentActivitySessions(supabase, user.id, 10),
   ])
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
 
   const stepGoal = profile.step_goal ?? null
 
-  // 7-day summary — always reflects the trailing week ending today,
-  // independent of which date is being viewed/edited above.
+  // 7-day summary — always reflects the trailing week ending today
+  // (today + previous 6 local calendar days), independent of which
+  // date is being viewed/edited above. The average is the
+  // authoritative rule: total / 7 with missing days as zero — never
+  // an average of logged days only (Phase 5A.3 QA correction).
   const loggedDays = recentLogs.length
   const avgSteps =
     loggedDays > 0
-      ? Math.round(recentLogs.reduce((s, l) => s + l.steps, 0) / loggedDays)
+      ? averageDailySteps(recentLogs.reduce((s, l) => s + l.steps, 0))
       : null
   const goalDaysHit = stepGoal
     ? recentLogs.filter((l) => l.steps >= stepGoal).length
@@ -107,7 +115,15 @@ export default async function ActivityPage({
 
       <DateNav date={date} />
 
-      <ActivityLogForm date={date} existingLog={existingLog} isFutureDate={isFutureDate} />
+      {/* key={date}: each calendar day gets its OWN form instance.
+          Without it, React reuses the same-position component across
+          ?date= navigations and the useState(existingLog) initializer
+          never re-runs — the previous date's value follows the user
+          and, if saved, is written to the newly selected date
+          (physical-QA defect, empirically reproduced). Remounting per
+          date reinitializes state from that date's server-fetched
+          row. */}
+      <ActivityLogForm key={date} date={date} existingLog={existingLog} isFutureDate={isFutureDate} />
 
       {stepGoal && (
         <p className="text-xs text-ink-muted text-center">
@@ -131,7 +147,7 @@ export default async function ActivityPage({
               <p className="text-base font-bold tabular-nums">
                 {avgSteps !== null ? avgSteps.toLocaleString() : '—'}
               </p>
-              <p className="text-xs text-ink-muted mt-0.5">avg steps</p>
+              <p className="text-xs text-ink-muted mt-0.5">7-day avg</p>
             </div>
             <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
               <p className="text-base font-bold tabular-nums">
@@ -143,6 +159,16 @@ export default async function ActivityPage({
         )}
         </CardContent>
       </Card>
+
+      {/* Phase 5A.3: intentional activity sessions — deliberate
+          walks/runs etc., strictly separate from the passive daily
+          steps above. Sessions never feed the step totals and their
+          calories are informational only. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-ink">Intentional activity</h2>
+        <AddActivityForm />
+        <ActivitySessionList sessions={activitySessions} />
+      </section>
     </div>
   )
 }

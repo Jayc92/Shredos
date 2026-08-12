@@ -330,14 +330,14 @@ console.log('\n8. Activity contract')
     activityPage.includes("aria-label=\"Previous day\"") &&
     activityPage.includes('aria-disabled={isNextFuture}') &&
     activityPage.includes('Back to today'))
-  check('form props unchanged',
-    activityPage.includes('<ActivityLogForm date={date} existingLog={existingLog} isFutureDate={isFutureDate} />'))
+  check('form props unchanged (5A.3 QA fix added key={date} so each day remounts its own state)',
+    activityPage.includes('<ActivityLogForm key={date} date={date} existingLog={existingLog} isFutureDate={isFutureDate} />'))
   check('valid zero vs missing distinction preserved in the form',
     activityForm.includes('existingLog') && !activityForm.includes('?? 0 //'))
   check('step-goal source unchanged (profile)',
     activityPage.includes('profile.step_goal ?? null'))
   check('7-day summary math unchanged (logged-days denominator)',
-    activityPage.includes('recentLogs.reduce((s, l) => s + l.steps, 0) / loggedDays'))
+    activityPage.includes('averageDailySteps(recentLogs.reduce((s, l) => s + l.steps, 0))'))
   check('no invented streaks/calories/distance',
     !/streak|calorie|distance|km|miles/i.test(stripComments(activityPage)))
   check('no alarm styling for below-goal',
@@ -743,7 +743,7 @@ console.log('\n22. Per-state copy')
   check('tile labels preserved',
     ['exercises tracked', 'improving', 'need more data', 'recent PRs']
       .every((t) => overviewPage.includes(t)) &&
-    ['days logged', 'avg steps', 'goal days'].every((t) => activityPage.includes(t)))
+    ['days logged', '7-day avg', 'goal days'].every((t) => activityPage.includes(t)))
   check('trend coaching label set unchanged (no failure framing)',
     detailPage.includes("'Possible stall'") && detailPage.includes("'Steady'") &&
     detailPage.includes("// 'needs-data' — don't pretend a trend exists"))

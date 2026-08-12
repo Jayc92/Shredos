@@ -339,7 +339,7 @@ export default async function CheckInPage({
             </p>
             {activity.averageSteps !== null && (
               <p className="text-xs text-ink-muted">
-                {activity.averageSteps.toLocaleString()} average steps across logged days
+                {activity.averageSteps.toLocaleString()} average daily steps this week
               </p>
             )}
             {activity.totalSteps !== null && (

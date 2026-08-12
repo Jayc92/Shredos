@@ -502,8 +502,10 @@ export async function fetchWeeklyReview(
   const stepLoggedDays = activityLogs.length
   let avgStepsLogged: number | null = null
   if (stepLoggedDays > 0) {
-    avgStepsLogged = Math.round(
-      activityLogs.reduce((s, l) => s + l.steps, 0) / stepLoggedDays
+    // Authoritative 7-day rule (see averageDailySteps): total across
+    // the week / 7, missing days as zero — never / logged days.
+    avgStepsLogged = averageDailySteps(
+      activityLogs.reduce((s, l) => s + l.steps, 0)
     )
   }
   const stepGoalDaysHit = stepGoal
@@ -948,10 +950,28 @@ export interface WeeklyActivitySummary {
   averageSteps: number | null
 }
 
+// ── Authoritative weekly-step average (Phase 5A.3 QA correction) ──
+// average daily steps = total steps across the 7-calendar-day window
+// divided by 7, with missing/unlogged days counting as ZERO. The
+// previous logged-days-only denominator inflated the average when
+// logging was incomplete and made new entries barely move the
+// number. Shared by every live weekly-step consumer (/activity and
+// both summaries in this lib) so the product has exactly one
+// definition; the separate "X/7 days logged" figures remain the
+// completeness/confidence signal. Derives ONLY from
+// daily_activity_logs — intentional activity_sessions never enter
+// step aggregates.
+
+export const STEP_WEEK_DAYS = 7
+
+export function averageDailySteps(totalSteps: number): number {
+  return Math.round(totalSteps / STEP_WEEK_DAYS)
+}
+
 /**
- * Steps only (the app's supported activity metric). Averages divide
- * by logged days — a missing day is a coverage gap, never a zero,
- * unless the user explicitly stored a 0-step day.
+ * Steps only (the app's supported activity metric). The average is
+ * the authoritative 7-day rule above (missing days count as zero);
+ * loggedDays stays the coverage signal.
  */
 export function computeWeeklyActivity(
   rows: Array<{ logged_date: string; steps: number | null }>,
@@ -970,7 +990,7 @@ export function computeWeeklyActivity(
   return {
     loggedDays,
     totalSteps: loggedDays > 0 ? total : null,
-    averageSteps: loggedDays > 0 ? Math.round(total / loggedDays) : null,
+    averageSteps: loggedDays > 0 ? averageDailySteps(total) : null,
   }
 }
 

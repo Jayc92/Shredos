@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
 import { setScore, epley1RM, pickRepresentativeCardioSet } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
-import type { WorkoutSet, TrackingMode } from '@/types/database'
+import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database'
 
 /**
  * Picks the representative set from a list of same-session qualifying
@@ -997,6 +997,27 @@ export async function fetchActivityLogForDate(
     .eq('logged_date', date)
     .maybeSingle()
   return data ?? null
+}
+
+// Phase 5A.3: intentional activity sessions — recent-first for the
+// /activity page's Intentional activity section. Read-only; all
+// writes go through the server-authoritative /api/activity-sessions
+// routes. Strictly separate from daily_activity_logs (passive steps).
+export async function fetchRecentActivitySessions(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  limit = 10
+): Promise<ActivitySession[]> {
+  const { data, error } = await supabase
+    .from('activity_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('activity_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) console.error('fetchRecentActivitySessions error:', error)
+  return data ?? []
 }
 
 export async function fetchActivityLogsForRange(

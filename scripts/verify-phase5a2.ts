@@ -20,9 +20,11 @@ import {
   MANUAL_WORKOUT_MAX_DURATION_MINUTES,
   computeDurationSeconds,
   formatWorkoutDuration,
-  composeTime12To24,
-  splitTime24To12,
 } from '../src/lib/workout'
+// Phase 5A.3 relocated the generic segment-conversion helpers to the
+// neutral lib/local-time module (behavior byte-equivalent; runtime
+// checks below are unchanged and keep proving it).
+import { composeTime12To24, splitTime24To12 } from '../src/lib/local-time'
 
 let passed = 0
 let failed = 0
@@ -73,9 +75,9 @@ console.log('\n1. Checkpoint and migration 014')
   check('5A.2 notes exist', notes.length > 1500)
   check('migration 014 exists with the phase name',
     existsSync('supabase/migrations/014_phase5a2_workout_capture_metadata.sql'))
-  check('migrations are exactly 14 — no migration 015',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 14 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('015')))
+  check('5A.2 added only migration 014 (schema through 014 intact; 015 belongs to 5A.3)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql') && f < '015').length === 14 &&
+    existsSync('supabase/migrations/014_phase5a2_workout_capture_metadata.sql'))
   check('additive only: single ALTER, no DROP/UPDATE/rewrite of rows',
     migration.includes('ALTER TABLE workout_sessions') &&
     !migration.includes('DROP ') && !/^UPDATE /m.test(migration))
@@ -772,7 +774,9 @@ console.log('\n23. Segmented control UI')
   }
   check('segments compose through the shared helper before validation (both forms)',
     pastForm.includes('composeTime12To24(startHour, startMinute, startMeridiem)') &&
-    header.includes('composeTime12To24(detailsHour, detailsMinute, detailsMeridiem)'))
+    header.includes('composeTime12To24(detailsHour, detailsMinute, detailsMeridiem)') &&
+    pastForm.includes("from '@/lib/local-time'") &&
+    header.includes("from '@/lib/local-time'"))
   check('prefill splits the stored local instant through the shared helper',
     header.includes("splitTime24To12(format(new Date(session.start_time), 'HH:mm'))"))
   check('server contract unchanged: composed HH:mm still sent as startTime',

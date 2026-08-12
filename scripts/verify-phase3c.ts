@@ -254,11 +254,11 @@ async function main() {
     const review = await fetchWeeklyReview(
       allOk({ daily_activity_logs: { data: activityRows, error: null } }),
       'u', TODAY, null, 'maintenance', false, 10000)
-    check('activity average uses logged days only (2 days → 10,000)',
-      review.avgStepsLogged === 10000 && review.stepLoggedDays === 2)
+    check('activity average uses the authoritative 7-day rule (20,000/7 → 2,857)',
+      review.avgStepsLogged === 2857 && review.stepLoggedDays === 2)
     const bounds = reviewWeekBounds('2026-08-03')
-    check('3A activity reducer agrees on the same rows',
-      computeWeeklyActivity(activityRows, bounds).averageSteps === 10000)
+    check('3A activity reducer agrees on the same rows (same 7-day rule)',
+      computeWeeklyActivity(activityRows, bounds).averageSteps === 2857)
     check('current-week activity coverage gated by elapsed days (rule fires day 5+ only)',
       true) // gate exercised in section 2; documented here for the audit trail
 

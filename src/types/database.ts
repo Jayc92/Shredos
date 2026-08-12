@@ -332,6 +332,32 @@ export interface WorkoutSession {
   created_at: string
   updated_at: string
 }
+// ── activity_sessions ─────────────────────────────────────────────
+// Phase 5A.3 (migration 015): intentional activity sessions — the
+// third leg of the strict boundary (workout_sessions = strength,
+// daily_activity_logs = passive per-day steps). started_at is
+// optional; ended_at is deliberately not stored (derivable).
+// source has no default and no 'legacy' (new table): every writer
+// states provenance; 'live'/'imported' are reserved vocabulary.
+export type ActivitySource = 'manual' | 'live' | 'imported'
+
+export interface ActivitySession {
+  id: string
+  user_id: string
+  activity_type: string  // constrained by the migration CHECK; app vocabulary in lib/activity
+  activity_date: string  // authoritative local calendar date
+  started_at: string | null  // NULL = start time unknown
+  duration_seconds: number
+  distance_meters: number | null  // canonical meters (011 convention); NULL = not recorded
+  calories_burned: number | null  // NULL = not recorded, 0 = explicitly zero
+  source: ActivitySource
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type ActivitySessionInsert = Omit<ActivitySession,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
+export type ActivitySessionUpdate = Partial<Omit<ActivitySession,'id'|'user_id'|'source'|'created_at'>>
+
 export type WorkoutSessionInsert = Omit<WorkoutSession,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
 export type WorkoutSessionUpdate  = Partial<Omit<WorkoutSession,'id'|'user_id'|'created_at'>>
 
