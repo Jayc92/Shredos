@@ -440,8 +440,14 @@ console.log('\n12. Detail display')
     header.includes('{isManual && isDone && <span>Logged manually</span>}'))
   check('legacy provenance never surfaced to users',
     !header.includes("'Logged'") ? !header.includes('legacy') : true)
+  // RETARGETED (5A.5, approved D2): calories became editable during a
+  // live workout, so a recorded value now displays whenever it exists
+  // — the property this pin protects (NULL renders nothing, a value
+  // renders factually) is unchanged; only the completed-only gate is
+  // gone.
   check('calories rendered factually, only when recorded',
-    header.includes('{isDone && session.calories_burned != null && (') &&
+    header.includes('{session.calories_burned != null && (') &&
+    !header.includes('{isDone && session.calories_burned') &&
     header.includes('Calories burned {session.calories_burned}'))
   check('no eat-back / net-calorie language anywhere in changed scope',
     CHANGED.every((f) =>
@@ -655,10 +661,15 @@ console.log('\n20. Safari layout correction')
     (pastForm.match(/className="space-y-1 min-w-0"/g) || []).length === 4)
   check('field controls carry w-full min-w-0 (3 inputs + 3 time selects per form)',
     (pastForm.match(/w-full min-w-0 px-2 py-2/g) || []).length === 6)
+  // RETARGETED (5A.5): the live calories editor added one field built
+  // with the SAME safe pattern (space-y-1 min-w-0 wrapper, w-full
+  // min-w-0 input), so the exact occurrence counts moved 4->5 and
+  // 6->7; the manual editor's two-column grids are untouched (still
+  // exactly 2). The defect-class protection is unchanged.
   check('SessionHeader editor gets the identical fix (same defect class)',
     (header.match(/grid grid-cols-1 sm:grid-cols-2 gap-2/g) || []).length === 2 &&
-    (header.match(/className="space-y-1 min-w-0"/g) || []).length === 4 &&
-    (header.match(/w-full min-w-0 px-2 py-2/g) || []).length === 6)
+    (header.match(/className="space-y-1 min-w-0"/g) || []).length === 5 &&
+    (header.match(/w-full min-w-0 px-2 py-2/g) || []).length === 7)
   check('no forced 4-column layout anywhere in the forms',
     !pastForm.includes('grid-cols-4') && !header.includes('grid-cols-4'))
   check('no horizontal-overflow constructs / no JS viewport sizing',

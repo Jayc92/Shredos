@@ -1313,6 +1313,52 @@ export const MANUAL_WORKOUT_FUTURE_TOLERANCE_MS = 2 * 60 * 1000
  *  Phase 5A.3 activity sessions define their own semantics. */
 export const MANUAL_WORKOUT_MAX_DURATION_MINUTES = 1440
 
+// ── Phase 5A.5: shared workout-calorie validation ──────────────────
+// The ONE calorie validator for workout_sessions.calories_burned —
+// consumed by the manual metadata path below (delegation) and the
+// live workout_calories PATCH mode. NULL = not recorded, 0 =
+// explicitly recorded zero, positive integer = recorded calories.
+// Never estimated, never derived, never fed into nutrition targets.
+
+/** PostgreSQL INTEGER storage ceiling for calories_burned (migration
+ *  014 column type). This is the database's storage bound, NOT a
+ *  product-level plausibility cap — no workout-calorie maximum is
+ *  invented below it. */
+export const WORKOUT_CALORIES_MAX = 2147483647
+
+export type WorkoutCaloriesValidation =
+  | { ok: true; caloriesBurned: number | null }
+  | { ok: false; error: string }
+
+/**
+ * Blank/whitespace/null/absent mean "not recorded" (NULL) — never
+ * coerced to zero. Anything else must be a number or numeric string:
+ * booleans, arrays, and objects are rejected outright rather than
+ * falling through JS Number() coercion holes (Number(true)===1,
+ * Number([])===0 would otherwise fabricate values). Same hardening
+ * the 5A.4 daily-movement validator established.
+ */
+export function validateWorkoutCalories(caloriesBurned: unknown): WorkoutCaloriesValidation {
+  if (
+    caloriesBurned === undefined ||
+    caloriesBurned === null ||
+    (typeof caloriesBurned === 'string' && caloriesBurned.trim() === '')
+  ) {
+    return { ok: true, caloriesBurned: null }
+  }
+  if (typeof caloriesBurned !== 'number' && typeof caloriesBurned !== 'string') {
+    return { ok: false, error: 'Calories must be a whole number of 0 or more.' }
+  }
+  const n = Number(caloriesBurned)
+  if (!Number.isInteger(n) || n < 0) {
+    return { ok: false, error: 'Calories must be a whole number of 0 or more.' }
+  }
+  if (n > WORKOUT_CALORIES_MAX) {
+    return { ok: false, error: 'Calories value is too large to store.' }
+  }
+  return { ok: true, caloriesBurned: n }
+}
+
 export type ManualWorkoutMetadataValidation =
   | {
       ok: true
@@ -1359,18 +1405,21 @@ export function validateManualWorkoutMetadata(
   }
 
   // NULL = not recorded; 0 = explicitly recorded as zero. An empty
-  // field clears back to NULL.
-  let calories: number | null = null
-  if (caloriesBurned !== undefined && caloriesBurned !== null && caloriesBurned !== '') {
-    const n = Number(caloriesBurned)
-    if (!Number.isInteger(n) || n < 0) {
-      return { ok: false, error: 'Calories must be a whole number of 0 or more.' }
-    }
-    calories = n
+  // field clears back to NULL. Delegates to the shared 5A.5 validator
+  // (approved retarget: this deliberately TIGHTENS the manual path
+  // against hostile coercion — booleans/arrays/objects are now
+  // rejected instead of slipping through Number(); every legitimate
+  // blank/0/positive behavior is unchanged).
+  const caloriesValidation = validateWorkoutCalories(caloriesBurned)
+  if (!caloriesValidation.ok) {
+    return { ok: false, error: caloriesValidation.error }
   }
 
   const durationSeconds = minutes * 60
   const endedAt = new Date(startedAt.getTime() + durationSeconds * 1000)
 
-  return { ok: true, workoutDate, startedAt, endedAt, durationSeconds, caloriesBurned: calories }
+  return {
+    ok: true, workoutDate, startedAt, endedAt, durationSeconds,
+    caloriesBurned: caloriesValidation.caloriesBurned,
+  }
 }

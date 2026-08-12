@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { blockIfSessionCompleted } from '@/lib/supabase/workout-guards'
-import { validateManualWorkoutMetadata } from '@/lib/workout'
+import { validateManualWorkoutMetadata, validateWorkoutCalories } from '@/lib/workout'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -29,6 +29,18 @@ const WORKOUT_NOTES_MAX_LENGTH = 2000
 const MANUAL_METADATA_FIELDS = new Set([
   'mode', 'workoutDate', 'startTime', 'durationMinutes', 'caloriesBurned',
 ])
+
+// Phase 5A.5: the calories-only correction payload. Exactly these two
+// keys — the mode is structurally unable to carry anything else.
+const WORKOUT_CALORIES_FIELDS = new Set(['mode', 'caloriesBurned'])
+
+// Phase 5A.5 eligibility: live and manual capture flows may record
+// calories; 'legacy' rows have unknowable provenance and 'imported'
+// is reserved (future integrations own their own correction
+// semantics). Only a workout that actually happened or is happening
+// can carry calories — never planned/skipped.
+const WORKOUT_CALORIES_SOURCES = new Set(['live', 'manual'])
+const WORKOUT_CALORIES_STATUSES = new Set(['in_progress', 'completed'])
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -94,6 +106,59 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         completed_duration_seconds: durationSeconds,
         calories_burned: caloriesBurned,
       })
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ data })
+  }
+
+  // Phase 5A.5: calories-only correction — the live-workout parity
+  // mode (D1). Like manual_metadata, deliberately handled BEFORE the
+  // completed-row lock: correcting calories on a completed workout is
+  // ordinary optional metadata, never a reopen. The update payload is
+  // structurally only { calories_burned } — source, status, dates,
+  // timestamps, duration, title, notes, exercises and sets are
+  // unreachable from this mode, so a live row stays source='live'
+  // (entering calories manually is metadata, not a capture-source
+  // change) and a completed row stays completed with its frozen
+  // duration.
+  if (body.mode === 'workout_calories') {
+    const unsupportedCalories = Object.keys(body).filter((k) => !WORKOUT_CALORIES_FIELDS.has(k))
+    if (unsupportedCalories.length > 0) {
+      return NextResponse.json(
+        { error: 'Unsupported fields for calories correction.' },
+        { status: 400 }
+      )
+    }
+    const { data: session, error: fetchError } = await supabase
+      .from('workout_sessions')
+      .select('source, status')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!WORKOUT_CALORIES_SOURCES.has(session.source)) {
+      return NextResponse.json(
+        { error: "Calories can't be recorded for this workout type yet." },
+        { status: 400 }
+      )
+    }
+    if (!WORKOUT_CALORIES_STATUSES.has(session.status)) {
+      return NextResponse.json(
+        { error: 'Calories can only be recorded on an active or completed workout.' },
+        { status: 400 }
+      )
+    }
+    const caloriesValidation = validateWorkoutCalories(body.caloriesBurned)
+    if (!caloriesValidation.ok) {
+      return NextResponse.json({ error: caloriesValidation.error }, { status: 400 })
+    }
+    const { data, error } = await supabase
+      .from('workout_sessions')
+      .update({ calories_burned: caloriesValidation.caloriesBurned })
       .eq('id', params.id)
       .eq('user_id', user.id)
       .select()

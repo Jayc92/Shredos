@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { formatWorkoutDuration, workoutStatusLabel, validateManualWorkoutMetadata } from '@/lib/workout'
+import {
+  formatWorkoutDuration, workoutStatusLabel,
+  validateManualWorkoutMetadata, validateWorkoutCalories,
+} from '@/lib/workout'
 import { composeTime12To24, splitTime24To12 } from '@/lib/local-time'
 import { format, parseISO } from 'date-fns'
 import { Check, Pencil, Trash2, X } from 'lucide-react'
@@ -55,6 +58,21 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
     session.calories_burned != null ? String(session.calories_burned) : '')
   const [savingDetails,   setSavingDetails]   = useState(false)
   const [detailsError,    setDetailsError]    = useState<string | null>(null)
+  // Phase 5A.5: compact LIVE-ONLY calories editor (D6). Manual rows
+  // already edit calories through the full details editor above —
+  // never two calorie controls on one row. Eligible live rows are
+  // in_progress or completed (a reopened live row is in_progress and
+  // stays eligible); the workout_calories PATCH mode can only touch
+  // calories_burned, so source stays 'live' and a completed row
+  // stays completed with its frozen duration.
+  const isLive = session.source === 'live'
+  const caloriesEligible =
+    isLive && (session.status === 'in_progress' || session.status === 'completed')
+  const [editingCalories, setEditingCalories] = useState(false)
+  const [caloriesValue,   setCaloriesValue]   = useState(
+    session.calories_burned != null ? String(session.calories_burned) : '')
+  const [savingCalories,  setSavingCalories]  = useState(false)
+  const [caloriesError,   setCaloriesError]   = useState<string | null>(null)
   const dateLabel = format(parseISO(session.workout_date), 'EEEE, MMMM d')
   const duration  = formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)
   const isActive  = session.status === 'in_progress'
@@ -124,6 +142,37 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
       if (!res.ok) { const b = await res.json().catch(() => ({})); setDeleteError(b.error ?? 'Delete failed — please try again.'); setDeleting(false); return }
       onSessionDeleted?.()
     } catch { setDeleteError('Network error — please try again.'); setDeleting(false) }
+  }
+  async function handleSaveCalories(e: React.FormEvent) {
+    e.preventDefault()
+    setCaloriesError(null)
+    // Same pure validation the server enforces — blank clears to NULL,
+    // 0 is an explicit recorded zero.
+    const validation = validateWorkoutCalories(caloriesValue)
+    if (!validation.ok) { setCaloriesError(validation.error); return }
+    setSavingCalories(true)
+    try {
+      const res = await fetch(`/api/workouts/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'workout_calories',
+          caloriesBurned: caloriesValue === '' ? null : Number(caloriesValue),
+        }),
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        setCaloriesError(b.error ?? 'Could not save calories. Please try again.')
+        setSavingCalories(false)
+        return
+      }
+      setSavingCalories(false)
+      setEditingCalories(false)
+      router.refresh()
+    } catch {
+      setCaloriesError('Network error — please try again.')
+      setSavingCalories(false)
+    }
   }
   async function handleSaveDetails(e: React.FormEvent) {
     e.preventDefault()
@@ -227,7 +276,10 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
           {workoutStatusLabel(session)}
         </span>
         {isManual && isDone && <span>Logged manually</span>}
-        {isDone && session.calories_burned != null && (
+        {/* Phase 5A.5 (D2): a recorded value displays whenever it
+            exists — in progress or completed. NULL shows nothing
+            (never a fake zero); an explicit 0 shows as a real zero. */}
+        {session.calories_burned != null && (
           <span>Calories burned {session.calories_burned}</span>
         )}
       </div>
@@ -248,6 +300,46 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             {reopening ? 'Reopening…' : 'Reopen workout'}
           </button>
           {reopenError && <p className="text-xs text-critical text-center">{reopenError}</p>}
+        </div>
+      )}
+      {caloriesEligible && (
+        <div className="space-y-2">
+          <button type="button"
+            onClick={() => {
+              setCaloriesValue(session.calories_burned != null ? String(session.calories_burned) : '')
+              setEditingCalories(!editingCalories)
+              setCaloriesError(null)
+            }}
+            className="w-full py-2 rounded-[var(--radius-control)] border border-edge text-ink-muted text-xs font-medium hover:bg-surface-sunken transition-colors">
+            {editingCalories
+              ? 'Close calories'
+              : session.calories_burned != null ? 'Edit calories' : 'Log calories'}
+          </button>
+          {editingCalories && (
+            <form onSubmit={handleSaveCalories} className="space-y-3 pt-2 border-t border-edge-subtle">
+              {caloriesError && (
+                <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{caloriesError}</p>
+              )}
+              <div className="space-y-1 min-w-0">
+                <label className="block text-xs text-ink-muted">Calories burned (optional)</label>
+                <input type="number" inputMode="numeric" value={caloriesValue}
+                  min="0" step="1" placeholder="Not recorded"
+                  onChange={e => setCaloriesValue(e.target.value)}
+                  className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => { setEditingCalories(false); setCaloriesError(null) }}
+                  disabled={savingCalories}
+                  className="py-2.5 rounded-lg border border-edge text-ink-muted text-sm font-medium hover:bg-surface-sunken disabled:opacity-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={savingCalories}
+                  className="py-2.5 rounded-lg bg-brand text-brand-foreground text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors">
+                  {savingCalories ? 'Saving...' : 'Save changes'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
       {isManual && (
