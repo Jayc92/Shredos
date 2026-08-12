@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { DEFAULT_MANUAL_SET_COUNT } from '@/lib/workout'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -48,5 +49,45 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select('*, exercise:exercises(*)')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Phase 5A.6A: a manually added exercise starts with default empty
+  // entry rows instead of zero sets (three "Add set" taps). Same
+  // persisted-draft semantics the routine-start flow has always used:
+  // completed=false rows with every performance value NULL, so the
+  // seeded rows carry no volume, history, PRs, or Coach facts until
+  // the user actually completes them (all analytics filter on
+  // completed && !is_warmup). All-NULL values are valid for every
+  // tracking mode — nothing is prefilled. If a caller ever supplies a
+  // prescribed target_sets (none does today; the routine flow has its
+  // own route), that count is respected instead of the default.
+  const seedCount =
+    typeof body.target_sets === 'number' && Number.isInteger(body.target_sets) && body.target_sets > 0
+      ? body.target_sets
+      : DEFAULT_MANUAL_SET_COUNT
+  const seedRows = Array.from({ length: seedCount }, (_, i) => ({
+    workout_exercise_id: data.id,
+    set_number: i + 1,
+    completed: false,
+    is_warmup: false,
+    reps: null,
+    weight_kg: null,
+    rpe: null,
+    duration_seconds: null,
+    distance_meters: null,
+    notes: null,
+  }))
+  const { error: seedError } = await supabase.from('workout_sets').insert(seedRows)
+  if (seedError) {
+    // Compensating cleanup: never leave a half-created exercise on the
+    // workout. Deleting the new workout_exercises row cascades any
+    // partially inserted sets (003 FK ON DELETE CASCADE). The session
+    // and every other exercise/set are untouched.
+    await supabase.from('workout_exercises').delete().eq('id', data.id)
+    return NextResponse.json(
+      { error: 'Could not add the exercise. Try again.' },
+      { status: 500 }
+    )
+  }
+
   return NextResponse.json({ data }, { status: 201 })
 }

@@ -1313,6 +1313,15 @@ export const MANUAL_WORKOUT_FUTURE_TOLERANCE_MS = 2 * 60 * 1000
  *  Phase 5A.3 activity sessions define their own semantics. */
 export const MANUAL_WORKOUT_MAX_DURATION_MINUTES = 1440
 
+// ── Phase 5A.6A: default manual set count ──────────────────────────
+// How many empty entry rows a MANUALLY added exercise starts with.
+// A default, never a requirement — the user deletes down to 2/1/0 or
+// adds 4/5/… through the existing set routes. Routine-started
+// exercises are untouched: their prescribed target_sets counts come
+// from the structurally separate /api/routines/[id]/start flow and
+// must never be forced to this value.
+export const DEFAULT_MANUAL_SET_COUNT = 3
+
 // ── Phase 5A.5: shared workout-calorie validation ──────────────────
 // The ONE calorie validator for workout_sessions.calories_burned —
 // consumed by the manual metadata path below (delegation) and the
