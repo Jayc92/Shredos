@@ -15,8 +15,12 @@ interface StepsCardProps {
 }
 
 export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
+  // Phase 5A.4: steps are nullable — a row can exist for a
+  // distance-only day, so row existence no longer means steps were
+  // logged. Only a non-null steps value counts (an explicit 0 is a
+  // real recorded zero and still renders as one).
+  const hasLoggedToday = todayLog?.steps != null
   const steps = todayLog?.steps ?? 0
-  const hasLoggedToday = todayLog !== null
 
   const pct = stepGoal ? Math.min(100, Math.round((steps / stepGoal) * 100)) : null
   const remaining = stepGoal ? Math.max(0, stepGoal - steps) : null

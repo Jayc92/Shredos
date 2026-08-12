@@ -336,10 +336,14 @@ console.log('\n8. Activity contract')
     activityForm.includes('existingLog') && !activityForm.includes('?? 0 //'))
   check('step-goal source unchanged (profile)',
     activityPage.includes('profile.step_goal ?? null'))
-  check('7-day summary math unchanged (logged-days denominator)',
-    activityPage.includes('averageDailySteps(recentLogs.reduce((s, l) => s + l.steps, 0))'))
-  check('no invented streaks/calories/distance',
-    !/streak|calorie|distance|km|miles/i.test(stripComments(activityPage)))
+  // RETARGETED (5A.4): steps became nullable — the sum treats NULL as
+  // zero and the shared SUM/7 helper is unchanged.
+  check('7-day summary math unchanged (shared helper, NULL-safe sum)',
+    activityPage.includes('averageDailySteps(recentLogs.reduce((s, l) => s + (l.steps ?? 0), 0))'))
+  // RETARGETED (5A.4): daily aggregate distance is now a real product
+  // feature on this page; streaks and calories remain banned.
+  check('no invented streaks/calories (distance is a real 5A.4 feature)',
+    !/streak|calorie/i.test(stripComments(activityPage)))
   check('no alarm styling for below-goal',
     !activityPage.includes('critical') && !activityForm.includes('text-critical bg'))
   check('empty state preserved', activityPage.includes('No steps logged this week yet.'))

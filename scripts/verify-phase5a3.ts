@@ -74,10 +74,13 @@ console.log('\n1. Checkpoint and migration 015')
       'supabase/migrations/014_phase5a2_workout_capture_metadata.sql']
       .every((f) => existsSync(f)))
   check('5A.3 notes exist', notes.length > 1500)
-  check('migrations are exactly 16 (015 table + corrective 016 grants) — no 017',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 16 &&
+  // RETARGETED (5A.4): 017 is that approved phase's migration, so the
+  // boundary this pin protects is now "5A.3 added exactly 015 + 016"
+  // rather than a total count that every later phase would break.
+  check('5A.3 migration boundary: added exactly 015 + 016 (no 016b/duplicates)',
+    existsSync('supabase/migrations/015_phase5a3_activity_sessions.sql') &&
     existsSync('supabase/migrations/016_phase5a3_activity_session_grants.sql') &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('017')))
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('015') || f.startsWith('016')).length === 2)
   check('migration creates activity_sessions',
     migration.includes('CREATE TABLE activity_sessions ('))
   const COLUMNS = [
@@ -454,19 +457,29 @@ console.log('\n8. UI contract')
 // ── 9. Boundary and double-counting contract ─────────────────────────
 console.log('\n9. Boundary and double-counting')
 {
-  check('existing /api/activity (passive steps) byte-anchored unchanged',
+  // RETARGETED (5A.4): the route legitimately gained daily distance,
+  // so byte-anchoring is gone — the boundary this pin protects
+  // (future-date rule, the one upsert path, and no activity_sessions
+  // code) is checked on comment-stripped source instead.
+  check('existing /api/activity boundary intact (future rule, upsert path, no session code)',
     stepsRoute.includes("Can't log steps for a future date.") &&
     stepsRoute.includes('upsertActivityLogForDate') &&
-    !stepsRoute.includes('activity_sessions'))
+    !stripComments(stepsRoute).includes('activity_sessions'))
   check('steps form untouched', stepsForm.includes("fetch('/api/activity'") &&
     !stepsForm.includes('activity_sessions'))
   check('activity scope never references daily steps or nutrition tables',
     [postRoute, idRoute, addForm, list].every((f) =>
       !f.includes('daily_activity_logs') && !f.includes('nutrition_targets') &&
       !f.includes('food_logs')))
+  // RETARGETED (5A.4): lib/activity.ts now also hosts the DAILY
+  // aggregate movement validator, which legitimately names steps —
+  // the session-scoped files keep the plain ban, and the lib is
+  // pinned against any steps<->distance derivation instead.
   check('no step derivation or step writes from sessions',
-    [postRoute, idRoute, addForm, list, activityLib].every((f) =>
-      !stripComments(f).includes('steps')))
+    [postRoute, idRoute, addForm, list].every((f) =>
+      !stripComments(f).includes('steps')) &&
+    !/stride|stepsFromDistance|distanceFromSteps|stepsPerMile|toSteps/i
+      .test(stripComments(activityLib)))
   check('no eat-back / net-calorie language',
     CHANGED.every((f) => !/eat.?back|net calorie|calorie credit|earned food/i
       .test(stripComments(f))))
@@ -678,8 +691,12 @@ console.log('\n14. Date isolation and grants (QA corrections)')
     page.includes('ActivityLogForm key={date}'))
   check('remount rationale documented at the call site',
     page.includes('never re-runs') || page.includes('own form instance'))
+  // RETARGETED (5A.4): steps became nullable, so the initializer now
+  // distinguishes a stored NULL (blank field) from a stored 0 ("0") —
+  // the property protected here (state comes from the selected date's
+  // server row) is unchanged.
   check('form state initializes from the selected date\'s server row',
-    stepsForm.includes("useState(existingLog ? String(existingLog.steps) : '')"))
+    stepsForm.includes("existingLog && existingLog.steps !== null ? String(existingLog.steps) : ''"))
   check('save writes the SELECTED date (prop-driven, never a stale one)',
     stepsForm.includes('date,') &&
     stepsRoute.includes("const date = typeof body.date === 'string' && body.date ? body.date : today"))

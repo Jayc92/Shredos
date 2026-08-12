@@ -1037,12 +1037,18 @@ export async function fetchActivityLogsForRange(
   return data ?? []
 }
 
+// Phase 5A.4: steps and distance_meters are independently optional
+// aggregate metrics — NULL means "not recorded", 0 is an explicit
+// zero, and neither is ever derived from the other. The values
+// arrive already validated/converted by the /api/activity route
+// (miles -> canonical meters happens exactly once, server-side).
 export async function upsertActivityLogForDate(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   userId: string,
   date: string,
-  steps: number,
+  steps: number | null,
+  distanceMeters: number | null,
   notes?: string | null
 ): Promise<DailyActivityLog> {
   const { data, error } = await supabase
@@ -1052,6 +1058,7 @@ export async function upsertActivityLogForDate(
         user_id: userId,
         logged_date: date,
         steps,
+        distance_meters: distanceMeters,
         notes: notes ?? null,
         updated_at: new Date().toISOString(),
       },
@@ -1061,4 +1068,24 @@ export async function upsertActivityLogForDate(
     .single()
   if (error) throw error
   return data
+}
+
+// Phase 5A.4: the sessions for ONE local calendar date — the exact
+// component set the daily-distance reconciliation compares against
+// the aggregate (never inferred from a recent-N list). Uses the
+// existing (user_id, activity_date DESC) index; read-only,
+// distance-only projection.
+export async function fetchActivitySessionsForDate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  date: string
+): Promise<Array<{ distance_meters: number | null }>> {
+  const { data, error } = await supabase
+    .from('activity_sessions')
+    .select('distance_meters')
+    .eq('user_id', userId)
+    .eq('activity_date', date)
+  if (error) console.error('fetchActivitySessionsForDate error:', error)
+  return data ?? []
 }

@@ -194,6 +194,121 @@ export function validateActivitySessionInput(
   }
 }
 
+// ── Daily aggregate movement (Phase 5A.4) ─────────────────────────
+// daily_activity_logs holds AGGREGATE daily signals; the sessions
+// above are COMPONENT records largely contained within them. For
+// both daily metrics: NULL = not recorded, 0 = explicitly zero, and
+// each is independently optional — a distance-only day never
+// fabricates zero steps and vice versa. No steps/distance conversion
+// or estimation exists in either direction.
+
+/** The migration 005 CHECK bound — the established step contract. */
+export const DAILY_STEPS_MAX = 100000
+
+/** NUMERIC(10,2) storage bound for canonical meters. This is the
+ *  database's precision limit, NOT a product-level plausibility cap
+ *  (approved D5: no arbitrary maximum distance; plausibility is a
+ *  future warning concern). */
+export const DAILY_DISTANCE_MAX_METERS = 99999999.99
+
+export type DailyMovementValidation =
+  | { ok: true; steps: number | null; distanceMeters: number | null }
+  | { ok: false; error: string }
+
+/**
+ * Validates a daily aggregate movement payload. Blank/absent fields
+ * mean "not recorded" (NULL) — never silently coerced to zero; an
+ * explicit 0 is a real recorded zero for either metric. Distance
+ * arrives as miles and converts to canonical meters exactly once,
+ * here. Malformed, negative, or non-finite values are rejected with
+ * exact errors — nothing is clamped.
+ */
+/** Blank/absent means "not recorded"; anything else must be a number
+ *  or numeric string — booleans/arrays/objects would otherwise
+ *  coerce through Number() into a fabricated explicit zero. */
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null ||
+    (typeof value === 'string' && value.trim() === '')
+}
+
+export function validateDailyMovementInput(input: {
+  steps?: unknown
+  distanceMiles?: unknown
+}): DailyMovementValidation {
+  let steps: number | null = null
+  if (!isBlank(input.steps)) {
+    if (typeof input.steps !== 'number' && typeof input.steps !== 'string') {
+      return { ok: false, error: 'Steps must be a whole number of 0 or more.' }
+    }
+    const n = Number(input.steps)
+    if (!Number.isInteger(n) || n < 0) {
+      return { ok: false, error: 'Steps must be a whole number of 0 or more.' }
+    }
+    if (n > DAILY_STEPS_MAX) {
+      return { ok: false, error: `Steps cannot exceed ${DAILY_STEPS_MAX.toLocaleString()}.` }
+    }
+    steps = n
+  }
+
+  let distanceMeters: number | null = null
+  if (!isBlank(input.distanceMiles)) {
+    if (typeof input.distanceMiles !== 'number' && typeof input.distanceMiles !== 'string') {
+      return { ok: false, error: 'Distance must be a valid number of miles.' }
+    }
+    const miles = Number(input.distanceMiles)
+    if (!Number.isFinite(miles)) {
+      return { ok: false, error: 'Distance must be a valid number of miles.' }
+    }
+    if (miles < 0) {
+      return { ok: false, error: 'Distance cannot be negative.' }
+    }
+    const meters = milesToMeters(miles)
+    if (meters > DAILY_DISTANCE_MAX_METERS) {
+      return { ok: false, error: 'Distance is too large to store.' }
+    }
+    distanceMeters = meters
+  }
+
+  return { ok: true, steps, distanceMeters }
+}
+
+/** Sum of recorded session distances (NULL distances contribute
+ *  nothing) — the component total for one calendar day. */
+export function sessionDistanceTotalMeters(
+  sessions: Array<{ distance_meters: number | null }>
+): number {
+  let total = 0
+  for (const session of sessions) {
+    if (session.distance_meters !== null && Number.isFinite(session.distance_meters)) {
+      total += session.distance_meters
+    }
+  }
+  return total
+}
+
+/**
+ * Informational aggregate-vs-component reconciliation for one local
+ * calendar date. Session distance is a COMPONENT of the daily
+ * aggregate, so it exceeding the aggregate signals a data problem —
+ * but manual entries can be wrong in either direction and device
+ * sources measure differently, so this only ever returns a message:
+ * it never blocks a save, mutates either value, or auto-fills
+ * anything. Comparison happens on the 2dp display miles (the shared
+ * metersToMiles contract) so floating-point meter noise can't
+ * manufacture a warning. A NULL daily distance means "not recorded"
+ * — nothing to reconcile against.
+ */
+export function dailyDistanceReconciliationWarning(
+  dailyDistanceMeters: number | null,
+  sessionDistanceMeters: number
+): string | null {
+  if (dailyDistanceMeters === null) return null
+  const dailyMiles = metersToMiles(dailyDistanceMeters)
+  const sessionMiles = metersToMiles(sessionDistanceMeters)
+  if (sessionMiles <= dailyMiles) return null
+  return `Your logged activities total ${sessionMiles} mi, but your daily movement total is ${dailyMiles} mi. Check your activity total or session distances.`
+}
+
 // ── Display formatting ────────────────────────────────────────────
 
 /** '45m' / '1h 30m' from stored duration_seconds. */

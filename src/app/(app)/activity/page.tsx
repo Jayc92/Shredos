@@ -7,7 +7,12 @@ import {
   fetchActivityLogForDate,
   fetchActivityLogsForRange,
   fetchRecentActivitySessions,
+  fetchActivitySessionsForDate,
 } from '@/lib/supabase/server'
+import {
+  sessionDistanceTotalMeters,
+  dailyDistanceReconciliationWarning,
+} from '@/lib/activity'
 import { ActivityLogForm } from '@/components/activity/ActivityLogForm'
 import { AddActivityForm } from '@/components/activity/AddActivityForm'
 import { ActivitySessionList } from '@/components/activity/ActivitySessionList'
@@ -80,11 +85,12 @@ export default async function ActivityPage({
 
   const sevenDaysAgo = format(subDays(parseISO(todayStr), 6), 'yyyy-MM-dd')
 
-  const [profile, existingLog, recentLogs, activitySessions] = await Promise.all([
+  const [profile, existingLog, recentLogs, activitySessions, sessionsForDate] = await Promise.all([
     fetchUserProfile(supabase, user.id),
     fetchActivityLogForDate(supabase, user.id, date),
     fetchActivityLogsForRange(supabase, user.id, sevenDaysAgo, todayStr),
     fetchRecentActivitySessions(supabase, user.id, 10),
+    fetchActivitySessionsForDate(supabase, user.id, date),
   ])
 
   if (!profile || !profile.onboarding_complete) redirect('/onboarding')
@@ -96,14 +102,25 @@ export default async function ActivityPage({
   // date is being viewed/edited above. The average is the
   // authoritative rule: total / 7 with missing days as zero — never
   // an average of logged days only (Phase 5A.3 QA correction).
-  const loggedDays = recentLogs.length
+  // Phase 5A.4: steps are nullable — a distance-only day is NOT a
+  // step-logged day, and NULL steps contribute zero to the sum.
+  const loggedDays = recentLogs.filter((l) => l.steps !== null).length
   const avgSteps =
     loggedDays > 0
-      ? averageDailySteps(recentLogs.reduce((s, l) => s + l.steps, 0))
+      ? averageDailySteps(recentLogs.reduce((s, l) => s + (l.steps ?? 0), 0))
       : null
   const goalDaysHit = stepGoal
-    ? recentLogs.filter((l) => l.steps >= stepGoal).length
+    ? recentLogs.filter((l) => l.steps !== null && l.steps >= stepGoal).length
     : null
+
+  // Aggregate-vs-component reconciliation for the VIEWED date:
+  // intentional session distance is a component of (not an addition
+  // to) the daily total, so exceeding it earns an informational
+  // warning — never a block, never a mutation of either value.
+  const distanceWarning = dailyDistanceReconciliationWarning(
+    existingLog?.distance_meters ?? null,
+    sessionDistanceTotalMeters(sessionsForDate)
+  )
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
@@ -125,13 +142,20 @@ export default async function ActivityPage({
           row. */}
       <ActivityLogForm key={date} date={date} existingLog={existingLog} isFutureDate={isFutureDate} />
 
+      {distanceWarning && (
+        <p className="text-xs text-ink-muted bg-surface-sunken rounded-lg px-3 py-2">
+          {distanceWarning}
+        </p>
+      )}
+
       {stepGoal && (
         <p className="text-xs text-ink-muted text-center">
           Daily goal: {stepGoal.toLocaleString()} steps
         </p>
       )}
 
-      {/* Last 7 days — logged-days-only average, consistent with Phase 1F/1G */}
+      {/* Last 7 days — authoritative SUM/7 average (5A.3 correction);
+          "days logged" counts step-recorded days only */}
       <Card variant="metric" className="gap-0 py-4">
         <CardContent className="space-y-3">
         <h2 className="text-sm font-semibold text-ink">Last 7 days</h2>

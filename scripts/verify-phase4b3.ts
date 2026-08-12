@@ -433,8 +433,12 @@ console.log('\n13. Per-card contracts')
       !src.match(/<div[^>]*onClick/))
     check(`${name}: concise heading (no h1 inside card)`, !src.includes('<h1'))
   }
-  check('valid zero not conflated with missing: steps (todayLog null vs 0)',
-    steps.includes('todayLog?.steps ?? 0') && steps.includes('todayLog !== null'))
+  // RETARGETED (5A.4): steps became nullable, so the missing-vs-zero
+  // gate moved from row existence to the steps value itself — a
+  // distance-only row must not read as "steps logged". The distinction
+  // this check protects is unchanged, only its mechanism.
+  check('valid zero not conflated with missing: steps (steps null vs 0)',
+    steps.includes('todayLog?.steps ?? 0') && steps.includes('todayLog?.steps != null'))
   check('valid zero not conflated with missing: nutrition (no target vs no logs)',
     nutrition.includes('if (!target)') && nutrition.includes('todayLogs.length === 0'))
   check('valid zero not conflated with missing: weight (null latest, null change)',

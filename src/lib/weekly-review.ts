@@ -427,7 +427,7 @@ export async function fetchWeeklyReview(
   const foodLogs    = foodRes.data ?? []
   const sessions: LegacyWeeklySessionRow[] = sessionRes.data ?? []
   const fasts       = fastingRes.data ?? []
-  const activityLogs: Array<{ logged_date: string; steps: number }> = activityRes.data ?? []
+  const activityLogs: Array<{ logged_date: string; steps: number | null }> = activityRes.data ?? []
 
   // ── Weight ───────────────────────────────────────────────────────────────
   // Phase 3C alignment: distinct weigh-in DATES via the authoritative
@@ -499,17 +499,20 @@ export async function fetchWeeklyReview(
   }
 
   // ── Activity (Phase 1H, informational only) ────────────────────────────
-  const stepLoggedDays = activityLogs.length
+  // Phase 5A.4: steps are nullable — only rows that actually recorded
+  // steps count as step-logged days (a distance-only day is not one),
+  // and NULL steps contribute zero to the sum.
+  const stepLoggedDays = activityLogs.filter((l) => l.steps !== null).length
   let avgStepsLogged: number | null = null
   if (stepLoggedDays > 0) {
     // Authoritative 7-day rule (see averageDailySteps): total across
     // the week / 7, missing days as zero — never / logged days.
     avgStepsLogged = averageDailySteps(
-      activityLogs.reduce((s, l) => s + l.steps, 0)
+      activityLogs.reduce((s, l) => s + (l.steps ?? 0), 0)
     )
   }
   const stepGoalDaysHit = stepGoal
-    ? activityLogs.filter((l) => l.steps >= stepGoal).length
+    ? activityLogs.filter((l) => l.steps !== null && l.steps >= stepGoal).length
     : null
 
   // ── Coaching output ───────────────────────────────────────────────────────

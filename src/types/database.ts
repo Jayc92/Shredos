@@ -452,12 +452,21 @@ export interface WorkoutRoutineWithExercises extends WorkoutRoutine {
 
 // ============================================================
 // Phase 1H — daily activity/steps logging
+// Phase 5A.4 — aggregate daily distance + honestly optional steps.
+// For BOTH metrics: NULL = not recorded, 0 = explicitly recorded
+// zero. Steps-only, distance-only, both, and zero-steps-plus-
+// positive-distance are all valid rows. Intentional
+// activity_sessions are component records and never feed these
+// aggregates; no steps/distance conversion exists in either
+// direction.
 // ============================================================
 export interface DailyActivityLog {
   id: string
   user_id: string
   logged_date: string
-  steps: number
+  steps: number | null
+  /** Canonical meters (NUMERIC(10,2)); miles are a UI concern. */
+  distance_meters: number | null
   notes: string | null
   created_at: string
   updated_at: string
