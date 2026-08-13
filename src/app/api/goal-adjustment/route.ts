@@ -41,6 +41,15 @@ async function loadContext(supabase: Awaited<ReturnType<typeof createClient>>, u
   return { profile, target }
 }
 
+const profileContext = (profile: NonNullable<Awaited<ReturnType<typeof fetchUserProfile>>>) => ({
+  activityLevel: profile.activity_level,
+  fastingEnabled: profile.fasting_enabled,
+  sex: profile.sex,
+  age: profile.age,
+  heightCm: profile.height_cm,
+  currentWeightKg: profile.current_weight_kg,
+})
+
 /** GET /api/goal-adjustment — read-only review computation. */
 export async function GET() {
   const supabase = await createClient()
@@ -54,13 +63,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Profile not found.' }, { status: 404 })
   }
 
+  // Phase 5B.4: profile context feeds the activity/training/adaptive
+  // evidence layers (absent sources degrade to unknown, never low).
   const review = await fetchGoalAdjustmentReview(
     supabase,
     user.id,
     todayISO(),
     profile.main_goal,
     profile.bf_pct,
-    target
+    target,
+    profileContext(profile)
   )
 
   return NextResponse.json({ data: review })
@@ -89,7 +101,8 @@ export async function POST(request: NextRequest) {
   // Server-side recomputation from FRESH data — the client's
   // eligibility claim is never trusted.
   const freshReview = await fetchGoalAdjustmentReview(
-    supabase, user.id, todayISO(), profile.main_goal, profile.bf_pct, target
+    supabase, user.id, todayISO(), profile.main_goal, profile.bf_pct, target,
+    profileContext(profile)
   )
 
   const validation = validateAdjustmentApply(freshReview, {
@@ -130,6 +143,14 @@ export async function POST(request: NextRequest) {
         weightBand: freshReview.weight.band,
         nutritionLoggedDays: freshReview.nutrition.loggedDays,
         evidenceStrength: freshReview.evidenceStrength,
+        // Phase 5B.4 evidence (additive jsonb — old records unaffected):
+        anchorCount: freshReview.weight.anchorCount,
+        trendConfidence: freshReview.weight.trendConfidence,
+        explicitCompleteDays: freshReview.nutrition.explicitCompleteDays,
+        adherence: freshReview.nutrition.adherence,
+        activityContext: freshReview.activityContext,
+        trainingSignal: freshReview.trainingSignal,
+        adaptiveStatus: freshReview.adaptiveEvidence.status,
       },
       p_review_on: freshReview.suggestedReviewOn,
     }

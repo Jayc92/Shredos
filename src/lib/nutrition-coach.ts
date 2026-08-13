@@ -165,23 +165,24 @@ function buildCalorieSuggestion(
   // Gate 6: don’t suggest reduction if already under target
   if (calorieTrend === 'below') return null
 
-  // Safety floor
-  const suggested = Math.max(MIN_CALORIES_FLOOR, Math.round(avgCaloriesLast7 - 150))
-  if (suggested <= MIN_CALORIES_FLOOR) return null
-
+  // Phase 5B.4: this panel no longer invents its own target numbers.
+  // The old copy prescribed "try avg - 150 cal/day" — divergent
+  // recommendation math outside the ONE decision path. The gates
+  // above still decide WHEN the situation is worth surfacing; the
+  // message now routes to the goal-adjustment review (the single
+  // evidence-gated, guardrailed, explicitly-applied path).
   const avg = Math.round(avgCaloriesLast7).toLocaleString()
-  const sug = suggested.toLocaleString()
 
   if (weightTrend === 'holding') {
     return (
       `Weight has been holding at an average of ${avg} cal/day. ` +
-      `A reduction of 100–200 cal may restart progress — try ${sug} cal/day.`
+      `Check the adjustment review on the Nutrition page — if the evidence supports a change, it will propose one there.`
     )
   }
   if (weightTrend === 'gaining') {
     return (
       `Weight has been trending up while averaging ${avg} cal/day. ` +
-      `Consider reducing by 100–200 cal/day.`
+      `Check the adjustment review on the Nutrition page for an evidence-based next step.`
     )
   }
   return null

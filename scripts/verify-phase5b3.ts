@@ -128,9 +128,13 @@ console.log('\n1. Checkpoint and boundary')
     ['src/lib/today-energy.ts', 'src/components/dashboard/EnergyBalanceCard.tsx',
       'src/app/(app)/dashboard/page.tsx', 'src/components/dashboard/TodayWidget.tsx']
       .every((f) => read(f).includes('5B.3')))
-  check('goal-adjustments untouched (bands READ, never modified)',
-    !read('src/lib/goal-adjustments.ts').includes('5B') &&
-    read('src/lib/goal-adjustments.ts').includes('export const MIN_WEIGH_IN_DAYS'))
+  // RETARGETED (5B.4): the weigh-in gate became the documented weekly
+  // anchor gate in the approved Coach-integration phase. 5B.3's
+  // surviving claim: the BANDS it reads are unmodified and 5B.3
+  // itself changed nothing in 3E.
+  check('goal-adjustment bands unmodified (read-only from 5B.3)',
+    read('src/lib/goal-adjustments.ts').includes('if (bfPct !== null && bfPct >= 20) return { minPct: 0.5, maxPct: 1.25 }') &&
+    read('src/lib/goal-adjustments.ts').includes('MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT'))
   check('no decision_logs writes anywhere in scope',
     CHANGED.every((f) => !stripComments(f).includes('decision_logs')))
   check('no nutrition target writes',

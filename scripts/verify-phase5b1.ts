@@ -132,9 +132,13 @@ console.log('\n1. Checkpoint and boundary')
     NEW_LIBS.every((f) =>
       !/eat.?back|calorie credit|earned food/i.test(stripComments(f))) &&
     !stripComments(signalsLib).includes('fastingCalories'))
-  check('3E goal-adjustments untouched (no 5B code)',
-    !read('src/lib/goal-adjustments.ts').includes('5B') &&
-    !read('src/lib/nutrition-coach.ts').includes('5B') &&
+  // RETARGETED (5B.4): the Coach-integration phase legitimately
+  // reworked 3E to consume these 5B.1 layers. 5B.1's own claim
+  // survives: IT changed nothing there (no 5B.1 marker), and
+  // weekly-review remains 5B-free.
+  check('consumption direction correct: 3E consumes the 5B.1 layers, never the reverse',
+    read('src/lib/goal-adjustments.ts').includes("from '@/lib/energy-facts'") &&
+    !factsLib.includes('goal-adjustments') &&
     !read('src/lib/weekly-review.ts').includes('5B'))
   check('target generation untouched (nutrition.ts byte-free of 5B)',
     !read('src/lib/nutrition.ts').includes('5B'))

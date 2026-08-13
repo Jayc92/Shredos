@@ -690,12 +690,16 @@ console.log('\n11. Boundary')
   check('5B.2 itself shipped no Today widget (the one present is the approved 5B.3)',
     !read('src/app/(app)/dashboard/page.tsx').includes('5B.2') &&
     read('src/app/(app)/dashboard/page.tsx').includes('Phase 5B.3'))
-  check('3E untouched (weigh-in gate, eligibility, apply logic all byte-free of 5B)',
+  // RETARGETED (5B.4): 3E now consumes the 5B layers by design (the
+  // approved Coach-integration phase). 5B.2's surviving claims: IT
+  // changed nothing there, the apply path still runs through the
+  // atomic RPC, and the 100/200 steps stand.
+  check('3E apply path and step limits intact (5B.2 itself changed nothing there)',
     (() => {
       const g = read('src/lib/goal-adjustments.ts')
-      return !g.includes('5B') &&
-        g.includes('export const MIN_WEIGH_IN_DAYS = MIN_DATES_FOR_AVERAGE') &&
-        g.includes('export const CALORIE_STEP_SMALL = 100')
+      return g.includes('export const CALORIE_STEP_SMALL = 100') &&
+        g.includes('export const CALORIE_STEP_LARGE = 200') &&
+        g.includes('validateAdjustmentApply')
     })())
   check('no decision_logs writes in the new scope',
     [route, factsLib, modelLib, toggle].every((f) =>
@@ -708,14 +712,16 @@ console.log('\n11. Boundary')
     [route, factsLib, modelLib, toggle].every((f) =>
       !/reduce (your )?calories|increase (your )?calories|should eat/i
         .test(stripComments(f))))
-  check('coach-signals untouched by 5B.2 (no inference/completion coupling)',
+  // RETARGETED (5B.4): the flagged coach-signals completeness
+  // correction made explicit_complete days count as trusted evidence
+  // in the signal averages/confidence — the approved fix for the
+  // 5B.1-era heuristic-only filter. 5B.2's surviving claim: the
+  // signals layer still has no inference or day-status coupling.
+  check('coach-signals has no inference/day-status coupling (5B.4 completeness fix aside)',
     (() => {
-      // (its 5B.1-era comments already referenced 5B.2 by name; the
-      // real claim is that no 5B.2 code landed there)
       const s = stripComments(read('src/lib/coach-signals.ts'))
       return !s.includes('inferAdaptiveMaintenance') &&
-        !s.includes('nutrition_day_status') &&
-        !s.includes('explicit_complete')
+        !s.includes('nutrition_day_status')
     })())
   check('5B.1 modules remain compatible (verify-phase5b1 exists and imports resolve)',
     existsSync('scripts/verify-phase5b1.ts'))

@@ -20,7 +20,7 @@ import {
   GAIN_BAND,
   CALORIE_STEP_SMALL,
   CALORIE_STEP_LARGE,
-  MIN_WEIGH_IN_DAYS,
+  MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT,
   MIN_NUTRITION_DAYS,
   ADJUSTMENT_DECISION_TYPE,
 } from '../src/lib/goal-adjustments'
@@ -58,22 +58,36 @@ function weighIn(date: string, lbs: number, at = `${date}T07:00:00.000Z`, bf: nu
   return { logged_date: date, weight_kg: KG(lbs), created_at: at, bf_pct: bf }
 }
 
-/** Two identical weigh-ins per week → exact weekly averages. */
+/** RETARGETED (5B.4): four collinear weekly anchors at the fixture's
+ * intended weekly rate (regression slope = currentLbs - priorLbs per
+ * week exactly), replacing the legacy two-weeks x two-readings shape
+ * the removed per-week gate required. Two identical readings per week
+ * keep anchors exact and multi-quality. */
 function weightWeeks(priorLbs: number, currentLbs: number) {
-  return [
-    weighIn('2026-07-21', priorLbs), weighIn('2026-07-24', priorLbs),
-    weighIn('2026-07-28', currentLbs), weighIn('2026-07-31', currentLbs),
+  const d = priorLbs - currentLbs
+  const weeks: Array<[string, string, number]> = [
+    ['2026-07-07', '2026-07-10', priorLbs + 2 * d],
+    ['2026-07-14', '2026-07-17', priorLbs + d],
+    ['2026-07-21', '2026-07-24', priorLbs],
+    ['2026-07-28', '2026-07-31', currentLbs],
   ]
+  return weeks.flatMap(([a, b, lbs]) => [weighIn(a, lbs), weighIn(b, lbs)])
 }
 
 function food(date: string, calories: number | null = 2000, protein: number | null = 150) {
   return { logged_date: date, calories, protein_g: protein, carbs_g: null, fat_g: null }
 }
 
-/** N logged nutrition days inside the review week. */
+/** RETARGETED (5B.4): N COMPLETE nutrition days — two meaningful
+ * entries per day so the 5B.1 completeness heuristic reads
+ * likely_complete (the review now counts complete days, and a
+ * single-entry day is honestly partial). Daily totals are unchanged
+ * (2,000 kcal / 150 g protein). */
 function foodDays(n: number) {
   const dates = ['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02']
-  return dates.slice(0, n).map((d) => food(d))
+  return dates.slice(0, n).flatMap((d) => [
+    food(d, 1200, 90), food(d, 800, 60),
+  ])
 }
 
 function input(overrides: Partial<GoalAdjustmentInput> = {}): GoalAdjustmentInput {
@@ -82,7 +96,9 @@ function input(overrides: Partial<GoalAdjustmentInput> = {}): GoalAdjustmentInpu
     goal: 'fat_loss',
     target: TARGET,
     weighInRows: weightWeeks(200, 198.5), // 0.75%/wk loss — within default band
-    foodLogRows: foodDays(4),
+    // RETARGETED (5B.4 audit): five complete days — the minimum
+    // evidence for ANY proposed target change.
+    foodLogRows: foodDays(5),
     profileBfPct: null,
     recentDecisions: [],
     availability: { weight: true, nutrition: true, decisions: true },
@@ -128,8 +144,11 @@ console.log('\n1. Windows and goals')
 // ── 2. Weight evidence ───────────────────────────────────────────────
 console.log('\n2. Weight evidence')
 {
+  // RETARGETED (5B.4): a third anchored week added so the longitudinal
+  // gate is satisfied (the dedup behavior under test is unchanged).
   const dupes = evaluateGoalAdjustment(input({
     weighInRows: [
+      weighIn('2026-07-14', 201.5), weighIn('2026-07-17', 201.5),
       weighIn('2026-07-21', 200), weighIn('2026-07-24', 200),
       weighIn('2026-07-28', 210, '2026-07-28T06:00:00.000Z'),
       weighIn('2026-07-28', 198.5, '2026-07-28T21:00:00.000Z'), // later same-day wins
@@ -140,13 +159,19 @@ console.log('\n2. Weight evidence')
     dupes.weight.currentAverageLbs === 198.5)
   check('current weekly average correct', dupes.weight.currentAverageLbs === 198.5)
   check('prior weekly average correct', dupes.weight.priorAverageLbs === 200)
+  // RETARGETED (5B.4): the rate is now the anchor-regression slope as
+  // % of the LATEST anchor (-1.5/wk over 198.5 -> -0.76), not the
+  // prior-week-denominated two-point change.
   check('weekly percentage change finite and signed',
-    dupes.weight.weeklyChangePct === -0.75)
+    dupes.weight.weeklyChangePct === -0.76)
 
   const sparse = evaluateGoalAdjustment(input({
     weighInRows: [weighIn('2026-07-21', 200), weighIn('2026-07-24', 200), weighIn('2026-07-28', 198.5)],
   }))
-  check(`minimum distinct weigh-in threshold (${MIN_WEIGH_IN_DAYS}/week) enforced`,
+  // RETARGETED (5B.4): the legacy 2-weigh-ins-per-week gate became the
+  // longitudinal weekly-anchor gate — sparse evidence still blocks,
+  // but the threshold is anchors across weeks, never readings per week.
+  check(`minimum weekly-anchor threshold (${MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT} anchors) enforced`,
     sparse.eligibility === 'insufficient_weight_data')
   check('insufficient weight data produces no adjustment',
     sparse.proposedCalories === null && sparse.weight.band === 'insufficient_data')
@@ -171,7 +196,10 @@ console.log('\n3. Nutrition evidence')
   const r = evaluateGoalAdjustment(input({
     foodLogRows: [
       ...foodDays(4),
-      food('2026-08-01', 1800, null), // protein-less day
+      // RETARGETED (5B.4): the protein-less day is two meaningful
+      // entries so it reads complete (totals unchanged: 1,800 kcal,
+      // no protein recorded).
+      food('2026-08-01', 1000, null), food('2026-08-01', 800, null),
       { logged_date: '2026-08-02', calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, // placeholder
     ],
   }))
@@ -231,18 +259,24 @@ console.log('\n5. Fat-loss classification')
     within.eligibility === 'hold' && within.direction === 'hold' &&
     within.weight.band === 'within_expected_range' && within.proposedCalories === null)
 
+  // RETARGETED (5B.4 audit): STRONG evidence now means five
+  // EXPLICITLY completed days (the preferred evidence quality);
+  // STANDARD means five heuristic-quality complete days — four days
+  // can no longer propose anything.
+  const EXPLICIT_5 = new Set(['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31'])
   const faster = evaluateGoalAdjustment(input({
     weighInRows: weightWeeks(200, 197), // 1.5% loss, deviation 0.5pp over max 1.0
     foodLogRows: foodDays(5),
+    explicitCompleteDates: EXPLICIT_5,
   }))
   check('fat-loss faster than range → increase',
     faster.eligibility === 'eligible' && faster.direction === 'increase' &&
     faster.weight.band === 'faster_than_expected')
   check('strong evidence proposes the 200 maximum',
     faster.adjustmentAmount === CALORIE_STEP_LARGE && faster.proposedCalories === 2400)
-  check('faster-loss with standard evidence proposes 100 only',
+  check('faster-loss with standard (heuristic-quality) evidence proposes 100 only',
     evaluateGoalAdjustment(input({
-      weighInRows: weightWeeks(200, 197), foodLogRows: foodDays(4),
+      weighInRows: weightWeeks(200, 197), foodLogRows: foodDays(5),
     })).adjustmentAmount === CALORIE_STEP_SMALL)
 }
 
@@ -299,9 +333,12 @@ console.log('\n7. Maintenance and gain goals')
   })) // +1.0%
   check('maintenance strong drift up → small decrease',
     driftUp.eligibility === 'eligible' && driftUp.direction === 'decrease')
+  // RETARGETED (5B.4 audit): weak drift is gated by the deviation
+  // threshold, not by day-count starvation — five complete days with
+  // a +0.5% drift (deviation 0.15pp < 0.5) still holds.
   check('maintenance weak drift holds (noise is not evidence)',
     evaluateGoalAdjustment(input({
-      goal: 'maintenance', weighInRows: weightWeeks(200, 201), foodLogRows: foodDays(4),
+      goal: 'maintenance', weighInRows: weightWeeks(200, 201), foodLogRows: foodDays(5),
     })).eligibility === 'hold') // +0.5%, weak evidence
   const driftDown = evaluateGoalAdjustment(input({
     goal: 'maintenance', weighInRows: weightWeeks(200, 198), foodLogRows: foodDays(5),
@@ -383,9 +420,14 @@ console.log('\n8. Blocking decisions and cooldown')
 // ── 9. Guardrails ────────────────────────────────────────────────────
 console.log('\n9. Proposal guardrails')
 {
+  // RETARGETED (5B.4): intake now matches the small target (adherent),
+  // so the review reaches the floor guardrail instead of the new
+  // adherence-first gate — the guardrail under test is unchanged.
   const floor = evaluateGoalAdjustment(input({
     target: { calories: 1250, protein_g: 100, carbs_g: 100, fat_g: 30, effective_date: '2026-07-01' },
     weighInRows: weightWeeks(200, 199.5), // slower → decrease wanted
+    foodLogRows: ['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31']
+      .flatMap((d) => [food(d, 750, 60), food(d, 500, 40)]),
   }))
   check(`calorie floor (${MIN_CALORIES_FLOOR}) blocks an unsafe decrease`,
     floor.eligibility === 'hold' && floor.proposedCalories === null &&

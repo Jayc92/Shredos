@@ -26,9 +26,12 @@ interface GoalAdjustmentReviewCardProps {
 
 const ELIGIBILITY_MESSAGES: Record<string, string> = {
   hold: 'Keep current targets.',
-  insufficient_weight_data: 'Insufficient weight data for a weekly comparison.',
+  // Phase 5B.4 cause-differentiated states (plain language, no jargon):
+  adherence_first: 'Focus on matching your current target first — the trend is re-read once intake settles.',
+  activity_first: 'Restore your usual activity first — a smaller change than eating less.',
+  insufficient_weight_data: 'Not enough weekly weigh-ins yet — one per week is enough.',
   insufficient_nutrition_data: 'Insufficient nutrition data to support a target change.',
-  improve_logging: 'Improve logging before adjusting targets.',
+  improve_logging: 'More completed food-log days are needed — sparse logs are never read as low intake.',
   awaiting_review: 'A recent change is awaiting its outcome review.',
   pending_existing_decision: 'An adjustment decision is already open.',
   recent_target_change: 'Wait longer after the recent target change.',
@@ -123,18 +126,22 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
         </p>
       ) : (
         <div className="space-y-1.5">
-          {/* Evidence rows — always shown when computed */}
+          {/* Evidence rows — always shown when computed. Phase 5B.4:
+              weekly-anchor evidence (Friday-cadence honest) replaces
+              the two-week comparison line. */}
           {review.weight.currentAverageLbs !== null && (
             <p className="text-xs text-ink-muted">
-              Weekly average weight: {review.weight.currentAverageLbs.toFixed(1)} lbs
-              {review.weight.priorAverageLbs !== null &&
-                ` · prior week ${review.weight.priorAverageLbs.toFixed(1)} lbs`}
+              Latest weekly weight: {review.weight.currentAverageLbs.toFixed(1)} lbs
+              {review.weight.anchorCount > 0 &&
+                ` · ${review.weight.anchorCount} weekly weigh-in${review.weight.anchorCount !== 1 ? 's' : ''} on record`}
               {review.weight.weeklyChangePct !== null &&
-                ` · ${review.weight.weeklyChangePct > 0 ? '+' : ''}${review.weight.weeklyChangePct.toFixed(2)}% per week`}
+                ` · trend ${review.weight.weeklyChangePct > 0 ? '+' : ''}${review.weight.weeklyChangePct.toFixed(2)}% per week`}
             </p>
           )}
           <p className="text-xs text-ink-muted">
-            Nutrition logged on {review.nutrition.loggedDays} of 7 days
+            Complete nutrition days: {review.nutrition.loggedDays} of 7
+            {review.nutrition.explicitCompleteDays > 0 &&
+              ` (${review.nutrition.explicitCompleteDays} marked finished)`}
             {review.nutrition.averageCalories !== null &&
               ` · ${review.nutrition.averageCalories.toLocaleString()} average calories`}
           </p>
@@ -151,6 +158,16 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
             <p className="text-xs text-ink-muted">
               {ELIGIBILITY_MESSAGES[review.eligibility] ?? ''}
             </p>
+          )}
+
+          {/* Phase 5B.4: restrained non-calorie guidance (adherence,
+              protein, activity, training) — never invented numbers. */}
+          {review.guidance && review.guidance.length > 0 && (
+            <ul className="space-y-1">
+              {review.guidance.map((g: string) => (
+                <li key={g} className="text-xs text-ink-muted">{g}</li>
+              ))}
+            </ul>
           )}
 
           {applied && (

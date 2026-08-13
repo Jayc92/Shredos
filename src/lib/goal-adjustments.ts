@@ -30,17 +30,40 @@ import { kgToLbs } from '@/lib/units'
 import {
   latestCompletedWeekStart,
   reviewWeekBounds,
-  computeWeeklyWeight,
-  computeWeeklyNutrition,
+  computeWeeklyExerciseProgress,
+  PROGRESSION_LOOKBACK_DAYS,
 } from '@/lib/weekly-review'
 import type { ReviewWeekBounds } from '@/lib/weekly-review'
 import type { RawWeighInLike } from '@/lib/weight-trends'
-import { MIN_DATES_FOR_AVERAGE } from '@/lib/weight-trends'
 import type { RawFoodLogLike } from '@/lib/nutrition-trends'
-import { MIN_RELIABLE_LOGGED_DAYS } from '@/lib/coach-constants'
+import { CALORIE_ON_TRACK_RANGE, MIN_RELIABLE_LOGGED_DAYS } from '@/lib/coach-constants'
 import { MIN_CALORIES_FLOOR } from '@/lib/nutrition-coach'
 import { MIN_CARBS_GUARDRAIL } from '@/lib/constants'
 import { followThroughOf } from '@/lib/decisions'
+// Phase 5B.4: the review consumes the STABLE 5B energy layers instead
+// of recreating evidence math — weekly anchors + regression trend
+// (Friday-cadence compatible), explicit/heuristic nutrition
+// completeness, adaptive-maintenance evidence, user-relative activity
+// context — one coherent source of truth.
+import {
+  deriveWeeklyWeightAnchors,
+  computeWeightTrend,
+  buildDailyNutritionFactsWithContext,
+  buildActivityBaseline,
+  classifyActivityContext,
+} from '@/lib/energy-facts'
+import type {
+  ActivityContext,
+  DailyNutritionFact,
+  WeightTrendConfidence,
+} from '@/lib/energy-facts'
+import { deriveProteinState } from '@/lib/coach-signals'
+import {
+  estimateBaselineTdee,
+  buildQualifyingWeeks,
+  inferAdaptiveMaintenance,
+} from '@/lib/energy-model'
+import type { AdaptiveMaintenanceEstimate } from '@/lib/energy-model'
 
 // ── Constants (documented decisions) ─────────────────────────────────
 
@@ -56,10 +79,27 @@ export const CALORIE_STEP_LARGE = 200
 export const STRONG_EVIDENCE_DEVIATION_PP = 0.5
 export const STRONG_EVIDENCE_NUTRITION_DAYS = 5
 
-/** Weigh-in dates required in EACH completed week (2Y's shared rule). */
-export const MIN_WEIGH_IN_DAYS = MIN_DATES_FOR_AVERAGE
+// Phase 5B.4 weigh-in evidence correction: the legacy rule required
+// MIN_WEIGH_IN_DAYS (2) weigh-in dates inside EACH completed week,
+// which made a deliberate once-weekly Friday cadence permanently
+// ineligible. The gate is now LONGITUDINAL: at least this many weekly
+// anchors (a single reading is a valid lower-confidence anchor; two
+// or more average into a stronger one), with real week spacing and
+// no fabricated anchors for missing weeks. Weigh-in frequency inside
+// a week only affects anchor quality/confidence — never eligibility.
+export const MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT = 3
+/** Anchor window the review considers (matches the 5B.1 default). */
+export const ADJUSTMENT_ANCHOR_WINDOW_WEEKS = 8
 /** Nutrition days required in the review week (existing coach rule). */
 export const MIN_NUTRITION_DAYS = MIN_RELIABLE_LOGGED_DAYS
+// Phase 5B.4 nutrition-evidence floor (audit correction): a PERSISTENT
+// calorie-target change requires enough completed days to distinguish
+// real intake/adherence from sparse logging. Below this floor the
+// review returns guidance-only states — never a proposed target — in
+// EITHER direction. Five days need not be consecutive (the evidence
+// model has no consecutiveness requirement), and this never asks for
+// indefinite daily tracking: it applies to the single review week.
+export const MIN_COMPLETE_DAYS_FOR_PROPOSAL = 5
 
 /** Body-fat context: most recent metric within this window wins;
  * profile body fat is the fallback; outside 3–60% is implausible. */
@@ -79,6 +119,15 @@ const MAINTENANCE_STABLE_PP = 0.35
 export type AdjustmentEligibility =
   | 'eligible'
   | 'hold'
+  // Phase 5B.4: cause-differentiated states. adherence_first — the
+  // trend is out of band but intake hasn't consistently followed the
+  // CURRENT target, so changing the target number wouldn't reflect
+  // behavior; the smallest intervention is adherence guidance.
+  // activity_first — a decrease is otherwise supported but activity
+  // sits below the user's own baseline; restoring it is the smaller
+  // lever than eating less.
+  | 'adherence_first'
+  | 'activity_first'
   | 'insufficient_weight_data'
   | 'insufficient_nutrition_data'
   | 'improve_logging'
@@ -123,6 +172,20 @@ export interface GoalAdjustmentInput {
   profileBfPct: number | null
   recentDecisions: AdjustmentDecisionLike[]
   availability: { weight: boolean; nutrition: boolean; decisions: boolean }
+  // ── Phase 5B.4 evidence (optional with honest defaults so callers
+  // and fixtures without the new sources still evaluate — absence
+  // means UNKNOWN, never zero/low/negative) ──────────────────────────
+  /** Dates the user explicitly marked complete (nutrition_day_status). */
+  explicitCompleteDates?: ReadonlySet<string>
+  /** Review-week activity vs the user's own baseline; absent = unknown. */
+  activityContext?: ActivityContext
+  /** Strength progression context from the existing 2X classifier;
+   *  absent/ambiguous = unknown, never negative. */
+  trainingSignal?: 'improving' | 'stable' | 'declining' | 'unknown'
+  /** Stable 5B.2 adaptive-maintenance evidence; informs, never sets. */
+  adaptive?: AdaptiveMaintenanceEstimate | null
+  /** Behavioral context ONLY — never energy math. */
+  fastingContext?: { completedFastsInWindow: number } | null
 }
 
 export interface GoalAdjustmentReview {
@@ -136,21 +199,47 @@ export interface GoalAdjustmentReview {
   }
   goal: string | null
   weight: {
+    /** Latest weekly anchor (lbs). */
     currentAverageLbs: number | null
+    /** Previous weekly anchor (lbs). */
     priorAverageLbs: number | null
-    /** Signed % of body weight per week (+ = gain), 2 decimals. */
+    /** Regression rate, signed % of body weight per week (+ = gain). */
     weeklyChangePct: number | null
+    /** Readings inside the latest / previous anchored weeks. */
     loggedDaysCurrent: number
     loggedDaysPrior: number
     band: WeightTrendBand
+    /** Phase 5B.4: longitudinal anchor evidence. */
+    anchorCount: number
+    weeklyRateLb: number | null
+    trendConfidence: WeightTrendConfidence
   }
   nutrition: {
+    /** Complete days in the review week (explicit + heuristic). */
     loggedDays: number
     averageCalories: number | null
     proteinTargetMetDays: number | null
     proteinTargetEligibleDays: number | null
+    /** Phase 5B.4: completeness evidence split. Explicit user-marked
+     *  days are preferred evidence; heuristic likely-complete days
+     *  are fallback only. */
+    explicitCompleteDays: number
+    heuristicCompleteDays: number
+    adherence: 'on_target' | 'above_target' | 'below_target' | 'insufficient'
+    proteinState: 'protein_on_target' | 'protein_close' | 'protein_low' | 'insufficient_nutrition_data'
   }
   bodyFat: { pct: number | null; source: 'recent_metric' | 'profile' | null }
+  /** Phase 5B.4 context evidence (unknown when sources are absent). */
+  activityContext: ActivityContext
+  trainingSignal: 'improving' | 'stable' | 'declining' | 'unknown'
+  /** Adaptive-maintenance evidence: status always; the range ONLY at
+   *  high confidence (the stable 5B.2/5B.3 exposure rule). Informs
+   *  explanations — never sets the target. */
+  adaptiveEvidence: {
+    status: AdaptiveMaintenanceEstimate['status'] | 'unavailable'
+    maintenanceRange: [number, number] | null
+  }
+  fastingContext: { completedFastsInWindow: number } | null
   currentCalories: number | null
   proposedCalories: number | null
   /** Signed calories (negative = decrease); always ±100 or ±200. */
@@ -159,6 +248,10 @@ export interface GoalAdjustmentReview {
   evidenceStrength: 'standard' | 'strong' | null
   guardrails: string[]
   blockingReasons: string[]
+  /** Phase 5B.4: restrained non-calorie guidance (adherence, protein,
+   *  activity, training) — plain language, never prescriptions of
+   *  invented numbers. */
+  guidance: string[]
   explanation: string
   decisionType: typeof ADJUSTMENT_DECISION_TYPE
   before: { calories: number } | null
@@ -280,14 +373,31 @@ function emptyReview(
       loggedDaysCurrent: 0,
       loggedDaysPrior: 0,
       band: 'insufficient_data',
+      anchorCount: 0,
+      weeklyRateLb: null,
+      trendConfidence: 'insufficient',
     },
     nutrition: {
       loggedDays: 0,
       averageCalories: null,
       proteinTargetMetDays: null,
       proteinTargetEligibleDays: null,
+      explicitCompleteDays: 0,
+      heuristicCompleteDays: 0,
+      adherence: 'insufficient',
+      proteinState: 'insufficient_nutrition_data',
     },
     bodyFat: { pct: null, source: null },
+    activityContext: input.activityContext ?? 'unknown',
+    trainingSignal: input.trainingSignal ?? 'unknown',
+    adaptiveEvidence: {
+      status: input.adaptive?.status ?? 'unavailable',
+      maintenanceRange:
+        input.adaptive?.status === 'high_confidence'
+          ? input.adaptive.estimatedMaintenanceRange
+          : null,
+    },
+    fastingContext: input.fastingContext ?? null,
     currentCalories: input.target?.calories ?? null,
     proposedCalories: null,
     adjustmentAmount: null,
@@ -295,6 +405,7 @@ function emptyReview(
     evidenceStrength: null,
     guardrails: [],
     blockingReasons: [],
+    guidance: [],
     explanation: '',
     decisionType: ADJUSTMENT_DECISION_TYPE,
     before: null,
@@ -340,41 +451,96 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     return review
   }
 
-  // Descriptive evidence is computed for every remaining state.
-  const weeklyWeight = computeWeeklyWeight(input.weighInRows, bounds)
-  const weeklyNutrition = computeWeeklyNutrition(
-    input.foodLogRows, bounds, target.protein_g
+  // ── Descriptive evidence (Phase 5B.4: from the STABLE 5B layers,
+  // never re-derived) ─────────────────────────────────────────────────
+
+  // Weekly anchors over the completed-week window: one reading is a
+  // valid lower-confidence anchor, multi-reading weeks average into a
+  // stronger one, missing weeks are honest gaps (real week spacing,
+  // never fabricated anchors, never "missing = zero change").
+  const anchors = deriveWeeklyWeightAnchors(
+    input.weighInRows, bounds.endDate, ADJUSTMENT_ANCHOR_WINDOW_WEEKS
   )
-  const priorWeekWeight = weeklyWeight.priorAverageWeightLbs
+  const trend = computeWeightTrend(anchors)
+  const lastAnchor = anchors[anchors.length - 1] ?? null
+  const prevAnchor = anchors[anchors.length - 2] ?? null
+
+  // Nutrition facts over the review week with EXPLICIT completion
+  // evidence preferred (nutrition_day_status) and the 5B.1 heuristic
+  // as fallback only. The active target is valid for the whole review
+  // week (eligibility already requires it to predate the prior week).
+  const explicitDates = input.explicitCompleteDates ?? new Set<string>()
+  const facts: DailyNutritionFact[] = buildDailyNutritionFactsWithContext(
+    input.foodLogRows, bounds.startDate, bounds.endDate,
+    {
+      targetHistory: [{ effective_date: target.effective_date, calories: target.calories }],
+      explicitCompleteDates: explicitDates,
+    }
+  )
+  const explicitCompleteDays = facts.filter(
+    (f) => f.completeness === 'explicit_complete'
+  ).length
+  const heuristicCompleteDays = facts.filter(
+    (f) => f.completeness === 'likely_complete'
+  ).length
+  const completeDays = explicitCompleteDays + heuristicCompleteDays
+  const completeFactCalories = facts
+    .filter((f) =>
+      (f.completeness === 'explicit_complete' || f.completeness === 'likely_complete') &&
+      f.calories !== null)
+    .map((f) => f.calories as number)
+  const averageCalories = completeFactCalories.length > 0
+    ? Math.round(completeFactCalories.reduce((s, c) => s + c, 0) / completeFactCalories.length)
+    : null
+
+  // Calorie adherence on complete days only — incomplete logs are
+  // never treated as confirmed low intake.
+  let adherence: GoalAdjustmentReview['nutrition']['adherence'] = 'insufficient'
+  if (averageCalories !== null && completeDays >= MIN_NUTRITION_DAYS) {
+    const deviation = Math.abs(averageCalories - target.calories) / target.calories
+    adherence = deviation <= CALORIE_ON_TRACK_RANGE
+      ? 'on_target'
+      : averageCalories > target.calories ? 'above_target' : 'below_target'
+  }
+
+  // Protein evidence, separate from calories (never collapsed).
+  const proteinState = deriveProteinState(facts, target.protein_g)
+
+  // Protein-target adherence days (kept from 3E for display/audit).
+  const proteinEligible = facts.filter((f) =>
+    (f.completeness === 'explicit_complete' || f.completeness === 'likely_complete') &&
+    f.proteinG !== null)
+  const proteinTargetEligibleDays =
+    target.protein_g > 0 && proteinEligible.length > 0 ? proteinEligible.length : null
+  const proteinTargetMetDays =
+    proteinTargetEligibleDays !== null
+      ? proteinEligible.filter((f) => (f.proteinG as number) >= target.protein_g).length
+      : null
+
   const bodyFat = resolveBodyFatContext(
     input.weighInRows, input.profileBfPct, bounds.endDate
   )
-  // Distinct prior-week dates (computeWeeklyWeight reports current-week
-  // days; the prior count comes from the same dedup rule).
-  const priorDays = (() => {
-    const seen = new Set<string>()
-    for (const r of input.weighInRows) {
-      if (r.weight_kg === null || !Number.isFinite(r.weight_kg) || r.weight_kg <= 0) continue
-      if (r.logged_date >= bounds.priorStartDate && r.logged_date <= bounds.priorEndDate) {
-        seen.add(r.logged_date)
-      }
-    }
-    return seen.size
-  })()
 
   review.weight = {
-    currentAverageLbs: weeklyWeight.averageWeightLbs,
-    priorAverageLbs: priorWeekWeight,
-    weeklyChangePct: null,
-    loggedDaysCurrent: weeklyWeight.loggedDays,
-    loggedDaysPrior: priorDays,
+    currentAverageLbs: lastAnchor?.anchorLbs ?? null,
+    priorAverageLbs: prevAnchor?.anchorLbs ?? null,
+    weeklyChangePct: trend.weeklyRatePercent,
+    loggedDaysCurrent: lastAnchor?.contributingDates ?? 0,
+    loggedDaysPrior: prevAnchor?.contributingDates ?? 0,
     band: 'insufficient_data',
+    anchorCount: trend.anchorCount,
+    weeklyRateLb: trend.weeklyRateLb,
+    trendConfidence: trend.trendConfidence,
   }
   review.nutrition = {
-    loggedDays: weeklyNutrition.loggedDays,
-    averageCalories: weeklyNutrition.averageCalories,
-    proteinTargetMetDays: weeklyNutrition.proteinTargetMetDays,
-    proteinTargetEligibleDays: weeklyNutrition.proteinTargetEligibleDays,
+    loggedDays: completeDays,
+    averageCalories,
+    proteinTargetMetDays,
+    proteinTargetEligibleDays,
+    explicitCompleteDays,
+    heuristicCompleteDays,
+    adherence,
+    proteinState,
   }
   review.bodyFat = bodyFat
 
@@ -414,42 +580,51 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     return review
   }
 
-  // 6. Weight evidence: both completed weeks need the shared minimum.
+  // 6. Weight evidence — Phase 5B.4 LONGITUDINAL gate. The legacy
+  // rule (2 weigh-in days inside EACH completed week) is gone from
+  // this — the only — live decision path: enough weekly anchors
+  // across weeks is what a responsible decision needs, and a
+  // once-weekly Friday cadence satisfies it deliberately. Weigh-in
+  // frequency inside a week affects only anchor quality; daily
+  // weighing is never incentivized.
   if (
-    weeklyWeight.averageWeightLbs === null ||
-    priorWeekWeight === null ||
-    weeklyWeight.loggedDays < MIN_WEIGH_IN_DAYS ||
-    priorDays < MIN_WEIGH_IN_DAYS
+    trend.anchorCount < MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT ||
+    trend.weeklyRatePercent === null
   ) {
     review.eligibility = 'insufficient_weight_data'
     review.blockingReasons.push(
-      `At least ${MIN_WEIGH_IN_DAYS} weigh-in days are needed in each of the last two completed weeks.`
+      `At least ${MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT} weekly weigh-in anchors are needed — one weigh-in per week is enough.`
     )
-    review.explanation = 'Insufficient weight data to evaluate the weekly trend.'
+    review.explanation = 'Not enough weekly weigh-ins yet to evaluate the trend responsibly.'
     return review
   }
 
-  // 7. Nutrition coverage.
-  if (weeklyNutrition.loggedDays < 2) {
+  // 7. Nutrition coverage — complete days (explicit preferred,
+  // heuristic fallback). Partial/missing days never count, so an
+  // incomplete week can never masquerade as confirmed low intake.
+  if (completeDays < 2) {
     review.eligibility = 'insufficient_nutrition_data'
-    review.blockingReasons.push('Almost no nutrition was logged in the review week.')
+    review.blockingReasons.push('Almost no complete nutrition days in the review week.')
     review.explanation = 'Insufficient nutrition data to support a target change.'
     return review
   }
-  if (weeklyNutrition.loggedDays < MIN_NUTRITION_DAYS) {
+  if (completeDays < MIN_COMPLETE_DAYS_FOR_PROPOSAL) {
     review.eligibility = 'improve_logging'
     review.blockingReasons.push(
-      `Nutrition was logged on ${weeklyNutrition.loggedDays} of 7 days — at least ${MIN_NUTRITION_DAYS} are needed.`
+      `Only ${completeDays} of 7 days had complete nutrition — at least ${MIN_COMPLETE_DAYS_FOR_PROPOSAL} completed days are needed before any target change.`
     )
+    review.guidance = [
+      'Log your food and mark days as finished — more completed food-log days are needed before a calorie change can be considered.',
+    ]
     review.explanation =
-      'Improve logging consistency before adjusting targets.'
+      'Holding current targets: not enough completed food-log days to tell real intake from sparse logging. This is a logging-evidence gap, not a judgment about how much you ate.'
     return review
   }
 
-  // 8. Weekly change, % of body weight (+ = gain). Display rounding
-  // to two decimals; prior average is validated non-null above.
-  const changePct =
-    Math.round(((weeklyWeight.averageWeightLbs - priorWeekWeight) / priorWeekWeight) * 100 * 100) / 100
+  // 8. Weekly change: the regression rate across anchors (% of body
+  // weight per week, + = gain) — one noisy week is absorbed by the
+  // fit instead of dominating a two-point comparison.
+  const changePct = trend.weeklyRatePercent
   review.weight.weeklyChangePct = changePct
 
   // 9. Band classification + direction per goal.
@@ -488,7 +663,7 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     if (
       direction !== 'hold' &&
       (deviationPp < STRONG_EVIDENCE_DEVIATION_PP ||
-        weeklyNutrition.loggedDays < STRONG_EVIDENCE_NUTRITION_DAYS)
+        completeDays < STRONG_EVIDENCE_NUTRITION_DAYS)
     ) {
       direction = 'hold'
     }
@@ -515,6 +690,25 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
       ? 'Weight change was faster than the selected goal range.'
       : 'Weight change was within the selected goal range.'
 
+  // ── Phase 5B.4 guidance evidence (accumulates on every outcome) ──
+  const guidance: string[] = []
+  if (proteinState === 'protein_low') {
+    guidance.push(
+      'Protein has been consistently below target — prioritize protein at each meal. This is separate from total calories.'
+    )
+  }
+  if (review.activityContext === 'low') {
+    guidance.push(
+      'Activity has been below your own recent baseline — restoring your usual movement is often the smallest useful change.'
+    )
+  }
+  if (review.trainingSignal === 'declining') {
+    guidance.push(
+      'Recent strength comparisons have been declining — recovery and fueling matter before any deeper deficit.'
+    )
+  }
+  review.guidance = guidance
+
   if (direction === 'hold') {
     review.eligibility = 'hold'
     review.direction = 'hold'
@@ -522,12 +716,70 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     return review
   }
 
+  // 9b. ADHERENCE FIRST (Phase 5B.4): a target change is only
+  // meaningful when intake has actually followed the current target.
+  // Off-target intake on complete days -> adherence guidance instead
+  // of moving the number; incomplete evidence never reaches here
+  // (coverage gates above).
+  if (adherence !== 'on_target') {
+    review.eligibility = 'adherence_first'
+    review.direction = 'hold'
+    review.blockingReasons.push(
+      adherence === 'above_target'
+        ? 'Intake averaged above the current target on complete days.'
+        : adherence === 'below_target'
+        ? 'Intake averaged below the current target on complete days.'
+        : 'Not enough complete days to judge adherence.'
+    )
+    review.guidance = [
+      adherence === 'above_target'
+        ? 'Aim to land within about 10% of your current calorie target on most days first — the trend will be re-read once intake matches the plan.'
+        : 'Intake has been running under your current target. If that is deliberate, log it consistently; if days are going unlogged, mark completed days so the evidence is trustworthy.',
+      ...guidance,
+    ]
+    review.explanation =
+      `${bandText} Holding the target: recent intake hasn't consistently matched the current plan, so changing the number wouldn't change the outcome. The plan is re-evaluated as soon as adherence evidence settles.`
+    return review
+  }
+
+  // 9c. ACTIVITY FIRST (Phase 5B.4): before eating less, restore the
+  // user's OWN baseline movement — the smaller intervention when
+  // activity is genuinely low (unknown activity never triggers this;
+  // missing data is not low data). Applies to decreases only.
+  if (direction === 'decrease' && review.activityContext === 'low') {
+    review.eligibility = 'activity_first'
+    review.direction = 'hold'
+    review.blockingReasons.push(
+      'Activity has been below your own recent baseline.'
+    )
+    review.explanation =
+      `${bandText} Holding calories for now: activity has been below your usual baseline, and restoring it is a smaller change than eating less. If the trend still lags after activity returns to normal, a calorie change will be proposed then.`
+    return review
+  }
+
   // 10. Step size: smallest justified change; 200 only with strong
-  // evidence. Values are always round.
+  // evidence — which now ALSO requires a trend the anchor model
+  // trusts (moderate+) and explicit-quality nutrition days, and is
+  // softened back to 100 when protein is low or strength is
+  // declining (never an aggressive cut on lean-mass-risk evidence).
+  // Phase 5B.4 audit correction: the 5-day floor above means every
+  // proposal already has >= 5 complete days, so the LARGER step now
+  // demands the PREFERRED evidence quality — five explicitly
+  // completed days. Heuristic-only weeks cap at the 100 step
+  // (strengthened, never weakened).
+  const strongCoverage = explicitCompleteDays >= STRONG_EVIDENCE_NUTRITION_DAYS
   const strong =
     deviationPp >= STRONG_EVIDENCE_DEVIATION_PP &&
-    weeklyNutrition.loggedDays >= STRONG_EVIDENCE_NUTRITION_DAYS
-  const step = strong ? CALORIE_STEP_LARGE : CALORIE_STEP_SMALL
+    strongCoverage &&
+    (trend.trendConfidence === 'moderate' || trend.trendConfidence === 'high')
+  const softeners: string[] = []
+  if (direction === 'decrease' && proteinState === 'protein_low') {
+    softeners.push('protein has been low')
+  }
+  if (direction === 'decrease' && review.trainingSignal === 'declining') {
+    softeners.push('strength comparisons have been declining')
+  }
+  const step = strong && softeners.length === 0 ? CALORIE_STEP_LARGE : CALORIE_STEP_SMALL
   const signedAmount = direction === 'decrease' ? -step : step
   const proposed = Math.round(target.calories + signedAmount)
 
@@ -561,10 +813,15 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     guardrails.push(`Carbohydrates stay at or above the ${MIN_CARBS_GUARDRAIL}g minimum.`)
   }
 
-  // 12. Eligible proposal.
+  // 12. Eligible proposal. The explanation states what was observed,
+  // the supporting evidence, why this is the smallest appropriate
+  // step, and when the plan is reassessed — plain language, no
+  // internal jargon, no false precision. Adaptive maintenance may
+  // INFORM the explanation (a range, only at high confidence, per the
+  // stable 5B exposure rule) but never sets the number.
   review.eligibility = 'eligible'
   review.direction = direction
-  review.evidenceStrength = strong ? 'strong' : 'standard'
+  review.evidenceStrength = strong && softeners.length === 0 ? 'strong' : 'standard'
   review.proposedCalories = proposed
   review.adjustmentAmount = signedAmount
   review.before = { calories: target.calories }
@@ -574,8 +831,21 @@ export function evaluateGoalAdjustment(input: GoalAdjustmentInput): GoalAdjustme
     addDays(parseISO(input.todayStr), ADJUSTMENT_REVIEW_AFTER_DAYS),
     'yyyy-MM-dd'
   )
+  const evidenceText =
+    ` Evidence: ${trend.anchorCount} weekly weigh-in anchors and ` +
+    `${completeDays} complete nutrition days, with intake on target.`
+  const softenedText = softeners.length > 0
+    ? ` The step is kept at ${CALORIE_STEP_SMALL} because ${softeners.join(' and ')}.`
+    : ''
+  const adaptiveText =
+    review.adaptiveEvidence.status === 'high_confidence' &&
+    review.adaptiveEvidence.maintenanceRange !== null
+      ? ` Your observed maintenance is trending around ${review.adaptiveEvidence.maintenanceRange[0].toLocaleString()}–${review.adaptiveEvidence.maintenanceRange[1].toLocaleString()} kcal/day, which is consistent with this change.`
+      : ''
   review.explanation =
-    `${bandText} A small calorie ${direction} may be reasonable — review before applying.`
+    `${bandText} A ${step}-calorie ${direction} is the smallest change the evidence supports — review before applying.` +
+    evidenceText + softenedText + adaptiveText +
+    ` The plan is reassessed after about two weeks of new evidence.`
   return review
 }
 
@@ -636,16 +906,39 @@ export function validateAdjustmentApply(
 
 // ── Server fetch (bounded, availability-aware) ───────────────────────
 
+/** Optional profile context for the 5B.4 evidence layers. Absent
+ *  fields degrade to UNKNOWN evidence, never to zero/low. */
+export interface AdjustmentProfileContext {
+  activityLevel: string | null
+  fastingEnabled: boolean
+  sex?: string | null
+  age?: number | null
+  heightCm?: number | null
+  currentWeightKg?: number | null
+}
+
 /**
- * Three bounded queries, no all-time scans:
- *   1. body_metrics over [reviewEnd - 55d, reviewEnd] — the 14-day
- *      weight windows plus the 56-day body-fat recency window in one
- *      read (weight/bf are filtered per-purpose by the evaluator)
- *   2. food_logs over the two completed weeks
- *   3. the 10 most recent target-related decisions (adjustments and
- *      manual changes) for blocking/cooldown checks
- * Each failure flips its availability flag (Phase 3C convention) —
- * failed data suppresses the review rather than posing as zero.
+ * Bounded queries only, no all-time scans (Phase 5B.4 inventory):
+ *   1. body_metrics over [reviewEnd - 55d, reviewEnd] — covers the
+ *      8-week anchor window AND the 56-day body-fat recency window
+ *   2. food_logs over the 4-ISO-week adaptive window (superset of
+ *      the review week)
+ *   3. the 10 most recent target-related decisions (blocking/cooldown)
+ *   4. nutrition_day_status over the adaptive window (explicit
+ *      completion evidence, Phase 5B.2)
+ *   5. nutrition_targets history (12 versions) for historical
+ *      per-date target resolution inside the adaptive facts
+ *   6. daily_activity_logs over 28 days (user-relative baseline +
+ *      review-week context)
+ *   7. completed workout durations + activity-session durations over
+ *      28 days (baseline sessions — DURATIONS only, calories never
+ *      queried here)
+ *   8. the 2X training query over the progression lookback (strength
+ *      context)
+ *   9. completed fasts in the review window (behavioral context
+ *      only), fasting-enabled profiles only
+ * Each core failure flips its availability flag (Phase 3C
+ * convention); context failures degrade to unknown evidence.
  */
 export async function fetchGoalAdjustmentReview(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -654,7 +947,8 @@ export async function fetchGoalAdjustmentReview(
   todayStr: string,
   goal: string | null,
   profileBfPct: number | null,
-  target: AdjustmentTargetLike | null
+  target: AdjustmentTargetLike | null,
+  profileContext?: AdjustmentProfileContext
 ): Promise<GoalAdjustmentReview> {
   const weekStart = latestCompletedWeekStart(todayStr)
   const bounds = reviewWeekBounds(weekStart)
@@ -662,32 +956,182 @@ export async function fetchGoalAdjustmentReview(
     subDays(parseISO(bounds.endDate), BODY_FAT_RECENCY_DAYS - 1),
     'yyyy-MM-dd'
   )
+  // 4 ISO weeks ending at the review week (the 5B.2 adaptive window).
+  const adaptiveStart = format(subDays(parseISO(bounds.startDate), 21), 'yyyy-MM-dd')
+  const activityStart = format(subDays(parseISO(bounds.endDate), 27), 'yyyy-MM-dd')
+  const lookbackStart = format(
+    subDays(parseISO(bounds.startDate), PROGRESSION_LOOKBACK_DAYS), 'yyyy-MM-dd')
 
-  const [metricsRes, foodRes, decisionsRes] = await Promise.all([
-    supabase
-      .from('body_metrics')
-      .select('logged_date, weight_kg, bf_pct, created_at')
-      .eq('user_id', userId)
-      .gte('logged_date', metricsStart)
-      .lte('logged_date', bounds.endDate),
-    supabase
-      .from('food_logs')
-      .select('logged_date, calories, protein_g, carbs_g, fat_g')
-      .eq('user_id', userId)
-      .gte('logged_date', bounds.priorStartDate)
-      .lte('logged_date', bounds.endDate),
-    supabase
-      .from('decision_logs')
-      .select('decision_type, status, follow_through_status, reviewed_at, created_at')
-      .eq('user_id', userId)
-      .in('decision_type', [ADJUSTMENT_DECISION_TYPE, MANUAL_TARGET_DECISION_TYPE])
-      .order('created_at', { ascending: false })
-      .limit(10),
-  ])
+  const [metricsRes, foodRes, decisionsRes, statusRes, targetsRes,
+    stepsRes, workoutDurRes, sessionDurRes, trainingRes, fastingRes] =
+    await Promise.all([
+      supabase
+        .from('body_metrics')
+        .select('logged_date, weight_kg, bf_pct, created_at')
+        .eq('user_id', userId)
+        .gte('logged_date', metricsStart)
+        .lte('logged_date', bounds.endDate),
+      supabase
+        .from('food_logs')
+        .select('logged_date, calories, protein_g, carbs_g, fat_g')
+        .eq('user_id', userId)
+        .gte('logged_date', adaptiveStart)
+        .lte('logged_date', bounds.endDate),
+      supabase
+        .from('decision_logs')
+        .select('decision_type, status, follow_through_status, reviewed_at, created_at')
+        .eq('user_id', userId)
+        .in('decision_type', [ADJUSTMENT_DECISION_TYPE, MANUAL_TARGET_DECISION_TYPE])
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('nutrition_day_status')
+        .select('logged_date')
+        .eq('user_id', userId)
+        .gte('logged_date', adaptiveStart)
+        .lte('logged_date', bounds.endDate),
+      supabase
+        .from('nutrition_targets')
+        .select('effective_date, calories')
+        .eq('user_id', userId)
+        .lte('effective_date', bounds.endDate)
+        .order('effective_date', { ascending: false })
+        .limit(12),
+      supabase
+        .from('daily_activity_logs')
+        .select('logged_date, steps')
+        .eq('user_id', userId)
+        .gte('logged_date', activityStart)
+        .lte('logged_date', bounds.endDate),
+      supabase
+        .from('workout_sessions')
+        .select('workout_date, completed_duration_seconds')
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .gte('workout_date', activityStart)
+        .lte('workout_date', bounds.endDate),
+      supabase
+        .from('activity_sessions')
+        .select('activity_date, duration_seconds')
+        .eq('user_id', userId)
+        .gte('activity_date', activityStart)
+        .lte('activity_date', bounds.endDate),
+      supabase
+        .from('workout_sessions')
+        .select(`
+          id, workout_date, status, completed_duration_seconds,
+          workout_exercises (
+            exercise_id,
+            exercise:exercises ( id, name, primary_muscle, equipment, tracking_mode, unilateral ),
+            workout_sets ( set_number, reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .gte('workout_date', lookbackStart)
+        .lte('workout_date', bounds.endDate)
+        .order('workout_date', { ascending: false })
+        .order('created_at', { ascending: false }),
+      profileContext?.fastingEnabled
+        ? supabase
+            .from('fasting_logs')
+            .select('started_at, ended_at')
+            .eq('user_id', userId)
+            .not('ended_at', 'is', null)
+            .gte('ended_at', `${bounds.startDate}T00:00:00`)
+            .lte('ended_at', `${bounds.endDate}T23:59:59.999`)
+        : Promise.resolve({ data: [], error: null }),
+    ])
 
   if (metricsRes.error) console.error('fetchGoalAdjustmentReview (body_metrics) error:', metricsRes.error)
   if (foodRes.error) console.error('fetchGoalAdjustmentReview (food_logs) error:', foodRes.error)
   if (decisionsRes.error) console.error('fetchGoalAdjustmentReview (decision_logs) error:', decisionsRes.error)
+  for (const [name, res] of [
+    ['nutrition_day_status', statusRes], ['nutrition_targets', targetsRes],
+    ['daily_activity_logs', stepsRes], ['workout_sessions', workoutDurRes],
+    ['activity_sessions', sessionDurRes], ['training', trainingRes],
+    ['fasting_logs', fastingRes],
+  ] as const) {
+    if (res.error) console.error(`fetchGoalAdjustmentReview (${name}) error:`, res.error)
+  }
+
+  // ── Context evidence assembly (absence -> unknown, never low) ─────
+  const explicitCompleteDates = new Set<string>(
+    (statusRes.data ?? []).map((r: { logged_date: string }) => r.logged_date))
+
+  // Activity: review-week mean of RECORDED steps vs the user's own
+  // 28-day baseline median. NULL steps stay excluded throughout.
+  const stepDays = (stepsRes.data ?? []) as Array<{ logged_date: string; steps: number | null }>
+  const sessions = [
+    ...((workoutDurRes.data ?? []) as Array<{ workout_date: string; completed_duration_seconds: number | null }>)
+      .filter((w) => w.completed_duration_seconds !== null && w.completed_duration_seconds > 0)
+      .map((w) => ({ date: w.workout_date, durationSeconds: w.completed_duration_seconds as number })),
+    ...((sessionDurRes.data ?? []) as Array<{ activity_date: string; duration_seconds: number }>)
+      .map((s) => ({ date: s.activity_date, durationSeconds: s.duration_seconds })),
+  ]
+  const baseline = buildActivityBaseline({ stepDays, sessions }, bounds.endDate)
+  const weekRecordedSteps = stepDays
+    .filter((d) => d.logged_date >= bounds.startDate && d.logged_date <= bounds.endDate)
+    .filter((d) => d.steps !== null && Number.isFinite(d.steps))
+    .map((d) => d.steps as number)
+  const weekMeanSteps = weekRecordedSteps.length > 0
+    ? weekRecordedSteps.reduce((s, v) => s + v, 0) / weekRecordedSteps.length
+    : null
+  const activityContext = classifyActivityContext(weekMeanSteps, baseline.medianDailySteps)
+
+  // Training: the existing 2X classifier over the review window —
+  // sparse/ambiguous stays unknown, never negative.
+  const trainingProgress = computeWeeklyExerciseProgress(
+    (trainingRes.data ?? []) as never[], bounds)
+  const trainingSignal: 'improving' | 'stable' | 'declining' | 'unknown' =
+    trainingRes.error ? 'unknown'
+    : trainingProgress.declining > 0 && trainingProgress.declining >= trainingProgress.improving
+      ? 'declining'
+    : trainingProgress.improving > 0 ? 'improving'
+    : trainingProgress.steady > 0 ? 'stable'
+    : 'unknown'
+
+  // Adaptive maintenance: the stable 5B.2 pipeline over the 4-week
+  // window with historical per-date target resolution. Session and
+  // step calories NEVER enter this math (intake + weight trend only).
+  const targetHistory = (targetsRes.data ?? []) as Array<{ effective_date: string; calories: number }>
+  const adaptiveFacts = buildDailyNutritionFactsWithContext(
+    foodRes.data ?? [], adaptiveStart, bounds.endDate,
+    {
+      targetHistory: targetHistory.length > 0
+        ? targetHistory
+        : target ? [{ effective_date: target.effective_date, calories: target.calories }] : [],
+      explicitCompleteDates,
+    })
+  const adaptiveAnchors = deriveWeeklyWeightAnchors(
+    metricsRes.data ?? [], bounds.endDate, ADJUSTMENT_ANCHOR_WINDOW_WEEKS)
+  const latestAnchorLbs = adaptiveAnchors[adaptiveAnchors.length - 1]?.anchorLbs ?? null
+  const baselineWeightLbs = latestAnchorLbs ??
+    (profileContext?.currentWeightKg != null ? kgToLbs(profileContext.currentWeightKg) : null)
+  const adaptive = baselineWeightLbs !== null
+    ? inferAdaptiveMaintenance({
+        baseline: estimateBaselineTdee({
+          weightLbs: baselineWeightLbs,
+          activityLevel: profileContext?.activityLevel ?? 'moderately_active',
+          sex: profileContext?.sex,
+          age: profileContext?.age,
+          heightCm: profileContext?.heightCm,
+          bfPct: profileBfPct,
+        }),
+        weeks: buildQualifyingWeeks({
+          nutritionFacts: adaptiveFacts,
+          anchors: adaptiveAnchors,
+          endDate: bounds.endDate,
+        }),
+        daysSinceTargetChange: target
+          ? Math.max(0, Math.round(
+              (parseISO(todayStr).getTime() - parseISO(target.effective_date).getTime()) / 86_400_000))
+          : null,
+      })
+    : null
+
+  const completedFastsInWindow = (fastingRes.data ?? []).filter(
+    (f: { ended_at: string | null }) => f.ended_at !== null).length
 
   return evaluateGoalAdjustment({
     todayStr,
@@ -702,5 +1146,12 @@ export async function fetchGoalAdjustmentReview(
       nutrition: !foodRes.error,
       decisions: !decisionsRes.error,
     },
+    explicitCompleteDates,
+    activityContext,
+    trainingSignal,
+    adaptive,
+    fastingContext: profileContext?.fastingEnabled
+      ? { completedFastsInWindow }
+      : null,
   })
 }

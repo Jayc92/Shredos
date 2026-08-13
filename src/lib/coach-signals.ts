@@ -121,8 +121,12 @@ export function computeEnergyConfidence(input: {
   const reasons: string[] = []
 
   const recentWindow = input.nutritionFacts.slice(-7)
+  // Phase 5B.4 correction: explicit_complete (5B.2) counts as a
+  // complete day everywhere — explicitly finished days are the
+  // PREFERRED evidence and must never be excluded by the older
+  // heuristic-only filter.
   const completeDays = recentWindow.filter(
-    (f) => f.completeness === 'likely_complete'
+    (f) => f.completeness === 'likely_complete' || f.completeness === 'explicit_complete'
   ).length
   if (completeDays < SIGNAL_MIN_COMPLETE_DAYS) {
     reasons.push('nutrition_logging_incomplete')
@@ -167,7 +171,9 @@ function averageOverCompleteDays(
   pick: (f: DailyNutritionFact) => number | null
 ): { average: number | null; days: number } {
   const values = facts
-    .filter((f) => f.completeness === 'likely_complete')
+    // Phase 5B.4 correction: explicit_complete days are trusted
+    // evidence too (see computeEnergyConfidence note above).
+    .filter((f) => f.completeness === 'likely_complete' || f.completeness === 'explicit_complete')
     .map(pick)
     .filter((v): v is number => v !== null && Number.isFinite(v))
   if (values.length === 0) return { average: null, days: 0 }
