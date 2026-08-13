@@ -58,9 +58,12 @@ console.log('\n1. Checkpoint and boundary')
       'src/lib/activity.ts', 'supabase/migrations/017_phase5a4_daily_activity_distance.sql']
       .every((f) => existsSync(f)))
   check('5A.6A notes exist', notes.length > 1500)
-  check('NO migration added: exactly 17 migrations, no 018',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 17 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('018')))
+  // RETARGETED (5A.6B): 018 is that approved phase's anatomy
+  // migration. 5A.6A's own boundary — it added NO migration — is
+  // unchanged: no migration file names 5A.6A.
+  check('5A.6A added NO migration (none names it; 017 untouched)',
+    !readdirSync('supabase/migrations').some((f) => f.includes('5a6a')) &&
+    existsSync('supabase/migrations/017_phase5a4_daily_activity_distance.sql'))
   check('exactly 2 feature/source files carry 5A.6A markers',
     workoutLib.includes('5A.6A') && addRoute.includes('5A.6A') &&
     ['src/components/workout/AddExerciseSection.tsx',
@@ -70,8 +73,10 @@ console.log('\n1. Checkpoint and boundary')
       'src/app/api/workout-exercises/[id]/sets/route.ts',
       'src/app/api/workout-sets/[id]/route.ts']
       .every((f) => !read(f).includes('5A.6A')))
-  check('no anatomy changes (5A.6B boundary)',
-    !read('src/lib/exercise-validation.ts').includes('5A.6') &&
+  // RETARGETED (5A.6B): the anatomy phase is now legitimately
+  // implemented, so this pin narrows to its true claim — 5A.6A's OWN
+  // two files contain no anatomy changes.
+  check('no anatomy changes inside the 5A.6A scope',
     !workoutLib.includes('exercise_muscles') &&
     !addRoute.includes('muscle'))
   check('no Energy Balance changes',
@@ -248,9 +253,13 @@ console.log('\n6. Runtime: analytics safety')
     read('src/lib/progress-overview.ts').includes('completed'))
   check('coach volume keys on completed sets (unchanged)',
     read('src/lib/workout-coach.ts').includes('completed'))
+  // RETARGETED (5A.6B): workout-coach gained that phase's approved
+  // broad-group COMPATIBILITY map entries. 5A.6A's own claim stands:
+  // no 5A.6A Coach code, and the 5A.6B addition is compatibility-only.
   check('no Coach behavior changes in this phase',
-    !read('src/lib/workout-coach.ts').includes('5A.6') &&
-    !read('src/lib/nutrition-coach.ts').includes('5A.6'))
+    !read('src/lib/workout-coach.ts').includes('5A.6A') &&
+    !read('src/lib/nutrition-coach.ts').includes('5A.6') &&
+    read('src/lib/workout-coach.ts').includes('compatibility only'))
 }
 
 // ── 7. Routine regression ────────────────────────────────────────────

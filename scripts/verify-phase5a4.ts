@@ -74,10 +74,13 @@ console.log('\n1. Checkpoint and migration 017')
       'supabase/migrations/016_phase5a3_activity_session_grants.sql']
       .every((f) => existsSync(f)))
   check('5A.4 notes exist', notes.length > 1500)
-  check('migration boundary: exactly 17 migrations, 017 added, no 018',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 17 &&
+  // RETARGETED (5A.6B): 018 is that approved phase's anatomy
+  // migration, so this pin's boundary is now "5A.4 added exactly 017"
+  // rather than a total count every later phase would break (the same
+  // retarget the 5A.2/5A.3 boundary pins received).
+  check('5A.4 migration boundary: added exactly 017 (no duplicates)',
     existsSync('supabase/migrations/017_phase5a4_daily_activity_distance.sql') &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('018')))
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('017')).length === 1)
   check('017 adds canonical distance at the 011/015 precision',
     migration017.includes('ADD COLUMN distance_meters NUMERIC(10,2)'))
   check('017 distance CHECK: NULL allowed, zero allowed, negatives impossible',

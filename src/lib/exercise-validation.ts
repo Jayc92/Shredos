@@ -14,10 +14,104 @@ export const EXERCISE_NAME_MAX_LENGTH = 100
 export const EXERCISE_NOTES_MAX_LENGTH = 1000
 
 export const EXERCISE_CATEGORIES = ['compound', 'isolation', 'cardio', 'mobility', 'other'] as const
+
+// ── Phase 5A.6B: canonical muscle taxonomy (25 values) ─────────────
+// The approved anatomy vocabulary. The broad values 'back',
+// 'shoulders', and 'core' REMAIN canonical: existing exercises using
+// them are honestly broad and are never guess-mapped to specifics —
+// users refine per exercise when they choose to. Deliberately absent:
+// 'thigh' (anatomically ambiguous — quads/hamstrings/adductors are
+// the useful groups), 'cardio' (a category/tracking concept, not a
+// muscle), and upper/lower chest (exercise-variation concepts, not
+// separate muscles). The old 13-value vocabulary is a strict subset.
 export const MUSCLE_GROUPS = [
-  'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms',
-  'core', 'quads', 'hamstrings', 'glutes', 'calves', 'full_body', 'other',
+  // upper
+  'chest', 'lats', 'upper_back', 'lower_back', 'traps',
+  'front_delts', 'side_delts', 'rear_delts',
+  'biceps', 'triceps', 'forearms',
+  // lower
+  'quads', 'hamstrings', 'glutes', 'calves',
+  'hip_flexors', 'adductors', 'abductors',
+  // core
+  'abs', 'obliques',
+  // retained broad values
+  'back', 'shoulders', 'core',
+  // other
+  'full_body', 'other',
 ] as const
+
+/** Friendly display labels for every canonical muscle. */
+export const MUSCLE_LABELS: Record<(typeof MUSCLE_GROUPS)[number], string> = {
+  chest: 'Chest',
+  lats: 'Lats',
+  upper_back: 'Upper back',
+  lower_back: 'Lower back',
+  traps: 'Traps',
+  front_delts: 'Front delts',
+  side_delts: 'Side delts',
+  rear_delts: 'Rear delts',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  forearms: 'Forearms',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  calves: 'Calves',
+  hip_flexors: 'Hip flexors',
+  adductors: 'Adductors',
+  abductors: 'Abductors',
+  abs: 'Abs',
+  obliques: 'Obliques',
+  back: 'Back',
+  shoulders: 'Shoulders',
+  core: 'Core',
+  full_body: 'Full body',
+  other: 'Other',
+}
+
+/** Code-level region grouping for filtering and future analytics —
+ *  deliberately NOT a database column. */
+export type MuscleRegion = 'upper' | 'lower' | 'core' | 'other'
+
+export const MUSCLE_REGIONS: Record<(typeof MUSCLE_GROUPS)[number], MuscleRegion> = {
+  chest: 'upper',
+  lats: 'upper',
+  upper_back: 'upper',
+  lower_back: 'upper',
+  traps: 'upper',
+  front_delts: 'upper',
+  side_delts: 'upper',
+  rear_delts: 'upper',
+  biceps: 'upper',
+  triceps: 'upper',
+  forearms: 'upper',
+  quads: 'lower',
+  hamstrings: 'lower',
+  glutes: 'lower',
+  calves: 'lower',
+  hip_flexors: 'lower',
+  adductors: 'lower',
+  abductors: 'lower',
+  abs: 'core',
+  obliques: 'core',
+  back: 'upper',
+  shoulders: 'upper',
+  core: 'core',
+  full_body: 'other',
+  other: 'other',
+}
+
+// Relationship roles. Primary is NOT a relationship role — it lives
+// on exercises.primary_muscle (exactly one, structurally). Weights
+// are deliberately not stored anywhere: the future Coach defines
+// contribution weights centrally so re-tuning never rewrites rows.
+export const MUSCLE_ROLES = ['secondary', 'tertiary'] as const
+export type MuscleRole = (typeof MUSCLE_ROLES)[number]
+
+export interface MuscleTarget {
+  muscle: MuscleGroup
+  role: MuscleRole
+}
 export const EQUIPMENT_TYPES = [
   'barbell', 'dumbbell', 'cable', 'machine',
   'bodyweight', 'resistance_band', 'kettlebell', 'other',
@@ -56,7 +150,10 @@ export interface ExerciseCreatePayload {
   name: string
   category: ExerciseCategory | null
   primary_muscle: MuscleGroup
-  secondary_muscles: MuscleGroup[]
+  /** Secondary/tertiary relationship targets (Phase 5A.6B explicit
+   *  roles contract, D6). Written to exercise_muscles — the
+   *  deprecated secondary_muscles JSONB is never written. */
+  muscle_targets: MuscleTarget[]
   equipment: EquipmentType | null
   tracking_mode: TrackingMode
   unilateral: boolean
@@ -67,7 +164,7 @@ export interface ExercisePatchPayload {
   name?: string
   category?: ExerciseCategory | null
   primary_muscle?: MuscleGroup
-  secondary_muscles?: MuscleGroup[]
+  muscle_targets?: MuscleTarget[]
   equipment?: EquipmentType | null
   tracking_mode?: TrackingMode
   unilateral?: boolean
@@ -75,13 +172,16 @@ export interface ExercisePatchPayload {
   is_active?: boolean
 }
 
+// Phase 5A.6B (D6): the API contract moved from the legacy
+// secondary_muscles array to explicit muscle_targets roles —
+// secondary_muscles is no longer an accepted field on either route.
 const CREATE_ALLOWED_FIELDS = new Set([
-  'name', 'category', 'primary_muscle', 'secondary_muscles',
+  'name', 'category', 'primary_muscle', 'muscle_targets',
   'equipment', 'tracking_mode', 'unilateral', 'notes',
 ])
 
 const PATCH_ALLOWED_FIELDS = new Set([
-  'name', 'category', 'primary_muscle', 'secondary_muscles',
+  'name', 'category', 'primary_muscle', 'muscle_targets',
   'equipment', 'tracking_mode', 'unilateral', 'notes', 'is_active',
 ])
 
@@ -122,25 +222,54 @@ function validatePrimaryMuscle(raw: unknown): ValidationResult<MuscleGroup> {
 }
 
 /**
- * primaryMuscle is only passed when the SAME normalized payload also
- * includes a primary_muscle value (POST always has one; PATCH only
- * when the caller explicitly sent it alongside secondary_muscles in
- * the same request). When absent, no exclusion is attempted -- this
- * deliberately avoids querying the database just to look up an
- * existing primary_muscle for the sole purpose of excluding it.
+ * Phase 5A.6B: validates the explicit-roles relationship payload.
+ * Every entry must be { muscle, role } with a canonical muscle and a
+ * relationship role (secondary/tertiary — 'primary' in the array is
+ * rejected: the primary target is a separate field). Collisions are
+ * REJECTED, never silently dropped (a deliberate contract change
+ * from the 2P secondary_muscles behavior, which skipped/deduped):
+ * the same muscle twice (any roles) fails, and a target equal to the
+ * primary fails. `primaryMuscle` is the EFFECTIVE primary — POST
+ * always has one from the same payload; the PATCH route passes the
+ * payload's value or the stored row's, so the primary-collision rule
+ * holds even when primary_muscle isn't being changed.
  */
-function validateSecondaryMuscles(
+export function validateMuscleTargets(
   raw: unknown,
   primaryMuscle: MuscleGroup | undefined
-): ValidationResult<MuscleGroup[]> {
+): ValidationResult<MuscleTarget[]> {
   if (raw === undefined) return ok([])
-  if (!Array.isArray(raw)) return fail('Secondary muscles must be an array of valid muscle groups.')
+  if (!Array.isArray(raw)) {
+    return fail('Muscle targets must be an array of { muscle, role } entries.')
+  }
 
-  const result: MuscleGroup[] = []
+  const result: MuscleTarget[] = []
+  const seen = new Set<string>()
   for (const item of raw) {
-    if (!isMuscleGroup(item)) return fail('Secondary muscles must be an array of valid muscle groups.')
-    if (primaryMuscle && item === primaryMuscle) continue // exclude the primary muscle
-    if (!result.includes(item)) result.push(item) // dedupe, preserve first-seen order
+    if (!isPlainObject(item)) {
+      return fail('Muscle targets must be an array of { muscle, role } entries.')
+    }
+    const extraKeys = Object.keys(item).filter((k) => k !== 'muscle' && k !== 'role')
+    if (extraKeys.length > 0) {
+      return fail('Muscle targets accept only muscle and role.')
+    }
+    if (!isMuscleGroup(item.muscle)) {
+      return fail('Unknown muscle in muscle targets.')
+    }
+    if (item.role === 'primary') {
+      return fail('The primary muscle is set separately, not in muscle targets.')
+    }
+    if (typeof item.role !== 'string' || !(MUSCLE_ROLES as readonly string[]).includes(item.role)) {
+      return fail('Muscle target role must be secondary or tertiary.')
+    }
+    if (primaryMuscle && item.muscle === primaryMuscle) {
+      return fail('A muscle target cannot duplicate the primary muscle.')
+    }
+    if (seen.has(item.muscle)) {
+      return fail('The same muscle cannot be targeted twice.')
+    }
+    seen.add(item.muscle)
+    result.push({ muscle: item.muscle, role: item.role as MuscleRole })
   }
   return ok(result)
 }
@@ -226,8 +355,8 @@ export function normalizeExerciseCreatePayload(body: unknown): ValidationResult<
   const categoryResult = validateCategory(body.category)
   if (!categoryResult.ok) return categoryResult
 
-  const secondaryResult = validateSecondaryMuscles(body.secondary_muscles, muscleResult.value)
-  if (!secondaryResult.ok) return secondaryResult
+  const targetsResult = validateMuscleTargets(body.muscle_targets, muscleResult.value)
+  if (!targetsResult.ok) return targetsResult
 
   const equipmentResult = validateEquipment(body.equipment)
   if (!equipmentResult.ok) return equipmentResult
@@ -250,7 +379,7 @@ export function normalizeExerciseCreatePayload(body: unknown): ValidationResult<
     name: nameResult.value,
     category: categoryResult.value,
     primary_muscle: muscleResult.value,
-    secondary_muscles: secondaryResult.value,
+    muscle_targets: targetsResult.value,
     equipment: equipmentResult.value,
     tracking_mode: trackingModeResult.value,
     unilateral: unilateralResult.value,
@@ -295,10 +424,15 @@ export function normalizeExercisePatchPayload(body: unknown): ValidationResult<E
     payload.category = result.value
   }
 
-  if ('secondary_muscles' in body) {
-    const result = validateSecondaryMuscles(body.secondary_muscles, normalizedPrimaryMuscle)
+  if ('muscle_targets' in body) {
+    // Primary-collision enforcement is completed by the PATCH route:
+    // when primary_muscle is absent from this payload, the route
+    // re-validates the targets against the STORED primary (see
+    // validateMuscleTargets docs) — pure validation here can only see
+    // what the payload carries.
+    const result = validateMuscleTargets(body.muscle_targets, normalizedPrimaryMuscle)
     if (!result.ok) return result
-    payload.secondary_muscles = result.value
+    payload.muscle_targets = result.value
   }
 
   if ('equipment' in body) {

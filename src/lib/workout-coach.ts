@@ -24,14 +24,33 @@ const COACHING_MIN_SESSIONS = 3  // sessions needed before showing coaching insi
 
 // exercises.primary_muscle uses specific values; routines use broader groups.
 // This map normalises specifics to the broad group for freshness matching.
+// Phase 5A.6B (compatibility only, no new Coach behavior): the widened
+// 25-value taxonomy maps into the same six display groups so newly
+// specific muscles never fall through to a nonexistent group —
+// lats/upper_back/lower_back/traps read as back, the delt heads as
+// shoulders, hip_flexors/adductors/abductors as legs, abs/obliques as
+// core. The retained broad values (back/shoulders/core) pass through
+// unmapped exactly as before.
 const MUSCLE_GROUP_MAP: Record<string, string> = {
-  biceps:     'arms',
-  triceps:    'arms',
-  forearms:   'arms',
-  quads:      'legs',
-  hamstrings: 'legs',
-  glutes:     'legs',
-  calves:     'legs',
+  biceps:      'arms',
+  triceps:     'arms',
+  forearms:    'arms',
+  quads:       'legs',
+  hamstrings:  'legs',
+  glutes:      'legs',
+  calves:      'legs',
+  hip_flexors: 'legs',
+  adductors:   'legs',
+  abductors:   'legs',
+  lats:        'back',
+  upper_back:  'back',
+  lower_back:  'back',
+  traps:       'back',
+  front_delts: 'shoulders',
+  side_delts:  'shoulders',
+  rear_delts:  'shoulders',
+  abs:         'core',
+  obliques:    'core',
 }
 
 // Broad muscle groups shown in the readiness panel (matches ROUTINE_MUSCLE_FOCUS)

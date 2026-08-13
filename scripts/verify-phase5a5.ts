@@ -66,9 +66,13 @@ console.log('\n1. Checkpoint and no-migration boundary')
       'src/lib/activity.ts', 'src/lib/local-time.ts']
       .every((f) => existsSync(f)))
   check('5A.5 notes exist', notes.length > 1500)
-  check('NO migration added: exactly 17 migrations, no 018',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 17 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('018')))
+  // RETARGETED (5A.6B): 018 is that approved phase's anatomy
+  // migration. The property this pin protects — 5A.5 itself added NO
+  // migration — is unchanged: no migration file names 5A.5, and 017
+  // (the last pre-5A.5 migration) is still the newest pre-anatomy one.
+  check('5A.5 added NO migration (none names it; 017 untouched)',
+    !readdirSync('supabase/migrations').some((f) => f.includes('5a5')) &&
+    existsSync('supabase/migrations/017_phase5a4_daily_activity_distance.sql'))
   check('migration 014 untouched (column + CHECK already serve every source)',
     read('supabase/migrations/014_phase5a2_workout_capture_metadata.sql')
       .includes('ADD COLUMN calories_burned INTEGER'))

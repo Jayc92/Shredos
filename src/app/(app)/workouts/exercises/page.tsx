@@ -18,9 +18,13 @@ export default async function ExercisesPage() {
 
   await seedExercisesIfNeeded(supabase, user.id)
 
+  // Phase 5A.6B: embed the authoritative exercise_muscles rows so the
+  // library list displays secondary/tertiary targets and the edit
+  // form prefills them (the deprecated secondary_muscles JSONB is
+  // never read).
   const { data: exercises } = await supabase
     .from('exercises')
-    .select('*')
+    .select('*, exercise_muscles(id, user_id, exercise_id, muscle, role, created_at)')
     .eq('user_id', user.id)
     .order('is_active', { ascending: false })
     .order('primary_muscle')

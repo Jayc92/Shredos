@@ -268,10 +268,34 @@ export type FoodLogUpdate = Partial<Omit<FoodLog, 'id' | 'user_id' | 'created_at
 
 // ── Phase 1C — workout logging ────────────────────────────────────
 
+// Phase 5A.6B: the canonical 25-value anatomy vocabulary (migration
+// 018 widened the CHECK). The broad values back/shoulders/core remain
+// valid — existing rows stay honestly broad, never guess-mapped.
 export type PrimaryMuscle =
-  | 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps'
-  | 'forearms' | 'core' | 'quads' | 'hamstrings'
-  | 'glutes' | 'calves' | 'full_body' | 'other'
+  | 'chest' | 'lats' | 'upper_back' | 'lower_back' | 'traps'
+  | 'front_delts' | 'side_delts' | 'rear_delts'
+  | 'biceps' | 'triceps' | 'forearms'
+  | 'quads' | 'hamstrings' | 'glutes' | 'calves'
+  | 'hip_flexors' | 'adductors' | 'abductors'
+  | 'abs' | 'obliques'
+  | 'back' | 'shoulders' | 'core'
+  | 'full_body' | 'other'
+
+// Phase 5A.6B: secondary/tertiary relationship rows (exercise_muscles,
+// migration 018). The primary target is NOT in this table — it stays
+// on exercises.primary_muscle (exactly one, structurally). Roles
+// only; contribution weights are a future central Coach concern and
+// are deliberately not stored.
+export type ExerciseMuscleRole = 'secondary' | 'tertiary'
+
+export interface ExerciseMuscle {
+  id: string
+  user_id: string
+  exercise_id: string
+  muscle: PrimaryMuscle
+  role: ExerciseMuscleRole
+  created_at: string
+}
 
 export type ExerciseCategory = 'compound' | 'isolation' | 'cardio' | 'mobility' | 'other'
 
@@ -297,6 +321,10 @@ export interface Exercise {
   name: string
   category: ExerciseCategory | null
   primary_muscle: PrimaryMuscle
+  /** DEPRECATED (5A.6B): rollback insurance only. Backfilled into
+   *  exercise_muscles by migration 018; the app never writes it and
+   *  never reads it as authoritative. A later cleanup migration drops
+   *  it after the join-table model survives a stable checkpoint. */
   secondary_muscles: string[]
   equipment: ExerciseEquipment | null
   exercise_type: ExerciseType
@@ -307,6 +335,9 @@ export interface Exercise {
   is_system: boolean
   created_at: string
   updated_at: string
+  /** Embedded secondary/tertiary relationship rows, present when the
+   *  query selects exercise_muscles (5A.6B). */
+  exercise_muscles?: ExerciseMuscle[]
 }
 export type ExerciseInsert = Omit<Exercise,'id'|'created_at'|'updated_at'> & { id?:string; created_at?:string; updated_at?:string }
 export type ExerciseUpdate  = Partial<Omit<Exercise,'id'|'user_id'|'created_at'>>

@@ -152,20 +152,42 @@ export type MealTypeValue = typeof MEAL_TYPES[number]['value']
 
 
 // ── Workout ───────────────────────────────────────────────────────
+// Phase 5A.6B: the canonical 25-value anatomy vocabulary, ordered by
+// region (upper -> lower -> core -> broad -> other) so pill groups
+// and filters read anatomically. Values/labels mirror
+// exercise-validation's MUSCLE_GROUPS/MUSCLE_LABELS exactly (pinned).
+// back/shoulders/core remain valid broad values for existing rows.
 export const PRIMARY_MUSCLES = [
-  { value: 'chest',     label: 'Chest' },
-  { value: 'back',      label: 'Back' },
-  { value: 'shoulders', label: 'Shoulders' },
-  { value: 'biceps',    label: 'Biceps' },
-  { value: 'triceps',   label: 'Triceps' },
-  { value: 'forearms',  label: 'Forearms' },
-  { value: 'core',      label: 'Core' },
-  { value: 'quads',     label: 'Quads' },
-  { value: 'hamstrings',label: 'Hamstrings' },
-  { value: 'glutes',    label: 'Glutes' },
-  { value: 'calves',    label: 'Calves' },
-  { value: 'full_body', label: 'Full body' },
-  { value: 'other',     label: 'Other' },
+  // upper
+  { value: 'chest',       label: 'Chest' },
+  { value: 'lats',        label: 'Lats' },
+  { value: 'upper_back',  label: 'Upper back' },
+  { value: 'lower_back',  label: 'Lower back' },
+  { value: 'traps',       label: 'Traps' },
+  { value: 'front_delts', label: 'Front delts' },
+  { value: 'side_delts',  label: 'Side delts' },
+  { value: 'rear_delts',  label: 'Rear delts' },
+  { value: 'biceps',      label: 'Biceps' },
+  { value: 'triceps',     label: 'Triceps' },
+  { value: 'forearms',    label: 'Forearms' },
+  // lower
+  { value: 'quads',       label: 'Quads' },
+  { value: 'hamstrings',  label: 'Hamstrings' },
+  { value: 'glutes',      label: 'Glutes' },
+  { value: 'calves',      label: 'Calves' },
+  { value: 'hip_flexors', label: 'Hip flexors' },
+  { value: 'adductors',   label: 'Adductors' },
+  { value: 'abductors',   label: 'Abductors' },
+  // core
+  { value: 'abs',         label: 'Abs' },
+  { value: 'obliques',    label: 'Obliques' },
+  // retained broad values
+  { value: 'back',        label: 'Back' },
+  { value: 'shoulders',   label: 'Shoulders' },
+  { value: 'core',        label: 'Core' },
+  // other
+  { value: 'full_body',   label: 'Full body' },
+  { value: 'other',       label: 'Other' },
 ] as const
 
 export const EXERCISE_CATEGORIES = [

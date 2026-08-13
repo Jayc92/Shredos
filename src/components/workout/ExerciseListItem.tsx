@@ -18,6 +18,12 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
   const [toggling, setToggling] = useState(false)
 
   const muscleLabel = ex.primary_muscle.charAt(0).toUpperCase() + ex.primary_muscle.slice(1).replace('_', ' ')
+  // Phase 5A.6B: secondary/tertiary from the authoritative
+  // exercise_muscles join rows (the deprecated secondary_muscles
+  // JSONB is never read).
+  const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace(/_/g, ' ')
+  const secondaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'secondary')
+  const tertiaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'tertiary')
 
   async function toggleActive() {
     if (!confirm(`Deactivate "${ex.name}"? It will be hidden from the exercise picker. You can reactivate it later.`)) return
@@ -74,6 +80,15 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
             {ex.equipment ? ` · ${ex.equipment}` : ''}
             {ex.category ? ` · ${ex.category}` : ''}
           </p>
+          {(secondaryTargets.length > 0 || tertiaryTargets.length > 0) && (
+            <p className="text-xs text-ink-muted mt-0.5">
+              {secondaryTargets.length > 0 &&
+                `Secondary: ${secondaryTargets.map(m => label(m.muscle)).join(', ')}`}
+              {secondaryTargets.length > 0 && tertiaryTargets.length > 0 && ' · '}
+              {tertiaryTargets.length > 0 &&
+                `Tertiary: ${tertiaryTargets.map(m => label(m.muscle)).join(', ')}`}
+            </p>
+          )}
         </div>
         {ex.is_active ? (
           <div className="flex items-center gap-1 flex-shrink-0">

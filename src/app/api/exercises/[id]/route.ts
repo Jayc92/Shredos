@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { normalizeExercisePatchPayload, deriveLegacyExerciseType } from '@/lib/exercise-validation'
+import {
+  normalizeExercisePatchPayload, deriveLegacyExerciseType, validateMuscleTargets,
+} from '@/lib/exercise-validation'
+import type { MuscleGroup } from '@/lib/exercise-validation'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -21,7 +24,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // PATCH calls).
   const { data: existing, error: fetchError } = await supabase
     .from('exercises')
-    .select('is_active')
+    .select('is_active, primary_muscle')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -29,25 +32,82 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!existing) return NextResponse.json({ error: 'Exercise not found.' }, { status: 404 })
 
+  // Phase 5A.6B: complete the primary-collision rule against the
+  // EFFECTIVE primary. Pure validation could only see a primary sent
+  // in the same payload; when muscle_targets arrive without one, the
+  // stored primary is the authority a target must not duplicate.
+  if (result.value.muscle_targets !== undefined && result.value.primary_muscle === undefined) {
+    const revalidated = validateMuscleTargets(
+      result.value.muscle_targets,
+      existing.primary_muscle as MuscleGroup
+    )
+    if (!revalidated.ok) {
+      return NextResponse.json({ error: revalidated.error }, { status: 400 })
+    }
+  }
+
+  // Phase 5A.6B: muscle_targets never touch the exercise row (and the
+  // deprecated secondary_muscles JSONB is never written — no
+  // dual-write; exercise_muscles is authoritative).
+  const { muscle_targets, ...patchFields } = result.value
+
   // Phase 2R: if this PATCH changes tracking_mode, refresh the legacy
   // exercise_type to match via the same derivation POST uses -- keeps
   // the legacy column consistent with the current tracking_mode
   // rather than freezing it at whatever value the exercise was
   // originally created with.
-  const updatePayload: Record<string, unknown> = { ...result.value }
+  const updatePayload: Record<string, unknown> = { ...patchFields }
   if (result.value.tracking_mode !== undefined) {
     updatePayload.exercise_type = deriveLegacyExerciseType(result.value.tracking_mode)
   }
 
-  const { data, error } = await supabase
-    .from('exercises').update(updatePayload)
-    .eq('id', params.id).eq('user_id', user.id)
-    .select().single()
+  // A targets-only PATCH is legal: the relationship replacement below
+  // is the whole edit, so skip the empty row update.
+  let data: Record<string, unknown> | null = null
+  if (Object.keys(updatePayload).length > 0) {
+    const { data: updated, error } = await supabase
+      .from('exercises').update(updatePayload)
+      .eq('id', params.id).eq('user_id', user.id)
+      .select().single()
+    if (error) {
+      if (error.code === '23505')
+        return NextResponse.json({ error: 'You already have an exercise with this name.' }, { status: 409 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    data = updated
+  } else {
+    const { data: current, error } = await supabase
+      .from('exercises').select('*')
+      .eq('id', params.id).eq('user_id', user.id)
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    data = current
+  }
 
-  if (error) {
-    if (error.code === '23505')
-      return NextResponse.json({ error: 'You already have an exercise with this name.' }, { status: 409 })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  // Phase 5A.6B: authoritative relationship replacement — the payload
+  // set fully replaces the exercise's secondary/tertiary rows via
+  // safe delete+insert, scoped to THIS user's rows only (another
+  // user's relationship rows are unreachable: every statement filters
+  // user_id and RLS backstops it). Absent muscle_targets leaves the
+  // relationships untouched.
+  if (muscle_targets !== undefined) {
+    const { error: clearError } = await supabase
+      .from('exercise_muscles')
+      .delete()
+      .eq('exercise_id', params.id)
+      .eq('user_id', user.id)
+    if (clearError) return NextResponse.json({ error: clearError.message }, { status: 500 })
+    if (muscle_targets.length > 0) {
+      const { error: insertError } = await supabase
+        .from('exercise_muscles')
+        .insert(muscle_targets.map((t) => ({
+          user_id: user.id,
+          exercise_id: params.id,
+          muscle: t.muscle,
+          role: t.role,
+        })))
+      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    }
   }
 
   // Decision log only on an actual true -> false transition (Phase 2P
