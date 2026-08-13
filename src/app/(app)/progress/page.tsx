@@ -21,6 +21,9 @@ import {
 import type { ExerciseProgressOverviewRow, OverviewStatus } from '@/lib/progress-overview'
 import { progressColor } from '@/lib/workout'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
+import { EnergyTrendSection } from '@/components/progress/EnergyTrendSection'
+import { fetchProgressEnergyTrends, parseEnergyRange } from '@/lib/progress-energy'
+import { todayISO } from '@/lib/dates'
 import { Card, CardContent } from '@/components/ui/card'
 import { Check } from 'lucide-react'
 import type { ProgressSignal } from '@/types/app'
@@ -145,7 +148,7 @@ function ExerciseOverviewCard({ row }: { row: ExerciseProgressOverviewRow }) {
 export default async function ProgressPage({
   searchParams,
 }: {
-  searchParams?: { mode?: string | string[] }
+  searchParams?: { mode?: string | string[]; range?: string | string[] }
 }) {
   const supabase = await createClient()
   const {
@@ -167,7 +170,12 @@ export default async function ProgressPage({
   // 7-day trend card below replaces (the Weight card moved off it in
   // Phase 2Y). The helper itself is unchanged and still serves
   // /weigh-in's 28-day summary via computeWeightProgress.
-  const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs] = await Promise.all([
+  // Phase 5B.5: ?range= selects the Energy & adherence window
+  // (4/8/12 completed weeks, default 8) — evidence semantics never
+  // change with the range.
+  const energyRange = parseEnergyRange(searchParams?.range)
+
+  const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs, energyTrends] = await Promise.all([
     fetchStrengthRecords(supabase, user.id),
     fetchTrackingAwareProgressOverview(supabase, user.id),
     // Phase 2Y: same existing helper + 50-row bound /weigh-in uses.
@@ -175,6 +183,8 @@ export default async function ProgressPage({
     // Phase 2Z: bounded trend fetch (latest logged date + the 28-day
     // window ending on it) — same helper /nutrition uses.
     fetchNutritionTrendLogs(supabase, user.id),
+    // Phase 5B.5: read-only aggregation over the stable 5B evidence.
+    fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile),
   ])
 
   // Phase 2Y: compact 7-day-average trend for the Weight section —
@@ -443,6 +453,15 @@ export default async function ProgressPage({
         </CardContent>
       </Card>
       </div>
+
+      {/* Phase 5B.5: Energy & adherence trends — read-only
+          visualization of the stable 5B evidence (weekly intake vs
+          historical targets, weekly weight anchors, coverage,
+          user-relative activity, maintenance summary). */}
+      <EnergyTrendSection
+        model={energyTrends}
+        modeParam={Array.isArray(searchParams?.mode) ? searchParams?.mode[0] : searchParams?.mode ?? null}
+      />
 
       {/* Bottom links */}
       <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
