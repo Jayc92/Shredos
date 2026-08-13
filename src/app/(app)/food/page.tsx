@@ -17,6 +17,7 @@ import { RecentFoodPanel } from '@/components/food/RecentFoodPanel'
 import { QuickDrinkLog } from '@/components/food/QuickDrinkLog'
 import { LabelCalculatorForm } from '@/components/food/LabelCalculatorForm'
 import { QuickAddPanel } from '@/components/food/QuickAddPanel'
+import { DayCompleteToggle } from '@/components/food/DayCompleteToggle'
 import { NutritionCoachPanel } from '@/components/nutrition/NutritionCoachPanel'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import { MEAL_TYPES } from '@/lib/constants'
@@ -96,12 +97,21 @@ export default async function FoodPage({
   const fourteenDaysAgo = format(subDays(parseISO(todayStr), 13), 'yyyy-MM-dd')
 
   // Parallel fetch: all data needed for the food log page
-  const [profile, logs, recentFoodRows, savedMeals, target] = await Promise.all([
+  // Phase 5B.2: dayStatusRes reads the explicit completion row for
+  // the SELECTED local date (absence = unknown, never "explicitly
+  // incomplete").
+  const [profile, logs, recentFoodRows, savedMeals, target, dayStatusRes] = await Promise.all([
     fetchUserProfile(supabase, user.id),
     fetchFoodLogsForDate(supabase, user.id, date),
     fetchRecentFoodLogs(supabase, user.id, fourteenDaysAgo, 60),
     fetchSavedMeals(supabase, user.id),
     fetchCurrentNutritionTarget(supabase, user.id),
+    supabase
+      .from('nutrition_day_status')
+      .select('logged_date')
+      .eq('user_id', user.id)
+      .eq('logged_date', date)
+      .maybeSingle(),
   ])
 
   if (!profile) redirect('/onboarding')
@@ -177,6 +187,15 @@ export default async function FoodPage({
           date={date}
         />
       ))}
+
+      {/* Phase 5B.2: explicit day completion — a restrained
+          data-quality affordance closing the logging flow. Hidden on
+          future dates (a day that hasn't happened can't be finished).
+          key={date}: each selected day gets its own instance (the
+          5A.3 date-isolation lesson). */}
+      {date <= todayStr && (
+        <DayCompleteToggle key={date} date={date} initialComplete={dayStatusRes.data !== null} />
+      )}
 
       {/* Secondary tools */}
       {/* Quick drink log — one aggregate row, e.g. "7 Bud Lights" */}

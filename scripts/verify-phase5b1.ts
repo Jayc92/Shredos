@@ -99,9 +99,13 @@ console.log('\n1. Checkpoint and boundary')
       'supabase/migrations/018_phase5a6b_exercise_muscles.sql']
       .every((f) => existsSync(f)))
   check('5B.1 notes exist', notes.length > 2500)
-  check('NO migration: exactly 18 migrations, no 019',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 18 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('019')))
+  // RETARGETED (5B.2): 019 is that approved phase's nutrition-day-
+  // status migration. 5B.1's own boundary — it added NO migration —
+  // is unchanged: no migration names 5B.1, and 018 (the last
+  // pre-5B migration) is intact.
+  check('5B.1 added NO migration (none names it; 018 untouched)',
+    !readdirSync('supabase/migrations').some((f) => f.includes('5b1')) &&
+    existsSync('supabase/migrations/018_phase5a6b_exercise_muscles.sql'))
   check('no persisted-facts tables anywhere in source',
     ['nutrition_day_status', 'daily_energy_facts', 'energy_balance_snapshots',
       'adaptive_tdee_state']
@@ -463,9 +467,15 @@ console.log('\n6. Runtime: baseline TDEE')
     modelLib.includes('never writes nutrition_targets') &&
     modelLib.includes('PRIMARY ANCHOR') &&
     modelLib.includes('PLAUSIBILITY'))
-  check('static: adaptive inference explicitly deferred to 5B.2',
-    modelLib.includes("5B.2") &&
-    !stripComments(modelLib).includes('observedMaintenance') &&
+  // RETARGETED (5B.2): adaptive inference is now legitimately
+  // implemented in this module by the approved 5B.2. The 5B.1
+  // property that survives: the BASELINE estimator remains
+  // anchor-plus-cross-checks with no averaging, and the adaptive
+  // section is explicitly the 5B.2 addition, gated on qualifying
+  // evidence rather than exposed as casual truth.
+  check('static: baseline estimator intact; adaptive section is the approved 5B.2 addition',
+    modelLib.includes('Phase 5B.2 — Adaptive maintenance inference') &&
+    modelLib.includes('MIN_QUALIFYING_WEEKS') &&
     !stripComments(modelLib).includes('inferredTdee'))
 }
 

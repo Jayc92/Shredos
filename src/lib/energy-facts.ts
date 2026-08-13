@@ -68,7 +68,13 @@ export const TREND_GOOD_FIT_MAX_MEAN_RESIDUAL_LB = 0.75
 
 // ── Daily nutrition facts ──────────────────────────────────────────
 
-export type NutritionDayCompleteness = 'missing' | 'partial' | 'likely_complete'
+// Phase 5B.2: 'explicit_complete' joins the vocabulary — the user
+// marked the day finished (nutrition_day_status row). The evidence
+// hierarchy is explicit_complete > likely_complete > partial >
+// missing; a heuristic likely_complete is NEVER equivalent to an
+// explicit completion.
+export type NutritionDayCompleteness =
+  | 'missing' | 'partial' | 'likely_complete' | 'explicit_complete'
 export type NutritionDayAdherence = 'under' | 'near' | 'over'
 
 export interface DailyNutritionFact {
@@ -81,9 +87,13 @@ export interface DailyNutritionFact {
   meaningfulEntries: number
   targetCalories: number | null
   completeness: NutritionDayCompleteness
-  /** Target-relative context; classified ONLY on likely-complete days
+  /** Target-relative context; classified ONLY on complete days
    *  with a target — a partial day's "under" would be meaningless. */
   adherence: NutritionDayAdherence | null
+  /** True when the user explicitly marked the day complete (5B.2).
+   *  Kept separate from `completeness` so an explicit mark on a day
+   *  with no logged intake is visible without fabricating intake. */
+  explicitComplete: boolean
 }
 
 /** The provisional heuristic (see header): enough calories relative
@@ -104,23 +114,55 @@ export function classifyNutritionDayCompleteness(
   return 'partial'
 }
 
-/**
- * One fact per local calendar day across the INCLUSIVE range —
- * missing days appear explicitly as completeness 'missing' with null
- * values (no fake calories are ever fabricated for a day nobody
- * logged). `targetCalories` is the caller's active target; per-day
- * historical target resolution is a future refinement and is
- * deliberately not faked here.
- */
-export function buildDailyNutritionFacts(
+// ── Historical target resolution (Phase 5B.2) ──────────────────────
+// nutrition_targets is versioned by effective_date; the target that
+// governed a given day is the LATEST version whose effective_date is
+// on or before that day. Today's target is never applied
+// retroactively across an inference window, and days before the
+// first version have no target context (null — the interpretation
+// honestly reflects the missing target, it is never guessed).
+
+export interface NutritionTargetVersion {
+  effective_date: string
+  calories: number
+  protein_g?: number
+  fat_g?: number
+  carbs_g?: number
+}
+
+export function resolveTargetForDate<T extends { effective_date: string }>(
+  history: T[],
+  date: string
+): T | null {
+  let best: T | null = null
+  for (const version of history) {
+    if (version.effective_date > date) continue
+    if (best === null || version.effective_date > best.effective_date) {
+      best = version
+    }
+  }
+  return best
+}
+
+interface BuildFactsContext {
+  /** Versioned target history; resolved per day. */
+  targetHistory?: NutritionTargetVersion[]
+  /** Flat fallback target when no history is supplied (5B.1 path). */
+  flatTargetCalories?: number | null
+  /** Local dates the user explicitly marked complete (5B.2). */
+  explicitCompleteDates?: ReadonlySet<string>
+}
+
+function buildFactsCore(
   rows: RawFoodLogLike[],
   startDate: string,
   endDate: string,
-  targetCalories: number | null
+  context: BuildFactsContext
 ): DailyNutritionFact[] {
   const totalsByDate = new Map(
     buildDailyNutritionTotals(rows).map((t) => [t.date, t])
   )
+  const explicitDates = context.explicitCompleteDates ?? new Set<string>()
   const facts: DailyNutritionFact[] = []
   let cursor = parseISO(startDate)
   const end = parseISO(endDate)
@@ -129,12 +171,26 @@ export function buildDailyNutritionFacts(
     const t = totalsByDate.get(date)
     const calories = t?.calories ?? null
     const meaningfulEntries = t?.entryCount ?? 0
-    const completeness = classifyNutritionDayCompleteness(
+    const targetCalories = context.targetHistory !== undefined
+      ? resolveTargetForDate(context.targetHistory, date)?.calories ?? null
+      : context.flatTargetCalories ?? null
+    const explicitComplete = explicitDates.has(date)
+
+    // Hierarchy: an explicit mark upgrades any day that actually has
+    // intake to 'explicit_complete'. An explicit mark on a day with
+    // NO logged intake stays 'missing' (flagged via explicitComplete)
+    // — completion is a declaration about logging, never fabricated
+    // calories, and unlogged days are never counted as zero.
+    let completeness = classifyNutritionDayCompleteness(
       calories, meaningfulEntries, targetCalories
     )
+    if (explicitComplete && calories !== null) {
+      completeness = 'explicit_complete'
+    }
+
     let adherence: NutritionDayAdherence | null = null
     if (
-      completeness === 'likely_complete' &&
+      (completeness === 'likely_complete' || completeness === 'explicit_complete') &&
       calories !== null &&
       targetCalories !== null && Number.isFinite(targetCalories) && targetCalories > 0
     ) {
@@ -157,10 +213,45 @@ export function buildDailyNutritionFacts(
       targetCalories,
       completeness,
       adherence,
+      explicitComplete,
     })
     cursor = addDays(cursor, 1)
   }
   return facts
+}
+
+/**
+ * One fact per local calendar day across the INCLUSIVE range —
+ * missing days appear explicitly as completeness 'missing' with null
+ * values (no fake calories are ever fabricated for a day nobody
+ * logged). This 5B.1 entry point applies one flat target across the
+ * window; inference paths use buildDailyNutritionFactsWithContext.
+ */
+export function buildDailyNutritionFacts(
+  rows: RawFoodLogLike[],
+  startDate: string,
+  endDate: string,
+  targetCalories: number | null
+): DailyNutritionFact[] {
+  return buildFactsCore(rows, startDate, endDate, { flatTargetCalories: targetCalories })
+}
+
+/**
+ * The Phase 5B.2 entry point: per-day HISTORICAL target resolution
+ * (the 5B.1 single-target limitation removed) plus explicit
+ * completion context. This is the required input for adaptive
+ * maintenance inference.
+ */
+export function buildDailyNutritionFactsWithContext(
+  rows: RawFoodLogLike[],
+  startDate: string,
+  endDate: string,
+  context: {
+    targetHistory: NutritionTargetVersion[]
+    explicitCompleteDates: ReadonlySet<string>
+  }
+): DailyNutritionFact[] {
+  return buildFactsCore(rows, startDate, endDate, context)
 }
 
 // ── Weekly weight anchors (Friday-weigh-in compatible) ─────────────

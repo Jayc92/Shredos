@@ -24,8 +24,16 @@
 // recommendation.
 // ============================================================
 
+import { format, parseISO, startOfISOWeek, subDays, addDays } from 'date-fns'
 import { ACTIVITY_LEVEL_MULTIPLIERS } from '@/lib/constants'
 import { lbsToKg } from '@/lib/units'
+import { computeWeightTrend } from '@/lib/energy-facts'
+import type {
+  DailyNutritionFact,
+  WeeklyWeightAnchor,
+  WeightTrendFact,
+} from '@/lib/energy-facts'
+import type { EnergyConfidence } from '@/lib/coach-signals'
 
 // ── Named product constants ────────────────────────────────────────
 
@@ -166,5 +174,356 @@ export function estimateBaselineTdee(input: BaselineTdeeInput): BaselineTdeeEsti
     plausibilityRange: { low, high },
     crossChecks,
     context,
+  }
+}
+
+// ============================================================
+// Phase 5B.2 — Adaptive maintenance inference
+// ============================================================
+// Observed maintenance is inferred from qualified average intake
+// plus the observed weekly weight trend:
+//
+//   maintenance ~= intake - daily energy-storage change
+//   daily storage change  = weeklyRateLb x 3500 / 7
+//
+// 3500 kcal/lb is an explicit APPROXIMATION, never presented as
+// measured physiology — the rolling window absorbs its error.
+// Losing weight => negative storage change => maintenance > intake.
+//
+// Evidence discipline:
+//   - intake evidence comes from EXPLICITLY completed days first
+//     (nutrition_day_status); heuristic likely-complete days are
+//     fallback at reduced confidence; partial/missing days are
+//     excluded from the mean and NEVER counted as zero calories
+//   - weight evidence reuses the 5B.1 weekly-anchor regression
+//     (Friday-only cadence fully supported, real week spacing)
+//   - workout calories, activity-session calories, steps, and
+//     distance NEVER enter this math: observed intake + weight
+//     response already captures total system behavior, and adding
+//     session components would double-count (the aggregate/
+//     component rule)
+//
+// Adaptation is BOUNDED and fully DERIVED (no adaptive_tdee_state,
+// no hidden mutable calibration): the surfaced estimate moves from
+// the baseline toward the raw observation by at most 100 kcal per
+// qualifying week in the window, clamped to +/-25% of baseline —
+// one window can never radically rewrite the model.
+// ============================================================
+
+// ── Named inference constants ──────────────────────────────────────
+
+export const INFERENCE_WINDOW_DAYS = 28
+/** Anchored ISO weeks examined inside the primary window. The
+ *  window never silently expands until something fits. */
+export const MAX_INFERENCE_WEEKS = 4
+/** Qualifying weeks required before ANY adaptive estimate surfaces. */
+export const MIN_QUALIFYING_WEEKS = 3
+/** Complete nutrition days required per qualifying week. */
+export const MIN_COMPLETE_DAYS_PER_WEEK = 5
+/** The classic approximation, documented as such. */
+export const KCAL_PER_LB = 3500
+/** Bounded adaptation: max movement per qualifying week of evidence. */
+export const ADAPTIVE_STEP_PER_WEEK_KCAL = 100
+/** Overall clamp as a fraction of the primary baseline. */
+export const ADAPTIVE_CLAMP_FRACTION = 0.25
+/** Outlier gate: a week-over-week anchor move beyond this % of body
+ *  weight is water/noise/illness, not energy balance — excluded. */
+export const OUTLIER_WEEKLY_CHANGE_PCT = 1.5
+/** A qualifying week's mean intake below this is implausible logging
+ *  masquerading as real intake. */
+export const IMPLAUSIBLE_INTAKE_FLOOR = 800
+/** User-consumable range bounds round to this. */
+export const MAINTENANCE_RANGE_ROUNDING = 50
+/** Range half-widths by status — honesty about uncertainty. */
+export const RANGE_HALF_WIDTH_KCAL: Record<'observing' | 'moderate_confidence' | 'high_confidence', number> = {
+  observing: 200,
+  moderate_confidence: 150,
+  high_confidence: 100,
+}
+
+// ── Qualifying weeks ───────────────────────────────────────────────
+
+export type WeekEvidenceQuality = 'explicit' | 'heuristic' | 'none'
+
+export interface QualifyingEnergyWeek {
+  /** Monday of the ISO week. */
+  weekStart: string
+  weekEnd: string
+  /** Mean intake across the week's counted complete days. */
+  avgCalories: number | null
+  explicitCompleteDays: number
+  heuristicCompleteDays: number
+  weightAnchor: WeeklyWeightAnchor | null
+  /** Distinct historical target calories seen across the week. */
+  targetCaloriesSeen: number[]
+  /** Which evidence tier fed avgCalories. */
+  evidenceQuality: WeekEvidenceQuality
+  qualifies: boolean
+  excluded: boolean
+  exclusionReasons: string[]
+}
+
+/**
+ * Partitions the trailing MAX_INFERENCE_WEEKS ISO weeks (ending at
+ * the week containing endDate) into deterministic, inspectable
+ * qualifying-week records. Intake means come from explicit days
+ * when the week has enough of them; otherwise explicit + heuristic
+ * likely-complete days together as reduced-confidence fallback.
+ * Partial/missing days never contribute (and never read as zero).
+ */
+export function buildQualifyingWeeks(input: {
+  nutritionFacts: DailyNutritionFact[]
+  anchors: WeeklyWeightAnchor[]
+  endDate: string
+}): QualifyingEnergyWeek[] {
+  const factsByDate = new Map(input.nutritionFacts.map((f) => [f.date, f]))
+  const anchorsByWeek = new Map(input.anchors.map((a) => [a.weekStart, a]))
+  const currentMonday = startOfISOWeek(parseISO(input.endDate))
+
+  const weeks: QualifyingEnergyWeek[] = []
+  for (let w = MAX_INFERENCE_WEEKS - 1; w >= 0; w--) {
+    const monday = subDays(currentMonday, w * 7)
+    const weekStart = format(monday, 'yyyy-MM-dd')
+    const weekEnd = format(addDays(monday, 6), 'yyyy-MM-dd')
+
+    const dayFacts: DailyNutritionFact[] = []
+    for (let d = 0; d < 7; d++) {
+      const fact = factsByDate.get(format(addDays(monday, d), 'yyyy-MM-dd'))
+      if (fact) dayFacts.push(fact)
+    }
+    const explicitDays = dayFacts.filter((f) => f.completeness === 'explicit_complete')
+    const heuristicDays = dayFacts.filter((f) => f.completeness === 'likely_complete')
+
+    let counted: DailyNutritionFact[] = []
+    let evidenceQuality: WeekEvidenceQuality = 'none'
+    if (explicitDays.length >= MIN_COMPLETE_DAYS_PER_WEEK) {
+      counted = explicitDays
+      evidenceQuality = 'explicit'
+    } else if (explicitDays.length + heuristicDays.length >= MIN_COMPLETE_DAYS_PER_WEEK) {
+      counted = [...explicitDays, ...heuristicDays]
+      evidenceQuality = 'heuristic'
+    }
+
+    const calorieValues = counted
+      .map((f) => f.calories)
+      .filter((c): c is number => c !== null && Number.isFinite(c))
+    const avgCalories = calorieValues.length > 0
+      ? calorieValues.reduce((s, c) => s + c, 0) / calorieValues.length
+      : null
+
+    const targetCaloriesSeen = Array.from(new Set(
+      dayFacts
+        .map((f) => f.targetCalories)
+        .filter((t): t is number => t !== null)
+    ))
+
+    const anchor = anchorsByWeek.get(weekStart) ?? null
+    const exclusionReasons: string[] = []
+    if (evidenceQuality === 'none') exclusionReasons.push('insufficient_nutrition_days')
+    if (anchor === null) exclusionReasons.push('no_weight_anchor')
+    if (avgCalories !== null && avgCalories < IMPLAUSIBLE_INTAKE_FLOOR) {
+      exclusionReasons.push('implausible_low_intake')
+    }
+
+    weeks.push({
+      weekStart,
+      weekEnd,
+      avgCalories,
+      explicitCompleteDays: explicitDays.length,
+      heuristicCompleteDays: heuristicDays.length,
+      weightAnchor: anchor,
+      targetCaloriesSeen,
+      evidenceQuality,
+      qualifies: false, // finalized below after outlier pass
+      excluded: exclusionReasons.length > 0,
+      exclusionReasons,
+    })
+  }
+
+  // Outlier pass: a week whose anchor moved more than
+  // OUTLIER_WEEKLY_CHANGE_PCT of body weight against the PRIOR anchor
+  // is excluded (water/noise/illness, not energy balance); the
+  // surrounding valid weeks are retained untouched.
+  for (let i = 1; i < weeks.length; i++) {
+    const prev = weeks[i - 1].weightAnchor
+    const curr = weeks[i].weightAnchor
+    if (!prev || !curr) continue
+    const changePct = Math.abs((curr.anchorLbs - prev.anchorLbs) / prev.anchorLbs) * 100
+    if (changePct > OUTLIER_WEEKLY_CHANGE_PCT) {
+      weeks[i].excluded = true
+      if (!weeks[i].exclusionReasons.includes('extreme_weight_change')) {
+        weeks[i].exclusionReasons.push('extreme_weight_change')
+      }
+    }
+  }
+
+  for (const week of weeks) {
+    week.qualifies = !week.excluded
+  }
+  return weeks
+}
+
+// ── The adaptive estimate ──────────────────────────────────────────
+
+export type AdaptiveMaintenanceStatus =
+  | 'insufficient_data'
+  | 'observing'
+  | 'moderate_confidence'
+  | 'high_confidence'
+
+export interface AdaptiveMaintenanceEstimate {
+  status: AdaptiveMaintenanceStatus
+  baseline: BaselineTdeeEstimate
+  /** Raw inferred maintenance (internal precision); null until
+   *  enough qualifying evidence exists. */
+  observedMaintenance: number | null
+  /** The bounded blend actually surfaced. */
+  adaptiveCentral: number | null
+  /** User-consumable range (rounded bounds) — ranges, not false
+   *  precision. */
+  estimatedMaintenanceRange: [number, number] | null
+  weeklyRateLb: number | null
+  avgQualifiedIntake: number | null
+  qualifyingWeeks: QualifyingEnergyWeek[]
+  weightTrend: WeightTrendFact
+  confidence: EnergyConfidence
+  evidence: {
+    explicitDays: number
+    heuristicDays: number
+    anchorsUsed: number
+    weeksQualified: number
+  }
+}
+
+function roundTo(value: number, step: number): number {
+  return Math.round(value / step) * step
+}
+
+/**
+ * Pure, fully-derived adaptive inference over qualifying weeks.
+ * Deterministic bounded blend: correction toward the raw observation
+ * grows with evidence (100 kcal per qualifying week) and is clamped
+ * at +/-25% of the primary baseline. No persisted calibration state
+ * exists anywhere.
+ */
+export function inferAdaptiveMaintenance(input: {
+  baseline: BaselineTdeeEstimate
+  weeks: QualifyingEnergyWeek[]
+  daysSinceTargetChange: number | null
+}): AdaptiveMaintenanceEstimate {
+  const qualified = input.weeks.filter((w) => w.qualifies && w.avgCalories !== null)
+  const anchors = qualified
+    .map((w) => w.weightAnchor)
+    .filter((a): a is WeeklyWeightAnchor => a !== null)
+  const weightTrend = computeWeightTrend(anchors)
+
+  const evidence = {
+    explicitDays: input.weeks.reduce((s, w) => s + w.explicitCompleteDays, 0),
+    heuristicDays: input.weeks.reduce((s, w) => s + w.heuristicCompleteDays, 0),
+    anchorsUsed: anchors.length,
+    weeksQualified: qualified.length,
+  }
+
+  const reasons: string[] = []
+  if (qualified.length < MIN_QUALIFYING_WEEKS) reasons.push('insufficient_qualifying_weeks')
+  if (weightTrend.trendConfidence === 'insufficient') reasons.push('insufficient_weight_anchors')
+  const explicitWeeks = qualified.filter((w) => w.evidenceQuality === 'explicit').length
+  const heuristicWeeks = qualified.filter((w) => w.evidenceQuality === 'heuristic').length
+  if (qualified.length > 0 && heuristicWeeks >= explicitWeeks && heuristicWeeks > 0) {
+    reasons.push('mostly_heuristic_nutrition_days')
+  }
+  if (qualified.length > 0 && explicitWeeks === 0) {
+    reasons.push('insufficient_explicit_nutrition_days')
+  }
+  if (
+    input.daysSinceTargetChange !== null &&
+    Number.isFinite(input.daysSinceTargetChange) &&
+    input.daysSinceTargetChange < 14
+  ) {
+    reasons.push('recent_target_change')
+  }
+  if (weightTrend.trendConfidence === 'low') reasons.push('high_weight_variance')
+  if (input.weeks.some((w) => w.exclusionReasons.includes('extreme_weight_change'))) {
+    reasons.push('outlier_week_excluded')
+  }
+  if (input.weeks.some((w) => w.targetCaloriesSeen.length > 1)) {
+    reasons.push('target_changed_during_window')
+  }
+
+  const base: AdaptiveMaintenanceEstimate = {
+    status: 'insufficient_data',
+    baseline: input.baseline,
+    observedMaintenance: null,
+    adaptiveCentral: null,
+    estimatedMaintenanceRange: null,
+    weeklyRateLb: weightTrend.weeklyRateLb,
+    avgQualifiedIntake: null,
+    qualifyingWeeks: input.weeks,
+    weightTrend,
+    confidence: {
+      level: 'low',
+      reasons,
+    },
+    evidence,
+  }
+
+  if (
+    qualified.length < MIN_QUALIFYING_WEEKS ||
+    weightTrend.weeklyRateLb === null
+  ) {
+    return base
+  }
+
+  // Observed maintenance = qualified intake mean minus the daily
+  // energy-storage change implied by the weight trend.
+  const avgIntake =
+    qualified.reduce((s, w) => s + (w.avgCalories as number), 0) / qualified.length
+  const dailyStorageChange = (weightTrend.weeklyRateLb * KCAL_PER_LB) / 7
+  const observed = avgIntake - dailyStorageChange
+
+  // Bounded blend toward the observation.
+  const rawCorrection = observed - input.baseline.primaryEstimate
+  const evidenceBound = ADAPTIVE_STEP_PER_WEEK_KCAL * qualified.length
+  const clampBound = input.baseline.primaryEstimate * ADAPTIVE_CLAMP_FRACTION
+  const boundedMagnitude = Math.min(Math.abs(rawCorrection), evidenceBound, clampBound)
+  const adaptiveCentral = Math.round(
+    input.baseline.primaryEstimate + Math.sign(rawCorrection) * boundedMagnitude
+  )
+
+  // Status ladder (deterministic):
+  //   3 qualifying weeks                       -> observing
+  //   4 weeks but soft concerns               -> moderate_confidence
+  //   4 weeks, explicit-majority, solid trend -> high_confidence
+  let status: AdaptiveMaintenanceStatus = 'observing'
+  if (qualified.length >= MAX_INFERENCE_WEEKS) {
+    const softConcerns =
+      reasons.includes('mostly_heuristic_nutrition_days') ||
+      reasons.includes('insufficient_explicit_nutrition_days') ||
+      reasons.includes('recent_target_change') ||
+      reasons.includes('high_weight_variance') ||
+      reasons.includes('target_changed_during_window')
+    status = softConcerns ? 'moderate_confidence' : 'high_confidence'
+  }
+
+  // status is narrowed to observing/moderate/high on this path.
+  const halfWidth = RANGE_HALF_WIDTH_KCAL[status]
+  const range: [number, number] = [
+    roundTo(adaptiveCentral - halfWidth, MAINTENANCE_RANGE_ROUNDING),
+    roundTo(adaptiveCentral + halfWidth, MAINTENANCE_RANGE_ROUNDING),
+  ]
+
+  const level: EnergyConfidence['level'] =
+    status === 'high_confidence' ? 'high'
+    : status === 'moderate_confidence' ? 'moderate'
+    : 'low'
+
+  return {
+    ...base,
+    status,
+    observedMaintenance: Math.round(observed),
+    adaptiveCentral,
+    estimatedMaintenanceRange: range,
+    avgQualifiedIntake: Math.round(avgIntake),
+    confidence: { level, reasons },
   }
 }

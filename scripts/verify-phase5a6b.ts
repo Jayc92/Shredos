@@ -85,10 +85,13 @@ console.log('\n1. Checkpoint and migration 018')
       'supabase/migrations/017_phase5a4_daily_activity_distance.sql']
       .every((f) => existsSync(f)))
   check('5A.6B notes exist', notes.length > 3000)
-  check('migration boundary: exactly 18 migrations, 018 added, no 019',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 18 &&
+  // RETARGETED (5B.2): 019 is that approved phase's nutrition-day-
+  // status migration, so this pin narrows to its true claim — 5A.6B
+  // added exactly 018 (same retarget class as every prior phase
+  // boundary pin).
+  check('5A.6B migration boundary: added exactly 018 (no duplicates)',
     existsSync('supabase/migrations/018_phase5a6b_exercise_muscles.sql') &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('019')))
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('018')).length === 1)
   check('018 drops and recreates the primary_muscle CHECK by its deterministic name',
     migration.includes('DROP CONSTRAINT exercises_primary_muscle_check') &&
     migration.includes('ADD CONSTRAINT exercises_primary_muscle_check CHECK (primary_muscle IN ('))

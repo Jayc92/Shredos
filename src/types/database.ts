@@ -237,6 +237,21 @@ export type SavedMealInsert = Omit<SavedMeal, 'id' | 'created_at' | 'updated_at'
 
 export type SavedMealUpdate = Partial<Omit<SavedMeal, 'id' | 'user_id' | 'created_at'>>
 
+// ── nutrition_day_status (Phase 5B.2, migration 019) ──────────────
+// A row means the user EXPLICITLY marked the day's logging complete
+// ("Finished logging today"). Absence means unknown — never
+// explicitly incomplete. The only status value is 'complete';
+// partial/heuristic classifications are derived at read time
+// (energy-facts), never stored.
+export interface NutritionDayStatus {
+  id: string
+  user_id: string
+  logged_date: string
+  status: 'complete'
+  created_at: string
+  updated_at: string
+}
+
 // ── food_logs ─────────────────────────────────────────────────────
 export interface FoodLog {
   id: string
