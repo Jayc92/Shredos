@@ -470,9 +470,13 @@ console.log('\n14. Coach review section')
     read('src/lib/workout-coach.ts').includes('export async function fetchCoachSummary'))
   check('CoachCard has NO widget id (fixed section this phase)',
     !page.match(/<TodayWidget[^>]*>\s*<CoachCard/) && !widget.includes("'coach'"))
-  check('no seventh id silently added (union is exactly six)',
-    // Leading-pipe style: every member carries "| '", so six members.
-    (widget.match(/\| '/g) || []).length === 6 &&
+  // RETARGETED (5B.3): 'energy' is that approved phase's seventh
+  // widget id, added deliberately with a documenting comment — the
+  // property this pin protects (no SILENT additions; coach/hero stay
+  // excluded) is unchanged.
+  check('no id silently added (six 4B.3 ids + the documented 5B.3 energy id)',
+    (widget.match(/\| '/g) || []).length === 7 &&
+    widget.includes("| 'energy' // Phase 5B.3") &&
     !widget.includes("'coach'") && !widget.includes("'hero'"))
   check('review-area placement + 4C decision explicitly deferred (documented)',
     notes.includes('fixed review/advisory section') &&

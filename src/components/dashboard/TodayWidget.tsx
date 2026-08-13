@@ -18,6 +18,7 @@ export type TodayWidgetId =
   | 'steps'
   | 'fasting'
   | 'decisions'
+  | 'energy' // Phase 5B.3: the Energy Balance widget
 
 export function TodayWidget({
   id,

@@ -141,9 +141,15 @@ console.log('\n1. Checkpoint and boundary')
   check('5A.6B anatomy untouched',
     !read('src/lib/exercise-validation.ts').includes('5B') &&
     !read('src/lib/workout-coach.ts').includes('5B.1'))
-  check('no Today/Progress/Coach page changes',
-    !read('src/app/(app)/dashboard/page.tsx').includes('energy') &&
-    !read('src/app/(app)/check-in/page.tsx').includes('energy-facts'))
+  // RETARGETED (5B.3): the dashboard now legitimately consumes the
+  // energy layer through that approved phase's widget. 5B.1's own
+  // claim survives: IT added no page changes (no 5B.1 marker on any
+  // page), and check-in/progress still consume nothing from the
+  // energy libs.
+  check('no Today/Progress/Coach page changes by 5B.1 itself',
+    !read('src/app/(app)/dashboard/page.tsx').includes('5B.1') &&
+    !read('src/app/(app)/check-in/page.tsx').includes('energy-facts') &&
+    !read('src/app/(app)/progress/page.tsx').includes('energy-facts'))
 }
 
 // ── 2. Runtime: nutrition day completeness ───────────────────────────

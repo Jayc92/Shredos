@@ -683,10 +683,13 @@ console.log('\n10. No double-counting')
 // ── 11. Boundary ─────────────────────────────────────────────────────
 console.log('\n11. Boundary')
 {
-  check('no Today Energy Balance widget (dashboard byte-free of 5B)',
-    !read('src/app/(app)/dashboard/page.tsx').includes('5B') &&
-    !read('src/app/(app)/dashboard/page.tsx').includes('EnergyBalance') &&
-    !existsSync('src/components/dashboard/EnergyBalanceCard.tsx'))
+  // RETARGETED (5B.3): the Energy Balance widget is that approved
+  // phase's deliverable. 5B.2's own boundary survives: IT shipped no
+  // Today UI (no 5B.2 marker on the dashboard), and the widget that
+  // now exists is explicitly the 5B.3 consumer.
+  check('5B.2 itself shipped no Today widget (the one present is the approved 5B.3)',
+    !read('src/app/(app)/dashboard/page.tsx').includes('5B.2') &&
+    read('src/app/(app)/dashboard/page.tsx').includes('Phase 5B.3'))
   check('3E untouched (weigh-in gate, eligibility, apply logic all byte-free of 5B)',
     (() => {
       const g = read('src/lib/goal-adjustments.ts')

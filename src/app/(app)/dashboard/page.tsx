@@ -20,12 +20,14 @@ import { FastingCard } from '@/components/dashboard/FastingCard'
 import { StepsCard } from '@/components/dashboard/StepsCard'
 import { CoachCard } from '@/components/coach/CoachCard'
 import { DecisionLogCard } from '@/components/dashboard/DecisionLogCard'
+import { EnergyBalanceCard } from '@/components/dashboard/EnergyBalanceCard'
 import { TodayPrimaryAction } from '@/components/dashboard/TodayPrimaryAction'
 import { TodayWidget } from '@/components/dashboard/TodayWidget'
 import { computeFastingWeekStats } from '@/lib/fasting'
 import { formatDateFull, todayISO } from '@/lib/dates'
 import { fetchCoachSummary } from '@/lib/workout-coach'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
+import { fetchTodayEnergyBalance } from '@/lib/today-energy'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Today' }
@@ -88,9 +90,17 @@ export default async function DashboardPage() {
 
   // Phase 1F: nutrition coaching summary
   // Uses already-fetched nutritionTarget + todayFoodLogs — no extra round-trips for those
-  const nutritionCoachSummary = await fetchNutritionCoachSummary(
-    supabase, user.id, today, nutritionTarget, todayFoodLogs, profile.main_goal
-  )
+  // Phase 5B.3: the Energy Balance view model reuses the same
+  // already-fetched target/profile/today logs (its own bounded window
+  // reads run inside the helper).
+  const [nutritionCoachSummary, energyBalance] = await Promise.all([
+    fetchNutritionCoachSummary(
+      supabase, user.id, today, nutritionTarget, todayFoodLogs, profile.main_goal
+    ),
+    fetchTodayEnergyBalance(
+      supabase, user.id, today, nutritionTarget, profile, todayFoodLogs
+    ),
+  ])
 
   const fastingStats = computeFastingWeekStats(weekFasts)
   const completedFasts = weekFasts.filter((f) => f.ended_at !== null)
@@ -146,6 +156,16 @@ export default async function DashboardPage() {
             <WorkoutCard stats={workoutStats} />
           </TodayWidget>
         </div>
+      </div>
+
+      {/* ── Energy Balance (Phase 5B.3): its own additive row between
+          the status and utility grids — one medium card on lg (never
+          dominating the dashboard), full-width stacked on mobile.
+          Trajectory/energy state, never an eat-back calculator. ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <TodayWidget id="energy">
+          <EnergyBalanceCard model={energyBalance} />
+        </TodayWidget>
       </div>
 
       {/* ── Lower utility/review grid: the conditional Fasting widget
