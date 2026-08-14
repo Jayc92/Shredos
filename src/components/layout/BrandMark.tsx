@@ -35,13 +35,38 @@ export function BrandMark({
   )
 }
 
-/** Wordmark lockup: mark + "ForgeFitOS" text with accessible label. */
-export function BrandWordmark({ className }: { className?: string }) {
+/**
+ * Wordmark lockup (UI-1B): mark + the visible FORGEFIT wordmark —
+ * "FORGE" in ink, "FIT" in brand mint (the approved shell
+ * presentation). The ACCESSIBLE name remains "ForgeFitOS": the
+ * wordmark text is decorative (aria-hidden) and the lockup carries
+ * aria-label="ForgeFitOS", so screen readers, metadata, and the
+ * formal product name stay unchanged. `size="compact"` is the
+ * accessible small variation for tight headers.
+ */
+export function BrandWordmark({
+  className,
+  size = 'default',
+}: {
+  className?: string
+  size?: 'default' | 'compact'
+}) {
+  const compact = size === 'compact'
   return (
-    <span className={cn('inline-flex items-center gap-2', className)} aria-label="ForgeFitOS">
-      <BrandMark className="size-6" />
-      <span className="text-sm font-semibold tracking-tight text-foreground" aria-hidden="true">
-        ForgeFitOS
+    <span
+      className={cn('inline-flex items-center', compact ? 'gap-1.5' : 'gap-2', className)}
+      aria-label="ForgeFitOS"
+    >
+      <BrandMark className={compact ? 'size-5' : 'size-6'} />
+      <span
+        className={cn(
+          'font-semibold uppercase leading-none',
+          compact ? 'text-xs tracking-[0.14em]' : 'text-sm tracking-[0.18em]'
+        )}
+        aria-hidden="true"
+      >
+        <span className="text-ink">FORGE</span>
+        <span className="text-brand">FIT</span>
       </span>
     </span>
   )

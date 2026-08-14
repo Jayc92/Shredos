@@ -738,10 +738,16 @@ console.log('\n16. Runtime: hostile input + aggregation edges')
     stepsRoute.includes("typeof body.notes === 'string' && body.notes.trim() !== ''"))
   check('route: 500 fallback retained for storage failures',
     stepsRoute.includes('{ status: 500 }'))
-  check('StepsCard: goal math unchanged (pct/remaining/goalMet expressions)',
-    stepsCard.includes('Math.min(100, Math.round((steps / stepGoal) * 100))') &&
+  // RETARGET (UI-1B): the pinned pct expression was presentation-only
+  // render clamping; it moved into the domain-blind ProgressBar
+  // primitive (StepsCard passes raw steps/stepGoal; verify-ui1b proves
+  // the clamp at runtime). The DOMAIN goal math this check protects —
+  // remaining and goalMet — is unchanged and still pinned verbatim.
+  check('StepsCard: goal math unchanged (remaining/goalMet; bar takes raw values)',
     stepsCard.includes('Math.max(0, stepGoal - steps)') &&
-    stepsCard.includes('steps >= stepGoal'))
+    stepsCard.includes('steps >= stepGoal') &&
+    stepsCard.includes('value={steps}') &&
+    stepsCard.includes('max={stepGoal}'))
   check('validator result shape is exact (no extra fields leak to the upsert)',
     (() => {
       const r = v({ steps: 100, distanceMiles: 1 })

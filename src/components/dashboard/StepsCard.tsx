@@ -6,6 +6,8 @@
 
 import { Footprints } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { EmptyState } from '@/components/ui/empty-state'
 import Link from 'next/link'
 import type { DailyActivityLog } from '@/types/database'
 
@@ -22,7 +24,6 @@ export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
   const hasLoggedToday = todayLog?.steps != null
   const steps = todayLog?.steps ?? 0
 
-  const pct = stepGoal ? Math.min(100, Math.round((steps / stepGoal) * 100)) : null
   const remaining = stepGoal ? Math.max(0, stepGoal - steps) : null
   const goalMet = stepGoal ? steps >= stepGoal : false
 
@@ -39,30 +40,33 @@ export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
         </Link>
       </div>
 
+      {/* UI-1B limited adoption: the compact EmptyState reproduces the
+          prior inline markup (muted title + muted support line) with
+          identical copy; the ProgressBar replaces the equivalent
+          hand-built h-1.5 sunken-track bar (same geometry — the fill
+          token change bg-primary → bg-brand is the same computed
+          color). Domain math (pct/remaining/goalMet) stays HERE. */}
       {!hasLoggedToday ? (
-        <div className="space-y-1">
-          <p className="text-sm text-ink-muted">No steps logged yet today.</p>
-          {stepGoal ? (
-            <p className="text-xs text-ink-muted">
-              Goal: {stepGoal.toLocaleString()} steps
-            </p>
-          ) : (
-            <p className="text-xs text-ink-muted">
-              Set a step goal in your profile to track progress.
-            </p>
-          )}
-        </div>
+        <EmptyState
+          mode="compact"
+          title="No steps logged yet today."
+          description={
+            stepGoal
+              ? `Goal: ${stepGoal.toLocaleString()} steps`
+              : 'Set a step goal in your profile to track progress.'
+          }
+        />
       ) : (
         <div className="space-y-2">
           <p className="text-2xl font-bold tabular-nums">{steps.toLocaleString()}</p>
           {stepGoal ? (
             <>
-              <div className="h-1.5 bg-surface-sunken rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={steps}
+                max={stepGoal}
+                size="sm"
+                label="Steps toward goal"
+              />
               <p className="text-xs text-ink-muted">
                 {goalMet ? 'Goal met' : `${remaining!.toLocaleString()} steps to goal`}
               </p>

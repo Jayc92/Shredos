@@ -50,7 +50,12 @@ export function MobileBottomNav() {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex min-h-14 flex-col items-center justify-center gap-1 px-1 pt-1.5 pb-1 text-[11px] leading-none transition-colors',
-                  active ? 'font-semibold text-brand-active' : 'font-medium text-ink-muted'
+                  // UI-1B: the active pillar uses the bright brand mint
+                  // (brand-active was the darker press shade — on the
+                  // dark shell the base brand reads clearly). The bar,
+                  // stroke weight, font weight, and aria-current remain
+                  // the non-color cues.
+                  active ? 'font-semibold text-brand' : 'font-medium text-ink-muted'
                 )}
               >
                 <Icon
