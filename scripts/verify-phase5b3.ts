@@ -118,9 +118,10 @@ console.log('\n1. Checkpoint and boundary')
       'src/components/food/DayCompleteToggle.tsx']
       .every((f) => existsSync(f)))
   check('5B.3 notes exist', notes.length > 2500)
-  check('NO migration 020: exactly 19 migrations',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+  // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
+  check('migration boundary: exactly 20 (020 = approved UI-3 dashboard prefs)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+    readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('no new persisted facts',
     CHANGED.every((f) => !stripComments(f).includes('energy_balance_snapshots') &&
       !stripComments(f).includes('adaptive_tdee_state')))
@@ -407,16 +408,17 @@ console.log('\n8. Dashboard wiring')
   // are untouched (pinned throughout this suite). Its region is now a
   // balanced half-width span that never leaves permanent empty
   // columns.
-  check('energy occupies a balanced half-width region (defect row gone)',
-    (() => {
-      const energyAt = page.indexOf('<TodayWidget id="energy">')
-      const region = page.slice(page.lastIndexOf('lg:col-span-6', energyAt), energyAt)
-      return energyAt > -1 && region.includes('lg:col-span-6') &&
-        !page.includes('lg:grid-cols-3">\n        <TodayWidget id="energy">')
-    })())
-  check('medium footprint: half-width on desktop, stacked full-width on mobile',
-    page.includes('sm:col-span-1 lg:col-span-6') &&
-    page.indexOf('grid-cols-1', page.indexOf('lg:grid-cols-12') - 60) > -1)
+  // RETARGET (UI-3): the span comes from the preference size
+  // contract — energy supports only half/full (its evidence must
+  // never compress into a compact third), so the one-child defect
+  // row is impossible by construction.
+  check('energy region comes from the size contract (half/full only)',
+    page.includes('<TodayWidget id="energy">') &&
+    read('src/lib/dashboard-prefs.ts').includes("energy: ['half', 'full']") &&
+    !page.includes('lg:grid-cols-3">'))
+  check('medium footprint: default half on desktop, stacked on mobile',
+    read('src/lib/dashboard-prefs.ts').includes("energy: 'half'") &&
+    page.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'))
   check('fetch reuses already-fetched target/profile/logs (parallel with coach summary)',
     page.includes('fetchTodayEnergyBalance(') &&
     page.includes('supabase, user.id, today, nutritionTarget, profile, todayFoodLogs'))
@@ -427,13 +429,11 @@ console.log('\n8. Dashboard wiring')
   check('pre-5B.3 widgets all still mounted alongside energy',
     ['"nutrition"', '"weight"', '"steps"', '"workout"', '"decisions"']
       .every((id) => page.includes(`<TodayWidget id=${id}`)))
-  // RETARGET (UI-2): same historical-claim boundary as above — the
-  // fasting CONDITION (the behavior 5B.3 promised not to break) still
-  // governs the fasting widget; the adaptive-columns string mechanism
-  // became condition-driven spans.
+  // RETARGET (UI-3): the fasting condition now gates through the
+  // preference visibility pipeline (hide-only, never reveal) — the
+  // 5B.3 boundary (the profile condition governs) is intact.
   check('fasting condition still governs the fasting widget',
-    page.includes('profile.fasting_enabled ? (') &&
-    page.indexOf('profile.fasting_enabled ? (') < page.indexOf('<FastingCard'))
+    page.includes('visibleDashboardWidgets(prefs, profile.fasting_enabled)'))
   check('every legacy widget still mounted',
     ['"nutrition"', '"weight"', '"steps"', '"workout"', '"fasting"', '"decisions"']
       .every((id) => page.includes(`<TodayWidget id=${id}`)))

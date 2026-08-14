@@ -66,6 +66,7 @@ function findAll(node: unknown, pred: (el: El) => boolean, out: El[]): void {
 
 async function main() {
   const { DailyMetricTile } = await import('../src/components/dashboard/DailyMetricTile')
+  const prefsLib = await import('../src/lib/dashboard-prefs')
   const { WeightTrendChart } = await import('../src/components/dashboard/WeightTrendChart')
   const { Flame } = await import('lucide-react')
 
@@ -75,13 +76,13 @@ async function main() {
     check('S1: all prior widget ids unchanged',
       ['workout', 'nutrition', 'weight', 'steps', 'fasting', 'decisions', 'energy']
         .every((id) => widget.includes(`'${id}'`) && page.includes(`<TodayWidget id="${id}">`)))
-    check('S2: every rendered widget id is unique per branch', (() => {
-      // decisions/coach render in exactly one branch of the fasting
-      // conditional; every other id appears exactly once.
+    // RETARGET (UI-3): the branch duplication is gone — the registry
+    // holds exactly ONE literal mount per id and visibility comes from
+    // preferences. The uniqueness boundary is now strictly stronger.
+    check('S2: every widget id mounts exactly once (registry)', (() => {
       const count = (id: string) => (page.match(new RegExp(`<TodayWidget id="${id}">`, 'g')) || []).length
-      return ['workout', 'nutrition', 'weight', 'steps', 'fasting', 'energy', 'calories', 'protein']
-        .every((id) => count(id) === 1) && count('decisions') === 2 && count('coach') === 2 &&
-        page.includes('profile.fasting_enabled ? (') && page.includes('{!profile.fasting_enabled && (')
+      return ['workout', 'nutrition', 'weight', 'steps', 'fasting', 'energy',
+        'calories', 'protein', 'coach', 'decisions'].every((id) => count(id) === 1)
     })())
     check('S3: coach id is stable, documented, and in the union',
       widget.includes("| 'coach'") && widget.includes('UI-2') &&
@@ -91,11 +92,17 @@ async function main() {
       page.indexOf('id="calories"') < page.indexOf('id="protein"') &&
       page.indexOf('id="protein"') < page.indexOf('id="steps"') &&
       page.indexOf('id="steps"') < page.indexOf('id="weight"'))
-    check('S5: no dashboard preference persistence exists',
-      CHANGED.every((f) => !f.includes('localStorage') && !f.includes('dashboard_prefs') &&
-        !stripComments(f).includes('widget_settings')))
-    check('S6: no Edit Layout control exposed yet',
-      !page.toLowerCase().includes('edit layout') && !page.includes('Customize'))
+    // RETARGET (UI-3): persistence now exists BY DESIGN — the boundary
+    // becomes "only the normalized, authenticated server path" (no
+    // client-side storage, no ad-hoc mechanism).
+    check('S5: preference persistence only via the normalized server path',
+      CHANGED.every((f) => !f.includes('localStorage')) &&
+      page.includes('normalizeDashboardPrefs(profile.dashboard_prefs)') &&
+      read('src/app/api/dashboard-prefs/route.ts').includes('normalizeDashboardPrefs(body)'))
+    // RETARGET (UI-3): the control ships now that it is functional —
+    // exactly the condition UI-2 deferred it on.
+    check('S6: Edit layout control present and functional (UI-3)',
+      page.includes('href="/dashboard/customize"') && page.includes('Edit layout'))
   }
 
   // ── 2. Greeting (S7–S8) ────────────────────────────────────────────
@@ -255,20 +262,30 @@ async function main() {
       !read('src/components/dashboard/EnergyBalanceCard.tsx').includes('UI-2') &&
       page.includes('<EnergyBalanceCard model={energyBalance} />') &&
       page.includes('fetchTodayEnergyBalance('))
-    check('S27: energy is NOT in a one-child three-column row',
-      !page.includes('lg:grid-cols-3">\n        <TodayWidget id="energy">') &&
-      (() => {
-        const energyAt = page.indexOf('<TodayWidget id="energy">')
-        return page.slice(page.lastIndexOf('<div', energyAt), energyAt).includes('lg:col-span-6')
-      })())
-    check('S28: no structural permanent two-column vacancy in any grid', (() => {
-      // Every lg:col-span-6 region pairs with another in the same
-      // conditional branch; the 12-col grid rows sum to 12.
-      const spans6 = (branch: string) => (branch.match(/lg:col-span-6/g) || []).length
-      const enabled = page.slice(page.indexOf('profile.fasting_enabled ? ('), page.indexOf(') : ('))
-      const disabled = page.slice(page.indexOf(') : ('))
-      return spans6(enabled) === 3 && spans6(disabled) >= 1 &&
-        page.includes('lg:col-span-8') && page.includes('lg:col-span-4')
+    // RETARGET (UI-3): the span now comes from the size contract —
+    // energy cannot even BE compact (evidence must stay readable), so
+    // the defect row is impossible by construction.
+    check('S27: energy can never occupy a defect row (size contract excludes compact)',
+      !page.includes('lg:grid-cols-3">') &&
+      JSON.stringify(prefsLib.DASHBOARD_WIDGET_SIZES.energy) === JSON.stringify(['half', 'full']) &&
+      prefsLib.dashboardSpanClasses('half') === 'sm:col-span-1 lg:col-span-6')
+    // RETARGET (UI-3): occupancy is now preference-driven; the
+    // canonical DEFAULT fills every 12-column row exactly (runtime:
+    // 4+4+4 / 12 / 6+6 / 6+6 / 6+6), and grid auto-placement packs
+    // any custom layout without reserved slots.
+    check('S28: canonical default fills every 12-column row exactly', (() => {
+      const spans = prefsLib
+        .visibleDashboardWidgets(prefsLib.DEFAULT_DASHBOARD_PREFS, true)
+        .map((w: { size: 'full' | 'half' | 'compact' }) =>
+          w.size === 'full' ? 12 : w.size === 'half' ? 6 : 4)
+      const rows: number[] = []
+      let acc = 0
+      for (const sp of spans) {
+        if (acc + sp > 12) { rows.push(acc); acc = 0 }
+        acc += sp
+      }
+      rows.push(acc)
+      return rows.every((r) => r === 12)
     })())
   }
 
@@ -305,21 +322,29 @@ async function main() {
   // ── 7. Responsive contract (S35–S39) ───────────────────────────────
   console.log('\n7. Responsive contract')
   {
+    // RETARGET (UI-3): the tile row merged into the single preference
+    // grid; the 320px boundary (one column, no fixed widths, no
+    // horizontal scroller) is unchanged.
     check('S35: no intentional horizontal scroller at 320px (single-column base, no fixed widths)',
-      page.includes('grid grid-cols-1 gap-4 sm:grid-cols-3') &&
+      page.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12') &&
       !pageCode.includes('overflow-x') && !pageCode.includes('w-[') &&
       !tile.includes('w-[') && !chart.includes('overflow-x'))
-    check('S36: tablet pairs are deliberate (sm spans; decisions full-row in the rail)',
-      page.includes('sm:col-span-2 sm:grid-cols-2') &&
-      page.includes('sm:col-span-1 lg:col-span-6') &&
-      page.includes('<div className="sm:col-span-2 lg:col-span-1">'))
+    // RETARGET (UI-3): the rail is gone; tablet deliberateness now
+    // lives in the size contract — full spans both sm columns, half
+    // and compact take one (runtime-pinned).
+    check('S36: tablet tier is deliberate via the size contract',
+      prefsLib.dashboardSpanClasses('full').includes('sm:col-span-2') &&
+      prefsLib.dashboardSpanClasses('half').includes('sm:col-span-1') &&
+      prefsLib.dashboardSpanClasses('compact').includes('sm:col-span-1'))
     check('S37: deliberate xl density (gap + spacing tiers)',
       page.includes('xl:gap-5') && page.includes('xl:space-y-5'))
     check('S38: large-desktop width increases deliberately (max-w-7xl)',
       page.includes('max-w-7xl') && !page.includes('max-w-6xl'))
-    check('S39: loading skeleton mirrors the new major regions',
-      loading.includes('max-w-7xl') && loading.includes('sm:grid-cols-3') &&
-      loading.includes('lg:grid-cols-12') && loading.includes('lg:col-span-8') &&
+    // RETARGET (UI-3): the skeleton is now a stable GENERIC layout
+    // (the personalized composition is unknowable at loading time).
+    check('S39: loading skeleton is layout-safe and generic',
+      loading.includes('max-w-7xl') && loading.includes('lg:grid-cols-12') &&
+      loading.includes('lg:col-span-4') && loading.includes('lg:col-span-12') &&
       loading.includes('aria-hidden="true"') && !loading.match(/>[A-Z][a-z]+</))
   }
 
@@ -353,9 +378,10 @@ async function main() {
     check('S45: no new dependency',
       !read('package.json').includes('recharts') && !read('package.json').includes('framer') &&
       read('package.json').includes('"next": "14.2.13"'))
-    check('S46: NO migration 020 (exactly 19)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+    // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
+    check('S46: migration boundary (exactly 20; 020 = approved UI-3 file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+      readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
     check('S47: Progress range links + scroll={false} unchanged',
       (() => {
         const section = read('src/components/progress/EnergyTrendSection.tsx')
@@ -396,8 +422,11 @@ async function main() {
   {
     check('C1: main grid opts out of cross-axis stretching (items-start)',
       page.includes('lg:grid-cols-12 xl:gap-5 items-start'))
-    check('C1b: rail grid opts out too (tablet pairs share the defect class)',
-      page.includes('content-start items-start sm:col-span-2 sm:grid-cols-2'))
+    // RETARGET (UI-3): the rail merged into the single preference
+    // grid, which carries items-start itself — same natural-height
+    // boundary, one grid.
+    check('C1b: the single preference grid keeps items-start',
+      page.includes('lg:grid-cols-12 xl:gap-5 items-start'))
     check('C2: TodayWidget stays a thin auto-height wrapper (no forced full height)',
       !widget.includes('h-full') && !widget.includes('flex-1') &&
       widget.includes('data-widget={id}'))
@@ -411,8 +440,13 @@ async function main() {
     check('C7: no fixed-height equalization introduced',
       !stripComments(page).match(/[^-]h-\[/) && !pageCode.includes(' h-64') &&
       ![fasting, coach, decisions].some((f) => stripComments(f).match(/[^-]h-\[\d/)))
-    check('C8: no min-h equalization on the paired cards',
-      !pageCode.includes('min-h') &&
+    // RETARGET (UI-3): the page now carries min-h-11 TOUCH TARGETS
+    // (Edit layout / empty-state actions — the 44px rule). The
+    // equalization boundary survives: no min-h on any card or widget
+    // span wrapper, only the interactive-target utility.
+    check('C8: no min-h equalization (only 44px touch targets allowed)',
+      (pageCode.match(/min-h-(?!11)/g) || []).length === 0 &&
+      !pageCode.includes('dashboardSpanClasses(w.size)} min-h') &&
       [read('src/components/dashboard/EnergyBalanceCard.tsx'), fasting, coach, decisions]
         .every((f) => !stripComments(f).includes('min-h-')))
     check('C9: no JS measurement/layout API introduced',
@@ -421,31 +455,34 @@ async function main() {
     check('C10: no masonry/CSS-columns layout introduced',
       CHANGED.every((f) => !stripComments(f).includes('columns-') &&
         !stripComments(f).includes('masonry')))
-    check('C11: fasting-on widget order unchanged', (() => {
-      const tern = page.indexOf('profile.fasting_enabled ? (')
-      const on = page.slice(0, tern).replace(/\{!profile\.fasting_enabled && \([\s\S]*?\)\}/, '') +
-        page.slice(tern, page.indexOf(') : ('))
-      const ids = (on.match(/<TodayWidget id="(\w+)">/g) || []).map((m) => m.slice(17, -2))
+    // RETARGET (UI-3): order is preference-driven; the DEFAULT
+    // document must reproduce the accepted UI-2 order (runtime).
+    check('C11: default fasting-on order preserved (runtime)', (() => {
+      const ids = prefsLib
+        .visibleDashboardWidgets(prefsLib.DEFAULT_DASHBOARD_PREFS, true)
+        .map((w: { id: string }) => w.id)
       return ids.join(',') ===
         'calories,protein,steps,weight,nutrition,workout,energy,fasting,coach,decisions'
     })())
-    check('C12: fasting-off widget order unchanged', (() => {
-      const tern = page.indexOf('profile.fasting_enabled ? (')
-      const off = page.slice(0, tern) + page.slice(page.indexOf(') : ('))
-      const ids = (off.match(/<TodayWidget id="(\w+)">/g) || []).map((m) => m.slice(17, -2))
+    // RETARGET (UI-3): the fasting-off order is the default minus the
+    // capability-gated fasting widget (decisions no longer moves — a
+    // deliberate simplification of the old two-branch layout).
+    check('C12: default fasting-off order = default minus fasting (runtime)', (() => {
+      const ids = prefsLib
+        .visibleDashboardWidgets(prefsLib.DEFAULT_DASHBOARD_PREFS, false)
+        .map((w: { id: string }) => w.id)
       return ids.join(',') ===
-        'calories,protein,steps,weight,nutrition,workout,decisions,energy,coach'
+        'calories,protein,steps,weight,nutrition,workout,energy,coach,decisions'
     })())
-    check('C13: mobile single-column behavior remains (grid-cols-1 base everywhere)',
-      page.includes('grid grid-cols-1 gap-4 sm:grid-cols-3') &&
+    check('C13: mobile single-column behavior remains (grid-cols-1 base)',
       page.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'))
-    check('C14: tablet/desktop spans unchanged (8/4 + 6/6 pairs)',
-      page.includes('sm:col-span-2 lg:col-span-8') &&
-      (page.match(/sm:col-span-1 lg:col-span-6/g) || []).length === 5 &&
-      page.includes('lg:col-span-4'))
+    // RETARGET (UI-3): spans are the size contract now (runtime).
+    check('C14: size contract spans (full=12, half=6, compact=4)',
+      prefsLib.dashboardSpanClasses('full') === 'sm:col-span-2 lg:col-span-12' &&
+      prefsLib.dashboardSpanClasses('half') === 'sm:col-span-1 lg:col-span-6' &&
+      prefsLib.dashboardSpanClasses('compact') === 'sm:col-span-1 lg:col-span-4')
     check('C15: loading skeleton mirrors the corrected alignment',
-      loading.includes('lg:grid-cols-12 xl:gap-5 items-start') &&
-      loading.includes('content-start items-start'))
+      loading.includes('lg:grid-cols-12 xl:gap-5 items-start'))
   }
 
   // ── 12. Determinism (S51) ──────────────────────────────────────────

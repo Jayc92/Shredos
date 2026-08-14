@@ -25,7 +25,13 @@ import { EnergyBalanceCard } from '@/components/dashboard/EnergyBalanceCard'
 import { TodayPrimaryAction } from '@/components/dashboard/TodayPrimaryAction'
 import { TodayWidget } from '@/components/dashboard/TodayWidget'
 import { PageHeader } from '@/components/ui/page-header'
-import { Flame, Beef } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Flame, Beef, SlidersHorizontal, LayoutGrid } from 'lucide-react'
+import {
+  normalizeDashboardPrefs,
+  visibleDashboardWidgets,
+  dashboardSpanClasses,
+} from '@/lib/dashboard-prefs'
 import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { computeFastingWeekStats } from '@/lib/fasting'
 import { formatDateFull, todayISO } from '@/lib/dates'
@@ -70,8 +76,23 @@ export const metadata: Metadata = { title: 'Today' }
 // its one-child three-column row (the audited desktop-whitespace
 // defect) into a balanced half-width region; Coach joins the widget
 // contract as id="coach". Every prior widget id, action, link,
-// mutation path, and honest empty state is preserved. Fixed order —
-// UI-3 makes it customizable.
+// mutation path, and honest empty state is preserved.
+//
+// UI-3: rendering is preference-driven. The stored dashboard_prefs
+// document (untrusted) is normalized, product-gated (the fasting
+// widget never renders when profile fasting is off, whatever the
+// preference says), and mapped over a literal per-id registry — so
+// enabled state controls visibility, array order controls DOM order,
+// and size controls the responsive span (full=12 / half=6 /
+// compact=4 desktop columns; one widget per row below sm). The page
+// header and the workout hero are page chrome, NOT widgets: the hero
+// shows only workout information, so a workout-only layout (all
+// other widgets hidden) exposes nothing from hidden widgets. All 23
+// bounded reads still run regardless of visibility — a deliberate
+// choice: skipping reads for disabled widgets would fork the shared
+// summary pipelines (coach/nutrition/energy) for a marginal saving
+// and risk behavioral regressions. An all-disabled layout renders a
+// recovery state with the Edit layout action.
 // ============================================================
 
 export default async function DashboardPage() {
@@ -140,6 +161,13 @@ export default async function DashboardPage() {
 
   const greetingName = profile.display_name?.trim()
 
+  // UI-3: normalize the stored (untrusted) preference document and
+  // apply the product gate. Read failures upstream surface as a null
+  // profile (redirect); a malformed/missing document normalizes to
+  // the canonical defaults — Today never blanks because of bad JSON.
+  const prefs = normalizeDashboardPrefs(profile.dashboard_prefs)
+  const visibleWidgets = visibleDashboardWidgets(prefs, profile.fasting_enabled)
+
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-4 lg:p-6 xl:space-y-5">
       {/* ── Personalized header: time-neutral greeting (no stored
@@ -156,6 +184,15 @@ export default async function DashboardPage() {
             <Link href="/coach" className="text-xs text-brand hover:underline">
               Coach →
             </Link>
+            {/* UI-3: the Edit layout control ships only now that it
+                is functional. */}
+            <Link
+              href="/dashboard/customize"
+              className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+              Edit layout
+            </Link>
           </>
         }
       />
@@ -168,122 +205,128 @@ export default async function DashboardPage() {
         stats={workoutStats}
       />
 
-      {/* ── Daily metric tiles: calories / protein / steps. One
-          column on phones (readable at 320px), three across from sm.
-          Calories = recorded intake only. Steps keeps its existing
-          card, action path, and explicit-zero-vs-missing semantics. ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TodayWidget id="calories">
-          <DailyMetricTile
-            icon={Flame}
-            label="Calories"
-            href="/food"
-            linkLabel="Log food →"
-            value={hasFoodToday && tileProgress ? tileProgress.calories.consumed.toLocaleString() : null}
-            targetLine={nutritionTarget ? `/ ${nutritionTarget.calories.toLocaleString()} cal` : null}
-            barValue={hasFoodToday && tileProgress ? tileProgress.calories.consumed : null}
-            barMax={nutritionTarget ? nutritionTarget.calories : null}
-            barLabel="Calories recorded toward target"
-            subline={hasFoodToday && tileProgress ? fmtRemaining(tileProgress.calories.remaining, '') : null}
-            missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
-          />
-        </TodayWidget>
-        <TodayWidget id="protein">
-          <DailyMetricTile
-            icon={Beef}
-            label="Protein"
-            href="/nutrition"
-            linkLabel="Targets →"
-            value={hasFoodToday && tileProgress ? `${Math.round(Number(tileProgress.protein_g.consumed))}g` : null}
-            targetLine={nutritionTarget ? `/ ${nutritionTarget.protein_g}g` : null}
-            barValue={hasFoodToday && tileProgress ? Number(tileProgress.protein_g.consumed) : null}
-            barMax={nutritionTarget ? nutritionTarget.protein_g : null}
-            barLabel="Protein recorded toward target"
-            subline={hasFoodToday && tileProgress ? fmtRemaining(Number(tileProgress.protein_g.remaining), 'g') : null}
-            missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
-          />
-        </TodayWidget>
-        <TodayWidget id="steps">
-          <StepsCard stepGoal={profile.step_goal} todayLog={todayActivityLog} />
-        </TodayWidget>
-      </div>
-
-      {/* ── Main grid: deliberate 12-column desktop composition.
-          Weight trend leads (8 cols) with a stacked detail rail (4
-          cols); Energy always shares a balanced half-width row (the
-          old one-child lg:grid-cols-3 row — the audited desktop
-          whitespace defect — is gone). Fasting-enabled fills its
-          half beside Energy with Coach/Decisions pairing below;
-          disabled moves Decisions into the rail so no row is left
-          half-empty in either state. ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5 items-start">
-        <div className="sm:col-span-2 lg:col-span-8">
-          <TodayWidget id="weight">
-            <WeightCard weighIns={weighIns} profile={profile} />
-          </TodayWidget>
-        </div>
-
-        {/* Detail rail — top-aligned; unequal heights are accepted
-            rather than stretching cards into internal dead space. */}
-        <div className="grid gap-4 content-start items-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
-          <TodayWidget id="nutrition">
-            <NutritionCard
-              target={nutritionTarget}
-              todayLogs={todayFoodLogs}
-              nutritionSummary={nutritionCoachSummary}
-            />
-          </TodayWidget>
-          <TodayWidget id="workout">
-            <WorkoutCard stats={workoutStats} />
-          </TodayWidget>
-          {!profile.fasting_enabled && (
-            <div className="sm:col-span-2 lg:col-span-1">
-              <TodayWidget id="decisions">
-                <DecisionLogCard decision={recentDecisions[0] ?? null} />
-              </TodayWidget>
-            </div>
-          )}
-        </div>
-
-        {/* Energy Balance (Phase 5B.3 semantics untouched): a
-            balanced half-width region — never a one-card third. */}
-        <div className="sm:col-span-1 lg:col-span-6">
-          <TodayWidget id="energy">
-            <EnergyBalanceCard model={energyBalance} />
-          </TodayWidget>
-        </div>
-
-        {profile.fasting_enabled ? (
-          <>
-            <div className="sm:col-span-1 lg:col-span-6">
-              <TodayWidget id="fasting">
-                <FastingCard
-                  activeFast={activeFast}
-                  lastCompletedFast={lastCompletedFast}
-                  weekStats={fastingStats}
-                  fastingEnabled={profile.fasting_enabled}
-                />
-              </TodayWidget>
-            </div>
-            <div className="sm:col-span-1 lg:col-span-6">
-              <TodayWidget id="coach">
-                <CoachCard summary={coachSummary} />
-              </TodayWidget>
-            </div>
-            <div className="sm:col-span-1 lg:col-span-6">
-              <TodayWidget id="decisions">
-                <DecisionLogCard decision={recentDecisions[0] ?? null} />
-              </TodayWidget>
-            </div>
-          </>
-        ) : (
-          <div className="sm:col-span-1 lg:col-span-6">
+      {/* ── Preference-driven widget grid (UI-3). Literal JSX per
+          id keeps every widget's props/behavior identical to UI-2;
+          only visibility, order, and span come from preferences.
+          items-start preserves natural card heights. ── */}
+      {(() => {
+        const widgetRegistry: Record<string, JSX.Element> = {
+          calories: (
+            <TodayWidget id="calories">
+              <DailyMetricTile
+                icon={Flame}
+                label="Calories"
+                href="/food"
+                linkLabel="Log food →"
+                value={hasFoodToday && tileProgress ? tileProgress.calories.consumed.toLocaleString() : null}
+                targetLine={nutritionTarget ? `/ ${nutritionTarget.calories.toLocaleString()} cal` : null}
+                barValue={hasFoodToday && tileProgress ? tileProgress.calories.consumed : null}
+                barMax={nutritionTarget ? nutritionTarget.calories : null}
+                barLabel="Calories recorded toward target"
+                subline={hasFoodToday && tileProgress ? fmtRemaining(tileProgress.calories.remaining, '') : null}
+                missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
+              />
+            </TodayWidget>
+          ),
+          protein: (
+            <TodayWidget id="protein">
+              <DailyMetricTile
+                icon={Beef}
+                label="Protein"
+                href="/nutrition"
+                linkLabel="Targets →"
+                value={hasFoodToday && tileProgress ? `${Math.round(Number(tileProgress.protein_g.consumed))}g` : null}
+                targetLine={nutritionTarget ? `/ ${nutritionTarget.protein_g}g` : null}
+                barValue={hasFoodToday && tileProgress ? Number(tileProgress.protein_g.consumed) : null}
+                barMax={nutritionTarget ? nutritionTarget.protein_g : null}
+                barLabel="Protein recorded toward target"
+                subline={hasFoodToday && tileProgress ? fmtRemaining(Number(tileProgress.protein_g.remaining), 'g') : null}
+                missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
+              />
+            </TodayWidget>
+          ),
+          steps: (
+            <TodayWidget id="steps">
+              <StepsCard stepGoal={profile.step_goal} todayLog={todayActivityLog} />
+            </TodayWidget>
+          ),
+          weight: (
+            <TodayWidget id="weight">
+              <WeightCard weighIns={weighIns} profile={profile} />
+            </TodayWidget>
+          ),
+          nutrition: (
+            <TodayWidget id="nutrition">
+              <NutritionCard
+                target={nutritionTarget}
+                todayLogs={todayFoodLogs}
+                nutritionSummary={nutritionCoachSummary}
+              />
+            </TodayWidget>
+          ),
+          workout: (
+            <TodayWidget id="workout">
+              <WorkoutCard stats={workoutStats} />
+            </TodayWidget>
+          ),
+          energy: (
+            <TodayWidget id="energy">
+              <EnergyBalanceCard model={energyBalance} />
+            </TodayWidget>
+          ),
+          fasting: (
+            <TodayWidget id="fasting">
+              <FastingCard
+                activeFast={activeFast}
+                lastCompletedFast={lastCompletedFast}
+                weekStats={fastingStats}
+                fastingEnabled={profile.fasting_enabled}
+              />
+            </TodayWidget>
+          ),
+          coach: (
             <TodayWidget id="coach">
               <CoachCard summary={coachSummary} />
             </TodayWidget>
+          ),
+          decisions: (
+            <TodayWidget id="decisions">
+              <DecisionLogCard decision={recentDecisions[0] ?? null} />
+            </TodayWidget>
+          ),
+        }
+
+        if (visibleWidgets.length === 0) {
+          // All widgets hidden — a valid layout. Purposeful recovery
+          // state so the user can never lock themselves out.
+          return (
+            <EmptyState
+              icon={<LayoutGrid className="h-8 w-8" aria-hidden="true" />}
+              title="Your dashboard is empty"
+              description="Every widget is hidden. Your data is still being tracked — bring widgets back whenever you want."
+              action={
+                <Link
+                  href="/dashboard/customize"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] bg-brand px-4 text-sm font-semibold text-[hsl(var(--brand-foreground))] transition-colors hover:bg-brand-hover"
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                  Edit layout
+                </Link>
+              }
+            />
+          )
+        }
+
+        return (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5 items-start">
+            {visibleWidgets.map((w) => (
+              <div key={w.id} className={dashboardSpanClasses(w.size)}>
+                {widgetRegistry[w.id]}
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        )
+      })()}
     </div>
   )
 }

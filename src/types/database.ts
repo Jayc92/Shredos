@@ -43,14 +43,24 @@ export interface UserProfile {
   default_fasting_goal_hours: number | null
   fasting_notes: string | null
   onboarding_complete: boolean
+  /** UI-3: versioned Today customization document (JSONB). Stored
+   *  shape is untrusted — always pass through normalizeDashboardPrefs
+   *  before use; '{}' (the column default) normalizes to canonical
+   *  defaults. */
+  dashboard_prefs: unknown
   created_at: string
   updated_at: string
 }
 
-export type UserProfileInsert = Omit<UserProfile, 'id' | 'created_at' | 'updated_at'> & {
+export type UserProfileInsert = Omit<
+  UserProfile,
+  'id' | 'created_at' | 'updated_at' | 'dashboard_prefs'
+> & {
   id?: string
   created_at?: string
   updated_at?: string
+  /** Has a database default ('{}'); inserts may omit it. */
+  dashboard_prefs?: unknown
 }
 
 export type UserProfileUpdate = Partial<Omit<UserProfile, 'id' | 'user_id' | 'created_at'>>

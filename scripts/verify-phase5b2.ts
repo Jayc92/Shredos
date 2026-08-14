@@ -134,10 +134,13 @@ console.log('\n1. Checkpoint and migration 019')
       'src/lib/energy-facts.ts', 'src/lib/coach-signals.ts']
       .every((f) => existsSync(f)))
   check('5B.2 notes exist', notes.length > 3000)
-  check('migration boundary: exactly 19 migrations, 019 added, no 020',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
+  // RETARGET (UI-3): 020 is the approved dashboard-prefs migration;
+  // the surviving 5B.2 boundary is that 019 exists and remains the
+  // 5B.2 addition (the total-count clause moved with the roadmap).
+  check('migration boundary: 019 present; 020 is the approved UI-3 file',
     existsSync('supabase/migrations/019_phase5b2_nutrition_day_status.sql') &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1 &&
+    readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('019 creates nutrition_day_status', migration.includes('CREATE TABLE nutrition_day_status ('))
   const COLUMNS = [
     'id           UUID PRIMARY KEY DEFAULT gen_random_uuid()',

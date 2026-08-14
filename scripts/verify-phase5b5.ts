@@ -112,9 +112,13 @@ console.log('\n1. Checkpoint and boundary')
     ['scripts/verify-phase5b4.ts', 'docs/phase5b4-coach-integration-notes.md',
       'src/lib/goal-adjustments.ts'].every((f) => existsSync(f)))
   check('5B.5 notes exist', notes.length > 2500)
-  check('NO migration 020: exactly 19 migrations',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+  // RETARGET (UI-3): 020 is that approved phase's dashboard-prefs
+  // migration — the boundary (no UNEXPECTED migration) survives as
+  // "exactly 20, and the single addition is the named UI-3 file".
+  check('migration boundary: exactly 20 (020 = approved UI-3 dashboard prefs)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1 &&
+    readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('exactly 4 feature files carry 5B.5 markers',
     ['src/lib/progress-energy.ts', 'src/components/progress/WeeklyEnergyChart.tsx',
       'src/components/progress/EnergyTrendSection.tsx', 'src/app/(app)/progress/page.tsx']

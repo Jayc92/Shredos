@@ -289,9 +289,13 @@ console.log('\n7. Dark-only — no toggle')
 // ── 8. Behavioral preservation ───────────────────────────────────────
 console.log('\n8. Behavioral preservation')
 {
-  check('NO migration 020: exactly 19 migrations',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
-    !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+  // RETARGET (UI-3): 020 is that approved phase's dashboard-prefs
+  // migration — the boundary (no UNEXPECTED migration) survives as
+  // "exactly 20, and the single addition is the named UI-3 file".
+  check('migration boundary: exactly 20 (020 = approved UI-3 dashboard prefs)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+    readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1 &&
+    readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('fixed shell + sole scroll owner untouched',
     read('src/app/(app)/layout.tsx').includes('fixed inset-0 flex overflow-hidden bg-canvas') &&
     read('src/app/(app)/layout.tsx').includes('flex-1 overflow-y-auto'))

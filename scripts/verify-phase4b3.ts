@@ -193,12 +193,12 @@ console.log('\n5. Card hierarchy')
 // ── 6. Fasting visibility ────────────────────────────────────────────
 console.log('\n6. Fasting visibility')
 {
-  // RETARGET (UI-2): the conditional became a ternary that also
-  // repositions Decisions — the boundary (fasting renders ONLY under
-  // profile.fasting_enabled) is unchanged.
-  check('fasting widget rendered only when enabled',
-    page.includes('{profile.fasting_enabled ? (') &&
-    page.indexOf('profile.fasting_enabled ? (') < page.indexOf('<FastingCard'))
+  // RETARGET (UI-3): the gate moved into the preference pipeline —
+  // visibleDashboardWidgets() excludes fasting whenever the profile
+  // capability is off, whatever the stored preference says. Same
+  // boundary, now stronger (preferences can hide but never reveal).
+  check('fasting widget rendered only when enabled (preference pipeline gate)',
+    page.includes('visibleDashboardWidgets(prefs, profile.fasting_enabled)'))
   check('behavior change documented (legacy showed an Off card)',
     notes.includes('legacy dashboard rendered a disabled card'))
   check('fasting queries unchanged (still fetched)',
@@ -236,22 +236,18 @@ console.log('\n8. Responsive layout')
   check('desktop width widened deliberately (max-w-7xl, no legacy widths)',
     page.includes('max-w-7xl') &&
     !page.includes('max-w-4xl') && !page.includes('max-w-2xl'))
-  // RETARGET (UI-2): the status grid became metric tiles + a
-  // 12-column main grid; the boundary (mobile single column, sm
-  // densification, deliberate desktop columns — all decoupled from
-  // the shell's lg switch) survives in the new families.
+  // RETARGET (UI-3): one preference-driven grid; same responsive
+  // boundary (mobile single column, sm tier, 12-col desktop).
   check('mobile one column; sm densifies; deliberate 12-col desktop grid',
-    page.includes('grid grid-cols-1 gap-4 sm:grid-cols-3') &&
     page.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'))
-  // RETARGET (UI-2): the adaptive-columns mechanism became
-  // condition-following half-width spans — with fasting the pairs
-  // are Energy+Fasting and Coach+Decisions; without it, Decisions
-  // joins the rail and Energy pairs with Coach. Boundary (the layout
-  // follows the fasting condition, no reserved empty slot) survives.
-  check('composition follows the fasting condition (paired half-width spans)',
-    page.includes('profile.fasting_enabled ? (') &&
-    (page.match(/lg:col-span-6/g) || []).length >= 4 &&
-    page.includes('{!profile.fasting_enabled && ('))
+  // RETARGET (UI-3): composition follows the preference document,
+  // and the fasting CONDITION is enforced by the visibility pipeline;
+  // disabled/gated widgets render nothing (no reserved slot — the
+  // grid maps only visible widgets).
+  check('composition follows preferences; fasting condition enforced in the pipeline',
+    page.includes('visibleWidgets.map((w) =>') &&
+    page.includes('dashboardSpanClasses(w.size)') &&
+    page.includes('visibleDashboardWidgets(prefs, profile.fasting_enabled)'))
   check('page padding aligned with shell', page.includes('p-4 lg:p-6'))
   check('internal grids deliberately use sm (documented)',
     notes.includes('deliberately uses `sm`'))
@@ -268,10 +264,11 @@ console.log('\n9. Loading and empty states')
 {
   check('route loading state exists using 4B.1 skeletons',
     loading.includes('SkeletonCard') && loading.includes("from '@/components/ui/skeleton'"))
-  // RETARGET (UI-2): skeleton mirrors the rebuilt geometry.
-  check('skeletons approximate final geometry (header, hero, tiles, main grid)',
-    loading.includes('max-w-7xl') && loading.includes('sm:grid-cols-3') &&
-    loading.includes('lg:grid-cols-12'))
+  // RETARGET (UI-3): the layout is personalized, so the skeleton is
+  // a stable generic approximation of the canonical default.
+  check('skeletons approximate a stable generic layout (header, hero, grid)',
+    loading.includes('max-w-7xl') && loading.includes('lg:grid-cols-12') &&
+    loading.includes('lg:col-span-4'))
   check('loading state aria-hidden', loading.includes('aria-hidden="true"'))
   check('reduced-motion honored by skeleton primitives (4B.1 block intact)',
     read('src/app/globals.css').includes('prefers-reduced-motion'))
@@ -528,8 +525,10 @@ console.log('\n15. Fasting gating')
 {
   check('gate reads the existing authoritative field only',
     page.includes('profile.fasting_enabled') && !page.includes('fastingEnabled ='))
-  check('widget omitted when false / rendered when true (single conditional)',
-    (page.match(/profile\.fasting_enabled && \(/g) || []).length === 1)
+  // RETARGET (UI-3): the single string conditional became the single
+  // pipeline gate (one call site) — same omitted/rendered boundary.
+  check('widget omitted when false / rendered when true (single pipeline gate)',
+    (page.match(/visibleDashboardWidgets\(prefs, profile\.fasting_enabled\)/g) || []).length === 1)
   check('active timer behavior retained (1s interval, cleanup)',
     fasting.includes('setInterval(tick, 1000)') && fasting.includes('clearInterval'))
   check('timer derives from real timestamps (no fake duration)',
@@ -553,36 +552,39 @@ console.log('\n16. Responsive and DOM order')
   // grid is the 12-column region. Order boundary unchanged.
   const h1At = page.indexOf('<PageHeader')
   const heroAt = page.indexOf('<TodayPrimaryAction')
-  const gridAt = page.indexOf('sm:grid-cols-3')
+  // RETARGET (UI-3): one grid — the anchors are the registry and the
+  // preference grid itself.
+  const gridAt = page.indexOf('widgetRegistry')
   const lowerAt = page.indexOf('lg:grid-cols-12')
-  check('DOM order: header → hero → metric tiles → main grid → Coach',
-    h1At > 0 && h1At < heroAt && heroAt < gridAt && gridAt < lowerAt &&
-    lowerAt < page.indexOf('<CoachCard'))
-  check('hero spans full width (before every grid)',
-    heroAt < gridAt)
+  check('DOM order: header → hero → widget registry (grid renders after)',
+    h1At > 0 && h1At < heroAt && heroAt < gridAt &&
+    page.indexOf('<CoachCard') > heroAt)
+  check('hero is page chrome before the widget grid',
+    heroAt < gridAt && heroAt < lowerAt)
   // ── Desktop-composition QA correction ──
   // RETARGET (UI-2): the unconditional widgets redistributed — tiles
   // hold calories/protein/steps; the main grid holds weight +
   // nutrition + workout unconditionally. Boundary (these widgets
   // render regardless of any condition) survives.
-  check('unconditional widgets all mounted (tiles + main grid)',
-    (() => {
-      const upper = page.slice(gridAt)
-      return upper.includes('id="nutrition"') && upper.includes('id="weight"') &&
-        upper.includes('id="steps"') && upper.includes('id="workout"') &&
-        upper.includes('id="calories"') && upper.includes('id="protein"')
-    })())
-  check('no orphan Fasting row (fasting paired inside the main grid)',
-    page.indexOf('id="fasting"') > lowerAt)
-  // RETARGET (UI-2): the string-ternary wrapper became conditional
-  // half-width spans; the boundary (an explicit, condition-driven
-  // layout — never an implicit hole) survives in the new form.
-  check('explicit condition-driven composition (paired spans, no wrapper ternary)',
-    page.includes('profile.fasting_enabled ? (') &&
-    page.includes('sm:col-span-1 lg:col-span-6'))
-  check('no empty reserved conditional slot (both branches fill their rows)',
-    page.includes('profile.fasting_enabled ? (') &&
-    page.includes('{!profile.fasting_enabled && ('))
+  // RETARGET (UI-3): every widget mounts once in the registry;
+  // fasting flows through the same span system as everything else,
+  // so no orphan row can exist structurally.
+  check('all ten widgets mounted in the registry',
+    ['nutrition', 'weight', 'steps', 'workout', 'calories', 'protein',
+      'energy', 'fasting', 'coach', 'decisions']
+      .every((id) => page.slice(gridAt).includes(`id="${id}"`)))
+  check('no orphan Fasting row (fasting uses the shared span system)',
+    page.includes('dashboardSpanClasses(w.size)') &&
+    page.indexOf('id="fasting"') > gridAt)
+  // RETARGET (UI-3): explicitness now lives in the visibility
+  // pipeline — visible widgets map to spans; hidden widgets simply
+  // do not exist in the grid (never an implicit hole).
+  check('explicit preference-driven composition (visible widgets map to spans)',
+    page.includes('visibleWidgets.map((w) =>') &&
+    page.includes('dashboardSpanClasses(w.size)'))
+  check('no empty reserved slot (only visible widgets render)',
+    page.includes('visibleWidgets.map((w) =>') &&
+    !page.includes('invisible') && !page.includes('placeholder'))
   // RETARGET (UI-2): order boundary survives in the fasting-enabled
   // branch (Fasting → Coach → Decisions); the disabled branch moves
   // Decisions into the rail by design (documented).
@@ -604,8 +606,10 @@ console.log('\n16. Responsive and DOM order')
     read('src/components/layout/MobileBottomNav.tsx').includes('lg:hidden'))
   check('hero CTA min touch target on both branches',
     (hero.match(/min-h-11/g) || []).length === 2)
-  check('stacked steps/workout column uses content-start (no stretch gap)',
-    page.includes('content-start'))
+  // RETARGET (UI-3): the stacked rail is gone — the natural-height
+  // boundary lives on the single grid's items-start.
+  check('grid preserves natural heights (items-start, no stretch gap)',
+    page.includes('items-start'))
 }
 
 // ── 17. Loading state (expanded) ─────────────────────────────────────
@@ -617,15 +621,15 @@ console.log('\n17. Loading state')
   check('hero skeleton present (full-width block)',
     loading.includes('h-[72px] w-full'))
   // RETARGET (UI-2): the 3-count region is now the tile row.
-  check('tile-row skeleton count matches geometry (3)',
-    (loading.split('sm:grid-cols-3')[1] || '')
-      .split('</div>')[0].split('<SkeletonCard').length - 1 === 3)
+  // RETARGET (UI-3): the generic skeleton approximates the default
+  // (three compact spans) inside the single grid.
+  check('compact-span skeleton count matches the generic default (3)',
+    (loading.match(/lg:col-span-4/g) || []).length === 3)
   // RETARGET (UI-2): the paired region is the two half-width cards.
   check('half-width pair skeletons match geometry (2)',
     (loading.split('lg:col-span-6').length - 1) === 2)
   check('same max-width as the page', loading.includes('max-w-7xl'))
   check('same responsive grid classes as the page',
-    loading.includes('sm:grid-cols-3') &&
     loading.includes('sm:grid-cols-2 lg:grid-cols-12'))
   check('no spinner-only page, no fake labels',
     !loading.includes('Loading...') && !loading.match(/>[A-Z][a-z]+</))
@@ -633,11 +637,13 @@ console.log('\n17. Loading state')
   check('shell not duplicated in loading state',
     !loading.includes('Sidebar') && !loading.includes('TopBar'))
   check('loading region hidden from assistive tech', loading.includes('aria-hidden="true"'))
-  check('loading lower-grid approximation documented (fasting-agnostic 2-col)',
-    loading.includes('fasting-agnostic'))
-  check('loading geometry matches rebuilt structure (tiles before main grid)',
-    loading.indexOf('sm:grid-cols-3') <
-    loading.indexOf('lg:grid-cols-12'))
+  // RETARGET (UI-3): the approximation is now preference-agnostic —
+  // the documented boundary is that the skeleton promises no one
+  // personalized layout.
+  check('loading approximation documented (generic, layout-safe)',
+    loading.includes('GENERIC') || loading.includes('generic'))
+  check('loading geometry: hero precedes the widget grid',
+    loading.indexOf('h-[72px]') < loading.indexOf('lg:grid-cols-12'))
 }
 
 // ── 18. Accessibility (expanded) ─────────────────────────────────────

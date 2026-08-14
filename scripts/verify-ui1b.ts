@@ -360,9 +360,10 @@ async function main() {
         return !pkg.includes('framer') && !pkg.includes('next-themes') &&
           !pkg.includes('radix-ui/react-progress') && pkg.includes('"next": "14.2.13"')
       })())
-    check('S25: NO migration 020 (exactly 19)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
+    // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
+    check('S25: migration boundary (exactly 20; 020 = approved UI-3 file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+      readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
     // RETARGET (UI-2): the pinned grid string described the pre-UI-2
     // composition; the boundary — UI-1B itself did not recompose
     // Today — survives as "no UI-1B marker in the page; the energy
