@@ -19,6 +19,15 @@ export type TodayWidgetId =
   | 'fasting'
   | 'decisions'
   | 'energy' // Phase 5B.3: the Energy Balance widget
+  // UI-2: three additions, no removals or renames. 'coach' brings the
+  // existing CoachCard into the widget contract (UI-3 will make it
+  // reorderable and fully hideable); 'calories' and 'protein' are the
+  // daily metric tiles decomposed from the nutrition card (the
+  // 'nutrition' id stays on the details card). The fixed UI-2 order
+  // is the default layout UI-3 will persist against.
+  | 'coach'
+  | 'calories'
+  | 'protein'
 
 export function TodayWidget({
   id,

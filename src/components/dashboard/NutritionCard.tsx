@@ -2,6 +2,15 @@
 // ShredOS — NutritionCard
 // Phase 1B: real-time today vs target progress bars
 // Phase 1F: optional coaching context (weekly summary + nudge)
+// UI-2: calories and protein moved to the Today metric tiles. The
+// page derives the tile figures with the SAME pure helpers and the
+// SAME inputs (computeDailyTotals + computeNutritionProgress on
+// todayLogs/target), so per-metric numbers and targets appear
+// exactly once. This card keeps carbs/fat detail, time-gated warnings,
+// day-completion context, and the 1F coaching footer — nothing was
+// dropped, only relocated. Warning surfaces now use the semantic
+// caution/critical tokens (dark theme) instead of raw palette
+// colors; copy unchanged.
 // ============================================================
 
 import { UtensilsCrossed } from 'lucide-react'
@@ -92,7 +101,7 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <UtensilsCrossed className="w-4 h-4 text-ink-muted" />
-          <span className="text-sm font-medium text-ink-muted">Nutrition</span>
+          <span className="text-sm font-medium text-ink-muted">Nutrition details</span>
         </div>
         <Link href="/food" className="text-xs text-brand hover:underline">
           Log food →
@@ -109,21 +118,9 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
         </div>
       ) : (
         <div className="space-y-3">
-          <MacroBar
-            label="Calories"
-            consumed={progress.calories.consumed}
-            target={progress.calories.target}
-            pct={progress.calories.pct}
-            remaining={progress.calories.remaining}
-            isCalories
-          />
-          <MacroBar
-            label="Protein"
-            consumed={Number(progress.protein_g.consumed)}
-            target={progress.protein_g.target}
-            pct={progress.protein_g.pct}
-            remaining={Number(progress.protein_g.remaining)}
-          />
+          {/* UI-2: Calories + Protein render as the Today metric
+              tiles (same progress object, computed once by the
+              page); carbs/fat stay here as the detail view. */}
           <MacroBar
             label="Carbs"
             consumed={Number(progress.carbs_g.consumed)}
@@ -145,16 +142,16 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
       {todayLogs.length > 0 && progress.warnings.map((w, i) => (
         <div
           key={i}
-          className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"
+          className="bg-caution-subtle border border-edge rounded-lg px-3 py-2"
         >
-          <p className="text-xs text-amber-400">{w}</p>
+          <p className="text-xs text-caution">{w}</p>
         </div>
       ))}
 
       {/* Structural low-carb warning from target */}
       {target.low_carb_warning && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-          <p className="text-xs text-amber-400">
+        <div className="bg-caution-subtle border border-edge rounded-lg px-3 py-2">
+          <p className="text-xs text-caution">
             Carbs are low ({target.carbs_g}g). This may affect training energy. See{' '}
             <Link href="/nutrition" className="underline">
               Nutrition
@@ -186,8 +183,8 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
               <span
                 className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${
                   nutritionSummary.proteinStatus === 'low'
-                    ? 'bg-red-500/10 text-red-400'
-                    : 'bg-amber-500/10 text-amber-400'
+                    ? 'bg-critical-subtle text-critical'
+                    : 'bg-caution-subtle text-caution'
                 }`}
               >
                 Protein{' '}

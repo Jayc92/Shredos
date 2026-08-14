@@ -341,9 +341,14 @@ async function main() {
       stepsCard.includes('todayLog?.steps != null') &&
       stepsCard.includes('todayLog?.steps ?? 0') &&
       stepsCard.includes("'Goal met'") && stepsCard.includes('steps to goal'))
-    check('no broad migration: dashboard/progress pages untouched by adoption',
-      !read('src/app/(app)/dashboard/page.tsx').includes('PageHeader') &&
-      !read('src/app/(app)/progress/page.tsx').includes('SectionHeader'))
+    // RETARGET (UI-2): this pinned that UI-1B itself performed no
+    // route migration — true then. UI-2 legitimately adopted
+    // PageHeader on Today (marked 'UI-2' in the page). The surviving
+    // UI-1B boundary: Progress remains unmigrated and the StepsCard
+    // adoption stands.
+    check('no broad UI-1B migration: Progress untouched; Today adoption is UI-2-marked',
+      !read('src/app/(app)/progress/page.tsx').includes('SectionHeader') &&
+      read('src/app/(app)/dashboard/page.tsx').includes('UI-2'))
   }
 
   // ── 11. Exclusions and preservation ────────────────────────────────
@@ -358,11 +363,15 @@ async function main() {
     check('S25: NO migration 020 (exactly 19)',
       readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 19 &&
       !readdirSync('supabase/migrations').some((f) => f.startsWith('020')))
-    check('S26: Today composition unchanged',
+    // RETARGET (UI-2): the pinned grid string described the pre-UI-2
+    // composition; the boundary — UI-1B itself did not recompose
+    // Today — survives as "no UI-1B marker in the page; the energy
+    // widget contract is intact" (the recomposition is UI-2's, and
+    // verify-ui2 owns its layout).
+    check('S26: Today carries no UI-1B recomposition (energy contract intact)',
       (() => {
         const dash = read('src/app/(app)/dashboard/page.tsx')
-        return dash.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3') &&
-          dash.includes('<TodayWidget id="energy">') && !dash.includes('UI-1B')
+        return dash.includes('<TodayWidget id="energy">') && !dash.includes('UI-1B')
       })())
     check('S27: Progress range navigation + scroll={false} unchanged',
       (() => {

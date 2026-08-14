@@ -295,11 +295,14 @@ console.log('\n8. Behavioral preservation')
   check('fixed shell + sole scroll owner untouched',
     read('src/app/(app)/layout.tsx').includes('fixed inset-0 flex overflow-hidden bg-canvas') &&
     read('src/app/(app)/layout.tsx').includes('flex-1 overflow-y-auto'))
-  check('dashboard composition untouched (grids, widgets, energy row)',
+  // RETARGET (UI-2): pinned the pre-UI-2 grid strings to prove UI-1A
+  // did not recompose Today — a historical claim. The surviving
+  // boundary: no UI-1A marker in the page and the energy widget
+  // contract intact (UI-2's recomposition is owned by verify-ui2).
+  check('dashboard carries no UI-1A recomposition (energy contract intact)',
     (() => {
       const dash = read('src/app/(app)/dashboard/page.tsx')
-      return dash.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3') &&
-        dash.includes('<TodayWidget id="energy">') && !dash.includes('UI-1')
+      return dash.includes('<TodayWidget id="energy">') && !dash.includes('UI-1A')
     })())
   check('Progress range navigation + scroll={false} untouched',
     (() => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Timer } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { ProgressRing } from '@/components/ui/progress-ring'
 import {
   getFastingDuration,
   formatDurationHMS,
@@ -39,34 +40,38 @@ function ActiveFastTimer({ fast }: { fast: FastingLog }) {
   const hours = minutes / 60
   const milestone = getCurrentMilestone(hours)
 
-  const goalPct = fast.goal_hours
-    ? Math.min(100, (minutes / (fast.goal_hours * 60)) * 100)
-    : null
+  // UI-2: the goal visualization is the domain-blind ProgressRing.
+  // ALL fasting arithmetic stays here — the ring receives raw
+  // elapsed/goal minutes and does only presentation clamping. The
+  // goal-minute conversion below is the same fast.goal_hours * 60
+  // the old bar used.
+  const goalMinutes = fast.goal_hours ? fast.goal_hours * 60 : null
 
   return (
     <div className="space-y-3">
-      {/* Timer display */}
-      <div className="text-center">
-        <p className="metric-label mb-1">Active fast</p>
-        <p className="text-4xl font-bold tabular-nums tracking-tight text-ink">
-          {formatDurationHMS(minutes, seconds)}
-        </p>
-        {fast.goal_hours && (
-          <p className="text-xs text-ink-muted mt-1">
-            Goal: {fast.goal_hours}h
-          </p>
-        )}
-      </div>
-
-      {/* Goal progress bar */}
-      {goalPct !== null && (
-        <div className="h-2 bg-surface-sunken rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-1000"
-            style={{ width: `${goalPct}%` }}
+      {/* Timer display with the goal ring beside it */}
+      <div className="flex items-center justify-center gap-4">
+        {goalMinutes !== null && (
+          <ProgressRing
+            value={minutes}
+            max={goalMinutes}
+            size={64}
+            strokeWidth={5}
+            label="Fast progress toward goal"
           />
+        )}
+        <div className="text-center">
+          <p className="metric-label mb-1">Active fast</p>
+          <p className="text-4xl font-bold tabular-nums tracking-tight text-ink">
+            {formatDurationHMS(minutes, seconds)}
+          </p>
+          {fast.goal_hours && (
+            <p className="text-xs text-ink-muted mt-1">
+              Goal: {fast.goal_hours}h
+            </p>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Milestone note */}
       {milestone && (

@@ -1,6 +1,7 @@
 import { Scale, TrendingDown, TrendingUp, Minus, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs, calculateBMI } from '@/lib/units'
+import { WeightTrendChart } from '@/components/dashboard/WeightTrendChart'
 import { getTrendConfidence, confidenceLabel, computeWeightChange, getNextWeighInDate, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
 import { formatDateShort } from '@/lib/dates'
 import { getDayName } from '@/lib/dates'
@@ -43,6 +44,19 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
       ? calculateBMI(latest.weight_kg, profile.height_cm)
       : null
 
+  // UI-2 trend chart: chronological readings from the SAME fetched
+  // weigh-ins (page already loads 20). Only actual recorded readings
+  // — missing dates stay missing; the chart renders at >= 2 readings
+  // and the single-reading state gets honest copy instead.
+  const chartReadings = [...weighIns]
+    .filter((w) => w.weight_kg !== null)
+    .reverse()
+    .map((w) => ({
+      date: w.logged_date,
+      lbs: kgToLbs(w.weight_kg as number),
+      label: formatDateShort(w.logged_date + 'T00:00:00'),
+    }))
+
   const ChangeIcon =
     change?.direction === 'down'
       ? TrendingDown
@@ -79,6 +93,19 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
           {latest?.logged_date && (
             <p className="text-xs text-ink-muted">
               Logged {formatDateShort(latest.logged_date + 'T00:00:00')}
+            </p>
+          )}
+
+          {/* UI-2: recorded-readings trend chart (real date spacing;
+              points are observations). One reading = honest copy, not
+              a fabricated line. */}
+          {chartReadings.length >= 2 ? (
+            <div className="pt-2">
+              <WeightTrendChart readings={chartReadings} />
+            </div>
+          ) : (
+            <p className="text-xs text-ink-muted pt-1">
+              One more weigh-in starts your trend line.
             </p>
           )}
 

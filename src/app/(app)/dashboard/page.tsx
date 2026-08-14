@@ -14,6 +14,7 @@ import {
   findActiveTrainingSession,
 } from '@/lib/supabase/server'
 import { WeightCard } from '@/components/dashboard/WeightCard'
+import { DailyMetricTile } from '@/components/dashboard/DailyMetricTile'
 import { NutritionCard } from '@/components/dashboard/NutritionCard'
 import { WorkoutCard } from '@/components/dashboard/WorkoutCard'
 import { FastingCard } from '@/components/dashboard/FastingCard'
@@ -23,6 +24,9 @@ import { DecisionLogCard } from '@/components/dashboard/DecisionLogCard'
 import { EnergyBalanceCard } from '@/components/dashboard/EnergyBalanceCard'
 import { TodayPrimaryAction } from '@/components/dashboard/TodayPrimaryAction'
 import { TodayWidget } from '@/components/dashboard/TodayWidget'
+import { PageHeader } from '@/components/ui/page-header'
+import { Flame, Beef } from 'lucide-react'
+import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { computeFastingWeekStats } from '@/lib/fasting'
 import { formatDateFull, todayISO } from '@/lib/dates'
 import { fetchCoachSummary } from '@/lib/workout-coach'
@@ -56,6 +60,18 @@ export const metadata: Metadata = { title: 'Today' }
 // Widget contract (Phase 4C prep): each domain section is wrapped
 // in TodayWidget with a stable id — no customization, no
 // persistence, no settings in this phase.
+//
+// UI-2 rebuild: same queries, same helpers, same actions — new
+// composition. Personalized time-neutral greeting (no timezone is
+// stored, so no morning/evening inference); calories/protein become
+// metric tiles (derived once here with the stable food helpers —
+// intake only, never net/earned calories); weight card gains the
+// recorded-readings trend chart; the Energy Balance card moves from
+// its one-child three-column row (the audited desktop-whitespace
+// defect) into a balanced half-width region; Coach joins the widget
+// contract as id="coach". Every prior widget id, action, link,
+// mutation path, and honest empty state is preserved. Fixed order —
+// UI-3 makes it customizable.
 // ============================================================
 
 export default async function DashboardPage() {
@@ -108,94 +124,165 @@ export default async function DashboardPage() {
 
   const todayLabel = formatDateFull(new Date())
 
+  // UI-2 metric tiles: derived ONCE with the same stable pure helpers
+  // NutritionCard uses (recorded intake vs target — no exercise
+  // adjustment can enter this math). null target -> honest no-target
+  // tile; no logs -> missing state, never zero.
+  const tileTotals = computeDailyTotals(todayFoodLogs, today)
+  const tileProgress = nutritionTarget
+    ? computeNutritionProgress(tileTotals, nutritionTarget, new Date().getHours())
+    : null
+  const hasFoodToday = todayFoodLogs.length > 0
+  const fmtRemaining = (remaining: number, unit: string) =>
+    remaining >= 0
+      ? `${unit === '' ? Math.round(remaining).toLocaleString() : Math.round(remaining)}${unit} remaining`
+      : `${unit === '' ? Math.round(Math.abs(remaining)).toLocaleString() : Math.round(Math.abs(remaining))}${unit} over`
+
+  const greetingName = profile.display_name?.trim()
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 lg:p-6">
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-ink">Today</h1>
-          <p className="text-sm text-ink-muted">{todayLabel}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/check-in" className="text-xs text-brand hover:underline">
-            Weekly review →
-          </Link>
-          <Link href="/coach" className="text-xs text-brand hover:underline">
-            Coach →
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-4 p-4 lg:p-6 xl:space-y-5">
+      {/* ── Personalized header: time-neutral greeting (no stored
+          timezone — investigation confirmed), real display name with
+          neutral fallback, real date as the supporting line. ── */}
+      <PageHeader
+        title={greetingName ? `Welcome back, ${greetingName}` : 'Welcome back'}
+        description={todayLabel}
+        action={
+          <>
+            <Link href="/check-in" className="text-xs text-brand hover:underline">
+              Weekly review →
+            </Link>
+            <Link href="/coach" className="text-xs text-brand hover:underline">
+              Coach →
+            </Link>
+          </>
+        }
+      />
 
       {/* ── Primary action (page-level hierarchy, not a widget —
           the workout widget id belongs to the status card below,
-          so the 4C mapping stays one-id-per-section) ── */}
+          so the mapping stays one-id-per-section) ── */}
       <TodayPrimaryAction
         activeSessionId={activeSession?.id ?? null}
         stats={workoutStats}
       />
 
-      {/* ── Upper status grid: always exactly three lg columns
-          (Nutrition / Weight / stacked Steps + Workout) so no
-          conditional card can orphan a row. ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <TodayWidget id="nutrition">
-          <NutritionCard
-            target={nutritionTarget}
-            todayLogs={todayFoodLogs}
-            nutritionSummary={nutritionCoachSummary}
+      {/* ── Daily metric tiles: calories / protein / steps. One
+          column on phones (readable at 320px), three across from sm.
+          Calories = recorded intake only. Steps keeps its existing
+          card, action path, and explicit-zero-vs-missing semantics. ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <TodayWidget id="calories">
+          <DailyMetricTile
+            icon={Flame}
+            label="Calories"
+            href="/food"
+            linkLabel="Log food →"
+            value={hasFoodToday && tileProgress ? tileProgress.calories.consumed.toLocaleString() : null}
+            targetLine={nutritionTarget ? `/ ${nutritionTarget.calories.toLocaleString()} cal` : null}
+            barValue={hasFoodToday && tileProgress ? tileProgress.calories.consumed : null}
+            barMax={nutritionTarget ? nutritionTarget.calories : null}
+            barLabel="Calories recorded toward target"
+            subline={hasFoodToday && tileProgress ? fmtRemaining(tileProgress.calories.remaining, '') : null}
+            missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
           />
         </TodayWidget>
-        <TodayWidget id="weight">
-          <WeightCard weighIns={weighIns} profile={profile} />
+        <TodayWidget id="protein">
+          <DailyMetricTile
+            icon={Beef}
+            label="Protein"
+            href="/nutrition"
+            linkLabel="Targets →"
+            value={hasFoodToday && tileProgress ? `${Math.round(Number(tileProgress.protein_g.consumed))}g` : null}
+            targetLine={nutritionTarget ? `/ ${nutritionTarget.protein_g}g` : null}
+            barValue={hasFoodToday && tileProgress ? Number(tileProgress.protein_g.consumed) : null}
+            barMax={nutritionTarget ? nutritionTarget.protein_g : null}
+            barLabel="Protein recorded toward target"
+            subline={hasFoodToday && tileProgress ? fmtRemaining(Number(tileProgress.protein_g.remaining), 'g') : null}
+            missingText={nutritionTarget ? 'No food logged yet today.' : 'No nutrition targets set.'}
+          />
         </TodayWidget>
-        <div className="grid grid-cols-1 gap-4 content-start">
-          <TodayWidget id="steps">
-            <StepsCard stepGoal={profile.step_goal} todayLog={todayActivityLog} />
+        <TodayWidget id="steps">
+          <StepsCard stepGoal={profile.step_goal} todayLog={todayActivityLog} />
+        </TodayWidget>
+      </div>
+
+      {/* ── Main grid: deliberate 12-column desktop composition.
+          Weight trend leads (8 cols) with a stacked detail rail (4
+          cols); Energy always shares a balanced half-width row (the
+          old one-child lg:grid-cols-3 row — the audited desktop
+          whitespace defect — is gone). Fasting-enabled fills its
+          half beside Energy with Coach/Decisions pairing below;
+          disabled moves Decisions into the rail so no row is left
+          half-empty in either state. ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5">
+        <div className="sm:col-span-2 lg:col-span-8">
+          <TodayWidget id="weight">
+            <WeightCard weighIns={weighIns} profile={profile} />
+          </TodayWidget>
+        </div>
+
+        {/* Detail rail — top-aligned; unequal heights are accepted
+            rather than stretching cards into internal dead space. */}
+        <div className="grid gap-4 content-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
+          <TodayWidget id="nutrition">
+            <NutritionCard
+              target={nutritionTarget}
+              todayLogs={todayFoodLogs}
+              nutritionSummary={nutritionCoachSummary}
+            />
           </TodayWidget>
           <TodayWidget id="workout">
             <WorkoutCard stats={workoutStats} />
           </TodayWidget>
+          {!profile.fasting_enabled && (
+            <div className="sm:col-span-2 lg:col-span-1">
+              <TodayWidget id="decisions">
+                <DecisionLogCard decision={recentDecisions[0] ?? null} />
+              </TodayWidget>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* ── Energy Balance (Phase 5B.3): its own additive row between
-          the status and utility grids — one medium card on lg (never
-          dominating the dashboard), full-width stacked on mobile.
-          Trajectory/energy state, never an eat-back calculator. ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <TodayWidget id="energy">
-          <EnergyBalanceCard model={energyBalance} />
-        </TodayWidget>
-      </div>
-
-      {/* ── Lower utility/review grid: the conditional Fasting widget
-          integrates here, and the column count adapts with it —
-          three lg columns when Fasting renders (Fasting / Coach /
-          Decisions), two when it does not (Coach / Decisions) — so
-          the hidden state never reserves a blank slot and the
-          enabled state never orphans a row. DOM/keyboard order:
-          Fasting → Coach → Decisions. ── */}
-      <div
-        className={
-          profile.fasting_enabled
-            ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-            : 'grid grid-cols-1 gap-4 lg:grid-cols-2'
-        }
-      >
-        {profile.fasting_enabled && (
-          <TodayWidget id="fasting">
-            <FastingCard
-              activeFast={activeFast}
-              lastCompletedFast={lastCompletedFast}
-              weekStats={fastingStats}
-              fastingEnabled={profile.fasting_enabled}
-            />
+        {/* Energy Balance (Phase 5B.3 semantics untouched): a
+            balanced half-width region — never a one-card third. */}
+        <div className="sm:col-span-1 lg:col-span-6">
+          <TodayWidget id="energy">
+            <EnergyBalanceCard model={energyBalance} />
           </TodayWidget>
+        </div>
+
+        {profile.fasting_enabled ? (
+          <>
+            <div className="sm:col-span-1 lg:col-span-6">
+              <TodayWidget id="fasting">
+                <FastingCard
+                  activeFast={activeFast}
+                  lastCompletedFast={lastCompletedFast}
+                  weekStats={fastingStats}
+                  fastingEnabled={profile.fasting_enabled}
+                />
+              </TodayWidget>
+            </div>
+            <div className="sm:col-span-1 lg:col-span-6">
+              <TodayWidget id="coach">
+                <CoachCard summary={coachSummary} />
+              </TodayWidget>
+            </div>
+            <div className="sm:col-span-1 lg:col-span-6">
+              <TodayWidget id="decisions">
+                <DecisionLogCard decision={recentDecisions[0] ?? null} />
+              </TodayWidget>
+            </div>
+          </>
+        ) : (
+          <div className="sm:col-span-1 lg:col-span-6">
+            <TodayWidget id="coach">
+              <CoachCard summary={coachSummary} />
+            </TodayWidget>
+          </div>
         )}
-        <CoachCard summary={coachSummary} />
-        <TodayWidget id="decisions">
-          <DecisionLogCard decision={recentDecisions[0] ?? null} />
-        </TodayWidget>
       </div>
     </div>
   )

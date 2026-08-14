@@ -398,23 +398,42 @@ console.log('\n8. Dashboard wiring')
   check('page mounts the widget with the energy id',
     page.includes('<TodayWidget id="energy">') &&
     page.includes('<EnergyBalanceCard model={energyBalance} />'))
-  check('widget sits in its own additive row between the grids',
+  // RETARGET (UI-2): the original placement pins described the 5B.3
+  // one-card lg:grid-cols-3 row — which the UI-0 audit identified as
+  // THE desktop-whitespace defect and UI-2 was commissioned to fix.
+  // The surviving 5B.3 boundaries: the energy widget is mounted with
+  // its id + model (pinned above), keeps a medium footprint (never
+  // page-dominating, stacked on mobile), and its evidence semantics
+  // are untouched (pinned throughout this suite). Its region is now a
+  // balanced half-width span that never leaves permanent empty
+  // columns.
+  check('energy occupies a balanced half-width region (defect row gone)',
     (() => {
-      const upperAt = page.indexOf('sm:grid-cols-2 lg:grid-cols-3')
       const energyAt = page.indexOf('<TodayWidget id="energy">')
-      const lowerAt = page.indexOf('profile.fasting_enabled\n            ?')
-      return upperAt > -1 && energyAt > upperAt && (lowerAt === -1 || energyAt < page.indexOf("? 'grid grid-cols-1"))
+      const region = page.slice(page.lastIndexOf('lg:col-span-6', energyAt), energyAt)
+      return energyAt > -1 && region.includes('lg:col-span-6') &&
+        !page.includes('lg:grid-cols-3">\n        <TodayWidget id="energy">')
     })())
-  check('medium footprint: one card in a 3-col lg grid, stacked on mobile',
-    page.includes('className="grid grid-cols-1 gap-4 lg:grid-cols-3">\n        <TodayWidget id="energy">'))
+  check('medium footprint: half-width on desktop, stacked full-width on mobile',
+    page.includes('sm:col-span-1 lg:col-span-6') &&
+    page.indexOf('grid-cols-1', page.indexOf('lg:grid-cols-12') - 60) > -1)
   check('fetch reuses already-fetched target/profile/logs (parallel with coach summary)',
     page.includes('fetchTodayEnergyBalance(') &&
     page.includes('supabase, user.id, today, nutritionTarget, profile, todayFoodLogs'))
-  check('upper status grid untouched (three lg columns preserved)',
-    page.includes('<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">'))
-  check('lower grid fasting logic untouched',
-    page.includes("? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'") &&
-    page.includes(": 'grid grid-cols-1 gap-4 lg:grid-cols-2'"))
+  // RETARGET (UI-2): "untouched" was a historical claim that 5B.3
+  // did not restructure the pre-existing grids — true at 5B.3 time.
+  // UI-2 legitimately recomposed Today; the surviving boundary is
+  // that every pre-5B.3 widget remains mounted alongside energy.
+  check('pre-5B.3 widgets all still mounted alongside energy',
+    ['"nutrition"', '"weight"', '"steps"', '"workout"', '"decisions"']
+      .every((id) => page.includes(`<TodayWidget id=${id}`)))
+  // RETARGET (UI-2): same historical-claim boundary as above — the
+  // fasting CONDITION (the behavior 5B.3 promised not to break) still
+  // governs the fasting widget; the adaptive-columns string mechanism
+  // became condition-driven spans.
+  check('fasting condition still governs the fasting widget',
+    page.includes('profile.fasting_enabled ? (') &&
+    page.indexOf('profile.fasting_enabled ? (') < page.indexOf('<FastingCard'))
   check('every legacy widget still mounted',
     ['"nutrition"', '"weight"', '"steps"', '"workout"', '"fasting"', '"decisions"']
       .every((id) => page.includes(`<TodayWidget id=${id}`)))
