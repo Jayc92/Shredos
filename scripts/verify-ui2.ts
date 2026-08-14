@@ -383,8 +383,73 @@ async function main() {
       !pageCode.includes('supabase.from('))
   }
 
-  // ── 10. Determinism (S51) ──────────────────────────────────────────
-  console.log('\n10. Determinism')
+
+  // ── 11. Natural-height correction (hosted-QA fix) ──────────────────
+  // Hosted QA found short cards visually stretched to their taller
+  // grid sibling's height (Energy/Fasting row; Coach/Decisions row).
+  // Empirical trace with the compiled stylesheet: the grids' default
+  // align-items (normal = stretch) stretched the grid-item wrappers to
+  // the row height. Fix: items-start on the main grid and the rail
+  // grid — every item takes its content height; honest background
+  // space below a short card, never an artificially enlarged surface.
+  console.log('\n11. Natural-height correction')
+  {
+    check('C1: main grid opts out of cross-axis stretching (items-start)',
+      page.includes('lg:grid-cols-12 xl:gap-5 items-start'))
+    check('C1b: rail grid opts out too (tablet pairs share the defect class)',
+      page.includes('content-start items-start sm:col-span-2 sm:grid-cols-2'))
+    check('C2: TodayWidget stays a thin auto-height wrapper (no forced full height)',
+      !widget.includes('h-full') && !widget.includes('flex-1') &&
+      widget.includes('data-widget={id}'))
+    check('C3-C6: energy/fasting/coach/decision surfaces end at natural height (no h-full/grow on any root)',
+      [read('src/components/dashboard/EnergyBalanceCard.tsx'), fasting, coach, decisions]
+        .every((f) => {
+          const roots = f.match(/<Card [^>]*className="[^"]*"/g) || []
+          return roots.length > 0 &&
+            roots.every((r) => !r.includes('h-full') && !r.includes('grow') && !r.includes('flex-1'))
+        }))
+    check('C7: no fixed-height equalization introduced',
+      !stripComments(page).match(/[^-]h-\[/) && !pageCode.includes(' h-64') &&
+      ![fasting, coach, decisions].some((f) => stripComments(f).match(/[^-]h-\[\d/)))
+    check('C8: no min-h equalization on the paired cards',
+      !pageCode.includes('min-h') &&
+      [read('src/components/dashboard/EnergyBalanceCard.tsx'), fasting, coach, decisions]
+        .every((f) => !stripComments(f).includes('min-h-')))
+    check('C9: no JS measurement/layout API introduced',
+      CHANGED.every((f) => !stripComments(f).includes('getBoundingClientRect') &&
+        !stripComments(f).includes('ResizeObserver') && !stripComments(f).includes('offsetHeight')))
+    check('C10: no masonry/CSS-columns layout introduced',
+      CHANGED.every((f) => !stripComments(f).includes('columns-') &&
+        !stripComments(f).includes('masonry')))
+    check('C11: fasting-on widget order unchanged', (() => {
+      const tern = page.indexOf('profile.fasting_enabled ? (')
+      const on = page.slice(0, tern).replace(/\{!profile\.fasting_enabled && \([\s\S]*?\)\}/, '') +
+        page.slice(tern, page.indexOf(') : ('))
+      const ids = (on.match(/<TodayWidget id="(\w+)">/g) || []).map((m) => m.slice(17, -2))
+      return ids.join(',') ===
+        'calories,protein,steps,weight,nutrition,workout,energy,fasting,coach,decisions'
+    })())
+    check('C12: fasting-off widget order unchanged', (() => {
+      const tern = page.indexOf('profile.fasting_enabled ? (')
+      const off = page.slice(0, tern) + page.slice(page.indexOf(') : ('))
+      const ids = (off.match(/<TodayWidget id="(\w+)">/g) || []).map((m) => m.slice(17, -2))
+      return ids.join(',') ===
+        'calories,protein,steps,weight,nutrition,workout,decisions,energy,coach'
+    })())
+    check('C13: mobile single-column behavior remains (grid-cols-1 base everywhere)',
+      page.includes('grid grid-cols-1 gap-4 sm:grid-cols-3') &&
+      page.includes('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'))
+    check('C14: tablet/desktop spans unchanged (8/4 + 6/6 pairs)',
+      page.includes('sm:col-span-2 lg:col-span-8') &&
+      (page.match(/sm:col-span-1 lg:col-span-6/g) || []).length === 5 &&
+      page.includes('lg:col-span-4'))
+    check('C15: loading skeleton mirrors the corrected alignment',
+      loading.includes('lg:grid-cols-12 xl:gap-5 items-start') &&
+      loading.includes('content-start items-start'))
+  }
+
+  // ── 12. Determinism (S51) ──────────────────────────────────────────
+  console.log('\n12. Determinism')
   {
     // Icon components hold circular refs (forwardRef objects) —
     // serialize functions by name and drop repeated object refs.

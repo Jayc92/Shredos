@@ -40,6 +40,10 @@ Hero and WorkoutCard files functionally untouched (resume/start, conflict modal 
 - **verify-phase5b3 (4)**: the two placement pins described the one-card `lg:grid-cols-3` row — the exact defect UI-2 was commissioned to remove — retargeted to "balanced half-width, never a one-child three-column row"; the two "untouched" pins were historical claims retargeted to their surviving invariants (all pre-5B.3 widgets mounted; the fasting condition still governs fasting).
 - **verify-ui1b (2)** and **verify-ui1a (1)**: "UI-1x did not recompose Today" historical pins retargeted to marker-based form (no UI-1A/UI-1B marker; energy contract intact; Progress still unmigrated).
 
+## Hosted-QA correction: natural card heights
+
+Hosted QA found short cards visually stretched to their taller grid sibling (Energy/Fasting row; the Latest Decision panel enlarged to Training Coach's height). Root cause, traced empirically against the compiled stylesheet (not assumed): the main 12-column grid and the rail grid used the CSS Grid default `align-items: normal` (= **stretch**), which stretches each grid-item wrapper to the row height — the only stretch mechanism in the wrapper → TodayWidget → Card chain (no card carries `h-full`/`grow`; verified across all four paired cards). Fix: `items-start` on both grids (and mirrored in the loading skeleton), verified empirically to collapse a short item to its exact content height (56px card = 56px wrapper) while the taller sibling still defines the row. **Honest background space below a naturally short card is correct; an artificially enlarged empty card surface misrepresents how much content exists.** No fixed/min heights, no reordering, no JS measurement, no masonry — columns, widths, gaps, DOM order, and both conditional branches are unchanged (pinned by the C1–C15 correction block in verify-ui2).
+
 ## Hosted QA notes
 
 Authenticated visuals (real data at all six widths, chart with real weigh-ins, fasting ring live, both fasting states) are Vercel-QA items — local smoke was limited to the unauthenticated surface plus structural/runtime proofs.

@@ -216,7 +216,7 @@ export default async function DashboardPage() {
           half beside Energy with Coach/Decisions pairing below;
           disabled moves Decisions into the rail so no row is left
           half-empty in either state. ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5 items-start">
         <div className="sm:col-span-2 lg:col-span-8">
           <TodayWidget id="weight">
             <WeightCard weighIns={weighIns} profile={profile} />
@@ -225,7 +225,7 @@ export default async function DashboardPage() {
 
         {/* Detail rail — top-aligned; unequal heights are accepted
             rather than stretching cards into internal dead space. */}
-        <div className="grid gap-4 content-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
+        <div className="grid gap-4 content-start items-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
           <TodayWidget id="nutrition">
             <NutritionCard
               target={nutritionTarget}

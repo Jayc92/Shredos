@@ -29,11 +29,11 @@ export default function TodayLoading() {
         <SkeletonCard />
       </div>
       {/* Main grid: weight feature + rail, then half-width pair */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 xl:gap-5 items-start">
         <div className="sm:col-span-2 lg:col-span-8">
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
-        <div className="grid gap-4 content-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
+        <div className="grid gap-4 content-start items-start sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:gap-5">
           <SkeletonCard />
           <SkeletonCard />
         </div>
