@@ -45,7 +45,7 @@ function NumField({
           min={min}
           max={max}
           step={step}
-          className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
         />
         {unit && (
           <span className="text-sm text-ink-muted flex-shrink-0 w-8 text-center select-none">

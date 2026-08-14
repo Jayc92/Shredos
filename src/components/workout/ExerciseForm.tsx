@@ -30,7 +30,7 @@ function PillGroup<T extends string>({ options, value, onChange }: PillGroupProp
             'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
             value === o.value
               ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-              : 'border-border text-muted-foreground hover:bg-muted'
+              : 'border-edge text-ink-muted hover:bg-surface-interactive'
           )}>
           {o.label}
         </button>
@@ -63,7 +63,7 @@ function MultiPillGroup({ options, selected, unavailable, onToggle }: MultiPillG
               'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
               selected.includes(o.value)
                 ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                : 'border-border text-muted-foreground hover:bg-muted'
+                : 'border-edge text-ink-muted hover:bg-surface-interactive'
             )}>
             {o.label}
           </button>
@@ -166,31 +166,31 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
       </h3>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Name *</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Name *</label>
         <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)}
           placeholder="e.g. Cable chest fly"
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Primary muscle *</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Primary muscle *</label>
         <PillGroup options={PRIMARY_MUSCLES} value={muscle as any} onChange={handlePrimaryChange as any} />
       </div>
 
-      <div className="rounded-lg border border-border">
+      <div className="rounded-lg border border-edge">
         <button type="button"
           onClick={() => setSecondaryOpen(!secondaryOpen)}
           aria-expanded={secondaryOpen}
           aria-controls="secondary-muscles-panel"
           className="w-full flex items-center justify-between px-3 py-2.5 text-left">
           <span>
-            <span className="block text-xs font-medium text-foreground">Secondary muscles</span>
-            <span className="block text-xs text-muted-foreground">
+            <span className="block text-xs font-medium text-ink">Secondary muscles</span>
+            <span className="block text-xs text-ink-muted">
               Optional · {secondary.length} selected
             </span>
           </span>
           <ChevronDown aria-hidden="true"
-            className={cn('w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform',
+            className={cn('w-4 h-4 text-ink-muted flex-shrink-0 transition-transform',
               secondaryOpen && 'rotate-180')} />
         </button>
         {secondaryOpen && (
@@ -201,20 +201,20 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
         )}
       </div>
 
-      <div className="rounded-lg border border-border">
+      <div className="rounded-lg border border-edge">
         <button type="button"
           onClick={() => setTertiaryOpen(!tertiaryOpen)}
           aria-expanded={tertiaryOpen}
           aria-controls="tertiary-muscles-panel"
           className="w-full flex items-center justify-between px-3 py-2.5 text-left">
           <span>
-            <span className="block text-xs font-medium text-foreground">Tertiary muscles</span>
-            <span className="block text-xs text-muted-foreground">
+            <span className="block text-xs font-medium text-ink">Tertiary muscles</span>
+            <span className="block text-xs text-ink-muted">
               Optional · lighter involvement · {tertiary.length} selected
             </span>
           </span>
           <ChevronDown aria-hidden="true"
-            className={cn('w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform',
+            className={cn('w-4 h-4 text-ink-muted flex-shrink-0 transition-transform',
               tertiaryOpen && 'rotate-180')} />
         </button>
         {tertiaryOpen && (
@@ -226,42 +226,42 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Category</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Category</label>
         <PillGroup options={EXERCISE_CATEGORIES} value={category as any} onChange={setCategory as any} />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Equipment</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Equipment</label>
         <PillGroup options={EXERCISE_EQUIPMENT} value={equipment as any} onChange={setEquipment as any} />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tracking method</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Tracking method</label>
         <PillGroup options={TRACKING_MODES} value={trackingMode as any} onChange={setTrackingMode as any} />
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" checked={unilateral}
           onChange={e => setUnilateral(e.target.checked)}
-          className="rounded border-border flex-shrink-0" />
+          className="rounded border-edge flex-shrink-0" />
         <div>
-          <span className="text-sm font-medium text-foreground">Unilateral exercise</span>
-          <p className="text-xs text-muted-foreground">Log weight per side (e.g. dumbbell curls)</p>
+          <span className="text-sm font-medium text-ink">Unilateral exercise</span>
+          <p className="text-xs text-ink-muted">Log weight per side (e.g. dumbbell curls)</p>
         </div>
       </label>
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Notes (optional)</label>
+        <label className="block text-xs font-medium text-ink-muted mb-1.5">Notes (optional)</label>
         <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="Any notes about form or setup"
-          className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          className="w-full px-3 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring" />
       </div>
 
-      {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
 
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onClose}
-          className="py-2.5 rounded-lg border border-border text-muted-foreground text-sm hover:bg-muted transition-colors">
+          className="py-2.5 rounded-lg border border-edge text-ink-muted text-sm hover:bg-surface-interactive transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={saving}

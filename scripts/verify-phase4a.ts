@@ -226,7 +226,10 @@ console.log('\n8. Visual hierarchy and design system')
   check('current green overload documented against reality',
     has('mint/green `--primary`') && has('brand') && has('selected') &&
     has('positive trend') &&
-    readFileSync('src/app/globals.css', 'utf8').includes('--primary: 162 70% 55%'))
+    // RETARGET (UI-1A): the reality anchor was the legacy mint literal
+    // 162 70% 55%; the dark foundation aligned --primary to the brand
+    // token (163 62% 52%) — still the mint family the audit documented.
+    readFileSync('src/app/globals.css', 'utf8').includes('--primary: 163 62% 52%'))
   check('mixed HSL/oklch token formats documented and real',
     has('HSL triplets') && has('oklch') &&
     readFileSync('src/app/globals.css', 'utf8').includes('oklch'))

@@ -348,9 +348,13 @@ console.log('\n9. Responsive shell')
     appLayout.includes('pb-[calc(4.5rem+env(safe-area-inset-bottom))]'))
   check('light canvas preserved (bg-canvas shell)',
     appLayout.includes('bg-canvas') && !appLayout.includes('bg-background'))
-  check('no theme toggle / no accidental dark mode',
+  // RETARGET (UI-1A): the boundary is THEME DETERMINISM + no toggle.
+  // It was expressed as color-scheme: light (the de facto theme then);
+  // the approved dark foundation makes dark the single deliberate
+  // scheme — still deterministic, still toggle-free.
+  check('no theme toggle / deterministic (now dark) color scheme',
     !appLayout.includes('ThemeToggle') &&
-    read('src/app/globals.css').includes('color-scheme: light;') &&
+    read('src/app/globals.css').includes('color-scheme: dark;') &&
     read('src/app/layout.tsx').includes('bg-canvas text-ink'))
   check('shell uses valid ForgeFitOS tokens (not broken legacy card/border)',
     [sidebar, topBar, bottomNav, moreSheet].every((f) =>

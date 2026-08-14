@@ -408,14 +408,20 @@ console.log('\n12. Phase boundary')
     notes.includes('Transitional aliases'))
 }
 
-// ── 13. QA correction: legacy light compatibility ────────────────────
+// ── 13. QA correction: legacy theme compatibility ────────────────────
 // Browser QA found the original 4B.1 alias produced near-black
 // .shred-card surfaces on the app's de facto WHITE canvas (the legacy
-// oklch-inside-hsl() tokens are invalid CSS, so the app has always
-// rendered light despite html.dark). These checks pin the corrected
-// contract: the legacy alias is LIGHT until routes migrate in
-// 4B.3–4B.6, and the semantic system remains intact and dark-capable.
-console.log('\n13. QA correction: legacy light compatibility')
+// oklch-inside-hsl() tokens are invalid CSS, so the app rendered light
+// despite html.dark). These checks originally pinned a LIGHT alias.
+// RETARGETED (UI-1A dark foundation): the approved dark theme now ships
+// as the values of these same token names, and the legacy oklch tokens
+// were re-encoded as valid dark HSL. Every check below preserves its
+// original behavioral boundary — canvas/card AGREEMENT, readable text
+// on the card surface, visible borders/skeletons, states readable on
+// the canvas, subtle tints as backgrounds — expressed against the dark
+// values with equally tight bounds. verify-ui1a.ts owns the full dark
+// contract including computed WCAG contrast.
+console.log('\n13. QA correction: legacy theme compatibility (dark, UI-1A)')
 {
   const val = (name: string) => {
     const m = globals.match(new RegExp(`${name}: ([\\d. %]+);`))
@@ -432,34 +438,49 @@ console.log('\n13. QA correction: legacy light compatibility')
   const shredCard = cssOf('shred-card')
   check('shred-card maps to the semantic surface token',
     shredCard.includes('hsl(var(--surface))'))
-  check('shred-card surface is light (compatible with the white canvas)',
-    lightness('--surface') >= 90)
-  check('canvas token is light (matches de facto rendered theme)',
-    lightness('--canvas') >= 90)
-  check('no light-canvas/dark-card mismatch (canvas and legacy card agree)',
-    (lightness('--canvas') >= 90) === (lightness('--surface') >= 90))
-  check('legacy card text remains dark/readable on the light surface',
-    lightness('--text-primary') <= 25 && lightness('--text-secondary') <= 40)
-  check('legacy card borders use the subtle edge token, light-valued',
+  // RETARGET (UI-1A): was lightness >= 90 (light alias); the boundary
+  // is "card surface matches the rendered theme" — now dark.
+  check('shred-card surface is dark (compatible with the dark canvas)',
+    lightness('--surface') <= 16 && lightness('--surface') > 0)
+  // RETARGET (UI-1A): was >= 90; canvas now dark navy, never pure black.
+  check('canvas token is dark (matches the rendered theme, not pure black)',
+    lightness('--canvas') <= 10 && lightness('--canvas') >= 4)
+  // Boundary unchanged: canvas and legacy card must AGREE on a theme.
+  check('no canvas/card theme mismatch (canvas and legacy card agree)',
+    (lightness('--canvas') <= 16) === (lightness('--surface') <= 16))
+  // RETARGET (UI-1A): was dark-text-on-light; now light-text-on-dark.
+  check('legacy card text remains readable on the dark surface',
+    lightness('--text-primary') >= 90 && lightness('--text-secondary') >= 65)
+  // RETARGET (UI-1A): border stays the subtle edge token, now valued to
+  // read as a hairline on the dark surface (distinct from it).
+  check('legacy card borders use the subtle edge token, visible on dark',
     shredCard.includes('hsl(var(--border-subtle))') &&
-    lightness('--border-subtle') >= 70 && lightness('--border-subtle') <= 95)
+    lightness('--border-subtle') >= 14 && lightness('--border-subtle') <= 34 &&
+    lightness('--border-subtle') > lightness('--surface'))
   check('shred-card sets no text color of its own (inherits readable body text)',
     !/(^|[^-])color:/.test(shredCard) && !shredCard.includes('text-inverse'))
-  check('state colors darkened for readability on white',
-    lightness('--success') <= 45 && lightness('--caution') <= 48 &&
-    lightness('--critical') <= 50 && lightness('--info') <= 60)
-  check('state subtle tints are light backgrounds',
+  // RETARGET (UI-1A): was darkened-for-white; boundary is "state colors
+  // readable on the canvas" — on dark they must be BRIGHTENED.
+  check('state colors brightened for readability on dark',
+    lightness('--success') >= 45 && lightness('--caution') >= 50 &&
+    lightness('--critical') >= 55 && lightness('--info') >= 65)
+  // RETARGET (UI-1A): subtle tints stay BACKGROUNDS (near the surface
+  // band), which on dark means low lightness.
+  check('state subtle tints are dark backgrounds',
     ['--success-subtle', '--caution-subtle', '--critical-subtle', '--info-subtle',
-      '--brand-subtle', '--surface-selected'].every((t) => lightness(t) >= 88))
+      '--brand-subtle', '--surface-selected'].every((t) => lightness(t) <= 22))
   check('future semantic card variants remain available',
     (() => {
       const card = read('src/components/ui/card.tsx')
       return ['elevated', 'interactive', 'selected', 'metric', 'action', 'status', 'subtle']
         .every((v) => card.includes(`${v}:`)) && card.includes('cardVariants')
     })())
-  check('skeletons stay visible on the white surface (sunken token)',
+  // RETARGET (UI-1A): boundary is "skeleton visibly distinct from its
+  // surface"; sunken wells sit BELOW the dark surface lightness.
+  check('skeletons stay visible on the dark surface (sunken token)',
     globals.includes('background-color: hsl(var(--surface-sunken));') &&
-    lightness('--surface-sunken') >= 80 && lightness('--surface-sunken') <= 96)
+    lightness('--surface-sunken') >= 2 && lightness('--surface-sunken') <= 9 &&
+    lightness('--surface-sunken') < lightness('--surface'))
   check('root cause + light alias policy documented in foundation notes',
     notes.includes('Theme reality') && notes.includes('LIGHT legacy compatibility alias') &&
     notes.includes('light-first'))
@@ -500,7 +521,8 @@ console.log('\n13. QA correction: legacy light compatibility')
     // native controls with color-scheme: light.
     globals.includes('background-color: hsl(var(--canvas));') &&
     globals.includes('color: hsl(var(--text-primary));') &&
-    globals.includes('color-scheme: light;'))
+    // RETARGET (UI-1A): native controls now pin DARK to match the theme.
+    globals.includes('color-scheme: dark;'))
   check('body element uses valid semantic utilities (class beats element selectors)',
     // bg-background/text-foreground are CLASS selectors (0,1,0) with
     // invalid values — they beat any element-selector fallback and left

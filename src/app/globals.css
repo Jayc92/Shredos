@@ -7,44 +7,61 @@
 /* ── ShredOS Design Tokens ─────────────────────────────────────── */
 /* Dark mode is default. Light mode overrides are intentionally minimal. */
 
+/* UI-1A legacy compatibility repair: every legacy token below was an
+   oklch() value consumed through hsl(var(--token)) in
+   tailwind.config.ts — invalid CSS, so bg-card/bg-background/
+   text-foreground/border-border never resolved (the documented THEME
+   REALITY). They are now valid dark HSL TRIPLETS aligned with the
+   ForgeFitOS semantic dark theme, so every legacy utility renders the
+   same navy/charcoal system as the semantic tokens. Names unchanged;
+   values only. */
+
 @layer base {
   :root {
-    /* shadcn/ui dark theme as default */
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    /* Legacy shadcn-compatible tokens — dark values (UI-1A) */
+    --background: 220 25% 7%;              /* = --canvas */
+    --foreground: 210 25% 96%;             /* = --text-primary */
 
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card: 220 20% 11%;                   /* = --surface */
+    --card-foreground: 210 25% 96%;
 
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
+    --popover: 219 19% 14%;                /* = --surface-raised */
+    --popover-foreground: 210 25% 96%;
 
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
+    --primary: 163 62% 52%;                /* = --brand (mint) */
+    --primary-foreground: 168 60% 8%;
 
-    --secondary: oklch(0.97 0 0);          /* subtle surface */
-    --secondary-foreground: oklch(0.205 0 0);
+    --secondary: 220 18% 15%;              /* subtle surface */
+    --secondary-foreground: 214 15% 76%;
 
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted: 220 18% 15%;
+    --muted-foreground: 215 12% 62%;
 
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --accent: 220 18% 15%;
+    --accent-foreground: 210 25% 96%;
 
-    --destructive: oklch(0.577 0.245 27.325);
+    --destructive: 0 80% 66%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --border: 219 16% 20%;
+    --input: 218 14% 25%;
+    --ring: 163 62% 52%;
 
     --radius: 0.625rem;
 
     /* ShredOS status colors */
-    --color-success: 142 71% 45%;   /* green */
-    --color-warning: 38 92% 50%;    /* amber */
-    --color-danger: 0 84% 60%;      /* red */
-    --color-info: 217 91% 60%;      /* blue */      --chart-1: oklch(0.87 0 0);      --chart-2: oklch(0.556 0 0);      --chart-3: oklch(0.439 0 0);      --chart-4: oklch(0.371 0 0);      --chart-5: oklch(0.269 0 0);      --sidebar: oklch(0.985 0 0);      --sidebar-foreground: oklch(0.145 0 0);      --sidebar-primary: oklch(0.205 0 0);      --sidebar-primary-foreground: oklch(0.985 0 0);      --sidebar-accent: oklch(0.97 0 0);      --sidebar-accent-foreground: oklch(0.205 0 0);      --sidebar-border: oklch(0.922 0 0);      --sidebar-ring: oklch(0.708 0 0);
+    --color-success: 142 55% 55%;   /* green */
+    --color-warning: 38 90% 58%;    /* amber */
+    --color-danger: 0 80% 66%;      /* red */
+    --color-info: 217 90% 70%;      /* blue */
+    --sidebar: 220 22% 9%;
+    --sidebar-foreground: 210 25% 96%;
+    --sidebar-primary: 163 62% 52%;
+    --sidebar-primary-foreground: 168 60% 8%;
+    --sidebar-accent: 220 18% 15%;
+    --sidebar-accent-foreground: 210 25% 96%;
+    --sidebar-border: 219 16% 20%;
+    --sidebar-ring: 215 12% 62%;
   }
 
   /* Optional light mode — kept minimal, app is dark-first */
@@ -71,38 +88,37 @@
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
   }
+  /* html.dark is hard-applied, so this block is the winning layer for
+     every legacy token it defines — same valid dark triplets as :root
+     above (UI-1A repair; previously oklch, i.e. invalid at every
+     hsl(var(…)) usage site). */
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: 162 70% 55%;
-    --primary-foreground: 0 0% 7%;
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: 162 70% 55%;
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: 220 25% 7%;
+    --foreground: 210 25% 96%;
+    --card: 220 20% 11%;
+    --card-foreground: 210 25% 96%;
+    --popover: 219 19% 14%;
+    --popover-foreground: 210 25% 96%;
+    --primary: 163 62% 52%;
+    --primary-foreground: 168 60% 8%;
+    --secondary: 220 18% 15%;
+    --secondary-foreground: 214 15% 76%;
+    --muted: 220 18% 15%;
+    --muted-foreground: 215 12% 62%;
+    --accent: 220 18% 15%;
+    --accent-foreground: 210 25% 96%;
+    --destructive: 0 80% 66%;
+    --border: 219 16% 20%;
+    --input: 218 14% 25%;
+    --ring: 163 62% 52%;
+    --sidebar: 220 22% 9%;
+    --sidebar-foreground: 210 25% 96%;
+    --sidebar-primary: 163 62% 52%;
+    --sidebar-primary-foreground: 168 60% 8%;
+    --sidebar-accent: 220 18% 15%;
+    --sidebar-accent-foreground: 210 25% 96%;
+    --sidebar-border: 219 16% 20%;
+    --sidebar-ring: 215 12% 62%;
   }
   * {
     @apply border-border outline-ring/50;
@@ -183,74 +199,85 @@
    falls back — the app has always RENDERED LIGHT (white canvas,
    black text) despite the hard-applied html.dark class; only the
    valid HSL triplets under .dark (--primary mint, --ring) take
-   effect. The ForgeFitOS tokens are therefore LIGHT-FIRST so that
-   not-yet-redesigned routes stay visually coherent. The system stays
+   effect. The ForgeFitOS tokens were therefore LIGHT-FIRST so that
+   not-yet-redesigned routes stayed visually coherent. The system stays
    dark-capable: a real dark theme lands later as a scoped override
    of these same token names — no consumer changes needed. No theme
    toggle is introduced in this phase.
+
+   UI-1A RESOLUTION (dark foundation): that "later" is now. The token
+   NAMES below are unchanged; their VALUES are the approved dark
+   navy/charcoal theme, and the legacy oklch tokens above were
+   re-encoded as matching valid dark HSL triplets — so the legacy
+   utilities and the semantic system finally agree, in dark. Dark is
+   the only theme (approved product decision); still no theme toggle.
    ════════════════════════════════════════════════════════════════ */
 
 @layer base {
   :root {
-    /* ── Canvas & surfaces (light — matches the de facto rendered
-       theme; see THEME REALITY above) ── */
-    --canvas: 0 0% 100%;
-    --canvas-subtle: 0 0% 97%;
-    --surface: 0 0% 100%;
-    --surface-raised: 0 0% 100%;    /* elevation carried by shadow */
-    --surface-sunken: 0 0% 92%;     /* inset wells, skeletons */
-    --surface-interactive: 0 0% 96%;
-    --surface-selected: 163 45% 94%;
+    /* ── Canvas & surfaces (dark — UI-1A: the premium deep-navy
+       theme these token names were architected for; see THEME
+       REALITY above for the history). Elevation reads as LIGHTER
+       surface + hairline edge + controlled shadow — never pure
+       black, never glow. ── */
+    --canvas: 220 25% 7%;
+    --canvas-subtle: 220 22% 9%;
+    --surface: 220 20% 11%;
+    --surface-raised: 219 19% 14%;  /* elevation carried by contrast + shadow */
+    --surface-sunken: 221 26% 5%;   /* inset wells, skeletons */
+    --surface-interactive: 220 18% 15%;
+    --surface-selected: 165 28% 14%;
 
     /* ── Text ── */
-    --text-primary: 0 0% 10%;
-    --text-secondary: 0 0% 30%;
-    --text-muted: 0 0% 44%;
-    --text-inverse: 0 0% 98%;
+    --text-primary: 210 25% 96%;
+    --text-secondary: 214 15% 76%;
+    --text-muted: 215 12% 62%;
+    --text-inverse: 222 30% 10%;
 
     /* ── Borders ── */
-    --border-subtle: 0 0% 88%;
-    --border-default: 0 0% 80%;
-    --border-strong: 0 0% 62%;
+    --border-subtle: 219 16% 20%;
+    --border-default: 218 14% 27%;
+    --border-strong: 217 12% 40%;
 
     /* ── Brand (mint/teal retained, de-overloaded — Phase 4A
        decision). Brand = identity + primary interaction ONLY;
-       success/selection/links/trends get their own roles. Matches
-       the legacy mint --primary the app already renders. ── */
-    --brand: 163 65% 50%;
-    --brand-hover: 163 65% 44%;     /* darken on hover (light theme) */
-    --brand-active: 163 65% 39%;
-    --brand-subtle: 163 50% 92%;
-    --brand-foreground: 0 0% 7%;
+       success/selection/links/trends get their own roles. On dark,
+       hover LIGHTENS (the inverse of the light-theme darken). ── */
+    --brand: 163 62% 52%;
+    --brand-hover: 163 66% 60%;     /* lighten on hover (dark theme) */
+    --brand-active: 163 60% 46%;
+    --brand-subtle: 165 45% 16%;
+    --brand-foreground: 168 60% 8%;
 
-    /* ── Semantic states (distinct hues from brand; darkened for
-       readability on the light canvas) ── */
-    --success: 142 60% 34%;
-    --success-subtle: 142 50% 93%;
-    --caution: 38 92% 40%;
-    --caution-subtle: 38 90% 92%;
-    --critical: 0 70% 45%;
-    --critical-subtle: 0 80% 95%;
-    --info: 252 60% 55%;          /* violet — visibly distinct from teal */
-    --info-subtle: 252 70% 95%;
+    /* ── Semantic states (distinct hues from brand; brightened for
+       readability on the dark canvas) ── */
+    --success: 142 55% 55%;
+    --success-subtle: 145 40% 14%;
+    --caution: 38 90% 58%;
+    --caution-subtle: 38 55% 14%;
+    --critical: 0 80% 66%;
+    --critical-subtle: 0 45% 15%;
+    --info: 252 85% 74%;          /* violet — visibly distinct from teal */
+    --info-subtle: 252 35% 17%;
 
-    /* ── Focus (deep teal — visible against the light canvas) ── */
-    --focus-ring: 163 85% 30%;
+    /* ── Focus (bright mint — visible against the dark canvas) ── */
+    --focus-ring: 163 80% 55%;
 
-    /* ── Charts (multi-hue by design — never one family) ── */
-    --chart-1: 163 60% 38%;
-    --chart-2: 252 60% 55%;
-    --chart-3: 200 75% 40%;
-    --chart-4: 38 90% 42%;
-    --chart-5: 330 55% 45%;
-    --chart-6: 0 0% 45%;
+    /* ── Charts (multi-hue by design — never one family; lifted
+       lightness so lines/labels read against dark surfaces) ── */
+    --chart-1: 163 60% 52%;
+    --chart-2: 252 75% 72%;
+    --chart-3: 200 80% 60%;
+    --chart-4: 38 90% 58%;
+    --chart-5: 330 65% 65%;
+    --chart-6: 218 10% 60%;
 
     /* ── Workout readiness (align with semantic states) ── */
-    --readiness-ready: 142 60% 34%;
-    --readiness-caution: 38 92% 40%;
-    --readiness-recovery: 0 70% 45%;
+    --readiness-ready: 142 55% 55%;
+    --readiness-caution: 38 90% 58%;
+    --readiness-recovery: 0 80% 66%;
 
-    --overlay: 0 0% 10%;
+    --overlay: 222 30% 3%;
 
     /* ── Spacing scale (4px base). Density guidance:
        compact = 4/8/12 within cards on mobile,
@@ -272,21 +299,22 @@
     --radius-badge: 9999px;     /* badges, chips, pills */
     --radius-modal: 1rem;
 
-    /* ── Elevation (restrained; no neon glow, no glassmorphism) ── */
-    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.08);
-    --shadow-floating: 0 4px 12px rgb(0 0 0 / 0.10), 0 12px 32px rgb(0 0 0 / 0.14);
+    /* ── Elevation (restrained; no neon glow, no glassmorphism).
+       Dark theme: deeper, softer shadows — elevation is carried
+       primarily by surface contrast, shadow is secondary. ── */
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.30);
+    --shadow-floating: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.45);
   }
 
-  /* Deterministic canvas (QA correction). The legacy
-     `body { @apply bg-background }` resolves to an INVALID value
-     (oklch inside hsl()), leaving the body transparent — so the page
-     color came from the browser's default canvas and flipped with the
-     viewer's OS color scheme (white on light machines, near-black on
-     dark ones). Pin the canvas and base text to valid tokens, and pin
-     native form controls light, so every viewer sees the same light
-     rendering until routes migrate. */
+  /* Deterministic canvas (QA correction, retuned by UI-1A). The
+     original defect: `body { @apply bg-background }` resolved to an
+     INVALID value (oklch inside hsl()), leaving the body transparent —
+     page color followed the viewer's OS scheme. The canvas and base
+     text stay pinned to valid tokens; color-scheme is now DARK so
+     native form controls, scrollbars, autofill, and date/number
+     pickers render dark to match the interface. */
   :root {
-    color-scheme: light;
+    color-scheme: dark;
   }
   /* html body (specificity 0,0,2): Tailwind's @layer hoisting does not
      preserve source order across all base blocks, so a plain `body`

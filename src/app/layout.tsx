@@ -25,12 +25,13 @@ export const metadata: Metadata = {
   },
 }
 
+// UI-1A: maximumScale/userScalable removed — blocking pinch zoom
+// violates WCAG 1.4.4 (approved accessibility restoration). themeColor
+// matches the dark --canvas token (hsl(220 25% 7%)).
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#111111',
+  themeColor: '#0d1016',
 }
 
 export default function RootLayout({

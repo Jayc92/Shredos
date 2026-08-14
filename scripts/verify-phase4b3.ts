@@ -296,8 +296,10 @@ console.log('\n11. Phase boundary invariants')
     read('src/components/layout/Sidebar.tsx').includes('hidden lg:flex') &&
     read('src/components/layout/MobileBottomNav.tsx').includes('lg:hidden') &&
     read('src/components/layout/route-match.ts').includes('LONGEST matching href wins'))
-  check('light canvas + theme determinism untouched',
-    read('src/app/globals.css').includes('color-scheme: light;') &&
+  // RETARGET (UI-1A): boundary is a DETERMINISTIC pinned color-scheme
+  // + tokenized body. The scheme is now the approved dark foundation.
+  check('canvas theme determinism untouched (now dark)',
+    read('src/app/globals.css').includes('color-scheme: dark;') &&
     read('src/app/layout.tsx').includes('bg-canvas text-ink'))
   check('.shred-card alias still defined for other routes',
     read('src/app/globals.css').includes('.shred-card'))

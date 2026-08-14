@@ -472,8 +472,15 @@ console.log('\n14. Untouched collaborators')
   check('StartWorkoutButton conflict contract intact (start + 409)',
     startBtn.includes('`/api/routines/${routineId}/start`') &&
     startBtn.includes('res.status === 409 && body.active_workout_id'))
-  check('ExerciseForm deferred untouched (legacy tokens still present)',
-    exerciseForm.includes('text-muted-foreground') || exerciseForm.includes('bg-secondary'))
+  // RETARGET (UI-1A): 4B.6A deferred ExerciseForm's token migration
+  // (this pin proved the deferral). UI-1A resolved the deferral as an
+  // audited legacy island — the surviving boundary is that the form
+  // now carries the SEMANTIC system (one system, not a mix) and is
+  // still consumed by the redesigned clients (next checks).
+  check('ExerciseForm deferral resolved by UI-1A (semantic tokens, no legacy mix)',
+    exerciseForm.includes('bg-surface-interactive') &&
+    !exerciseForm.includes('text-muted-foreground') &&
+    !exerciseForm.includes('bg-secondary'))
   check('RoutineForm deferred untouched (legacy tokens still present)',
     routineForm.includes('text-muted-foreground') || routineForm.includes('bg-secondary'))
   check('forms still consumed by redesigned clients',
