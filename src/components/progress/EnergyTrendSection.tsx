@@ -5,8 +5,11 @@
 // chart, coverage table, activity context, maintenance summary, and
 // the deterministic interpretation. Zero energy arithmetic happens
 // here (the lib owns every number); range controls are plain links
-// (?range=4|8|12) so no client JS is needed. No total-burn, no
-// eat-back, no session-calorie displays — trajectory evidence only.
+// (?range=4|8|12) so no client JS is needed — scroll={false} keeps
+// the viewport in place across the range swap (5B.5 correction: the
+// Next.js Link default otherwise scrolls to the top of the page).
+// No total-burn, no eat-back, no session-calorie displays —
+// trajectory evidence only.
 // ============================================================
 
 import Link from 'next/link'
@@ -120,6 +123,7 @@ export function EnergyTrendSection({ model, modeParam }: EnergyTrendSectionProps
             <Link
               key={weeks}
               href={rangeHref(weeks)}
+              scroll={false}
               aria-current={model.rangeWeeks === weeks ? 'true' : undefined}
               className={cn(
                 'px-2.5 py-1.5 min-h-9 inline-flex items-center rounded-lg border text-xs font-medium transition-colors',

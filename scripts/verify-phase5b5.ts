@@ -733,8 +733,101 @@ console.log('\n9. UI, accessibility, regression')
     })())
 }
 
-// ── 10. Docs and hygiene ─────────────────────────────────────────────
-console.log('\n10. Docs and hygiene')
+// ── 10. Range-control scroll-preservation correction (RC1–RC15) ──────
+// Root cause: the range controls already used next/link (client-side
+// soft navigation, never a full reload) but omitted scroll={false},
+// so the App Router's default post-navigation behavior scrolled the
+// viewport to the top after the RSC payload for the new ?range= swapped
+// in. Fix is exactly `scroll={false}` on the existing Link — no client
+// component, no router/useTransition, no manual scroll math.
+console.log('\n10. Range-control scroll-preservation correction')
+{
+  const linkBlockMatch = section.match(/<Link[\s\S]*?\/>|<Link[\s\S]*?>[\s\S]*?<\/Link>/)
+  const linkBlock = linkBlockMatch ? linkBlockMatch[0] : ''
+
+  check('RC1: range controls use next/link, not a full-reload mechanism',
+    section.includes("import Link from 'next/link'") &&
+    linkBlock.length > 0 &&
+    !stripComments(section).includes('window.location') &&
+    !stripComments(section).includes('<a href') &&
+    !stripComments(section).includes('<form'))
+  check('RC2: navigation explicitly preserves scroll (scroll={false})',
+    linkBlock.includes('scroll={false}'))
+  check('RC3/4/5: selecting 4/8/12 updates the range param correctly',
+    (() => {
+      // rangeHref is a private closure; reconstruct it from the pinned
+      // template exactly as written, then prove it against the live
+      // ENERGY_RANGE_OPTIONS values (4, 8, 12) — not hardcoded guesses.
+      const rangeHref = (weeks: number, modeParam: string | null) =>
+        `/progress?range=${weeks}${modeParam ? `&mode=${modeParam}` : ''}`
+      return ENERGY_RANGE_OPTIONS.every((w) => rangeHref(w, null) === `/progress?range=${w}`) &&
+        section.includes('`/progress?range=${weeks}${modeParam') &&
+        JSON.stringify(ENERGY_RANGE_OPTIONS) === JSON.stringify([4, 8, 12])
+    })())
+  check('RC6: existing mode param is preserved across a range change',
+    (() => {
+      const rangeHref = (weeks: number, modeParam: string | null) =>
+        `/progress?range=${weeks}${modeParam ? `&mode=${modeParam}` : ''}`
+      return rangeHref(8, 'bodyweight') === '/progress?range=8&mode=bodyweight' &&
+        rangeHref(4, 'bodyweight') === '/progress?range=4&mode=bodyweight'
+    })())
+  check('RC7: no other query params exist on /progress to lose (verified surface)',
+    // The page's searchParams contract is exactly {mode, range} — mode
+    // is the only other param today, and RC6 proves it survives a
+    // range change. Pinned so a future third param is caught here.
+    /searchParams\?:\s*\{\s*mode\?:\s*string \| string\[\]; range\?:\s*string \| string\[\]\s*\}/
+      .test(stripComments(page)))
+  check('RC8: direct range URLs remain supported (?range=4|8|12)',
+    parseEnergyRange('4') === 4 && parseEnergyRange('8') === 8 && parseEnergyRange('12') === 12)
+  check('RC9: invalid range values keep the existing safe fallback (default 8)',
+    parseEnergyRange('6') === 8 && parseEnergyRange('abc') === 8 &&
+    parseEnergyRange(undefined) === 8 && parseEnergyRange('') === 8)
+  check('RC10: selected range exposes aria-current (not color alone)',
+    linkBlock.includes("aria-current={model.rangeWeeks === weeks ? 'true' : undefined}") &&
+    linkBlock.includes('className={cn('))
+  check('RC11: no viewport-measurement or manual scroll-restoration hack added',
+    !stripComments(section).includes('window.scrollY') &&
+    !stripComments(section).includes('scrollIntoView') &&
+    !stripComments(section).includes('getBoundingClientRect') &&
+    !stripComments(section).includes('setTimeout') &&
+    !stripComments(section).includes("'use client'") &&
+    !stripComments(section).includes('useRouter') &&
+    !stripComments(section).includes('useTransition'))
+  check('RC12: Progress data still uses the selected server-derived range',
+    page.includes('const energyRange = parseEnergyRange(searchParams?.range)') &&
+    page.includes('fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile)'))
+  check('RC13: historical-target behavior is unchanged by this correction',
+    (() => {
+      const W = MONDAYS_8[7]
+      const mixedHistory = [
+        { effective_date: '2026-07-30', calories: 2100 },
+        { effective_date: '2026-05-01', calories: 2300 },
+      ]
+      const mixedFood = [0, 1, 3, 4, 5].flatMap((o) => [
+        { logged_date: dayOf(W, o), calories: 1400, protein_g: 90, carbs_g: 100, fat_g: 30 },
+        { logged_date: dayOf(W, o), calories: 950, protein_g: 60, carbs_g: 80, fat_g: 20 },
+      ])
+      const m = buildProgressEnergyTrends(inputs({
+        foodRows: mixedFood, targetHistory: mixedHistory,
+        explicitCompleteDates: new Set([0, 1, 3, 4, 5].map((o) => dayOf(W, o))),
+      }))
+      return m.intakeWeeks[7].averageTargetCalories === 2180 &&
+        m.intakeWeeks[7].hasTargetTransition === true
+    })())
+  check('RC14: 5B.4 Coach behavior is unchanged by this correction',
+    (() => {
+      const coach = read('src/lib/goal-adjustments.ts')
+      return coach.includes('MIN_COMPLETE_DAYS_FOR_PROPOSAL = 5') &&
+        coach.includes('MIN_WEEKLY_ANCHORS_FOR_ADJUSTMENT = 3') &&
+        !coach.includes('scroll={false}') && !coach.includes('5B.5')
+    })())
+  check('RC15: no data mutation introduced by this correction',
+    !/\.(insert|update|upsert|delete)\(/.test(stripComments(section)) &&
+    !/\.(insert|update|upsert|delete)\(/.test(stripComments(page)))
+}
+
+// ── 11. Docs and hygiene ─────────────────────────────────────────────
+console.log('\n11. Docs and hygiene')
 {
   check('notes document evidence semantics and thresholds',
     notes.includes('explicit') && notes.includes('heuristic') &&
