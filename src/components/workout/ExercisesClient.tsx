@@ -17,6 +17,12 @@ import type { Exercise } from '@/types/database'
 // (single column on mobile) inside the approved max-w-6xl container.
 // Search/filter semantics, CRUD, and empty states are unchanged.
 
+// UI-5A alphabetical refinement: the muscle filter pills display in
+// alphabetical label order via a sorted COPY — the canonical
+// registry, filter values, and result sets are untouched.
+const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort((a, b) =>
+  a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+
 interface ExercisesClientProps { initialExercises: Exercise[] }
 
 export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
@@ -78,7 +84,7 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
         <button type="button" aria-pressed={muscle === 'all'} onClick={() => setMuscle('all')} className={pillCls(muscle === 'all')}>
           {muscle === 'all' && <Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" />}All
         </button>
-        {PRIMARY_MUSCLES.map(({ value, label }) => {
+        {MUSCLES_BY_LABEL.map(({ value, label }) => {
           const selected = muscle === value
           return (
             <button key={value} type="button" aria-pressed={selected} onClick={() => setMuscle(value)} className={pillCls(selected)}>

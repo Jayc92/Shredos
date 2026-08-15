@@ -25,6 +25,12 @@ function PillGroup({ options, value, onChange }: PillGroupProps) {
   )
 }
 
+// UI-5A alphabetical refinement: the muscle-focus choices display in
+// alphabetical label order via a sorted COPY — the canonical
+// registry, stored values, and the submitted payload are untouched.
+const FOCUS_BY_LABEL = [...ROUTINE_MUSCLE_FOCUS].sort((a, b) =>
+  a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+
 interface RoutineFormProps { existing?: WorkoutRoutine; onClose: () => void; onCreated?: (id: string) => void }
 export function RoutineForm({ existing, onClose, onCreated }: RoutineFormProps) {
   const router = useRouter()
@@ -52,7 +58,7 @@ export function RoutineForm({ existing, onClose, onCreated }: RoutineFormProps) 
       <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Name *</label><input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Push Day" className={inputCls} /></div>
       <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label><input type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional notes" className={inputCls} /></div>
       <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Goal</label><PillGroup options={ROUTINE_GOALS} value={goal} onChange={setGoal} /></div>
-      <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Primary muscle focus</label><PillGroup options={ROUTINE_MUSCLE_FOCUS} value={focus} onChange={setFocus} /></div>
+      <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Primary muscle focus</label><PillGroup options={FOCUS_BY_LABEL} value={focus} onChange={setFocus} /></div>
       <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Difficulty</label><PillGroup options={ROUTINE_DIFFICULTIES} value={diff} onChange={setDiff} /></div>
       <div><label className="block text-xs font-medium text-muted-foreground mb-1.5">Estimated duration (minutes)</label><input type="number" inputMode="numeric" value={duration} min="1" step="5" onChange={e => setDuration(e.target.value)} onFocus={e => e.target.select()} placeholder="e.g. 60" className={cn(inputCls, 'w-32')} /></div>
       {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}

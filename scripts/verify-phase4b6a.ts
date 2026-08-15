@@ -292,7 +292,14 @@ console.log('\n7. Exercise library')
   check('search/filter behavior unchanged',
     exercisesClient.includes('e.name.toLowerCase().includes(search.toLowerCase())') &&
     exercisesClient.includes("muscle !== 'all' && e.primary_muscle !== muscle"))
-  check('muscle filters from constants', exercisesClient.includes('PRIMARY_MUSCLES.map'))
+  // RETARGET (UI-5A): the filter pills now render an alphabetically
+  // sorted COPY of the same constants (hosted-QA correction). The
+  // boundary — filters come from the canonical registry, never a
+  // hand-rolled list — is unchanged and the copy semantics are now
+  // pinned too.
+  check('muscle filters from constants (sorted display copy)',
+    exercisesClient.includes('MUSCLES_BY_LABEL.map') &&
+    exercisesClient.includes('const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort'))
   check('filter pills: aria-pressed + check + border + weight',
     exercisesClient.includes('aria-pressed={selected}') &&
     exercisesClient.includes('border-brand bg-surface-selected font-semibold'))

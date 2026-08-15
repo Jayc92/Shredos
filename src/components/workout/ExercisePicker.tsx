@@ -14,6 +14,13 @@ interface ExercisePickerProps {
   onClose: () => void
 }
 
+// UI-5A alphabetical refinement (smallest shared-component change:
+// pill DISPLAY order only): the muscle filter pills sort by label
+// via a copied collection. Filter values, the filtered result set,
+// selection state, and the add/close handlers are untouched.
+const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort((a, b) =>
+  a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+
 export function ExercisePicker({ exercises, onAdd, onClose }: ExercisePickerProps) {
   const [search,  setSearch]  = useState('')
   const [muscle,  setMuscle]  = useState('all')
@@ -76,7 +83,7 @@ export function ExercisePicker({ exercises, onAdd, onClose }: ExercisePickerProp
           {muscle === 'all' && <Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" />}
           All
         </button>
-        {PRIMARY_MUSCLES.map(({ value, label }) => {
+        {MUSCLES_BY_LABEL.map(({ value, label }) => {
           const selected = muscle === value
           return (
             <button

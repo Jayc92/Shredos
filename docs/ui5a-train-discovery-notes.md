@@ -103,65 +103,161 @@ approved composition; every behavior pin is untouched. Each is flagged
 
 ## Sole approved minor behavior refinement (addendum)
 
-**Alphabetical body-part choices in the exercise form.** When creating
-or editing an exercise, all three muscle/body-part choice groups
-(primary, secondary, tertiary) display in alphabetical order of the
-displayed label — a deterministic, case-insensitive
-`localeCompare(…, 'en')` over a **spread copy** (`MUSCLES_BY_LABEL`)
-of `PRIMARY_MUSCLES`. The canonical registry keeps its grouped order
-(constants untouched); stored identifiers, grouping semantics,
-database values, the `muscle_targets` payload, and all write behavior
-are byte-identical. Selections are value-keyed, so selected values
-remain selected regardless of display order (runtime-proven,
-verify-ui5a A1–A9). This is the only behavior refinement approved for
-UI-5A; everything else in the pass is presentation-only.
-Category/equipment/tracking groups keep their curated registry order
-(not muscle choices; out of the addendum's scope).
+**Alphabetical body-part choices everywhere muscles are ordinarily
+selected, filtered, picked, or listed** (hosted QA extended the
+original exercise-form-only scope). Deterministic, case-insensitive
+`localeCompare(label, 'en')` over **copied collections** at every
+site; canonical registries, stored identifiers, role semantics,
+filter result sets, and all write behavior are byte-identical.
+Selections are value-keyed, so selected values remain selected
+regardless of display order (runtime-proven, verify-ui5a A1-A9 and
+M1-M17).
+
+Sites (audit categories 1-3):
+
+1. Exercise form: primary + secondary + tertiary choice groups
+   (`MUSCLES_BY_LABEL` in `ExerciseForm`).
+2. Exercise-library muscle filter pills (`ExercisesClient`).
+3. Add-exercise picker muscle filter pills (`ExercisePicker` — shared
+   with `/workouts/[id]` execution and routine building; smallest
+   possible change: pill display order only, all handlers, filter
+   values, selection callbacks, and the exercise-list order pinned
+   unchanged).
+4. Routine builder muscle-focus choices (`FOCUS_BY_LABEL` in
+   `RoutineForm`, over `ROUTINE_MUSCLE_FOCUS`).
+5. Library role lists: secondary/tertiary names sort alphabetically
+   WITHIN each role; role order stays Secondary, then Tertiary
+   (`ExerciseListItem`).
+6. Muscle readiness chips (`MuscleReadinessPanel`) — the prior order
+   was the fixed broad-group registry order, non-semantic (chips are
+   never ranked by readiness); sorted copy in the presentation layer,
+   `workout-coach` calculations untouched.
+7. Training coverage groups + untracked list
+   (`TrainingCoverageSection`) — prior order was the registry's
+   anatomical grouping, non-semantic here; counts and recorded-data
+   rules unchanged.
+
+**Ranked analytical exceptions (intentionally NOT alphabetized —
+order carries meaning):**
+
+- Weekly muscle volume (`MuscleVolumeSummary`): sorted descending by
+  real logged set counts — a true ranking.
+- Progress overview/PR/exercise analytics: exercise-level results
+  ordered by recorded data, not muscle lists.
+- Single-label muscle displays (a card's one primary-muscle label,
+  routine chips, progress detail metadata) are not lists and are
+  untouched.
+
+**Untouched canonical registries/stored data:** `PRIMARY_MUSCLES` and
+`ROUTINE_MUSCLE_FOCUS` (constants), `MUSCLE_GROUPS`/`MUSCLE_LABELS`/
+`MUSCLE_REGIONS` (exercise-validation), `DISPLAY_MUSCLE_GROUPS` +
+`MUSCLE_GROUP_MAP` (workout-coach), `exercise_muscles` rows, and the
+exercises-page DB ordering.
+
+This is the only behavior refinement approved for UI-5A; everything
+else in the pass is presentation-only. Category/equipment/tracking
+groups keep their curated registry order (not muscle choices; out of
+scope).
 
 ## UI-5B approved requirements
 
-Recorded here so they cannot be lost. **Neither item is implemented in
-UI-5A**; `/workouts/[id]` and the execution components remain
-untouched (verify-ui5a X1–X5).
+Recorded here so they cannot be lost. **None of these items is
+implemented in UI-5A**; `/workouts/[id]` and the execution components
+remain untouched (verify-ui5a X1-X5).
 
-### 1. Workout exercise reordering
+### 1. Save a workout as a routine
 
-Users must be able to reorganize exercises after adding them to a
-workout — e.g. moving any of eight entered exercises up or down.
+Users must be able to turn an existing workout into a reusable
+routine.
 
-- Real, named **Move up** / **Move down** buttons for keyboard, touch,
-  and assistive-technology equivalence.
-- Do not rely exclusively on drag-and-drop.
-- Disable Move up on the first exercise and Move down on the last.
-- Persist the new order durably.
-- Preserve every exercise, set, value, note, completion state, and
-  exercise identity during reordering.
-- Reordering must not duplicate, delete, or reset any exercise or set.
-- Audit whether the same ordering capability should apply to routine
-  construction and active workout sessions, and implement consistently
-  where supported by the data model.
+- Available from an appropriate live or completed workout surface.
+- Copies exercise identities, exercise order, set structure, tracking
+  modes, and reusable prescription values.
+- Does NOT copy completion state, elapsed time, workout date, PR
+  status, or historical session identity into the routine.
+- Requires a routine name and allows review/editing before final save.
+- Never mutates the source workout.
+- Handles duplicate routine names honestly.
+- Must preserve ownership/RLS boundaries.
 
-### 2. Apply the first set to remaining sets
+### 2. Repeat/copy a past workout as a current workout
+
+Users must be able to use a past workout as the template for a new
+current workout.
+
+- Creates a new workout/session identity.
+- Copies exercises, order, set structure, and appropriate prior
+  values as editable starting values.
+- Does NOT mark copied sets completed.
+- Does NOT copy the historical date, duration, notes, PR flags,
+  completion state, or session identity unless a field is explicitly
+  intended as reusable.
+- Respects the single-active-workout guard; if another workout is
+  active, use the existing conflict flow.
+- Never modifies the historical source workout.
+- The copied workout remains fully editable before or during
+  execution.
+
+### 3. Reorder exercises in routines, live workouts, and past workouts
+
+Users must be able to move exercises up and down after entry in:
+routine construction/editing; live workouts; and completed/past
+workouts where historical editing is permitted.
+
+- Real, named **Move up** / **Move down** buttons.
+- Keyboard, touch, and assistive-technology equivalent.
+- Do not rely only on drag-and-drop.
+- Disable Move up for the first item and Move down for the last.
+- Persist order durably.
+- Preserve all exercise IDs, set IDs, values, notes, completion
+  states, timestamps, and history.
+- Never duplicate, delete, reset, or recreate exercises or sets merely
+  to reorder.
+- Reordering a past workout changes presentation order only; it must
+  not rewrite its logged performance data.
+- Audit whether current APIs/schema already support durable ordering
+  before implementation.
+
+### 4. Apply first-set values to remaining sets
 
 After the user enters weight and repetitions for the first set,
 provide an explicit option to copy those values to the remaining sets.
 
-- Clearly named action such as `Apply to remaining sets`.
-- No silent auto-population merely because the first set was entered.
-- Respect the exercise's tracking mode; copy only fields applicable to
-  that mode.
-- By default, fill only remaining eligible **blank** sets.
+- Provide an explicit `Apply to remaining sets` action after required
+  first-set values exist.
+- Do not silently populate sets merely because set one was entered.
+- Copy only tracking-mode-relevant fields.
+- Default to eligible blank remaining sets only.
 - Never overwrite completed sets.
-- If replacing already-entered incomplete values is supported, require
-  a deliberate confirmation stating what will be replaced.
-- Preserve set IDs, order, completion state, notes, and unrelated
-  fields.
-- Allow users to edit any populated set afterward.
+- Require deliberate confirmation before replacing already-entered
+  incomplete values, if replacement is supported.
+- Preserve set IDs, ordering, notes, and completion state.
+- Missing values must remain missing, not become zero.
+- Every populated set remains editable.
 - Handle partial first-set data honestly; disable or explain the
   action until all required values exist.
-- Prove missing values remain missing rather than becoming zero.
-- Include mobile, keyboard, saving, failure, and refresh-persistence
+- Include saving, failure, refresh-persistence, mobile, and keyboard
   QA.
+
+## Future Coach requirements
+
+Recorded for a later planning phase; **not designed or implemented in
+UI-5A or UI-5B**.
+
+### Suggested routine
+
+- Coach may eventually generate or recommend a suggested workout
+  routine.
+- It must be presented as a suggestion requiring user review and
+  acceptance, never silently activated.
+- Future design should consider goals, available equipment, training
+  history, current routine, recovery/readiness, scheduling
+  preferences, injuries/limitations, and user-selected focus.
+- It must explain why the routine is being suggested.
+- Users must be able to edit, save, dismiss, or decline it.
+- No medical claims, forced progression, or automatic replacement of
+  an existing routine.
+- Detailed product rules will be expanded in a later planning phase.
 
 ## Honesty and protected semantics
 

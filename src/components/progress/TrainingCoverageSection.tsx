@@ -29,11 +29,16 @@ export function TrainingCoverageSection({
 }: {
   rows: ExerciseProgressOverviewRow[]
 }) {
+  // UI-5A alphabetical refinement: groups list in alphabetical label
+  // order (the prior order was the registry's anatomical grouping —
+  // non-semantic here; nothing in this section is ranked). map()
+  // already yields a new array; the registry is untouched. All
+  // counts and the recorded-data-only rules are unchanged.
   const groups = PRIMARY_MUSCLES.map((m) => {
     const tracked = rows.filter((r) => r.primaryMuscle === m.value)
     const recent = tracked.filter((r) => r.recentSessionCount > 0)
     return { value: m.value, label: m.label, tracked: tracked.length, recent: recent.length }
-  })
+  }).sort((a, b) => a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
   const covered = groups.filter((g) => g.tracked > 0)
   const untracked = groups.filter((g) => g.tracked === 0)
 

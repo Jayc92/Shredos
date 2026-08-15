@@ -37,6 +37,13 @@ export function MuscleReadinessPanel({ summary }: MuscleReadinessPanelProps) {
   // Hide until there's enough data — no placeholder clutter
   if (!hasEnoughData) return null
 
+  // UI-5A alphabetical refinement: the incoming order is the fixed
+  // broad-group registry order (non-semantic; the chips are never
+  // ranked by readiness), so display sorts a COPY by label. The
+  // summary data, freshness calculations, and lib are untouched.
+  const readinessByLabel = [...muscleReadiness].sort((a, b) =>
+    a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+
   return (
     <Card variant="status" className="gap-0 py-4">
       <CardContent className="space-y-3">
@@ -48,7 +55,7 @@ export function MuscleReadinessPanel({ summary }: MuscleReadinessPanelProps) {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {muscleReadiness.map(m => (
+          {readinessByLabel.map(m => (
             <span
               key={m.muscle}
               title={

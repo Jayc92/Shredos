@@ -72,12 +72,18 @@ const CHANGED_PATHS = [
   'src/app/(app)/workouts/exercises/loading.tsx',
   'src/components/routine/RoutineCard.tsx',
   'src/components/workout/SessionCard.tsx',
-  // Addendum: the sole approved minor behavior refinement —
-  // alphabetical muscle-choice display in the exercise form
-  // (section 8 owns its proofs; it is NOT part of the presentation
-  // CHANGED set above because it legitimately reads
-  // exercise_muscles for prefill).
+  // Addendum + hosted-QA correction: the sole approved minor
+  // behavior refinement — alphabetical muscle-choice display
+  // everywhere muscles are ordinarily selected, filtered, picked, or
+  // listed (sections 8-9 own the proofs; these files are NOT part of
+  // the presentation CHANGED set above because they legitimately
+  // reference exercise_muscles or registry data).
   'src/components/workout/ExerciseForm.tsx',
+  'src/components/workout/ExercisePicker.tsx',
+  'src/components/workout/ExerciseListItem.tsx',
+  'src/components/routine/RoutineForm.tsx',
+  'src/components/coach/MuscleReadinessPanel.tsx',
+  'src/components/progress/TrainingCoverageSection.tsx',
 ]
 // The live-execution surface and every shared/deferred collaborator
 // UI-5A must not touch.
@@ -94,17 +100,13 @@ const UNTOUCHED_PATHS = [
   'src/components/workout/AddExerciseSection.tsx',
   'src/components/workout/WorkoutCompletionSummaryCard.tsx',
   'src/components/workout/WorkoutSessionNotes.tsx',
-  'src/components/workout/ExercisePicker.tsx',
-  'src/components/workout/ExerciseListItem.tsx',
   'src/components/workout/CreateWorkoutButton.tsx',
   'src/components/workout/LogPastWorkoutForm.tsx',
   'src/components/workout/WorkoutsSubNav.tsx',
   'src/components/workout/MuscleVolumeSummary.tsx',
   'src/components/workout/ActiveWorkoutConflictModal.tsx',
   'src/components/routine/StartWorkoutButton.tsx',
-  'src/components/routine/RoutineForm.tsx',
   'src/components/routine/RoutineExerciseRow.tsx',
-  'src/components/coach/MuscleReadinessPanel.tsx',
 ]
 
 async function main() {
@@ -380,10 +382,10 @@ async function main() {
       [routinesClient, exercisesClient, routineCard, sessionCard, hubLoading,
         routinesLoading, detailLoading, exercisesLoading]
         .every((f) => !stripComments(f).includes('fetch(')))
-    check('B13: library filter semantics unchanged',
+    check('B13: library filter semantics unchanged (display order sorted only)',
       exercisesClient.includes('e.name.toLowerCase().includes(search.toLowerCase())') &&
       exercisesClient.includes("muscle !== 'all' && e.primary_muscle !== muscle") &&
-      exercisesClient.includes('PRIMARY_MUSCLES.map'))
+      exercisesClient.includes('MUSCLES_BY_LABEL.map'))
     check('B14: exercise CRUD entry unchanged (ExerciseForm wiring)',
       exercisesClient.includes('<ExerciseForm onClose={() => { setCreating(false); router.refresh() }} />'))
     check('B15: anatomy stays read-only in scope (no exercise_muscles writes)',
@@ -429,10 +431,14 @@ async function main() {
     check('X5: tracking-mode / set semantics untouched (SetRow + block anchors)',
       read('src/components/workout/WorkoutExerciseBlock.tsx').length > 0 &&
       read('src/components/workout/SessionHeader.tsx').includes('fetch('))
-    // Addendum: ExerciseForm carries the approved display-sort only;
-    // section 8 proves its write path is byte-anchored unchanged.
-    check('X6: three-set default owner untouched (RoutineForm)',
-      !diffFiles.includes('src/components/routine/RoutineForm.tsx'))
+    // Addendum + hosted-QA correction: ExerciseForm/RoutineForm carry
+    // the approved display-sort only; sections 8-9 prove their write
+    // paths are byte-anchored unchanged.
+    check('X6: prescription/write contracts byte-anchored (RoutineForm payload + add-route)',
+      read('src/components/routine/RoutineForm.tsx')
+        .includes('primary_muscle_focus: focus || null') &&
+      read('src/app/api/routines/[id]/exercises/route.ts')
+        .includes('target_sets: body.target_sets ?? null'))
   }
 
   // ── 6. Loading mirrors ──────────────────────────────────────────────
@@ -548,6 +554,198 @@ async function main() {
       form.includes('setTertiary(prev => prev.filter(m => m !== next))') &&
       form.includes('const secondaryUnavailable = new Set([muscle, ...tertiary])') &&
       form.includes('const [secondaryOpen, setSecondaryOpen] = useState(false)'))
+  }
+
+  // ── 9. Alphabetical muscle choices everywhere (hosted-QA fix) ──────
+  console.log('\n9. Alphabetical muscle choices everywhere')
+  {
+    const { PRIMARY_MUSCLES, ROUTINE_MUSCLE_FOCUS } = await import('../src/lib/constants')
+    const { ExercisePicker } = await import('../src/components/workout/ExercisePicker')
+    const { ExerciseListItem } = await import('../src/components/workout/ExerciseListItem')
+    const { RoutineForm } = await import('../src/components/routine/RoutineForm')
+    const { MuscleReadinessPanel } = await import('../src/components/coach/MuscleReadinessPanel')
+    const { TrainingCoverageSection } = await import('../src/components/progress/TrainingCoverageSection')
+    const { MuscleVolumeSummary } = await import('../src/components/workout/MuscleVolumeSummary')
+
+    const sortedMuscleLabels = [...PRIMARY_MUSCLES]
+      .sort((a, b) => a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+      .map((m) => m.label)
+    const pillLabels = (slice: string) =>
+      Array.from(slice.matchAll(/([^<>]+)<\/button>/g)).map((m) => m[1])
+    const monotonic = (html: string, labels: string[]) =>
+      labels.every((l, i) => i === 0 ||
+        html.indexOf(labels[i - 1]) !== -1 && html.indexOf(l) > html.indexOf(labels[i - 1]))
+
+    // Library filter pills (rendered in section 3's fixtures too, but
+    // order is proven here explicitly).
+    {
+      const html = renderToStaticMarkup(React.createElement(
+        (await import('../src/components/workout/ExercisesClient')).ExercisesClient,
+        { initialExercises: [] as never }))
+      const group = html.split('aria-label="Filter by muscle group"')[1]?.split('</div>')[0] ?? ''
+      const labels = pillLabels(group)
+      check('M1: library filter pills — All first, then exact alphabetical order',
+        labels[0] === 'All' &&
+        JSON.stringify(labels.slice(1)) === JSON.stringify(sortedMuscleLabels))
+    }
+
+    // ExercisePicker (shared with execution) — pill display order only.
+    {
+      const mkEx = (id: string, name: string, muscle: string) => ({
+        id, user_id: 'u', name, primary_muscle: muscle, equipment: null,
+        category: null, is_system: false, is_active: true, unilateral: false,
+        tracking_mode: 'weight_reps', notes: null, created_at: '', updated_at: '' })
+      const exercises = [mkEx('e1', 'Squat', 'quads'), mkEx('e2', 'Bench', 'chest'),
+        mkEx('e3', 'Row', 'lats')]
+      const html = renderToStaticMarkup(React.createElement(ExercisePicker, {
+        exercises: exercises as never, onAdd: async () => {}, onClose: () => {} }))
+      const group = html.split('aria-label="Filter by muscle group"')[1]?.split('</div>')[0] ?? ''
+      const labels = pillLabels(group)
+      check('M2: picker filter pills — All first, then exact alphabetical order',
+        labels[0] === 'All' &&
+        JSON.stringify(labels.slice(1)) === JSON.stringify(sortedMuscleLabels))
+      check('M3: picker exercise list order untouched (caller-provided order)',
+        html.indexOf('Squat') < html.indexOf('Bench') &&
+        html.indexOf('Bench') < html.indexOf('Row'))
+      check('M4: picker deterministic', renderToStaticMarkup(React.createElement(ExercisePicker, {
+        exercises: exercises as never, onAdd: async () => {}, onClose: () => {} })) === html)
+      const picker = read('src/components/workout/ExercisePicker.tsx')
+      check('M5: picker execution contract byte-anchored (smallest shared change)',
+        picker.includes('onAdd: (exerciseId: string) => Promise<void>') &&
+        picker.includes('setAdding(exerciseId)') &&
+        picker.includes('await onAdd(exerciseId)') &&
+        picker.includes("(muscle === 'all' || e.primary_muscle === muscle)") &&
+        picker.includes('max-h-60 overflow-y-auto') &&
+        !picker.includes('fetch(') &&
+        picker.includes('const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort'))
+      check('M6: picker consumers unchanged (execution + routine detail wiring)',
+        read('src/components/workout/AddExerciseSection.tsx').includes('<ExercisePicker') &&
+        read('src/components/routine/RoutineDetailClient.tsx')
+          .includes('<ExercisePicker exercises={allExercises} onAdd={handleAddExercise}'))
+    }
+
+    // RoutineForm muscle-focus selector.
+    {
+      const html = renderToStaticMarkup(React.createElement(RoutineForm, {
+        onClose: () => {} }))
+      const slice = html.split('Primary muscle focus')[1]?.split('block text-xs')[0] ?? ''
+      const labels = pillLabels(slice)
+      const expected = [...ROUTINE_MUSCLE_FOCUS]
+        .sort((a, b) => a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+        .map((m) => m.label)
+      check('M7: routine focus choices — exact alphabetical order',
+        labels.length === ROUTINE_MUSCLE_FOCUS.length &&
+        JSON.stringify(labels) === JSON.stringify(expected))
+      const editHtml = renderToStaticMarkup(React.createElement(RoutineForm, {
+        existing: { id: 'r1', user_id: 'u', name: 'Leg Day', description: null,
+          goal: null, primary_muscle_focus: 'legs', difficulty: null,
+          estimated_duration_minutes: null, is_active: true,
+          created_at: '', updated_at: '' } as never,
+        onClose: () => {} }))
+      check('M8: existing focus selection preserved after sorting',
+        /<button[^>]*aria-pressed="true"[^>]*>(<svg[\s\S]*?<\/svg>)?Legs<\/button>/.test(editHtml))
+      check('M9: routine payload contract unchanged',
+        read('src/components/routine/RoutineForm.tsx')
+          .includes('primary_muscle_focus: focus || null'))
+    }
+
+    // ExerciseListItem role lists: role order fixed, names sorted.
+    {
+      const ex = { id: 'e9', user_id: 'u', name: 'Press', primary_muscle: 'chest',
+        equipment: null, category: null, is_system: false, is_active: true,
+        unilateral: false, tracking_mode: 'weight_reps', notes: null,
+        created_at: '', updated_at: '',
+        exercise_muscles: [
+          { id: 'a', user_id: 'u', exercise_id: 'e9', muscle: 'triceps', role: 'secondary', created_at: '' },
+          { id: 'b', user_id: 'u', exercise_id: 'e9', muscle: 'front_delts', role: 'secondary', created_at: '' },
+          { id: 'c', user_id: 'u', exercise_id: 'e9', muscle: 'abs', role: 'secondary', created_at: '' },
+          { id: 'd', user_id: 'u', exercise_id: 'e9', muscle: 'obliques', role: 'tertiary', created_at: '' },
+          { id: 'e', user_id: 'u', exercise_id: 'e9', muscle: 'lats', role: 'tertiary', created_at: '' },
+        ] }
+      const html = renderToStaticMarkup(React.createElement(ExerciseListItem, {
+        exercise: ex as never }))
+      check('M10: names alphabetical WITHIN each role; role order Secondary then Tertiary',
+        html.includes('Secondary: Abs, Front delts, Triceps') &&
+        html.includes('Tertiary: Lats, Obliques') &&
+        html.indexOf('Secondary:') < html.indexOf('Tertiary:'))
+    }
+
+    // Readiness chips: fixed registry order was non-semantic; sorted copy.
+    {
+      const summary = {
+        hasEnoughData: true, topRoutine: null,
+        weekStats: { sessionsThisWeek: 3, setsThisWeek: 24 },
+        muscleReadiness: [
+          { muscle: 'chest', label: 'Chest', freshness: 'fresh', lastTrainedDaysAgo: 1, setsThisWeek: 6 },
+          { muscle: 'back', label: 'Back', freshness: 'ready', lastTrainedDaysAgo: 3, setsThisWeek: 8 },
+          { muscle: 'legs', label: 'Legs', freshness: 'fatigued', lastTrainedDaysAgo: 0, setsThisWeek: 10 },
+          { muscle: 'shoulders', label: 'Shoulders', freshness: 'recovering', lastTrainedDaysAgo: 2, setsThisWeek: 0 },
+          { muscle: 'arms', label: 'Arms', freshness: 'ready', lastTrainedDaysAgo: 4, setsThisWeek: 0 },
+          { muscle: 'core', label: 'Core', freshness: 'fresh', lastTrainedDaysAgo: null, setsThisWeek: 0 },
+        ],
+      }
+      const html = renderToStaticMarkup(React.createElement(MuscleReadinessPanel, {
+        summary: summary as never }))
+      check('M11: readiness chips alphabetical (non-semantic fixed order replaced)',
+        monotonic(html.split('Muscle readiness')[1] ?? '',
+          ['Arms', 'Back', 'Chest', 'Core', 'Legs', 'Shoulders']))
+      check('M12: readiness DATA untouched (statuses/tooltips/lib intact)',
+        html.includes('never trained') &&
+        read('src/lib/workout-coach.ts').includes('const DISPLAY_MUSCLE_GROUPS = [') &&
+        !read('src/lib/workout-coach.ts').includes('UI-5A'))
+    }
+
+    // Coverage groups: registry (anatomical) order was non-semantic here.
+    {
+      const row = (id: string, muscle: string, recent: number) => ({
+        exerciseId: id, exerciseName: id, primaryMuscle: muscle, equipment: null,
+        trackingMode: 'weight_reps', isUnilateral: false, status: 'improved',
+        latestWorkoutDate: '2026-08-01', latestSummary: 'x', secondarySummary: null,
+        recentSessionCount: recent })
+      const rows = [row('squat', 'quads', 2), row('bench', 'chest', 1), row('plank', 'abs', 0)]
+      const html = renderToStaticMarkup(React.createElement(TrainingCoverageSection, {
+        rows: rows as never }))
+      const covered = html.split('No tracked exercises yet')[0]
+      check('M13: covered groups alphabetical with counts intact',
+        monotonic(covered, ['Abs', 'Chest', 'Quads']) &&
+        covered.includes('0 of 1 tracked exercise trained recently') &&
+        covered.includes('1 of 1 tracked exercise trained recently'))
+      check('M14: untracked list alphabetical',
+        (() => {
+          const tail = html.split('No tracked exercises yet:')[1] ?? ''
+          return tail.indexOf('Abductors') !== -1 &&
+            tail.indexOf('Abductors') < tail.indexOf('Adductors') &&
+            tail.indexOf('Adductors') < tail.indexOf('Back') &&
+            tail.indexOf('Upper back') > tail.indexOf('Traps')
+        })())
+    }
+
+    // Ranked analytical EXCEPTION: weekly volume stays sorted by real
+    // set counts (descending), never alphabetized.
+    {
+      const html = renderToStaticMarkup(React.createElement(MuscleVolumeSummary, {
+        volume: { biceps: 2, chest: 9, abs: 5 } as never }))
+      check('M15: weekly muscle volume stays RANKED by sets (documented exception)',
+        html.indexOf('Chest') < html.indexOf('Abs') &&
+        html.indexOf('Abs') < html.indexOf('Biceps') &&
+        !read('src/components/workout/MuscleVolumeSummary.tsx').includes('UI-5A'))
+    }
+
+    check('M16: registries not mutated by any render (canonical orders intact)',
+      PRIMARY_MUSCLES[0].value === 'chest' &&
+      PRIMARY_MUSCLES[PRIMARY_MUSCLES.length - 1].value === 'other' &&
+      ROUTINE_MUSCLE_FOCUS[0].value === 'chest' &&
+      ROUTINE_MUSCLE_FOCUS[ROUTINE_MUSCLE_FOCUS.length - 1].value === 'other' &&
+      !read('src/lib/constants.ts').includes('UI-5A') &&
+      !read('src/lib/exercise-validation.ts').includes('UI-5A'))
+    check('M17: every sort site uses a copied collection with the same comparison',
+      ['src/components/workout/ExercisesClient.tsx',
+        'src/components/workout/ExercisePicker.tsx',
+        'src/components/routine/RoutineForm.tsx',
+        'src/components/coach/MuscleReadinessPanel.tsx']
+        .every((p) => read(p).includes(".toLowerCase(), 'en')")) &&
+      read('src/components/workout/ExerciseListItem.tsx').includes(".toLowerCase(), 'en')") &&
+      read('src/components/progress/TrainingCoverageSection.tsx').includes(".toLowerCase(), 'en')"))
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

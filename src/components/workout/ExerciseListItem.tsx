@@ -22,8 +22,13 @@ export function ExerciseListItem({ exercise: ex }: ExerciseListItemProps) {
   // exercise_muscles join rows (the deprecated secondary_muscles
   // JSONB is never read).
   const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace(/_/g, ' ')
-  const secondaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'secondary')
-  const tertiaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'tertiary')
+  // UI-5A alphabetical refinement: names WITHIN each role sort by
+  // label (role order stays Secondary, then Tertiary). filter()
+  // already yields copies; the stored rows are untouched.
+  const byLabel = (a: { muscle: string }, b: { muscle: string }) =>
+    label(a.muscle).toLowerCase().localeCompare(label(b.muscle).toLowerCase(), 'en')
+  const secondaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'secondary').sort(byLabel)
+  const tertiaryTargets = (ex.exercise_muscles ?? []).filter(m => m.role === 'tertiary').sort(byLabel)
 
   async function toggleActive() {
     if (!confirm(`Deactivate "${ex.name}"? It will be hidden from the exercise picker. You can reactivate it later.`)) return
