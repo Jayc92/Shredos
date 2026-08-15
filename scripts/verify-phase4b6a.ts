@@ -78,10 +78,23 @@ console.log('\n1. Checkpoint and routes')
   check('hub metadata + H1 unchanged',
     hubPage.includes("title: 'Workouts' }") && hubPage.includes('Workouts\n        </h1>') ||
     hubPage.includes('Workouts'))
-  check('exactly one H1 on the hub page', (hubPage.match(/<h1/g) || []).length === 1)
+  // RETARGET (UI-5A): the page-level H1 on the hub and on the
+  // routines/exercises clients now comes from the PageHeader
+  // primitive (default heading level h1, no `as=` override); routine
+  // detail keeps its literal H1. The boundary — exactly one
+  // page-level H1 per page — is unchanged across BOTH checks below;
+  // only the markup source moved.
+  check('exactly one H1 on the hub page (PageHeader, default h1)',
+    (hubPage.match(/<PageHeader/g) || []).length === 1 &&
+    !hubPage.includes('<PageHeader as=') &&
+    (hubPage.match(/<h1/g) || []).length === 0)
   check('client pages own their single H1',
-    (routinesClient.match(/<h1/g) || []).length === 1 &&
-    (exercisesClient.match(/<h1/g) || []).length === 1 &&
+    (routinesClient.match(/<PageHeader/g) || []).length === 1 &&
+    !routinesClient.includes('<PageHeader as=') &&
+    (routinesClient.match(/<h1/g) || []).length === 0 &&
+    (exercisesClient.match(/<PageHeader/g) || []).length === 1 &&
+    !exercisesClient.includes('<PageHeader as=') &&
+    (exercisesClient.match(/<h1/g) || []).length === 0 &&
     (routineDetail.match(/<h1/g) || []).length === 1)
   check('loading files carry no H1', LOADINGS.every((l) => !l.includes('<h1')))
   check('auth gate preserved on hub', hubPage.includes("redirect('/login')"))
@@ -161,9 +174,15 @@ console.log('\n3. Workouts hub contract')
   check('no streaks/scores/invented recommendations',
     !/streak|adherence score|recommended for you/i.test(stripComments(hubPage)))
   check('empty state copy preserved', hubPage.includes('No workouts yet.'))
+  // RETARGET (UI-5A): the text-glyph arrow in the zero-routines copy
+  // was replaced by a decorative lucide chevron (glyph-free copy
+  // rule). Both entry states and the link remain; the copy is intact
+  // minus the trailing arrow character.
   check('routines entry preserved with both states',
     hubPage.includes('Start a structured workout') &&
-    hubPage.includes('Build routines to start structured workouts →'))
+    hubPage.includes('Build routines to start structured workouts') &&
+    !hubPage.includes('workouts \u2192') &&
+    hubPage.includes('<ChevronRight'))
 }
 
 // ── 4. Session card contract ─────────────────────────────────────────
@@ -183,7 +202,12 @@ console.log('\n4. Session card')
   check('interactive Card inside the Link (no nested buttons)',
     sessionCard.includes('variant="interactive"') && !sessionCard.includes('<button'))
   check('no shred-card', !sessionCard.includes('shred-card'))
-  check('long titles truncate', sessionCard.includes('truncate'))
+  // RETARGET (UI-5A): long titles now WRAP (break-words + min-w-0)
+  // instead of truncating — strictly more content-safe; the boundary
+  // (long titles can never overflow the card) is preserved.
+  check('long titles wrap safely (break-words, no overflow)',
+    sessionCard.includes('break-words') && sessionCard.includes('min-w-0') &&
+    !sessionCard.includes('truncate'))
 }
 
 // ── 5. Routines contract ─────────────────────────────────────────────
@@ -327,12 +351,18 @@ console.log('\n9. Loading states')
       !l.includes('shred-card')))
   check('aria-hidden + no shell duplication',
     LOADINGS.every((l) => l.includes('aria-hidden="true"') && !l.includes('Sidebar')))
-  check('route-matched width (max-w-3xl)',
-    LOADINGS.every((l) => l.includes('max-w-3xl')))
+  // RETARGET (UI-5A): the four Train discovery routes widened to the
+  // approved max-w-6xl; every loading state must still match its
+  // route's real container exactly.
+  check('route-matched width (max-w-6xl, UI-5A approved)',
+    LOADINGS.every((l) => l.includes('max-w-6xl') && !l.includes('max-w-3xl')))
   check('no viewport-height traps or scrollers',
     LOADINGS.every((l) => !l.includes('h-screen') && !l.includes('overflow-y')))
+  // RETARGET (UI-5A): the real search input became a 44px control
+  // (min-h-11); the skeleton mirrors the new height. Mirror-the-
+  // route remains the boundary.
   check('exercises loading mirrors search + chips + rows',
-    exercisesLoading.includes('rounded-full') && exercisesLoading.includes('h-9 w-full'))
+    exercisesLoading.includes('rounded-full') && exercisesLoading.includes('h-11 w-full'))
   check('routine-detail loading mirrors meta + start + rows + add',
     routineDetailLoading.includes('h-32') && routineDetailLoading.includes('h-11'))
 }
@@ -364,9 +394,14 @@ console.log('\n10. Responsive and scroll ownership')
 // ── 11. Accessibility ────────────────────────────────────────────────
 console.log('\n11. Accessibility')
 {
-  check('section headings are real h2s on the hub',
-    hubPage.includes('<h2 className="text-xs font-medium text-ink-muted uppercase tracking-wide">Today</h2>') &&
-    hubPage.includes('Recent sessions</h2>'))
+  // RETARGET (UI-5A): the hand-rolled uppercase h2s became
+  // SectionHeader primitives (default heading level h2, no `as=`
+  // override) — real h2 headings survive; only the markup source
+  // moved.
+  check('section headings are real h2s on the hub (SectionHeader, default h2)',
+    hubPage.includes('<SectionHeader title="Today" />') &&
+    hubPage.includes('<SectionHeader title="Recent sessions" />') &&
+    !hubPage.includes('<SectionHeader as='))
   check('links remain links, buttons remain buttons',
     SCOPE.every((f) => !f.match(/<div[^>]*onClick/)))
   check('no tabindex hacks', SCOPE.every((f) => !f.toLowerCase().includes('tabindex')))
@@ -496,12 +531,17 @@ console.log('\n14. Untouched collaborators')
 // ── 15. Hub DOM order and variants ───────────────────────────────────
 console.log('\n15. Hub DOM order and variants')
 {
-  const h1At = hubPage.indexOf('<h1')
+  // RETARGET (UI-5A): the header anchor is now the PageHeader
+  // primitive and the section headings are SectionHeaders; the
+  // hierarchy boundary (header, then subnav, then resume, then
+  // week/create, then today, then history) is asserted unchanged on
+  // the new anchors.
+  const h1At = hubPage.indexOf('<PageHeader')
   const navAt = hubPage.indexOf('<WorkoutsSubNav />')
   const resumeAt = hubPage.indexOf('{activeSession && (')
   const weekAt = hubPage.indexOf('<CreateWorkoutButton />')
-  const todayAt = hubPage.indexOf('>Today</h2>')
-  const historyAt = hubPage.indexOf('Recent sessions</h2>')
+  const todayAt = hubPage.indexOf('<SectionHeader title="Today" />')
+  const historyAt = hubPage.indexOf('<SectionHeader title="Recent sessions" />')
   check('DOM order: header → subnav → resume → week/create → today → history',
     h1At > 0 && h1At < navAt && navAt < resumeAt && resumeAt < weekAt &&
     weekAt < todayAt && todayAt < historyAt)
@@ -512,9 +552,17 @@ console.log('\n15. Hub DOM order and variants')
     !!hubPage.match(/<Link href="\/workouts\/routines" className="block">\s*<Card variant="interactive"/))
   check('empty state status variant', hubPage.includes('variant="status"'))
   check('volume card metric', volume.includes('variant="metric"'))
-  check('hub width intentional (max-w-3xl, documented)',
-    hubPage.includes('max-w-3xl') && notes.includes('max-w-3xl'))
-  check('routines entry chevron decorative', hubPage.includes('aria-hidden="true">›</span>'))
+  // RETARGET (UI-5A): hub width widened to the approved max-w-6xl,
+  // documented in the UI-5A notes (the 4B.6A notes keep their own
+  // historical max-w-3xl record). Intentional-width remains the
+  // boundary.
+  check('hub width intentional (max-w-6xl, documented)',
+    hubPage.includes('max-w-6xl') && !hubPage.includes('max-w-3xl') &&
+    read('docs/ui5a-train-discovery-notes.md').includes('max-w-6xl'))
+  // RETARGET (UI-5A): the single-right-angle text glyph (U+203A)
+  // became a decorative lucide ChevronRight; still aria-hidden.
+  check('routines entry chevron decorative',
+    hubPage.includes('<ChevronRight className="h-4 w-4 flex-shrink-0 text-ink-muted" aria-hidden="true" />'))
 }
 
 // ── 16. Loading geometry detail ──────────────────────────────────────
@@ -589,8 +637,12 @@ console.log('\n18. Structural details')
     (routineRow.match(/<input/g) || []).length === 7)
   check('no fake completion celebrations in scope',
     SCOPE.every((f) => !/congratulations|confetti|celebrate/i.test(f)))
+  // RETARGET (UI-5A): Today/Recent-sessions headings moved into
+  // SectionHeader (h2 by default); the resume card keeps its literal
+  // h2. Three headed sections remain the boundary.
   check('hub h2 count matches its three headed sections',
-    (hubPage.match(/<h2/g) || []).length === 3)
+    (hubPage.match(/<h2/g) || []).length === 1 &&
+    (hubPage.match(/<SectionHeader /g) || []).length === 2)
 }
 
 // ── 19. ExercisePicker contract (QA scope correction) ────────────────

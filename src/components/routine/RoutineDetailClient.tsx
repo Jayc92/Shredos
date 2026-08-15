@@ -6,7 +6,7 @@ import { RoutineForm } from './RoutineForm'
 import { RoutineExerciseRow } from './RoutineExerciseRow'
 import { StartWorkoutButton } from './StartWorkoutButton'
 import { ExercisePicker } from '@/components/workout/ExercisePicker'
-import { Pencil, EyeOff, Eye, Trash2, Plus } from 'lucide-react'
+import { Pencil, EyeOff, Eye, Trash2, Plus, ChevronLeft } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import type { WorkoutRoutineWithExercises, Exercise } from '@/types/database'
@@ -144,14 +144,23 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
-      {/* Fix 1: literal arrow character — was rendering escaped ← visibly */}
-      <a href="/workouts/routines" className="text-xs text-ink-muted hover:text-ink">
-        ← Routines
+    <div className="mx-auto max-w-6xl space-y-4 p-4 lg:p-6">
+      {/* UI-5A: lucide chevron replaces the text-glyph arrow. */}
+      <a href="/workouts/routines"
+        className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-ink">
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Routines
       </a>
 
       <WorkoutsSubNav />
 
+      {/* UI-5A detail grid: routine identity/management on the left,
+          the exercise list (the bulk of the content) on the right at
+          lg+; single column below. lg:items-start keeps natural
+          heights, and forms stay bounded to the left column instead
+          of stretching across the widened container. */}
+      <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
+      <div className="space-y-4 lg:col-span-5 xl:col-span-4">
       <Card variant="default" className="gap-0 py-4">
         <CardContent className="space-y-3">
         {editingMeta ? (
@@ -166,7 +175,7 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
                   {routine.goal && <span className="text-xs rounded-full border border-edge-subtle px-2.5 py-0.5 text-ink-muted">{routine.goal}</span>}
                   {routine.primary_muscle_focus && <span className="text-xs rounded-full border border-edge-subtle px-2.5 py-0.5 text-ink-muted">{routine.primary_muscle_focus.replace('_', ' ')}</span>}
                   {routine.difficulty && <span className="text-xs rounded-full border border-edge-subtle px-2.5 py-0.5 text-ink-muted">{routine.difficulty}</span>}
-                  {routine.estimated_duration_minutes && <span className="text-xs text-ink-muted">∼{routine.estimated_duration_minutes} min</span>}
+                  {routine.estimated_duration_minutes && <span className="text-xs text-ink-muted">~{routine.estimated_duration_minutes} min</span>}
                 </div>
               </div>
               <button onClick={() => setEditingMeta(true)}
@@ -207,9 +216,11 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
         </CardContent>
       </Card>
 
-      {/* Fix 2: single Start button above the exercise list only */}
+      {/* Fix 2: single Start button (with the routine identity column) */}
       <StartWorkoutButton routineId={routine.id} routineName={routine.name} isActive={routine.is_active} />
+      </div>
 
+      <div className="space-y-4 lg:col-span-7 xl:col-span-8">
       {reorderErr && <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1">{reorderErr}</p>}
 
       {exerciseList.length === 0 ? (
@@ -239,6 +250,8 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
         </button>
       )}
       {/* Fix 2: second StartWorkoutButton removed — was duplicating the one above */}
+      </div>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
 import { formatRoutineTarget, goalLabel, muscleFocusLabel } from '@/lib/routine'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,7 +21,8 @@ export function RoutineCard({ routine }: RoutineCardProps) {
       <CardContent className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <p className="text-sm font-semibold text-ink truncate">{routine.name}</p>
+            {/* UI-5A: long routine names wrap instead of truncating. */}
+            <p className="min-w-0 break-words text-sm font-semibold text-ink">{routine.name}</p>
             {!routine.is_active && (
               <span className="text-xs bg-surface-sunken text-ink-muted rounded px-1.5 py-0.5">Inactive</span>
             )}
@@ -35,7 +37,7 @@ export function RoutineCard({ routine }: RoutineCardProps) {
             <p className="text-xs text-ink-muted mt-1 line-clamp-1">{routine.description}</p>
           )}
         </div>
-        <span className="text-ink-muted text-xs flex-shrink-0 mt-0.5">›</span>
+        <ChevronRight className="h-4 w-4 flex-shrink-0 mt-0.5 text-ink-muted" aria-hidden="true" />
       </CardContent>
       </Card>
     </Link>

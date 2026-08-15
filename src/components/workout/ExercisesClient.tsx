@@ -9,7 +9,13 @@ import { ExerciseForm } from './ExerciseForm'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Check, Search, Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import type { Exercise } from '@/types/database'
+
+// UI-5A: library recomposed on the UI-1B primitives — PageHeader,
+// 44px principal controls, and a two-column exercise grid at lg+
+// (single column on mobile) inside the approved max-w-6xl container.
+// Search/filter semantics, CRUD, and empty states are unchanged.
 
 interface ExercisesClientProps { initialExercises: Exercise[] }
 
@@ -39,22 +45,24 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
   )
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Exercise library</h1>
-          <p className="text-sm text-ink-muted mt-0.5">{initialExercises.filter(e => e.is_active).length} active exercises</p>
-        </div>
-        <button onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="w-4 h-4" aria-hidden="true" /> New
-        </button>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-4 p-4 lg:p-6">
+      <PageHeader
+        title="Exercise library"
+        description={`${initialExercises.filter(e => e.is_active).length} active exercises`}
+        action={
+          <button onClick={() => setCreating(true)}
+            className="flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="w-4 h-4" aria-hidden="true" /> New
+          </button>
+        }
+      />
 
       <WorkoutsSubNav />
 
+      {/* UI-5A: create form bounded so desktop widening never
+          stretches form controls across the full container. */}
       {creating && (
-        <Card variant="elevated" className="gap-0 py-4">
+        <Card variant="elevated" className="gap-0 py-4 max-w-2xl">
           <CardContent>
             <ExerciseForm onClose={() => { setCreating(false); router.refresh() }} />
           </CardContent>
@@ -64,7 +72,7 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search exercises…"
-          className="w-full pl-8 pr-3 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          className="w-full min-h-11 pl-8 pr-3 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
       </div>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by muscle group">
         <button type="button" aria-pressed={muscle === 'all'} onClick={() => setMuscle('all')} className={pillCls(muscle === 'all')}>
@@ -79,7 +87,11 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
           )
         })}
       </div>
-      {active.length > 0 && <div className="space-y-2">{active.map(e => <ExerciseListItem key={e.id} exercise={e} />)}</div>}
+      {active.length > 0 && (
+        <div className="grid gap-2 lg:grid-cols-2 lg:items-start">
+          {active.map(e => <ExerciseListItem key={e.id} exercise={e} />)}
+        </div>
+      )}
       {active.length === 0 && !creating && (
         <p className="text-sm text-ink-muted text-center py-6">
           {search || muscle !== 'all' ? 'No exercises match this filter.' : 'No exercises yet.'}
@@ -94,7 +106,9 @@ export function ExercisesClient({ initialExercises }: ExercisesClientProps) {
       {showInactive && inactive.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-ink-muted">Inactive</p>
-          {inactive.map(e => <ExerciseListItem key={e.id} exercise={e} />)}
+          <div className="grid gap-2 lg:grid-cols-2 lg:items-start">
+            {inactive.map(e => <ExerciseListItem key={e.id} exercise={e} />)}
+          </div>
         </div>
       )}
     </div>

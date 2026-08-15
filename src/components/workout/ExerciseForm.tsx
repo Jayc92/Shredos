@@ -14,6 +14,15 @@ interface ExerciseFormProps {
   onClose: () => void
 }
 
+// UI-5A approved refinement (the sole behavior refinement in the
+// pass): muscle/body-part choices display in alphabetical label
+// order. This is a sorted COPY for display only — the canonical
+// registry order, grouping semantics, stored values, and the
+// submitted payload are untouched. Deterministic, case-insensitive
+// comparison on the displayed label.
+const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort((a, b) =>
+  a.label.toLowerCase().localeCompare(b.label.toLowerCase(), 'en'))
+
 type PillGroupProps<T extends string> = {
   options: readonly { value: T; label: string }[]
   value: T | ''
@@ -174,7 +183,7 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
 
       <div>
         <label className="block text-xs font-medium text-ink-muted mb-1.5">Primary muscle *</label>
-        <PillGroup options={PRIMARY_MUSCLES} value={muscle as any} onChange={handlePrimaryChange as any} />
+        <PillGroup options={MUSCLES_BY_LABEL} value={muscle as any} onChange={handlePrimaryChange as any} />
       </div>
 
       <div className="rounded-lg border border-edge">
@@ -195,7 +204,7 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
         </button>
         {secondaryOpen && (
           <div id="secondary-muscles-panel" className="px-3 pb-3">
-            <MultiPillGroup options={PRIMARY_MUSCLES} selected={secondary}
+            <MultiPillGroup options={MUSCLES_BY_LABEL} selected={secondary}
               unavailable={secondaryUnavailable} onToggle={toggleSecondary} />
           </div>
         )}
@@ -219,7 +228,7 @@ export function ExerciseForm({ existing, onClose }: ExerciseFormProps) {
         </button>
         {tertiaryOpen && (
           <div id="tertiary-muscles-panel" className="px-3 pb-3">
-            <MultiPillGroup options={PRIMARY_MUSCLES} selected={tertiary}
+            <MultiPillGroup options={MUSCLES_BY_LABEL} selected={tertiary}
               unavailable={tertiaryUnavailable} onToggle={toggleTertiary} />
           </div>
         )}

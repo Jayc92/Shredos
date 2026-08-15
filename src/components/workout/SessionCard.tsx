@@ -28,7 +28,8 @@ export function SessionCard({ session, exerciseCount }: SessionCardProps) {
       <Card variant="interactive" className="gap-0 py-4">
       <CardContent className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink truncate">{title}</p>
+          {/* UI-5A: long titles wrap instead of truncating. */}
+          <p className="min-w-0 break-words text-sm font-semibold text-ink">{title}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="text-xs text-ink-muted">{dateLabel}</span>
             {exerciseCount !== undefined && (

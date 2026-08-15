@@ -399,8 +399,15 @@ console.log('\n7. API routes')
 // ── 8. Form UI ───────────────────────────────────────────────────────
 console.log('\n8. Form UI')
 {
-  check('primary remains a single-select pill group',
-    form.includes('<PillGroup options={PRIMARY_MUSCLES} value={muscle as any} onChange={handlePrimaryChange as any} />'))
+  // RETARGET (UI-5A): the approved alphabetical-display refinement
+  // feeds the pill groups a sorted COPY (MUSCLES_BY_LABEL, spread +
+  // sort — never an in-place mutation of the registry). The 5A.6B
+  // boundary — primary is a single-select pill group driven by the
+  // canonical 25-muscle registry — is unchanged and now also pins
+  // the copy semantics.
+  check('primary remains a single-select pill group (sorted display copy)',
+    form.includes('<PillGroup options={MUSCLES_BY_LABEL} value={muscle as any} onChange={handlePrimaryChange as any} />') &&
+    form.includes('const MUSCLES_BY_LABEL = [...PRIMARY_MUSCLES].sort'))
   check('secondary multi-select present',
     form.includes('Secondary muscles') && form.includes('selected={secondary}'))
   check('tertiary multi-select present',
@@ -698,7 +705,8 @@ console.log('\n16. Form disclosure UX')
     form.includes('const [tertiaryOpen,  setTertiaryOpen]  = useState(false)'))
   check('primary selector always visible (never behind a disclosure)',
     (() => {
-      const primaryIdx = form.indexOf('<PillGroup options={PRIMARY_MUSCLES} value={muscle as any}')
+      // RETARGET (UI-5A): anchor follows the sorted display copy.
+      const primaryIdx = form.indexOf('<PillGroup options={MUSCLES_BY_LABEL} value={muscle as any}')
       const firstDisclosureIdx = form.indexOf('aria-controls="secondary-muscles-panel"')
       return primaryIdx > -1 && primaryIdx < firstDisclosureIdx &&
         !form.slice(0, primaryIdx).includes('aria-expanded')

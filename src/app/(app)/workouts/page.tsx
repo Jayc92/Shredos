@@ -16,27 +16,34 @@ import { CreateWorkoutButton } from '@/components/workout/CreateWorkoutButton'
 import { LogPastWorkoutForm } from '@/components/workout/LogPastWorkoutForm'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
+import { SectionHeader } from '@/components/ui/section-header'
+import { EmptyState } from '@/components/ui/empty-state'
 import { fetchCoachSummary } from '@/lib/workout-coach'
 import { todayISO } from '@/lib/dates'
-import { Dumbbell, Play } from 'lucide-react'
+import { ChevronRight, Play } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Workouts' }
 
 // ============================================================
-// ForgeFitOS — Workouts hub (Phase 4B.6A redesign)
+// ForgeFitOS — Workouts hub (UI-5A Train discovery rebuild)
 //
-// Hierarchy: header → Train subnav → active-workout resume action
-// (when one exists) → week summary + create action → readiness →
-// routines entry → today's sessions → weekly muscle volume →
-// recent sessions → empty state.
+// Hierarchy: PageHeader, then Train subnav, then active-workout
+// resume action (when one exists), then week summary + create
+// action, then log a past workout, then the responsive body grid.
+// On lg+ the body splits into a session column (Today, then Recent
+// sessions, then empty state) and a supporting rail (readiness,
+// then routines entry, then weekly muscle volume) with natural
+// independent heights; below lg everything is one column. Width max-w-6xl (UI-5A approved).
 //
-// Every query and behavior is preserved; the ONE data addition is
-// findActiveTrainingSession — the same existing Phase 2K helper the
-// Today page and workout APIs already use — so the hub can lead
-// with "resume". Display-only (.catch → null): a failed read hides
-// the resume card and the API-level guard stays authoritative. No
-// streaks, no adherence scores, no invented recommendations.
+// Every query and behavior is preserved from 4B.6A; the ONE data
+// addition remains findActiveTrainingSession — the same existing
+// Phase 2K helper the Today page and workout APIs already use — so
+// the hub can lead with "resume". Display-only (.catch to null): a
+// failed read hides the resume card and the API-level guard stays
+// authoritative. No streaks, no adherence scores, no invented
+// recommendations.
 // ============================================================
 
 export default async function WorkoutsPage() {
@@ -72,12 +79,8 @@ export default async function WorkoutsPage() {
   const otherSessions = sessions.filter((s: any) => s.workout_date !== today)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-ink flex items-center gap-2">
-          <Dumbbell className="w-5 h-5" aria-hidden="true" /> Workouts
-        </h1>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+      <PageHeader title="Workouts" />
 
       <WorkoutsSubNav />
 
@@ -124,58 +127,71 @@ export default async function WorkoutsPage() {
           happened — never blocks or is blocked by the live flow. */}
       <LogPastWorkoutForm />
 
-      {/* Phase 1E: Muscle readiness — hidden until enough data */}
-      <MuscleReadinessPanel summary={coachSummary} />
+      {/* UI-5A body grid: session history is the main column; the
+          supporting analytics/navigation rail sits beside it on lg+.
+          lg:items-start keeps every card at its natural height (the
+          UI-2 lesson: grid's default stretch fabricates tall cards).
+          Below lg this renders as the single column, sessions first. */}
+      <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
+        <div className="space-y-5 lg:col-span-7 xl:col-span-8">
+          {/* Today */}
+          {todaySessions.length > 0 && (
+            <section className="space-y-2">
+              <SectionHeader title="Today" />
+              {todaySessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
+            </section>
+          )}
 
-      {/* Routines entry point (Phase 1D) */}
-      <Link href="/workouts/routines" className="block">
-        <Card variant="interactive" className="gap-0 py-4">
-          <CardContent className="flex items-center justify-between">
-            {weekStats.active_routine_count > 0 ? (
-              <div>
-                <p className="text-sm font-medium text-ink">Routines</p>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  {weekStats.active_routine_count} saved · Start a structured workout
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-ink-muted">Build routines to start structured workouts →</p>
-            )}
-            <span className="text-ink-muted text-xs" aria-hidden="true">›</span>
-          </CardContent>
-        </Card>
-      </Link>
+          {/* History */}
+          {otherSessions.length > 0 && (
+            <section className="space-y-2">
+              <SectionHeader title="Recent sessions" />
+              {otherSessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
+            </section>
+          )}
 
-      {/* Today */}
-      {todaySessions.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-medium text-ink-muted uppercase tracking-wide">Today</h2>
-          {todaySessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
+          {sessions.length === 0 && (
+            <Card variant="status" className="gap-0 py-10">
+              <CardContent>
+                <EmptyState
+                  title="No workouts yet."
+                  description="Start logging to track progressive overload and weekly muscle volume."
+                  action={<CreateWorkoutButton label="Start your first workout" />}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
-      )}
 
-      {/* Muscle volume */}
-      {Object.keys(muscleVolume).length > 0 && (
-        <MuscleVolumeSummary volume={muscleVolume} />
-      )}
+        <div className="space-y-5 lg:col-span-5 xl:col-span-4">
+          {/* Phase 1E: Muscle readiness — hidden until enough data */}
+          <MuscleReadinessPanel summary={coachSummary} />
 
-      {/* History */}
-      {otherSessions.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-medium text-ink-muted uppercase tracking-wide">Recent sessions</h2>
-          {otherSessions.map((s: any) => <SessionCard key={s.id} session={s} />)}
+          {/* Routines entry point (Phase 1D) */}
+          <Link href="/workouts/routines" className="block">
+            <Card variant="interactive" className="gap-0 py-4">
+              <CardContent className="flex items-center justify-between gap-3">
+                {weekStats.active_routine_count > 0 ? (
+                  <div>
+                    <p className="text-sm font-medium text-ink">Routines</p>
+                    <p className="text-xs text-ink-muted mt-0.5">
+                      {weekStats.active_routine_count} saved · Start a structured workout
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-muted">Build routines to start structured workouts</p>
+                )}
+                <ChevronRight className="h-4 w-4 flex-shrink-0 text-ink-muted" aria-hidden="true" />
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Muscle volume */}
+          {Object.keys(muscleVolume).length > 0 && (
+            <MuscleVolumeSummary volume={muscleVolume} />
+          )}
         </div>
-      )}
-
-      {sessions.length === 0 && (
-        <Card variant="status" className="gap-0 py-10">
-          <CardContent className="space-y-3 text-center">
-            <p className="text-ink-muted text-sm">No workouts yet.</p>
-            <p className="text-xs text-ink-muted">Start logging to track progressive overload and weekly muscle volume.</p>
-            <CreateWorkoutButton label="Start your first workout" />
-          </CardContent>
-        </Card>
-      )}
+      </div>
     </div>
   )
 }
