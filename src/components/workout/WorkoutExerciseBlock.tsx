@@ -7,22 +7,30 @@ import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNext
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, MoveRight, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline, RepRange } from '@/lib/workout'
 
-// Trend labels and styles (Phase 1E — lightweight, no charts)
+// Trend labels and styles (Phase 1E — lightweight, no charts).
+// UI-5B1A: text-glyph arrows became lucide icons and the raw palette
+// classes became the semantic state tokens; the trend VALUES and the
+// signals behind them are untouched.
 const TREND_LABEL: Partial<Record<ProgressionTrend, string>> = {
-  improving: '↑ Improving',
-  steady:    '→ Steady',
-  stalling:  '↓ Possible stall',
+  improving: 'Improving',
+  steady:    'Steady',
+  stalling:  'Possible stall',
+}
+const TREND_ICON: Partial<Record<ProgressionTrend, typeof TrendingUp>> = {
+  improving: TrendingUp,
+  steady:    MoveRight,
+  stalling:  TrendingDown,
 }
 const TREND_CLS: Partial<Record<ProgressionTrend, string>> = {
-  improving: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
-  steady:    'bg-secondary text-ink-muted border-border',
-  stalling:  'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  improving: 'bg-success-subtle text-success border-success/20',
+  steady:    'bg-surface-sunken text-ink-muted border-edge-subtle',
+  stalling:  'bg-caution-subtle text-caution border-caution/20',
 }
 
 // Phase 2C: fallback when no PR baseline is available yet for this
@@ -205,13 +213,15 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
 
   const trendLabel = trend ? TREND_LABEL[trend] : undefined
   const trendCls   = trend ? TREND_CLS[trend]   : undefined
+  const TrendIcon  = trend ? TREND_ICON[trend]  : undefined
 
   return (
     <Card variant="default" className="gap-0 py-4">
       <CardContent className="space-y-2">
       <div className="flex items-start justify-between gap-2">
         <button type="button" onClick={() => setOpen(!open)}
-          className="flex items-start gap-2 flex-1 text-left min-w-0">
+          aria-expanded={open}
+          className="flex min-h-11 items-start gap-2 flex-1 text-left min-w-0">
           {open
             ? <ChevronDown  className="w-4 h-4 text-ink-muted mt-0.5 flex-shrink-0" />
             : <ChevronRight className="w-4 h-4 text-ink-muted mt-0.5 flex-shrink-0" />}
@@ -224,9 +234,10 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
               {/* Phase 1E: trend label — only shown for meaningful signals */}
               {trendLabel && trendCls && (
                 <span className={cn(
-                  'text-xs border rounded px-1.5 py-0.5 font-medium',
+                  'inline-flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 font-medium',
                   trendCls
                 )}>
+                  {TrendIcon && <TrendIcon className="h-3 w-3" aria-hidden="true" />}
                   {trendLabel}
                 </span>
               )}
@@ -247,11 +258,12 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           {(curBest || !previousBest) && (
             <ProgressBadge signal={signal} previousSummary={prevSummary} />
           )}
+          {/* UI-5B1A: 44px remove target. */}
           {!readOnly && (
             <button type="button" onClick={handleRemove} disabled={removing}
-              className="p-1 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
+              className="flex h-11 w-11 items-center justify-center -my-2 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
               aria-label="Remove exercise">
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -272,25 +284,25 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
                 placeholder="Setup, form cues, equipment differences, or anything to remember next time."
                 maxLength={EXERCISE_NOTES_MAX_LENGTH + 100}
                 rows={3}
-                className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-ink text-xs placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                className="w-full px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-xs placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
               />
               <p
-                className={cn('text-xs', exerciseNotesDraft.length > EXERCISE_NOTES_MAX_LENGTH ? 'text-destructive' : 'text-ink-muted')}
+                className={cn('text-xs', exerciseNotesDraft.length > EXERCISE_NOTES_MAX_LENGTH ? 'text-critical' : 'text-ink-muted')}
                 aria-live="polite"
               >
                 {exerciseNotesDraft.length} / {EXERCISE_NOTES_MAX_LENGTH}
               </p>
               {exerciseNotesError && (
-                <p className="text-xs text-destructive" aria-live="polite">{exerciseNotesError}</p>
+                <p className="text-xs text-critical" aria-live="polite">{exerciseNotesError}</p>
               )}
               <div className="flex items-center gap-2">
                 <button type="button" onClick={handleSaveExerciseNotes}
                   disabled={savingExerciseNotes || exerciseNotesDraft.trim().length > EXERCISE_NOTES_MAX_LENGTH}
-                  className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                  className="px-3 py-1 min-h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors">
                   {savingExerciseNotes ? 'Saving…' : 'Save'}
                 </button>
                 <button type="button" onClick={handleExerciseNotesCancel} disabled={savingExerciseNotes}
-                  className="px-3 py-1 rounded-md border border-border text-ink-muted text-xs font-medium hover:bg-secondary disabled:opacity-50 transition-colors">
+                  className="px-3 py-1 min-h-9 rounded-md border border-edge text-ink-muted text-xs font-medium hover:bg-surface-interactive disabled:opacity-50 transition-colors">
                   Cancel
                 </button>
               </div>
@@ -339,22 +351,25 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
       )}
 
       {open && sets.length > 0 && (
-        <div className="pl-6">
-          <div className="flex items-center gap-2 mb-1 text-xs text-ink-muted">
-            <span className="w-5 text-center">#</span>
+        <div className="pl-0 sm:pl-6">
+          {/* UI-5B1A: at base the header labels align with the
+              full-width input row (set number and action columns are
+              sm:-only, matching SetRow's two-row phone layout). */}
+          <div className="flex items-center gap-1.5 mb-1 text-xs text-ink-muted">
+            <span className="hidden w-5 text-center sm:inline-block">#</span>
             {we.exercise.tracking_mode === 'weight_reps' && (
               <>
                 <span className="flex-1 text-center">Reps</span>
                 <span className="flex-1 text-center">Weight</span>
                 <span className="w-12 text-center">RPE</span>
-                <span className="w-6"></span>
+                <span className="hidden w-11 sm:inline-block"></span>
               </>
             )}
             {we.exercise.tracking_mode === 'bodyweight' && (
               <>
                 <span className="flex-1 text-center">Reps</span>
                 <span className="w-12 text-center">RPE</span>
-                <span className="w-6"></span>
+                <span className="hidden w-11 sm:inline-block"></span>
               </>
             )}
             {we.exercise.tracking_mode === 'cardio' && (
@@ -369,8 +384,8 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
                 <span className="w-12 text-center">RPE</span>
               </>
             )}
-            <span className="w-7"></span>
-            <span className="w-6"></span>
+            <span className="hidden w-11 sm:inline-block"></span>
+            <span className="hidden w-11 sm:inline-block"></span>
           </div>
           {sets.map((s: any) => (
             <SetRow
@@ -387,10 +402,11 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
       )}
 
       {open && !readOnly && (
-        <div className="pl-6">
+        <div className="pl-0 sm:pl-6">
+          {/* UI-5B1A: 44px add-set target. */}
           <button type="button" onClick={handleAddSet} disabled={addingSet}
-            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
-            <Plus className="w-3.5 h-3.5" />
+            className="flex min-h-11 items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
             {addingSet ? 'Adding…' : 'Add set'}
           </button>
         </div>

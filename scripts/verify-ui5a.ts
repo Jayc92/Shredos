@@ -85,21 +85,29 @@ const CHANGED_PATHS = [
   'src/components/coach/MuscleReadinessPanel.tsx',
   'src/components/progress/TrainingCoverageSection.tsx',
 ]
-// The live-execution surface and every shared/deferred collaborator
-// UI-5A must not touch.
-const UNTOUCHED_PATHS = [
+// RETARGET (UI-5B1A): five execution files entered the APPROVED
+// UI-5B1A presentation/accessibility slice. The UI-5A boundary they
+// carried survives, re-anchored: (a) every remaining exclusion below
+// stays untouched, (b) no UI-5A marker may appear in any excluded
+// file (X3), and (c) the execution BEHAVIOR anchors (X4/X5) are
+// asserted unchanged regardless of which slice owns the file.
+const UI5B1A_APPROVED = [
   'src/app/(app)/workouts/[id]/page.tsx',
   'src/app/(app)/workouts/[id]/loading.tsx',
+  'src/components/workout/SessionHeader.tsx',
+  'src/components/workout/WorkoutExerciseBlock.tsx',
+  'src/components/workout/SetRow.tsx',
+  'src/components/workout/WorkoutSessionNotes.tsx',
+  'src/components/workout/WorkoutCompletionSummaryCard.tsx',
+]
+// The live-execution surface and every shared/deferred collaborator
+// neither UI-5A nor UI-5B1A may touch.
+const UNTOUCHED_PATHS = [
   'src/app/(app)/workouts/routines/page.tsx',
   'src/app/(app)/workouts/routines/[id]/page.tsx',
   'src/app/(app)/workouts/exercises/page.tsx',
   'src/components/workout/WorkoutDetailClient.tsx',
-  'src/components/workout/SessionHeader.tsx',
-  'src/components/workout/WorkoutExerciseBlock.tsx',
-  'src/components/workout/SetRow.tsx',
   'src/components/workout/AddExerciseSection.tsx',
-  'src/components/workout/WorkoutCompletionSummaryCard.tsx',
-  'src/components/workout/WorkoutSessionNotes.tsx',
   'src/components/workout/CreateWorkoutButton.tsx',
   'src/components/workout/LogPastWorkoutForm.tsx',
   'src/components/workout/WorkoutsSubNav.tsx',
@@ -414,11 +422,16 @@ async function main() {
     check('X1: no excluded file carries any working-tree change',
       UNTOUCHED_PATHS.every((p) => !diffFiles.includes(p)),
       diffFiles.filter((f) => UNTOUCHED_PATHS.includes(f)).join(', '))
-    check('X2: every changed file is inside the declared UI-5A inventory',
+    // RETARGET (UI-5B1A): the inventory boundary now admits the
+    // approved UI-5B1A presentation slice and its harness/notes.
+    check('X2: every changed file is inside a declared, approved inventory',
       diffFiles.every((f) => CHANGED_PATHS.includes(f) ||
+        UI5B1A_APPROVED.includes(f) ||
         ['scripts/verify-ui5a.ts', 'scripts/verify-phase4b6a.ts',
-          'scripts/verify-phase5a6b.ts',
-          'docs/ui5a-train-discovery-notes.md'].includes(f)),
+          'scripts/verify-phase5a6b.ts', 'scripts/verify-phase4b6b.ts',
+          'scripts/verify-ui5b1a.ts',
+          'docs/ui5a-train-discovery-notes.md',
+          'docs/ui5b1a-execution-visual-notes.md'].includes(f)),
       diffFiles.join(', '))
     check('X3: no UI-5A marker leaked into excluded files',
       UNTOUCHED_PATHS.every((p) => !read(p).includes('UI-5A')))

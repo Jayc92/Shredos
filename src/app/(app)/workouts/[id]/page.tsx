@@ -11,6 +11,7 @@ import {
 import { WorkoutDetailClient } from '@/components/workout/WorkoutDetailClient'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { fetchExerciseTrends } from '@/lib/workout-coach'
+import { ChevronLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Workout' }
@@ -47,8 +48,11 @@ export default async function WorkoutDetailPage({ params }: { params: { id: stri
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
-      <Link href="/workouts" className="text-xs text-ink-muted hover:text-ink">
-        ← Workouts
+      {/* UI-5B1A: lucide chevron replaces the text-glyph arrow. */}
+      <Link href="/workouts"
+        className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-ink">
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Workouts
       </Link>
 
       <WorkoutsSubNav />

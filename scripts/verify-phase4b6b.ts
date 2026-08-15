@@ -96,7 +96,13 @@ console.log('\n2. Route contract')
   check('Train subnav rendered; Workouts stays active (route-aware matcher)',
     page.includes('<WorkoutsSubNav />') &&
     read('src/components/workout/WorkoutsSubNav.tsx').includes("pathname.startsWith(href + '/')"))
-  check('back link retained', page.includes('← Workouts'))
+  // RETARGET (UI-5B1A): the text-glyph arrow became a decorative
+  // lucide ChevronLeft; the back link itself (real Link to /workouts)
+  // is unchanged and now also pinned by icon + label.
+  check('back link retained (lucide chevron, real link)',
+    page.includes('href="/workouts"') &&
+    page.includes('<ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />') &&
+    !page.includes('\u2190 Workouts'))
   check('no writes on the server page', !page.includes('.insert(') && !page.includes('.update('))
 }
 
@@ -424,9 +430,14 @@ console.log('\n15. Session header detail')
     header.includes("if (e.key === 'Escape') handleTitleCancel()"))
   check('defensive isDone guards preserved (save + click)',
     (header.match(/if \(isDone\) return/g) || []).length === 2)
+  // RETARGET (UI-5B1A): the trailing text-glyph arrow became a
+  // decorative lucide ChevronRight; the origin link, copy, and href
+  // are unchanged.
   check('routine-origin link preserved',
-    header.includes('From: {routineName} →') &&
-    header.includes('`/workouts/routines/${routineId}`'))
+    header.includes('From: {routineName}') &&
+    !header.includes('{routineName} \u2192') &&
+    header.includes('`/workouts/routines/${routineId}`') &&
+    header.includes('<ChevronRight className="h-3 w-3" aria-hidden="true" />'))
   check('date/duration formatting unchanged',
     header.includes("format(parseISO(session.workout_date), 'EEEE, MMMM d')") &&
     header.includes('formatWorkoutDuration(session.start_time, session.end_time, session.completed_duration_seconds)'))
@@ -487,8 +498,11 @@ console.log('\n17. Exercise block detail')
 // ── 18. DOM order ────────────────────────────────────────────────────
 console.log('\n18. DOM order')
 {
+  // RETARGET (UI-5B1A): order re-anchored on the new back-link markup
+  // (the old anchor would have passed vacuously at indexOf -1).
   check('page order: back link → subnav → client',
-    page.indexOf('← Workouts') < page.indexOf('<WorkoutsSubNav />') &&
+    page.indexOf('<ChevronLeft') > 0 &&
+    page.indexOf('<ChevronLeft') < page.indexOf('<WorkoutsSubNav />') &&
     page.indexOf('<WorkoutsSubNav />') < page.indexOf('<WorkoutDetailClient'))
   check('client child order preserved: summary → header → notes → blocks → add',
     client.indexOf('<WorkoutCompletionSummaryCard') < client.indexOf('<SessionHeader') &&

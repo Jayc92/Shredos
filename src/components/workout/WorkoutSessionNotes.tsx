@@ -109,7 +109,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
             <button
               type="button"
               onClick={startEditing}
-              className="text-xs text-brand hover:underline"
+              className="inline-flex min-h-9 items-center text-xs text-brand hover:underline"
             >
               Edit notes
             </button>
@@ -118,7 +118,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           <button
             type="button"
             onClick={startEditing}
-            className="text-sm text-ink-muted hover:text-ink text-left transition-colors"
+            className="inline-flex min-h-9 items-center text-sm text-ink-muted hover:text-ink text-left transition-colors"
           >
             + Add session notes
           </button>
@@ -146,7 +146,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           placeholder="Energy, pain, substitutions, or anything to remember next time."
           maxLength={NOTES_MAX_LENGTH + 200}
           rows={4}
-          className="mt-1.5 w-full px-3 py-2 rounded-md bg-secondary border border-input text-ink text-sm placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          className="mt-1.5 w-full px-3 py-2 rounded-md bg-surface-interactive border border-edge text-ink text-sm placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-ring resize-y"
         />
         <p
           className={`text-xs mt-1 ${overLimit ? 'text-critical' : 'text-ink-muted'}`}
@@ -165,7 +165,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           type="button"
           onClick={handleSave}
           disabled={saving || overLimit}
-          className="px-4 py-1.5 rounded-lg bg-brand text-brand-foreground text-xs font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors"
+          className="min-h-9 px-4 py-1.5 rounded-lg bg-brand text-brand-foreground text-xs font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -173,7 +173,7 @@ export function WorkoutSessionNotes({ sessionId, notes, status }: WorkoutSession
           type="button"
           onClick={handleCancel}
           disabled={saving}
-          className="px-4 py-1.5 rounded-lg border border-edge text-ink-muted text-xs font-medium hover:bg-surface-interactive disabled:opacity-50 transition-colors"
+          className="min-h-9 px-4 py-1.5 rounded-lg border border-edge text-ink-muted text-xs font-medium hover:bg-surface-interactive disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>

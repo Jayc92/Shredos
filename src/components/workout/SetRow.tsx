@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
 import type { PRType } from '@/lib/workout'
-import { Trash2, AlertCircle } from 'lucide-react'
+import { Trash2, AlertCircle, Check } from 'lucide-react'
 import type { WorkoutSet, TrackingMode } from '@/types/database'
 
 // Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
@@ -161,7 +161,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
     router.refresh()
   }
 
-  const inputCls = 'w-full min-w-0 px-2 py-1.5 rounded-md bg-background border border-input text-foreground text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
+  const inputCls = 'w-full min-w-0 min-h-9 px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
   const weightSuffix = isUnilateral ? 'per side' : 'lbs'
   const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'
 
@@ -180,16 +180,26 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
 
   return (
     <div className={cn(
-      'py-2 border-b border-border/40 last:border-0',
+      'py-2 border-b border-edge-subtle last:border-0',
       isWarmup   && 'opacity-60',
       completed  && 'opacity-80'
     )}>
-      <div className="flex items-center gap-2">
+      {/* UI-5B1A mobile correction: below sm the row wraps into two
+          real rows — set number + the action group on the first, the
+          tracking inputs full-width on the second — so every action
+          button keeps a REAL 44x44 CSS box (no pseudo-element hit
+          slop) and the numeric inputs get generous width. From sm:
+          the original single-row composition returns with the same
+          44px boxes. Pure CSS composition: every control exists once
+          in the DOM; no handler, state, or payload changes. */}
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 sm:flex-nowrap">
       {/* Set number */}
-      <span className="text-xs text-muted-foreground w-5 text-center flex-shrink-0 tabular-nums">
+      <span className="text-xs text-ink-muted w-5 text-center flex-shrink-0 tabular-nums">
         {isWarmup ? 'WU' : set.set_number}
       </span>
 
+      {/* Tracking inputs — full-width second row on phones, inline from sm: */}
+      <div className="order-last flex w-full min-w-0 items-center gap-1.5 sm:order-none sm:w-auto sm:flex-1">
       {(trackingMode === 'weight_reps' || trackingMode === 'bodyweight') && (
         <>
           {/* Reps */}
@@ -221,7 +231,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
                   readOnly={readOnly}
                   aria-readonly={readOnly}
                   className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
-                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
+                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-ink-muted select-none pointer-events-none whitespace-nowrap">
                   {weightSuffix}
                 </span>
               </div>
@@ -257,7 +267,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
               readOnly={readOnly}
               aria-readonly={readOnly}
               className={inputCls} />
-            <span className="text-xs text-muted-foreground flex-shrink-0">:</span>
+            <span className="text-xs text-ink-muted flex-shrink-0">:</span>
             <input type="number" inputMode="numeric" value={durationSec}
               onChange={e => setDurationSec(e.target.value)}
               onFocus={e => e.target.select()}
@@ -282,7 +292,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
                   readOnly={readOnly}
                   aria-readonly={readOnly}
                   className={cn(inputCls, 'pr-7')} />
-                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none pointer-events-none whitespace-nowrap">
+                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-ink-muted select-none pointer-events-none whitespace-nowrap">
                   mi
                 </span>
               </div>
@@ -307,6 +317,11 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
         </>
       )}
 
+      </div>
+
+      {/* Action group — real 44px boxes, clearly separated, grouped
+          right on the phone row */}
+      <div className="ml-auto flex flex-shrink-0 items-center gap-2 sm:ml-0">
       {/* Warm-up toggle — not applicable to cardio/timed (Phase 2S) */}
       {showWarmupToggle && (
         <button
@@ -317,10 +332,10 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
           aria-label="Warm-up set"
           aria-pressed={isWarmup}
           className={cn(
-            'text-xs px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 font-medium disabled:opacity-70',
+            'flex h-11 min-w-11 items-center justify-center rounded border px-1 text-xs font-medium transition-colors flex-shrink-0 disabled:opacity-70',
             isWarmup
               ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-              : 'border-border text-muted-foreground hover:border-muted-foreground'
+              : 'border-edge text-ink-muted hover:border-ink-muted'
           )}
         >
           WU
@@ -333,20 +348,21 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
         onClick={toggleComplete}
         disabled={readOnly}
         aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
+        aria-pressed={completed}
         className={cn(
-          'w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-90',
+          'w-11 h-11 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-90',
           completed
-            ? 'border-green-500 bg-green-500 text-white'
-            : 'border-border hover:border-muted-foreground'
+            ? 'border-success bg-success-subtle text-success'
+            : 'border-edge hover:border-ink-muted'
         )}
       >
-        {completed && <span className="text-xs font-bold">✓</span>}
+        {completed && <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />}
       </button>
 
       {/* Save error indicator */}
       {saveError && (
-        <span title={saveError} className="flex-shrink-0 text-destructive" aria-label={saveError}>
-          <AlertCircle className="w-3.5 h-3.5" />
+        <span title={saveError} className="flex-shrink-0 text-critical" aria-label={saveError}>
+          <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
         </span>
       )}
 
@@ -354,10 +370,11 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
       {!readOnly && (
         <button type="button" onClick={handleDelete} disabled={busy}
           aria-label="Delete set"
-          className="p-1 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-40">
-          <Trash2 className="w-3.5 h-3.5" />
+          className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-critical transition-colors flex-shrink-0 disabled:opacity-40">
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
+      </div>
       </div>
 
       {/* Phase 2S: collapsed "Added weight" affordance for bodyweight,
@@ -368,7 +385,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
         <button
           type="button"
           onClick={() => setAddedWeightExpanded(true)}
-          className="text-xs text-muted-foreground hover:text-foreground pl-7 mt-1 transition-colors"
+          className="inline-flex min-h-9 items-center text-xs text-ink-muted hover:text-ink pl-7 mt-1 transition-colors"
         >
           + Added weight
         </button>

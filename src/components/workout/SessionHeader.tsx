@@ -9,7 +9,7 @@ import {
 } from '@/lib/workout'
 import { composeTime12To24, splitTime24To12 } from '@/lib/local-time'
 import { format, parseISO } from 'date-fns'
-import { Check, Pencil, Trash2, X } from 'lucide-react'
+import { Check, ChevronRight, Pencil, Trash2, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { WorkoutSession } from '@/types/database'
 
@@ -228,7 +228,8 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
       <div className="flex items-start justify-between gap-2">
         {isDone ? (
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-ink truncate">{title}</h1>
+            {/* UI-5B1A: long titles wrap instead of truncating. */}
+            <h1 className="min-w-0 break-words text-base font-semibold text-ink">{title}</h1>
           </div>
         ) : editingTitle ? (
           <div className="flex-1 min-w-0 space-y-1">
@@ -237,16 +238,17 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                 onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') handleTitleCancel() }}
                 maxLength={TITLE_MAX_LENGTH + 20}
                 aria-label="Workout title"
-                className="flex-1 min-w-0 px-2 py-1 rounded-md bg-secondary border border-input text-ink text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
+                className="flex-1 min-w-0 min-h-11 px-2 py-1 rounded-md bg-surface-interactive border border-edge text-ink text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ring" />
+              {/* UI-5B1A: 44px targets for the save/cancel controls. */}
               <button onClick={saveTitle} disabled={savingTitle || title.trim().length > TITLE_MAX_LENGTH}
                 aria-label="Save title"
-                className="text-success hover:text-success/80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-colors">
-                <Check className="w-4 h-4" />
+                className="flex h-11 w-11 items-center justify-center text-success hover:text-success/80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-colors">
+                <Check className="w-4 h-4" aria-hidden="true" />
               </button>
               <button onClick={handleTitleCancel} disabled={savingTitle}
                 aria-label="Cancel editing title"
-                className="text-ink-muted hover:text-ink disabled:opacity-40 flex-shrink-0 transition-colors">
-                <X className="w-4 h-4" />
+                className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-40 flex-shrink-0 transition-colors">
+                <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
             <p className={cn('text-xs', title.length > TITLE_MAX_LENGTH ? 'text-critical' : 'text-ink-muted')} aria-live="polite">
@@ -257,20 +259,28 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
             )}
           </div>
         ) : (
-          <button onClick={handleTitleClick} className="flex items-center gap-2 text-left flex-1 min-w-0 group">
-            <h1 className="text-base font-semibold text-ink truncate">{title}</h1>
-            <Pencil className="w-3.5 h-3.5 text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          <button onClick={handleTitleClick} className="flex min-h-11 items-center gap-2 text-left flex-1 min-w-0 group">
+            <h1 className="min-w-0 break-words text-base font-semibold text-ink">{title}</h1>
+            <Pencil className="w-3.5 h-3.5 text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" aria-hidden="true" />
           </button>
         )}
+        {/* UI-5B1A: 44px delete target. */}
         <button onClick={handleDelete} disabled={deleting} title="Delete workout session" aria-label="Delete workout session"
-          className="p-1.5 text-ink-muted hover:text-critical transition-colors flex-shrink-0 disabled:opacity-40">
-          <Trash2 className="w-4 h-4" />
+          className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-critical transition-colors flex-shrink-0 disabled:opacity-40">
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
       <div className="flex items-center gap-3 flex-wrap text-xs text-ink-muted">
         <span>{dateLabel}</span>
         {duration && <span>{duration}</span>}
-        {routineId && routineName && <a href={`/workouts/routines/${routineId}`} className="text-brand hover:underline flex-shrink-0">From: {routineName} →</a>}
+        {/* UI-5B1A: lucide chevron replaces the text-glyph arrow. */}
+        {routineId && routineName && (
+          <a href={`/workouts/routines/${routineId}`}
+            className="inline-flex items-center gap-0.5 text-brand hover:underline flex-shrink-0">
+            From: {routineName}
+            <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          </a>
+        )}
         <span className={cn('rounded-full border px-2 py-0.5 font-medium',
           isDone ? 'bg-success-subtle text-success border-success/20' : isActive ? 'bg-caution-subtle text-caution border-caution/20' : 'bg-surface-sunken text-ink-muted border-edge-subtle')}>
           {workoutStatusLabel(session)}
@@ -325,7 +335,7 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                 <input type="number" inputMode="numeric" value={caloriesValue}
                   min="0" step="1" placeholder="Not recorded"
                   onChange={e => setCaloriesValue(e.target.value)}
-                  className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => { setEditingCalories(false); setCaloriesError(null) }}
@@ -361,14 +371,14 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                   <label className="block text-xs text-ink-muted">Date</label>
                   <input type="date" value={detailsDate} required
                     onChange={e => setDetailsDate(e.target.value)}
-                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <span className="block text-xs text-ink-muted">Start time</span>
                   <div className="grid grid-cols-3 gap-1 min-w-0" role="group" aria-label="Start time">
                     <select aria-label="Hour" value={detailsHour}
                       onChange={e => setDetailsHour(e.target.value)}
-                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="">Hour</option>
                       {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => (
                         <option key={h} value={h}>{h}</option>
@@ -376,14 +386,14 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                     </select>
                     <select aria-label="Minute" value={detailsMinute}
                       onChange={e => setDetailsMinute(e.target.value)}
-                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
                     <select aria-label="AM or PM" value={detailsMeridiem}
                       onChange={e => setDetailsMeridiem(e.target.value)}
-                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="">AM/PM</option>
                       <option value="AM">AM</option>
                       <option value="PM">PM</option>
@@ -397,14 +407,14 @@ export function SessionHeader({ session, routineId, routineName, onSessionDelete
                   <input type="number" inputMode="numeric" value={detailsDuration} required
                     min="1" max="1440" step="1"
                     onChange={e => setDetailsDuration(e.target.value)}
-                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <label className="block text-xs text-ink-muted">Calories burned (optional)</label>
                   <input type="number" inputMode="numeric" value={detailsCalories}
                     min="0" step="1" placeholder="Not recorded"
                     onChange={e => setDetailsCalories(e.target.value)}
-                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                    className="w-full min-w-0 px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
