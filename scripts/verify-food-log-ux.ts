@@ -87,6 +87,36 @@ async function main() {
       const carbsGroup = fullHtml.split('class="space-y-1"')[3]
       return carbsGroup.includes('Carbs') && carbsGroup.includes('40.0g over target')
     })())
+    // Hosted-QA correction proofs: the status is a sibling of the
+    // consumed/target value INSIDE the right-aligned value block, and
+    // the progress bar comes after the whole header row — no status
+    // ever renders after its bar.
+    check('H1: every macro has one label + one right value block (value + status inside it)', (() => {
+      const groups = fullHtml.split('class="space-y-1"').slice(1)
+      return groups.length === 4 && groups.every((g) => {
+        const header = g.split('h-2 bg-secondary')[0]
+        const valueBlock = header.split('class="text-right"')[1] ?? ''
+        return (header.match(/class="text-right"/g) || []).length === 1 &&
+          valueBlock.includes(' / ') &&
+          (valueBlock.includes('remaining') || valueBlock.includes('over target'))
+      })
+    })())
+    check('H2: Protein status inside Protein value block; Carbs status inside Carbs value block', (() => {
+      const groups = fullHtml.split('class="space-y-1"').slice(1)
+      const valueBlockOf = (g: string) => g.split('h-2 bg-secondary')[0].split('class="text-right"')[1] ?? ''
+      return groups[1].includes('Protein') && valueBlockOf(groups[1]).includes('60.0g remaining') &&
+        groups[2].includes('Carbs') && valueBlockOf(groups[2]).includes('40.0g over target')
+    })())
+    check('H3: no status renders after its progress bar', (() => {
+      const groups = fullHtml.split('class="space-y-1"').slice(1)
+      return groups.every((g) => {
+        const afterBar = g.split('h-2 bg-secondary')[1] ?? ''
+        // the segment after the bar (within this group) carries no
+        // status text — nothing floats below the bar anymore
+        const ownSegment = afterBar.split('class="space-y-1"')[0]
+        return !ownSegment.includes('remaining') && !ownSegment.includes('over target')
+      })
+    })())
     check('S7: all four macros render once (full mode)',
       ['Calories', 'Protein', 'Carbs', 'Fat'].every((l) =>
         (fullHtml.match(new RegExp(`>${l}<`, 'g')) || []).length === 1))

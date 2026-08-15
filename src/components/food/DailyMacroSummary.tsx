@@ -25,24 +25,32 @@ function BarRow({ label, consumed, target, pct, remaining, unit = 'g', isCalorie
   const cappedPct = Math.min(100, pct)
 
   return (
+    // Hosted-QA correction: the remaining/over status previously sat
+    // BELOW the bar, where it could visually associate with the next
+    // macro. It is now a DOM sibling of the consumed/target value
+    // inside the same right-aligned value block, ABOVE the bar —
+    // label left, value block right, then the bar for the whole row.
+    // All values, thresholds, and colors unchanged.
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex items-start justify-between text-xs">
         <span className="text-ink-muted font-medium">{label}</span>
-        <span className="tabular-nums text-ink">
-          {isCalories ? consumed.toLocaleString() : consumed.toFixed(1)}{isCalories ? '' : unit}
-          <span className="text-ink-muted"> / {isCalories ? target.toLocaleString() : target}{isCalories ? ' cal' : unit}</span>
-        </span>
+        <div className="text-right">
+          <div className="tabular-nums text-ink">
+            {isCalories ? consumed.toLocaleString() : consumed.toFixed(1)}{isCalories ? '' : unit}
+            <span className="text-ink-muted"> / {isCalories ? target.toLocaleString() : target}{isCalories ? ' cal' : unit}</span>
+          </div>
+          <div className={remColor}>
+            {remaining >= 0
+              ? `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} remaining`
+              : `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} over target`}
+          </div>
+        </div>
       </div>
       <div className="h-2 bg-secondary rounded-full overflow-hidden">
         <div
           className={`h-full ${fillColor} rounded-full transition-all duration-300`}
           style={{ width: `${cappedPct}%` }}
         />
-      </div>
-      <div className={`text-xs ${remColor} text-right`}>
-        {remaining >= 0
-          ? `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} remaining`
-          : `${isCalories ? Math.abs(remaining).toLocaleString() : Math.abs(remaining).toFixed(1)}${isCalories ? ' cal' : unit} over target`}
       </div>
     </div>
   )
