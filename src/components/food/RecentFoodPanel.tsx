@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { MEAL_TYPES } from '@/lib/constants'
 import { mealTypeLabel } from '@/lib/food'
 import {
@@ -134,6 +134,8 @@ function RecentFoodRow({ entry, date }: { entry: FoodLog; date: string }) {
 }
 
 export function RecentFoodPanel({ recentFoods, date }: RecentFoodPanelProps) {
+  const [open, setOpen] = useState(false)
+
   if (recentFoods.length === 0) {
     return (
       <Card variant="status" className="gap-0 py-4">
@@ -149,12 +151,39 @@ export function RecentFoodPanel({ recentFoods, date }: RecentFoodPanelProps) {
   return (
     <Card variant="subtle" className="gap-0 py-4">
       <CardContent className="space-y-2">
-      <h2 className="text-sm font-semibold text-ink">Recent foods</h2>
-      <div>
-        {recentFoods.map((entry) => (
-          <RecentFoodRow key={entry.id} entry={entry} date={date} />
-        ))}
-      </div>
+      {/* Food-log UX fix: previously an always-visible list beside the
+          "Quick Add" disclosure, which made that disclosure look like
+          it should govern both. Now an INDEPENDENT disclosure —
+          collapsed by default on every fresh load (local state only),
+          with the available distinct-food count in the heading, its
+          own chevron, aria-expanded, an associated controlled region,
+          and a 44px target. Collapsing hides rows only — the data and
+          every Add flow are untouched. */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex min-h-11 items-center justify-between text-sm font-semibold text-ink"
+        aria-expanded={open}
+        aria-controls="recent-foods-panel"
+      >
+        <span>Recently logged foods ({recentFoods.length})</span>
+        {open ? (
+          <ChevronUp className="w-4 h-4 text-ink-muted" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-ink-muted" aria-hidden="true" />
+        )}
+      </button>
+      {open && (
+        <div id="recent-foods-panel">
+          <p className="text-xs text-ink-muted">
+            Distinct foods from your last 14 days of logs — older entries stay in your
+            food history.
+          </p>
+          {recentFoods.map((entry) => (
+            <RecentFoodRow key={entry.id} entry={entry} date={date} />
+          ))}
+        </div>
+      )}
     </CardContent>
     </Card>
   )

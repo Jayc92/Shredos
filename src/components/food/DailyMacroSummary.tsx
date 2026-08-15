@@ -66,7 +66,10 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
     // No food logged yet
     return (
       <Card variant="metric" className="gap-0 py-4">
-        <CardContent className="space-y-3 ${compact ? 'py-3' : ''}">
+        {/* Food-log UX fix: this was a literal "space-y-3 ${...}"
+            string (the ${...} never evaluated). Static, statically
+            discoverable class variants instead. */}
+        <CardContent className={compact ? 'space-y-3 py-3' : 'space-y-3'}>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-ink">Today</span>
           <span className="text-xs text-ink-muted">Target: {target.calories.toLocaleString()} cal</span>
@@ -80,7 +83,14 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
 
   return (
     <Card variant="elevated" className="gap-0 py-4">
-      <CardContent className="space-y-${compact ? '2' : '3'}">
+      {/* Food-log UX fix: this was the literal string
+          "space-y-${compact ? '2' : '3'}" — no valid spacing class was
+          ever emitted, so metric groups had no vertical separation and
+          each metric's remaining/over-target line sat flush against
+          the NEXT metric's label. Static variants: compact stays
+          compact (Today widget), the full Food Log gets clearer
+          separation. */}
+      <CardContent className={compact ? 'space-y-3' : 'space-y-4'}>
       {/* Warnings */}
       {progress.warnings.length > 0 && (
         <div className="space-y-1.5">

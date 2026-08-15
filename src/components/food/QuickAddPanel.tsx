@@ -142,13 +142,18 @@ export function QuickAddPanel({ savedMeals, date }: QuickAddPanelProps) {
   return (
     <Card variant="subtle" className="gap-0 py-4">
       <CardContent className="space-y-2">
+      {/* Food-log UX fix: "Quick Add" read as if it governed BOTH
+          shortcut lists; this disclosure controls only saved meals,
+          so it is named exactly that. 44px target + associated
+          controlled region. */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between text-sm font-semibold text-ink"
+        className="w-full flex min-h-11 items-center justify-between text-sm font-semibold text-ink"
         aria-expanded={open}
+        aria-controls="saved-meals-panel"
       >
-        <span>Quick Add</span>
+        <span>Saved meals</span>
         <div className="flex items-center gap-2">
           {!open && autopilot.length > 0 && (
             <span className="text-xs text-caution flex items-center gap-1">
@@ -160,7 +165,7 @@ export function QuickAddPanel({ savedMeals, date }: QuickAddPanelProps) {
       </button>
 
       {open && (
-        <div>
+        <div id="saved-meals-panel">
           {/* Autopilot meals first */}
           {autopilot.length > 0 && (
             <div className="mb-2">
