@@ -421,8 +421,11 @@ console.log('\n11. Presentation')
   check('components use the Card primitive',
     COMPONENTS.filter((c) => c !== subNav).every((c) =>
       c.includes("from '@/components/ui/card'")))
-  check('overview: max-w-6xl + interactive exercise rows',
-    overviewPage.includes('max-w-6xl') && overviewPage.includes('variant="interactive"'))
+  // RETARGET (UI-4): approved route-specific widening to max-w-7xl
+  // (the boundary — a deliberately widened desktop width with the
+  // interactive row treatment — survives).
+  check('overview: max-w-7xl + interactive exercise rows',
+    overviewPage.includes('max-w-7xl') && overviewPage.includes('variant="interactive"'))
   check('overview: filters use chip visual language as real links',
     overviewPage.includes('<Check className="size-3"') &&
     overviewPage.includes('bg-surface-selected font-semibold'))
@@ -500,8 +503,10 @@ console.log('\n13. Loading states')
   check('shell not duplicated', LOADINGS.every((l) =>
     !l.includes('Sidebar') && !l.includes('ProgressSubNav')))
   check('aria-hidden', LOADINGS.every((l) => l.includes('aria-hidden="true"')))
+  // RETARGET (UI-4): the overview page widened to max-w-7xl (approved)
+  // and its loading mirrors it; every other route width unchanged.
   check('route-matched widths',
-    overviewLoading.includes('max-w-6xl') && weighLoading.includes('max-w-6xl') &&
+    overviewLoading.includes('max-w-7xl') && weighLoading.includes('max-w-6xl') &&
     detailLoading.includes('max-w-3xl') && activityLoading.includes('max-w-3xl') &&
     fastingLoading.includes('max-w-3xl'))
   check('overview loading mirrors tiles + chips + rows',

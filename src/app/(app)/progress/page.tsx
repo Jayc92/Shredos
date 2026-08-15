@@ -21,6 +21,8 @@ import {
 import type { ExerciseProgressOverviewRow, OverviewStatus } from '@/lib/progress-overview'
 import { progressColor } from '@/lib/workout'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
+import { ProgressWeightChart } from '@/components/progress/ProgressWeightChart'
+import { TrainingCoverageSection } from '@/components/progress/TrainingCoverageSection'
 import { EnergyTrendSection } from '@/components/progress/EnergyTrendSection'
 import { fetchProgressEnergyTrends, parseEnergyRange } from '@/lib/progress-energy'
 import { todayISO } from '@/lib/dates'
@@ -29,7 +31,7 @@ import { Check } from 'lucide-react'
 import type { ProgressSignal } from '@/types/app'
 import { cn } from '@/lib/utils'
 import { kgToLbs } from '@/lib/units'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
 import { TRACKING_MODES, PRIMARY_MUSCLES, EXERCISE_EQUIPMENT } from '@/lib/constants'
 import type { Metadata } from 'next'
 
@@ -207,8 +209,23 @@ export default async function ProgressPage({
   const improvingCount = overviewRows.filter((r) => r.status === 'improved').length
   const needsDataCount = overviewRows.filter((r) => r.status === 'needs_data').length
 
+  // UI-4 feature chart: the SAME already-fetched weigh-ins (bounded
+  // 50-row read), windowed to the selected ?range weeks. A visual
+  // window only — no evidence semantics change, no new read, no
+  // synthesized observations; chronological real dates and values.
+  const chartWindowStart = format(subDays(new Date(), energyRange * 7), 'yyyy-MM-dd')
+  const chartReadings = [...weighIns]
+    .filter((w) => w.weight_kg !== null && w.logged_date >= chartWindowStart)
+    .reverse()
+    .map((w) => ({
+      date: w.logged_date,
+      lbs: kgToLbs(w.weight_kg as number),
+      label: format(parseISO(w.logged_date), 'MMM d'),
+    }))
+  const goalLbs = profile.goal_weight_kg !== null ? kgToLbs(profile.goal_weight_kg) : null
+
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 lg:p-6 xl:space-y-6">
       {/* 1. Page header */}
       <div>
         <h1 className="text-xl font-bold text-ink">Progress</h1>
@@ -290,6 +307,11 @@ export default async function ProgressPage({
         )}
       </div>
 
+      {/* UI-4: Training coverage — recorded overview rows grouped by
+          primary muscle (no new reads; attribution boundary documented
+          in the component). */}
+      <TrainingCoverageSection rows={overviewRows} />
+
       {/* 4. Recent PRs (Phase 2D semantics preserved — strength-record
           based; no cardio/timed PR events exist or are invented). */}
       <Card variant="default" className="gap-0 py-4">
@@ -298,7 +320,7 @@ export default async function ProgressPage({
         {strengthRecords.recentPREvents.length === 0 ? (
           <p className="text-sm text-ink-muted">No personal records yet.</p>
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {strengthRecords.recentPREvents.map((e, i) => {
               const suffix = e.isUnilateral ? ' per side' : ''
               const dateLabel = format(parseISO(e.workoutDate), 'MMM d')
@@ -316,8 +338,15 @@ export default async function ProgressPage({
                   : `${e.reps} reps${suffix}`
 
               return (
-                <li key={i} className="text-xs text-ink">
-                  {dateLabel} — {e.exerciseName} — {typeLabel} — {valueText}
+                <li key={i}
+                  className="rounded-lg bg-surface-sunken px-3 py-2.5">
+                  <p className="text-xs font-medium text-ink-muted">
+                    {typeLabel} · {dateLabel}
+                  </p>
+                  <p className="min-w-0 break-words text-sm font-semibold text-ink">
+                    {e.exerciseName}
+                  </p>
+                  <p className="text-sm tabular-nums text-ink">{valueText}</p>
                 </li>
               )
             })}
@@ -326,14 +355,17 @@ export default async function ProgressPage({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 xl:gap-5 items-start">
       {/* 5. Body progress — compact 7-day-average weight trend
           (Phase 2Y). Literal language only: direction is never
           colored or framed as good/bad. Full 28-day chart lives on
           /weigh-in, not here. */}
-      <Card variant="metric" className="gap-0 py-4">
+      <Card variant="metric" className="gap-0 py-4 lg:col-span-8">
         <CardContent className="space-y-3">
-        <h2 className="text-sm font-semibold text-ink">Weight</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <h2 className="text-sm font-semibold text-ink">Weight</h2>
+          <span className="text-xs text-ink-muted">Last {energyRange} weeks</span>
+        </div>
         {!weightTrend.latest ? (
           <div className="space-y-1">
             <p className="text-sm text-ink-muted">
@@ -374,6 +406,21 @@ export default async function ProgressPage({
                 Not enough recent weigh-ins for a seven-day average.
               </p>
             )}
+            {/* UI-4 feature chart: >= 2 windowed real observations;
+                sparse states stay honest (one dot is never a trend). */}
+            {chartReadings.length >= 2 ? (
+              <div className="pt-2">
+                <ProgressWeightChart readings={chartReadings} goalLbs={goalLbs} />
+              </div>
+            ) : chartReadings.length === 1 ? (
+              <p className="text-xs text-ink-muted pt-1">
+                One weigh-in recorded in this range — one more starts the trend chart.
+              </p>
+            ) : (
+              <p className="text-xs text-ink-muted pt-1">
+                No weigh-ins recorded in the selected range.
+              </p>
+            )}
             <Link href="/weigh-in" className="text-xs text-brand hover:underline">
               Weigh-in details →
             </Link>
@@ -386,7 +433,7 @@ export default async function ProgressPage({
           Literal language only; averages divide by logged days, never
           by 7, and missing days are never zero-calorie days. Charts
           live on /nutrition, not here. */}
-      <Card variant="metric" className="gap-0 py-4">
+      <Card variant="metric" className="gap-0 py-4 lg:col-span-4">
         <CardContent className="space-y-3">
         <h2 className="text-sm font-semibold text-ink">Nutrition</h2>
         {!nutritionTrend.latestLoggedDate ? (

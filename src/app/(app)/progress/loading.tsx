@@ -1,14 +1,16 @@
 // ============================================================
-// ForgeFitOS — Progress route loading state (Phase 4B.5)
-// Geometry matches the final page; 4B.1 skeleton primitives;
-// reduced-motion inherited; no fake values.
+// ForgeFitOS — Progress route loading state (Phase 4B.5; UI-4
+// geometry). Mirrors the rebuilt page: header, subnav, summary
+// tiles, filter chips, overview grid, coverage card, PR card, and
+// the feature-chart (8) + nutrition (4) split. 4B.1 skeleton
+// primitives; reduced-motion inherited; no fake values.
 // ============================================================
 
 import { Skeleton, SkeletonCard, SkeletonText } from '@/components/ui/skeleton'
 
 export default function ProgressLoading() {
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6" aria-hidden="true">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 lg:p-6 xl:space-y-6" aria-hidden="true">
       <div className="space-y-2">
         <Skeleton className="h-6 w-28" />
         <SkeletonText lines={1} className="w-72" />
@@ -31,10 +33,15 @@ export default function ProgressLoading() {
         <SkeletonCard />
         <SkeletonCard />
       </div>
+      <SkeletonCard className="h-40" />
       <SkeletonCard className="h-28" />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SkeletonCard />
-        <SkeletonCard />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 xl:gap-5 items-start">
+        <div className="lg:col-span-8">
+          <Skeleton className="h-72 w-full rounded-xl" />
+        </div>
+        <div className="lg:col-span-4">
+          <SkeletonCard />
+        </div>
       </div>
     </div>
   )
