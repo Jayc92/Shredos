@@ -30,44 +30,26 @@ export function ActiveWorkoutConflictModal({
 }: ActiveWorkoutConflictModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="active-workout-conflict-title"
     >
-      <div
-        className="
-          relative z-[60] isolate
-          w-full max-w-sm
-          rounded-xl
-          border border-black/20
-          p-5
-          shadow-2xl
-          ring-1 ring-black/10
-          space-y-4
-          !bg-white
-          !text-black
-        "
-        style={{
-          background: '#ffffff',
-          backgroundColor: '#ffffff',
-          color: '#111111',
-          opacity: 1,
-          mixBlendMode: 'normal',
-          backdropFilter: 'none',
-        }}
-      >
+      {/* UI-5B2 hosted-QA correction: the forced-white shell violated
+          the UI-1 semantic dark token system. Same structure, same
+          copy, same callbacks — only tokens. */}
+      <div className="relative w-full max-w-sm rounded-xl border border-edge bg-surface-raised p-5 shadow-2xl space-y-4">
         <div>
-          <h2 id="active-workout-conflict-title" className="text-sm font-semibold text-black">
+          <h2 id="active-workout-conflict-title" className="text-sm font-semibold text-ink">
             You already have a workout in progress
           </h2>
-          <p className="text-xs text-neutral-700 mt-1.5">
+          <p className="text-xs text-ink-muted mt-1.5">
             Resume it, or discard it to start a new one. Discarding preserves its logged data but marks it as skipped.
           </p>
         </div>
 
         {error && (
-          <p className="text-xs text-red-700 bg-red-50 rounded px-2 py-1.5">{error}</p>
+          <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5">{error}</p>
         )}
 
         <div className="space-y-2.5">
@@ -75,7 +57,7 @@ export function ActiveWorkoutConflictModal({
             type="button"
             onClick={onResume}
             disabled={busy}
-            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            className="w-full min-h-11 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             Resume existing workout
           </button>
@@ -83,7 +65,7 @@ export function ActiveWorkoutConflictModal({
             type="button"
             onClick={onDiscardAndRetry}
             disabled={busy}
-            className="w-full py-2.5 rounded-lg border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+            className="w-full min-h-11 rounded-lg border border-critical text-critical text-sm font-medium hover:bg-critical-subtle disabled:opacity-50 transition-colors"
           >
             {busy ? 'Working…' : 'Discard existing workout and start new'}
           </button>
@@ -91,7 +73,7 @@ export function ActiveWorkoutConflictModal({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="w-full py-2 text-sm text-neutral-600 hover:text-black disabled:opacity-50 transition-colors"
+            className="w-full min-h-11 rounded-lg text-sm text-ink-muted hover:text-ink disabled:opacity-50 transition-colors"
           >
             Cancel
           </button>

@@ -396,6 +396,17 @@ async function main() {
       'src/app/api/workout-sets/[id]/route.ts',
       'src/app/api/routine-exercises/[id]/route.ts',
     ]
+    // RETARGET (UI-5B2 hosted-QA correction): dark-dialog retoken
+    // (SaveAsRoutineButton + shared ActiveWorkoutConflictModal) and
+    // the null-never-zero SetRow placeholder fix — presentation-only,
+    // proven in verify-ui5b2 section 9; SetRow's 44px boxes,
+    // handlers, and modes are still pinned by this suite's own
+    // checks, which pass unmodified.
+    const UI5B2_CORRECTION = [
+      'src/components/workout/ActiveWorkoutConflictModal.tsx',
+      'src/components/workout/SaveAsRoutineButton.tsx',
+      'src/components/workout/SetRow.tsx',
+    ]
     // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
     // correction files are admitted alongside the UI-5B1B set —
     // expanded to the full repo-wide local-calendar sweep.
@@ -434,7 +445,7 @@ async function main() {
     check('X1: product changes confined to the approved files',
       diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
         CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f) ||
-        LOCAL_DATE_FIX.includes(f)),
+        LOCAL_DATE_FIX.includes(f) || UI5B2_CORRECTION.includes(f)),
       diffFiles.join(', '))
     // RETARGET (LOCAL-DATE-FIX): original boundary — NO src/lib file
     // could change. The local-calendar sweep corrects UTC-anchored

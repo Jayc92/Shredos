@@ -89,23 +89,20 @@ export function SaveAsRoutineButton({ workoutId, workoutTitle }: SaveAsRoutineBu
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="save-as-routine-title"
         >
-          <div
-            className="relative z-[60] isolate w-full max-w-sm rounded-xl border border-black/20 p-5 shadow-2xl ring-1 ring-black/10 space-y-4 !bg-white !text-black"
-            style={{
-              background: '#ffffff', backgroundColor: '#ffffff', color: '#111111',
-              opacity: 1, mixBlendMode: 'normal', backdropFilter: 'none',
-            }}
-          >
+          {/* UI-5B2 hosted-QA correction: semantic dark tokens only —
+              the shell previously copied the conflict modal's forced
+              white styling, which violated the UI-1 token system. */}
+          <div className="relative w-full max-w-sm rounded-xl border border-edge bg-surface-raised p-5 shadow-2xl space-y-4">
             <div>
-              <h2 id="save-as-routine-title" className="text-sm font-semibold text-black">
+              <h2 id="save-as-routine-title" className="text-sm font-semibold text-ink">
                 Save as routine
               </h2>
-              <p className="text-xs text-neutral-700 mt-1.5">
+              <p className="text-xs text-ink-muted mt-1.5">
                 Copies this workout&apos;s exercise structure, order, explicit
                 targets, and set counts into a reusable routine — never your
                 logged performance or notes.
@@ -113,7 +110,7 @@ export function SaveAsRoutineButton({ workoutId, workoutTitle }: SaveAsRoutineBu
             </div>
 
             <div className="space-y-2.5">
-              <label className="block text-xs font-medium text-neutral-800" htmlFor="save-as-routine-name">
+              <label className="block text-xs font-medium text-ink" htmlFor="save-as-routine-name">
                 Routine name
               </label>
               <input
@@ -124,9 +121,9 @@ export function SaveAsRoutineButton({ workoutId, workoutTitle }: SaveAsRoutineBu
                 maxLength={120}
                 required
                 aria-required="true"
-                className="w-full min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-black focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                className="w-full min-h-11 rounded-lg border border-edge bg-surface-interactive px-3 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <label className="block text-xs font-medium text-neutral-800" htmlFor="save-as-routine-description">
+              <label className="block text-xs font-medium text-ink" htmlFor="save-as-routine-description">
                 Description (optional)
               </label>
               <textarea
@@ -135,12 +132,12 @@ export function SaveAsRoutineButton({ workoutId, workoutTitle }: SaveAsRoutineBu
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
                 rows={2}
-                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                className="w-full rounded-lg border border-edge bg-surface-interactive px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {error && (
-              <p className="text-xs text-red-700 bg-red-50 rounded px-2 py-1.5" aria-live="polite">
+              <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5" aria-live="polite">
                 {error}
               </p>
             )}
@@ -158,7 +155,7 @@ export function SaveAsRoutineButton({ workoutId, workoutTitle }: SaveAsRoutineBu
                 type="button"
                 onClick={handleCancel}
                 disabled={saving}
-                className="w-full min-h-11 rounded-lg text-sm text-neutral-600 hover:text-black disabled:opacity-50 transition-colors"
+                className="w-full min-h-11 rounded-lg text-sm text-ink-muted hover:text-ink disabled:opacity-50 transition-colors"
               >
                 Cancel
               </button>

@@ -505,6 +505,10 @@ async function main() {
           'src/components/workout/SaveAsRoutineButton.tsx',
           'src/components/workout/RepeatWorkoutButton.tsx',
           'src/components/workout/WorkoutDetailClient.tsx',
+          // RETARGET (UI-5B2 hosted-QA correction): dark-dialog
+          // retoken + null-never-zero SetRow placeholders.
+          'src/components/workout/ActiveWorkoutConflictModal.tsx',
+          'src/components/workout/SetRow.tsx',
         ]
         // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
         // correction files are admitted — expanded to the full

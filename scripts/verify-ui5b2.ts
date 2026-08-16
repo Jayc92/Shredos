@@ -424,7 +424,12 @@ async function main() {
           const f = line.slice(3).trim()
           // RETARGET (UI-5B2): the approved product slice joins the
           // allowed set.
+          // RETARGET (UI-5B2 hosted-QA correction): the dark-dialog
+          // retoken (both dialogs) and the null-never-zero SetRow
+          // placeholder fix are admitted while uncommitted.
           const UI5B2_PRODUCT = [
+            'src/components/workout/ActiveWorkoutConflictModal.tsx',
+            'src/components/workout/SetRow.tsx',
             'src/app/api/workouts/[id]/save-as-routine/route.ts',
             'src/app/api/workouts/[id]/repeat/route.ts',
             // git reports the two untracked routes as directories
@@ -630,6 +635,114 @@ async function main() {
           return false
         } catch { return true }
       })())
+  }
+
+  // ── 9. Hosted-QA corrections (dark dialogs + null-never-zero) ──────
+  console.log('\n9. Hosted-QA corrections')
+  {
+    const saveBtn = read('src/components/workout/SaveAsRoutineButton.tsx')
+    const modal = read('src/components/workout/ActiveWorkoutConflictModal.tsx')
+    const setRowSrc = read('src/components/workout/SetRow.tsx')
+    const stripComments = (t: string) =>
+      t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+    // Both dialogs: semantic dark tokens, zero light-palette escapes.
+    for (const [label, src] of [['save-dialog', saveBtn], ['conflict-modal', modal]] as const) {
+      check(`D1-${label}: semantic dark surface, border, and ink tokens`,
+        src.includes('bg-surface-raised') && src.includes('border-edge') &&
+        src.includes('text-ink') && src.includes('text-ink-muted') &&
+        src.includes('bg-canvas/80'))
+      check(`D2-${label}: no raw white/black/gray/red palette escape (code, not comments)`,
+        (() => {
+          const code = stripComments(src)
+          return !/bg-white|text-black|neutral-|!bg-|red-\d|gray-|grey-|#fff|#111/i.test(code) &&
+            !code.includes('style={{')
+        })())
+    }
+    check('D3: save-dialog inputs use the semantic interactive surface and ring',
+      (saveBtn.match(/bg-surface-interactive/g) || []).length === 2 &&
+      (saveBtn.match(/focus:ring-ring/g) || []).length === 2)
+    check('D4: error styling is the semantic critical treatment in both dialogs',
+      saveBtn.includes('text-critical bg-critical-subtle') &&
+      modal.includes('text-critical bg-critical-subtle') &&
+      modal.includes('border-critical text-critical') &&
+      modal.includes('hover:bg-critical-subtle'))
+
+    // Runtime render of the REAL shared modal: tokens present,
+    // callbacks wired, copy and structure unchanged, 44px controls.
+    const { ActiveWorkoutConflictModal } =
+      await import('../src/components/workout/ActiveWorkoutConflictModal')
+    const modalHtml = renderToStaticMarkup(React.createElement(ActiveWorkoutConflictModal, {
+      busy: false, error: 'probe-error',
+      onResume: () => {}, onDiscardAndRetry: () => {}, onCancel: () => {},
+    }))
+    check('D5: rendered conflict modal — dark tokens, a11y pairing, all three actions, 44px',
+      modalHtml.includes('bg-surface-raised') &&
+      modalHtml.includes('role="dialog"') && modalHtml.includes('aria-modal="true"') &&
+      modalHtml.includes('aria-labelledby="active-workout-conflict-title"') &&
+      modalHtml.includes('id="active-workout-conflict-title"') &&
+      modalHtml.includes('You already have a workout in progress') &&
+      modalHtml.includes('Resume existing workout') &&
+      modalHtml.includes('Discard existing workout and start new') &&
+      modalHtml.includes('Cancel') &&
+      modalHtml.includes('probe-error') &&
+      (modalHtml.match(/min-h-11/g) || []).length >= 3 &&
+      !modalHtml.includes('bg-white') && !modalHtml.includes('#ffffff'))
+    check('D6: shared-consumer behavior intact — StartWorkoutButton wiring unchanged',
+      (() => {
+        const start = read('src/components/routine/StartWorkoutButton.tsx')
+        return start.includes('onResume={handleResume}') &&
+          start.includes('onDiscardAndRetry={handleDiscardAndRetry}') &&
+          start.includes('onCancel={handleCancel}') &&
+          modal.includes("busy ? 'Working…'")
+      })())
+
+    // Null-never-zero: the deployed RPC writes NULL (fingerprint-
+    // pinned in G1); the client defect was the weight/distance
+    // "0" PLACEHOLDERS presenting a missing value as measured zero.
+    const { SetRow } = await import('../src/components/workout/SetRow')
+    const mkSet = (v: Record<string, unknown> = {}) => ({
+      id: 'ns1', workout_exercise_id: 'we1', set_number: 1,
+      reps: null, weight_kg: null, rpe: null,
+      duration_seconds: null, distance_meters: null,
+      completed: false, is_warmup: false, notes: null, ...v,
+    })
+    const rowHtml2 = (set: any, mode: string) =>
+      renderToStaticMarkup(React.createElement(SetRow, {
+        set: set as never, isUnilateral: false, trackingMode: mode as never,
+        prType: null,
+      }))
+    const nullCardio = rowHtml2(mkSet(), 'cardio')
+    check('N1: repeated cardio set with NULL distance renders an EMPTY input — no visible 0',
+      nullCardio.includes('aria-label="Distance in miles"') &&
+      !/aria-label="Distance in miles"[^>]*value="0"/.test(nullCardio) &&
+      !nullCardio.includes('placeholder="0"') &&
+      nullCardio.includes('placeholder="mi"'))
+    check('N2: genuine stored zero stays distinguishable — it renders as an actual 0 value',
+      (() => {
+        const zeroCardio = rowHtml2(mkSet({ distance_meters: 0, duration_seconds: 0 }), 'cardio')
+        return /value="0"/.test(zeroCardio)
+      })())
+    check('N3: NULL duration renders blank min:sec',
+      !/aria-label="Duration — minutes"[^>]*value="/.test(nullCardio.replace(/value=""/g, '')) &&
+      nullCardio.includes('placeholder="min"') && nullCardio.includes('placeholder="sec"'))
+    check('N4: NULL reps, weight, and RPE render blank with unit placeholders (never "0")',
+      (() => {
+        const wr = rowHtml2(mkSet(), 'weight_reps')
+        return !wr.includes('placeholder="0"') &&
+          wr.includes('placeholder="lbs"') && wr.includes('placeholder="reps"') &&
+          wr.includes('placeholder="RPE"') &&
+          !/aria-label="Reps"[^>]*value="\d/.test(wr) &&
+          !/aria-label="Weight in lbs"[^>]*value="\d/.test(wr)
+      })())
+    check('N5: existing non-null values still format identically (10 reps / 20 lbs / RPE 8)',
+      (() => {
+        const wr = rowHtml2(mkSet({ reps: 10, weight_kg: 9.0718474, rpe: 8 }), 'weight_reps')
+        return wr.includes('value="10"') && wr.includes('value="20"') && wr.includes('value="8"')
+      })())
+    check('N6: no "0" placeholder anywhere in SetRow — only unit/name placeholders remain',
+      !setRowSrc.includes('placeholder="0"') &&
+      setRowSrc.includes('placeholder="lbs"') && setRowSrc.includes('placeholder="mi"'))
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

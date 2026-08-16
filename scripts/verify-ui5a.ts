@@ -476,8 +476,20 @@ async function main() {
       diffFiles = execSync('git diff --name-only HEAD', { encoding: 'utf8' })
         .split('\n').filter(Boolean)
     } catch { diffFiles = ['<git unavailable>'] }
+    // RETARGET (UI-5B2 hosted-QA correction): original boundary — no
+    // excluded file could change. The shared ActiveWorkoutConflictModal
+    // received the approved presentation-only dark-token correction
+    // (verify-ui5b2 D-checks own its proof; role/callbacks/copy are
+    // still pinned by 4b6b unmodified). Every other excluded path
+    // remains untouched.
+    const UI5B2_CORRECTION = [
+      'src/components/workout/ActiveWorkoutConflictModal.tsx',
+      'src/components/workout/SaveAsRoutineButton.tsx',
+      'src/components/workout/SetRow.tsx',
+    ]
     check('X1: no excluded file carries any working-tree change',
-      UNTOUCHED_PATHS.every((p) => !diffFiles.includes(p)),
+      UNTOUCHED_PATHS.every((p) =>
+        !diffFiles.includes(p) || UI5B2_CORRECTION.includes(p)),
       diffFiles.filter((f) => UNTOUCHED_PATHS.includes(f)).join(', '))
     // RETARGET (UI-5B1A): the inventory boundary now admits the
     // approved UI-5B1A presentation slice and its harness/notes.
@@ -486,6 +498,7 @@ async function main() {
         UI5B1A_APPROVED.includes(f) ||
         UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) ||
+        UI5B2_CORRECTION.includes(f) ||
         f.startsWith('scripts/verify-') ||
         f.startsWith('docs/')),
       diffFiles.join(', '))

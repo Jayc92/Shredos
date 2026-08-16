@@ -454,9 +454,22 @@ console.log('\n11. Final legacy audit')
       'StartWorkoutButton'].every((f) => notes.includes(f)))
   check('SetRow untouched (highest-risk surface)',
     read('src/components/workout/SetRow.tsx').includes('`/api/workout-sets/${set.id}`'))
+  // RETARGET (UI-5B2 hosted-QA correction): original boundary — the
+  // modal surface had to be hard-opaque, then enforced with a forced
+  // white inline style. That white shell violated the UI-1 semantic
+  // dark token system, so the surface is now the SOLID (fully
+  // opaque) semantic raised-surface token with no inline style and
+  // no transparency modifier on the panel. The protected property —
+  // an opaque dialog surface with dialog semantics — is unchanged
+  // and still asserted.
   check('conflict modal keeps its hard-opaque dialog surface + semantics',
-    read('src/components/workout/ActiveWorkoutConflictModal.tsx').includes('role="dialog"') &&
-    read('src/components/workout/ActiveWorkoutConflictModal.tsx').includes("background: '#ffffff'"))
+    (() => {
+      const m = read('src/components/workout/ActiveWorkoutConflictModal.tsx')
+      return m.includes('role="dialog"') &&
+        m.includes('bg-surface-raised') &&
+        !m.includes('bg-surface-raised/') &&
+        !m.includes('style={{')
+    })())
   check('RoutineForm selection stays unambiguous (check + border-2 + aria-pressed)',
     read('src/components/routine/RoutineForm.tsx').includes('aria-pressed={selected}') &&
     read('src/components/routine/RoutineForm.tsx').includes('border-2'))

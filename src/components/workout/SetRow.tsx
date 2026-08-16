@@ -58,6 +58,9 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
   const [durationSec, setDurationSec] = useState(
     set.duration_seconds !== null ? String(set.duration_seconds % 60) : ''
   )
+  // Missing never renders as measured zero: a NULL value maps to ''
+  // here AND the weight/distance inputs use unit placeholders (never
+  // "0"), so only a genuinely stored 0 can ever display as 0.
   const [distanceMi, setDistanceMi] = useState(
     set.distance_meters !== null ? String(Math.round((set.distance_meters / METERS_PER_MILE) * 100) / 100) : ''
   )
@@ -258,7 +261,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
                   onChange={e => setLbs(e.target.value)}
                   onFocus={e => e.target.select()}
                   onBlur={handleWeightBlur}
-                  placeholder="0" min="0" step="0.5"
+                  placeholder="lbs" min="0" step="0.5"
                   aria-label={trackingMode === 'bodyweight'
                     ? (isUnilateral ? 'Added weight per side in lbs' : 'Added weight in lbs')
                     : (isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs')}
@@ -321,7 +324,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
                   onChange={e => setDistanceMi(e.target.value)}
                   onFocus={e => e.target.select()}
                   onBlur={handleDistanceBlur}
-                  placeholder="0" min="0" step="0.01"
+                  placeholder="mi" min="0" step="0.01"
                   aria-label="Distance in miles"
                   readOnly={readOnly}
                   aria-readonly={readOnly}
