@@ -121,7 +121,7 @@ export function EditFastForm({ fast, onDone }: EditFastFormProps) {
             value={start}
             onChange={(e) => setStart(e.target.value)}
             required
-            className="w-full px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1">
@@ -130,7 +130,7 @@ export function EditFastForm({ fast, onDone }: EditFastFormProps) {
             type="datetime-local"
             value={end}
             onChange={(e) => setEnd(e.target.value)}
-            className="w-full px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
@@ -148,14 +148,14 @@ export function EditFastForm({ fast, onDone }: EditFastFormProps) {
           type="button"
           onClick={onDone}
           disabled={saving}
-          className="py-2.5 rounded-lg border border-edge text-ink-muted text-sm font-medium hover:bg-surface-sunken disabled:opacity-50 transition-colors"
+          className="min-h-11 py-2.5 rounded-lg border border-edge text-ink-muted text-sm font-medium hover:bg-surface-sunken disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="py-2.5 rounded-lg bg-brand text-brand-foreground text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors"
+          className="min-h-11 py-2.5 rounded-lg bg-brand text-brand-foreground text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving...' : 'Save changes'}
         </button>

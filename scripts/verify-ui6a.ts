@@ -81,9 +81,19 @@ async function main() {
       (() => {
         let out = ''
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
+        // RETARGET (UI-6B): the approved Fasting visual rebuild is
+        // admitted while uncommitted.
+        const UI6B = [
+          'src/app/(app)/fasting/page.tsx',
+          'src/app/(app)/fasting/loading.tsx',
+          'src/components/fasting/FastingTimer.tsx',
+          'src/components/fasting/FastingControls.tsx',
+          'src/components/fasting/FastingHistory.tsx',
+          'src/components/fasting/EditFastForm.tsx',
+        ]
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return INVENTORY.includes(f) ||
+          return INVENTORY.includes(f) || UI6B.includes(f) ||
             f.startsWith('scripts/verify-') || f.startsWith('docs/')
         })
       })())
@@ -93,8 +103,10 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
+          // RETARGET (UI-6B): fasting is now its own approved slice;
+          // this suite's boundary keeps libs/APIs/Coach locked.
           return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/') &&
-            !f.includes('fasting') && !f.includes('coach') && !f.includes('check-in') &&
+            !f.includes('coach') && !f.includes('check-in') &&
             !f.includes('decisions')
         })
       })())

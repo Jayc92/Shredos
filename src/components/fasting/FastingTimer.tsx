@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { addHours } from 'date-fns'
 import { getFastingDuration, formatDurationHMS, getCurrentMilestone, getNextMilestone } from '@/lib/fasting'
 import { formatTime } from '@/lib/dates'
+import { CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { FastingLog } from '@/types/database'
 
@@ -61,7 +62,10 @@ export function FastingTimer({ fast }: FastingTimerProps) {
           <p className="text-sm text-ink-muted">
             Goal: {fast.goal_hours}h
             {goalReached && (
-              <span className="ml-2 text-success font-medium">✓ Reached!</span>
+              <span className="ml-2 inline-flex items-center gap-1 text-success font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                Reached!
+              </span>
             )}
           </p>
         )}

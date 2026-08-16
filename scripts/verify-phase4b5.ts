@@ -95,12 +95,23 @@ console.log('\n1. Checkpoint and routes')
     weighPage.includes("title: 'Weigh-in' }") &&
     activityPage.includes("title: 'Activity' }") &&
     fastingPage.includes("title: 'Fasting' }"))
+  // RETARGET (UI-6B): original boundary — every route rendered a
+  // handwritten <h1>. /fasting now renders the SAME title through
+  // the PageHeader primitive (which owns the single h1); the other
+  // routes keep their handwritten headings. One page title per route
+  // is still asserted, primitive-or-h1.
   check('H1s correct',
     overviewPage.includes('>Progress</h1>') && weighPage.includes('>Weigh-in</h1>') &&
-    activityPage.includes('>Activity</h1>') && fastingPage.includes('>Fasting</h1>') &&
+    activityPage.includes('>Activity</h1>') && fastingPage.includes('title="Fasting"') &&
     detailPage.includes('{exercise.name}</h1>'))
+  // RETARGET (UI-6B): original boundary — literally one <h1> per
+  // page. /fasting's single title now renders through PageHeader;
+  // the one-title-per-route property is unchanged (primitive-or-h1,
+  // never both, never none).
   check('exactly one H1 per route',
-    PAGES.every((p) => (p.match(/<h1/g) || []).length === 1) &&
+    PAGES.every((p) =>
+      (p.match(/<h1/g) || []).length === 1 ||
+      ((p.match(/<PageHeader/g) || []).length === 1 && !p.includes('<h1'))) &&
     LOADINGS.every((l) => !l.includes('<h1')))
   check('auth gates preserved', PAGES.every((p) => p.includes("redirect('/login')")))
   check('onboarding gates preserved where they existed',
@@ -457,8 +468,12 @@ console.log('\n11. Presentation')
   check('sunken tiles replace broken legacy tiles',
     overviewPage.includes('bg-surface-sunken rounded-lg px-2 py-2.5 text-center') &&
     activityPage.includes('bg-surface-sunken rounded-lg px-2 py-2.5 text-center'))
+  // RETARGET (UI-6B): /fasting moved its support copy into the
+  // PageHeader primitive (which renders the muted text-support role
+  // internally); the semantic-token property is asserted directly.
   check('semantic ink tokens across scope',
-    PAGES.every((p) => p.includes('text-ink-muted')))
+    PAGES.every((p) => p.includes('text-ink-muted') || p.includes('<PageHeader')) &&
+    PAGES.every((p) => !p.includes('text-muted-foreground')))
   check('no giant color blocks / judgment styling',
     SCOPE.every((f) => !f.includes('bg-critical ') && !f.includes('bg-success ')))
   check('cross-pillar links use approved labels',
@@ -508,7 +523,9 @@ console.log('\n13. Loading states')
   check('route-matched widths',
     overviewLoading.includes('max-w-7xl') && weighLoading.includes('max-w-6xl') &&
     detailLoading.includes('max-w-3xl') && activityLoading.includes('max-w-3xl') &&
-    fastingLoading.includes('max-w-3xl'))
+    // RETARGET (UI-6B): /fasting widened to the approved max-w-6xl
+    // wide-route composition; its loading mirrors that width.
+    fastingLoading.includes('max-w-6xl'))
   check('overview loading mirrors tiles + chips + rows',
     overviewLoading.includes('sm:grid-cols-4') && overviewLoading.includes('rounded-full') &&
     overviewLoading.includes('lg:grid-cols-3'))

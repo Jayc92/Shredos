@@ -489,6 +489,17 @@ async function main() {
     // RETARGET (UI-6A): the approved Fuel visual rebuild —
     // presentation-only changes across the food/nutrition surface —
     // is admitted while uncommitted.
+    // RETARGET (UI-6B): the approved Fasting visual rebuild —
+    // presentation-only changes across the fasting surface — is
+    // admitted while uncommitted.
+    const UI6B = [
+      'src/app/(app)/fasting/page.tsx',
+      'src/app/(app)/fasting/loading.tsx',
+      'src/components/fasting/FastingTimer.tsx',
+      'src/components/fasting/FastingControls.tsx',
+      'src/components/fasting/FastingHistory.tsx',
+      'src/components/fasting/EditFastForm.tsx',
+    ]
     const UI6A = [
       'src/app/(app)/food/page.tsx',
       'src/app/(app)/food/loading.tsx',
@@ -528,7 +539,7 @@ async function main() {
         UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) ||
         UI5B2_CORRECTION.includes(f) ||
-        UI6A.includes(f) ||
+        UI6A.includes(f) || UI6B.includes(f) ||
         f.startsWith('scripts/verify-') ||
         f.startsWith('docs/')),
       diffFiles.join(', '))

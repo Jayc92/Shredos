@@ -6,6 +6,7 @@ import { FastingHistory } from '@/components/fasting/FastingHistory'
 import { FastingStats } from '@/components/fasting/FastingStats'
 import { computeFastingWeekStats } from '@/lib/fasting'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
+import { PageHeader } from '@/components/ui/page-header'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Fasting' }
@@ -35,33 +36,46 @@ export default async function FastingPage() {
   const weekStats = computeFastingWeekStats(weekFasts)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-ink">Fasting</h1>
-        <p className="text-sm text-ink-muted mt-0.5">
-          Fasting is a calorie adherence tool — not magic. Calories still determine fat loss.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+      {/* UI-6B: PageHeader primitive; the honest support copy is the
+          page's established framing and stays verbatim. */}
+      <PageHeader
+        title="Fasting"
+        description="Fasting is a calorie adherence tool — not magic. Calories still determine fat loss."
+      />
 
       {/* Contextual nav: the Fasting link inside it follows the
           profile flag; the direct route itself stays reachable
           regardless (existing policy, unchanged). */}
       <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
-      {/* Live timer (client component) — only shown when there's an active fast */}
-      {activeFast && <FastingTimer fast={activeFast} />}
+      {/* UI-6B wide-route composition: the fasting task surface
+          (timer + controls) is the primary column; this-week stats
+          and the completed history form the supporting column at lg.
+          Mobile keeps the established task-first order — timer,
+          controls, stats, history — because the primary column
+          renders first in the DOM. items-start: natural heights,
+          never equal-height forcing. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6 space-y-5 lg:space-y-0">
+        <div className="space-y-5">
+          {/* Live timer (client component) — only shown when there's an active fast */}
+          {activeFast && <FastingTimer fast={activeFast} />}
 
-      {/* Start/End controls */}
-      <FastingControls
-        activeFast={activeFast}
-        defaultGoalHours={profile.default_fasting_goal_hours}
-      />
+          {/* Start/End controls */}
+          <FastingControls
+            activeFast={activeFast}
+            defaultGoalHours={profile.default_fasting_goal_hours}
+          />
+        </div>
 
-      {/* This-week stats */}
-      <FastingStats stats={weekStats} />
+        <div className="mt-5 space-y-5 lg:mt-0">
+          {/* This-week stats */}
+          <FastingStats stats={weekStats} />
 
-      {/* History */}
-      <FastingHistory fasts={allFasts ?? []} />
+          {/* History */}
+          <FastingHistory fasts={allFasts ?? []} />
+        </div>
+      </div>
     </div>
   )
 }

@@ -447,6 +447,17 @@ async function main() {
           ]
           // RETARGET (UI-6A): the approved Fuel visual rebuild is
           // admitted while uncommitted.
+          // RETARGET (UI-6B): the approved Fasting visual rebuild is
+          // admitted while uncommitted.
+          const UI6B = [
+            'src/app/(app)/fasting/page.tsx',
+            'src/app/(app)/fasting/loading.tsx',
+            'src/components/fasting/FastingTimer.tsx',
+            'src/components/fasting/FastingControls.tsx',
+            'src/components/fasting/FastingHistory.tsx',
+            'src/components/fasting/EditFastForm.tsx',
+          ]
+          if (UI6B.includes(f)) return true
           const UI6A = [
             'src/app/(app)/food/page.tsx',
             'src/app/(app)/food/loading.tsx',
@@ -478,6 +489,8 @@ async function main() {
             f === 'docs/ui5b2-workout-reuse-notes.md' ||
             // RETARGET (UI-6A): the Fuel visual-rebuild notes.
             f === 'docs/ui6a-fuel-visual-notes.md' ||
+            // RETARGET (UI-6B): the Fasting visual-rebuild notes.
+            f === 'docs/ui6b-fasting-visual-notes.md' ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')
         })

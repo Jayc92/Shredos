@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getFastingDuration, formatDuration } from '@/lib/fasting'
 import { formatDateShort, formatTime } from '@/lib/dates'
 import { FASTING_TYPE_LABELS } from '@/lib/constants'
-import { Pencil, Trash2 } from 'lucide-react'
+import { CheckCircle2, Pencil, Trash2 } from 'lucide-react'
 import type { FastingLog } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
 import { EditFastForm } from './EditFastForm'
@@ -62,7 +62,10 @@ export function FastingHistory({ fasts }: FastingHistoryProps) {
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium tabular-nums">{formatDuration(minutes)}</p>
                     {fast.completed_goal === true && (
-                      <span className="text-xs text-success">✓ goal</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-success">
+                        <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                        goal met
+                      </span>
                     )}
                     {fast.completed_goal === false && (
                       <span className="text-xs text-ink-muted">goal not met</span>
@@ -81,18 +84,18 @@ export function FastingHistory({ fasts }: FastingHistoryProps) {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setEditingId(editingId === fast.id ? null : fast.id)}
-                    className="p-1.5 text-ink-muted hover:text-ink transition-colors"
+                    className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink transition-colors"
                     aria-label="Edit fast"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => handleDelete(fast.id)}
                     disabled={deleting === fast.id}
-                    className="p-1.5 text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-critical transition-colors disabled:opacity-40"
                     aria-label="Delete fast"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>

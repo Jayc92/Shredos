@@ -310,9 +310,13 @@ console.log('\n9. UI contract')
   check('End field labeled optional', controls.includes('>End (optional)</label>'))
   check('helper copy explains blank = ongoing (exact sentence)',
     controls.includes('Leave End blank to start an ongoing fast from this time.'))
+  // RETARGET (UI-6B): original boundary — the toggle's literal was
+  // "'+ Add a fast manually'". The ASCII plus became a Lucide Plus
+  // icon on a 44px control; the label text and its placement outside
+  // the active ternary are unchanged.
   check('manual entry reachable while a fast is active (toggle outside the active ternary)',
     !controls.includes('{!activeFast && (') &&
-    controls.indexOf("'+ Add a fast manually'") > controls.indexOf('End fast'))
+    controls.indexOf("'Add a fast manually'") > controls.indexOf('End fast'))
   check('manual heading retained', controls.includes('Manual fast entry'))
   check('save action label', controls.includes("'Save manual fast'"))
   check('errors use semantic critical tokens',
@@ -322,8 +326,14 @@ console.log('\n9. UI contract')
   check('broken legacy border/accent interaction tokens removed',
     !controls.includes('border-border') && !controls.includes('bg-accent') &&
     !controls.includes('bg-primary'))
+  // RETARGET (UI-6B): original boundary — the app-wide input chrome
+  // of its era (bg-secondary + border-input). The UI-1 semantic
+  // convention (surface-interactive + edge, the SetRow/Fuel input
+  // treatment) replaced it across the fasting scope; the property —
+  // one consistent input chrome — is unchanged and still asserted.
   check('input chrome on the app-wide convention',
-    controls.includes('bg-secondary border border-input text-ink'))
+    controls.includes('bg-surface-interactive border border-edge text-ink') &&
+    !controls.includes('bg-secondary'))
   check('primary action on brand tokens',
     controls.includes('bg-brand text-brand-foreground') &&
     controls.includes('hover:bg-brand-hover'))
@@ -490,11 +500,17 @@ console.log('\n13. Edit UI affordances')
     controls.includes('<EditFastForm fast={activeFast}'))
   check('active edit toggle clears stale errors',
     controls.includes('setShowEdit(!showEdit); setError(null)'))
+  // RETARGET (UI-6B): original boundary — the Pencil icon rendered
+  // bare inside a p-1.5 control. The action now sits in a real 44px
+  // box with the icon aria-hidden; the labeled-Edit-near-delete
+  // property is unchanged.
   check('history rows expose a labeled Edit action near delete',
     historyNow.includes('aria-label="Edit fast"') &&
-    historyNow.includes('<Pencil className="w-3.5 h-3.5" />'))
+    historyNow.includes('<Pencil className="w-3.5 h-3.5" aria-hidden="true" />'))
+  // RETARGET (UI-6B): the goal-met checkmark glyph became a Lucide
+  // CheckCircle2, so the import gained one icon; still lucide-only.
   check('lucide-only icons (Pencil + Trash2)',
-    historyNow.includes("import { Pencil, Trash2 } from 'lucide-react'"))
+    historyNow.includes("import { CheckCircle2, Pencil, Trash2 } from 'lucide-react'"))
   check('row is not made clickable (explicit buttons only)',
     !historyNow.includes('onClick={() => setEditingId(fast.id)}\n              className="flex'))
   check('one inline edit form at a time (editingId keyed)',

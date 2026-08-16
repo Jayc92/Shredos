@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { fastingTypeFromHours, didCompleteGoal, validateManualFastTimes } from '@/lib/fasting'
 import { FASTING_GOAL_OPTIONS } from '@/lib/constants'
 import type { FastingLog } from '@/types/database'
+import { Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { EditFastForm } from './EditFastForm'
 
@@ -184,7 +185,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
           <button
             type="button"
             onClick={() => { setShowEdit(!showEdit); setError(null) }}
-            className="w-full py-2 rounded-lg border border-edge text-ink-muted text-xs font-medium hover:bg-surface-sunken transition-colors"
+            className="w-full min-h-11 py-2 rounded-lg border border-edge text-ink-muted text-xs font-medium hover:bg-surface-sunken transition-colors"
           >
             {showEdit ? 'Close edit' : 'Edit fast'}
           </button>
@@ -200,7 +201,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
             <select
               value={goalHours}
               onChange={(e) => setGoalHours(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">No goal</option>
               {FASTING_GOAL_OPTIONS.map(({ value, label }) => (
@@ -223,9 +224,10 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
           rule, and only a second ONGOING attempt is blocked. */}
       <button
         onClick={() => { setShowManual(!showManual); setError(null) }}
-        className="w-full py-2 text-xs text-ink-muted hover:text-ink transition-colors"
+        className="flex w-full min-h-11 items-center justify-center gap-1 py-2 text-xs text-ink-muted hover:text-ink transition-colors"
       >
-        {showManual ? 'Cancel manual entry' : '+ Add a fast manually'}
+        {!showManual && <Plus className="w-3.5 h-3.5" aria-hidden="true" />}
+        {showManual ? 'Cancel manual entry' : 'Add a fast manually'}
       </button>
 
       {showManual && (
@@ -240,7 +242,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
                 value={manualStart}
                 onChange={(e) => setManualStart(e.target.value)}
                 required
-                className="w-full px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div className="space-y-1">
@@ -249,7 +251,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
                 type="datetime-local"
                 value={manualEnd}
                 onChange={(e) => setManualEnd(e.target.value)}
-                className="w-full px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
@@ -262,7 +264,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
             <select
               value={manualGoal}
               onChange={(e) => setManualGoal(e.target.value)}
-              className="w-full px-2 py-2 rounded-lg bg-secondary border border-input text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-2 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-2 focus:ring-ring"
             >
               {FASTING_GOAL_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -275,7 +277,7 @@ export function FastingControls({ activeFast, defaultGoalHours, onUpdate }: Fast
             value={manualNotes}
             onChange={(e) => setManualNotes(e.target.value)}
             placeholder="Notes (optional)"
-            className="w-full px-3 py-2 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-3 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
 
           <button
