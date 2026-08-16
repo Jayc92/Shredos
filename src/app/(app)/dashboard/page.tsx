@@ -34,7 +34,8 @@ import {
 } from '@/lib/dashboard-prefs'
 import { computeDailyTotals, computeNutritionProgress } from '@/lib/food'
 import { computeFastingWeekStats } from '@/lib/fasting'
-import { formatDateFull, todayISO } from '@/lib/dates'
+import { formatDateFull } from '@/lib/dates'
+import { localTodayFromCookies, localHourFromCookies } from '@/lib/local-date-server'
 import { fetchCoachSummary } from '@/lib/workout-coach'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import { fetchTodayEnergyBalance } from '@/lib/today-energy'
@@ -104,7 +105,8 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login')
 
-  const today = todayISO()
+  // Local-date fix: user-local calendar day and hour (timezone cookie).
+  const today = localTodayFromCookies()
 
   const [profile, weighIns, nutritionTarget, activeFast, recentDecisions, weekFasts, todayFoodLogs, workoutStats, coachSummary, todayActivityLog, activeSession] =
     await Promise.all([
@@ -143,7 +145,9 @@ export default async function DashboardPage() {
   const completedFasts = weekFasts.filter((f) => f.ended_at !== null)
   const lastCompletedFast = completedFasts[0] ?? null
 
-  const todayLabel = formatDateFull(new Date())
+  // Local-date fix: label the USER'S calendar day (formatDateFull
+  // parses the date-only string locally — no UTC serialization).
+  const todayLabel = formatDateFull(today)
 
   // UI-2 metric tiles: derived ONCE with the same stable pure helpers
   // NutritionCard uses (recorded intake vs target — no exercise
@@ -151,7 +155,7 @@ export default async function DashboardPage() {
   // tile; no logs -> missing state, never zero.
   const tileTotals = computeDailyTotals(todayFoodLogs, today)
   const tileProgress = nutritionTarget
-    ? computeNutritionProgress(tileTotals, nutritionTarget, new Date().getHours())
+    ? computeNutritionProgress(tileTotals, nutritionTarget, localHourFromCookies())
     : null
   const hasFoodToday = todayFoodLogs.length > 0
   const fmtRemaining = (remaining: number, unit: string) =>

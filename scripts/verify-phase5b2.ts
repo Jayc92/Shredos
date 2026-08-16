@@ -192,8 +192,12 @@ console.log('\n2. Day-status API')
     (route.match(/\{ error: 'Unauthorized' \}, \{ status: 401 \}/g) || []).length === 3)
   check('date validated against the local-date pattern everywhere',
     (route.match(/DATE_PATTERN/g) || []).length >= 4)
-  check('future dates rejected on write (server-local today, /api/activity convention)',
-    route.includes('raw > todayISO()') &&
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the future guard
+  // compared against `todayISO()` (server UTC day), which rejected
+  // valid same-day writes after 8pm ET. The guard itself is intact;
+  // "today" is now the cookie-resolved user-local day.
+  check('future dates rejected on write (user-local today, /api/activity convention)',
+    route.includes('raw > localTodayFromCookies()') &&
     route.includes("Enter a valid date that isn't in the future."))
   check('PUT is an idempotent own-row upsert',
     route.includes(".upsert(") &&
@@ -1068,8 +1072,11 @@ console.log('\n13. Runtime: extended matrices')
   check('toggle: disabled while saving; distinct error paths',
     toggle.includes('disabled={saving}') &&
     (toggle.match(/setError\(/g) || []).length >= 5)
+  // RETARGET (LOCAL-DATE-FIX): DateNav gained the resolved local
+  // `today` prop (the UTC date-boundary correction); the boundary —
+  // the nav and coach panel wiring survive intact — is unchanged.
   check('page: DateNav and coach panel untouched',
-    foodPage.includes('function DateNav({ date }: { date: string })') &&
+    foodPage.includes('function DateNav({ date, today }: { date: string; today: string })') &&
     foodPage.includes('<NutritionCoachPanel summary={nutritionSummary} />'))
 }
 

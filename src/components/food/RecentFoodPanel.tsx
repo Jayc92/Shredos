@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { localCalendarDayOf } from '@/lib/local-date'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { MEAL_TYPES } from '@/lib/constants'
@@ -31,7 +32,7 @@ function RecentFoodConfirm({ entry, date, onConfirm, onCancel, saving }: RecentF
     <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-2">
       <p className="text-sm font-medium text-ink">
         Add <span className="text-primary">{entry.food_name}</span> to{' '}
-        {date === new Date().toISOString().split('T')[0] ? 'today' : date}?
+        {date === localCalendarDayOf(new Date()) ? 'today' : date}?
       </p>
       <div className="text-xs text-ink-muted space-x-3">
         <span>{entry.calories} cal</span>

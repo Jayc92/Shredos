@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import { TIMEZONE_COOKIE, todayInTimeZone } from '@/lib/local-date'
 import { validateActivitySessionInput } from '@/lib/activity'
 
 // ============================================================
@@ -16,6 +18,8 @@ import { validateActivitySessionInput } from '@/lib/activity'
 
 // Same local-date backstop rationale as the create route.
 function serverTodayWithSkew(): string {
+  const tz = cookies().get(TIMEZONE_COOKIE)?.value
+  if (tz) return todayInTimeZone(tz)
   const d = new Date()
   d.setUTCDate(d.getUTCDate() + 1)
   return d.toISOString().split('T')[0]

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { localCalendarDayOf } from '@/lib/local-date'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { calculateNutritionTargets } from '@/lib/nutrition'
@@ -54,7 +55,7 @@ export default function NutritionPage() {
           .from('nutrition_targets')
           .select('*')
           .eq('user_id', user.id)
-          .lte('effective_date', new Date().toISOString().split('T')[0])
+          .lte('effective_date', localCalendarDayOf(new Date()))
           .order('effective_date', { ascending: false })
           .limit(1)
           .single(),
@@ -96,7 +97,7 @@ export default function NutritionPage() {
     const carb = parseInt(carbs)
     const f = parseInt(fat)
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = localCalendarDayOf(new Date())
     const lowCarbWarning = carb < 75
 
     // Save new versioned nutrition target. The saved row rides back on

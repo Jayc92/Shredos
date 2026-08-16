@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { localCalendarDayOf } from '@/lib/local-date'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -136,7 +137,7 @@ export function OnboardingWizard() {
       if (nutrition) {
         const { error: nutritionError } = await supabase.from('nutrition_targets').upsert({
           user_id: user.id,
-          effective_date: new Date().toISOString().split('T')[0],
+          effective_date: localCalendarDayOf(new Date()),
           calories: nutrition.calories,
           protein_g: nutrition.protein_g,
           fat_g: nutrition.fat_g,

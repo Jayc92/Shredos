@@ -13,7 +13,7 @@ import { CoachSubNav } from '@/components/coach/CoachSubNav'
 import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Notice } from '@/components/ui/notice'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import type { Metadata } from 'next'
 import type { CoachAction } from '@/lib/coach-actions'
 
@@ -108,7 +108,8 @@ export default async function CoachPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const today = todayISO()
+  // Local-date fix: the user's calendar day, not the server's UTC day.
+  const today = localTodayFromCookies()
 
   const [profile, target, todayFoodLogs] = await Promise.all([
     fetchUserProfile(supabase, user.id),

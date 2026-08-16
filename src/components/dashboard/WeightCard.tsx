@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs, calculateBMI } from '@/lib/units'
 import { WeightTrendChart } from '@/components/dashboard/WeightTrendChart'
 import { getTrendConfidence, confidenceLabel, computeWeightChange, getNextWeighInDate, getGoalAwareWeightChangeFraming } from '@/lib/weighIn'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { formatDateShort } from '@/lib/dates'
 import { getDayName } from '@/lib/dates'
 import type { BodyMetric, UserProfile } from '@/types/database'
@@ -33,9 +34,12 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
     ? new Date(latest.logged_date + 'T00:00:00')
     : null
 
+  // Local-date fix: with no prior weigh-in the lib would fall back
+  // to new Date() — the UTC day on the server. Pass the user's local
+  // day explicitly so the fallback never fires server-side.
   const nextDate = getNextWeighInDate(
     profile.preferred_weigh_in_cadence,
-    lastDate,
+    lastDate ?? new Date(localTodayFromCookies() + 'T00:00:00'),
     profile.preferred_weigh_in_day
   )
 

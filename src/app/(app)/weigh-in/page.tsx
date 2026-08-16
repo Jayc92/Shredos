@@ -9,7 +9,8 @@ import { buildWeightTrendSummary } from '@/lib/weight-trends'
 import { getNextWeighInDate, getTrendConfidence } from '@/lib/weighIn'
 import { computeWeightProgress } from '@/lib/progress-summary'
 import { cmToInches } from '@/lib/units'
-import { getDayName, formatDateShort, todayISO } from '@/lib/dates'
+import { getDayName, formatDateShort } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { subDays, format, parseISO } from 'date-fns'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import type { Metadata } from 'next'
@@ -32,9 +33,12 @@ export default async function WeighInPage() {
     ? new Date(weighIns[0].logged_date + 'T00:00:00')
     : null
 
+  // Local-date fix: with no prior weigh-in the lib would fall back
+  // to new Date() — the UTC day on the server. Pass the user's local
+  // day explicitly so the fallback never fires server-side.
   const nextDate = getNextWeighInDate(
     profile.preferred_weigh_in_cadence,
-    lastDate,
+    lastDate ?? new Date(localTodayFromCookies() + 'T00:00:00'),
     profile.preferred_weigh_in_day
   )
 
@@ -51,7 +55,8 @@ export default async function WeighInPage() {
   // array (no new query). computeWeightProgress is the exact same helper
   // /progress uses for its own 4-week rollup — reused here rather than
   // reimplementing the same trend math a third time.
-  const today = todayISO()
+  // Local-date fix: the user's calendar day, not the server's UTC day.
+  const today = localTodayFromCookies()
   const windowStart = format(subDays(parseISO(today), 27), 'yyyy-MM-dd')
   const last28DayMetrics = weighIns
     .filter(

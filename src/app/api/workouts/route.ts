@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { findActiveTrainingSession, resolveActiveWorkoutConflict } from '@/lib/supabase/server'
 import { autoTitle, validateManualWorkoutMetadata } from '@/lib/workout'
 
@@ -129,7 +130,9 @@ export async function POST(request: NextRequest) {
   const body = earlyBody
   // Prefer client-supplied local date (sent as YYYY-MM-DD in the browser's timezone).
   // Fall back to UTC date only as a safety net — the client should always send this.
-  const workout_date = body.workout_date ?? new Date().toISOString().split('T')[0]
+  // Local-date fix: the default workout date is the USER'S calendar
+  // day (timezone cookie), never the server's UTC day.
+  const workout_date = body.workout_date ?? localTodayFromCookies()
   const title = body.title?.trim() || autoTitle(workout_date)
   const { data, error } = await supabase
     .from('workout_sessions')

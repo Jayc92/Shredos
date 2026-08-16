@@ -78,7 +78,13 @@ console.log('\n1. Checkpoint and route')
 console.log('\n2. Route contract')
 {
   const FETCHES = ['fetchPreviousBests(supabase, user.id, exerciseIds, params.id)',
-    'fetchExerciseTrends(supabase, user.id, exerciseIds)',
+    // RETARGET (LOCAL-DATE-FIX): original boundary — the trends call
+    // took 3 args and the lib anchored its 30-day window at the
+    // server's UTC day. The window anchor is now passed explicitly as
+    // the user-local day (the lib is imported by client components,
+    // so it cannot read cookies itself). Parallel-fetch placement is
+    // unchanged.
+    'fetchExerciseTrends(supabase, user.id, exerciseIds, localTodayFromCookies())',
     'fetchExerciseHistory(supabase, user.id, exerciseIds, params.id)',
     'fetchExercisePRBaseline(supabase, user.id, exerciseIds, params.id)']
   for (const f of FETCHES) {

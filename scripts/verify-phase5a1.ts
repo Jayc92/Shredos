@@ -288,8 +288,15 @@ console.log('\n8. History and weekly stats')
     history.includes('fasts') && !history.includes('validateManualFastTimes'))
   check('stats component untouched',
     stats.includes('variant="metric"') && !stats.includes('manual'))
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the fasting week
+  // anchored at `startOfISOWeek(new Date())`, the SERVER'S UTC clock,
+  // so "this week" flipped a day early every Sunday evening ET. The
+  // same date-fns ISO-week helper now anchors to the cookie-resolved
+  // user-local day; the Monday-boundary semantics and the gte-only
+  // query shape are unchanged.
   check('weekly fetch boundary unchanged (ISO week helper)',
-    read('src/lib/supabase/server.ts').includes('const weekStart = startOfISOWeek(new Date())'))
+    read('src/lib/supabase/server.ts')
+      .includes('const weekStart = startOfISOWeek(parseISO(localTodayFromCookies()))'))
   check('weekly review fasting inputs unchanged',
     read('src/lib/weekly-review.ts').includes('fasting'))
 }

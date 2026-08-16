@@ -133,14 +133,29 @@ console.log('\n3. Food contract')
   for (const f of FETCHES) {
     check(`query preserved: ${f.split('(')[0]}`, foodPage.includes(f))
   }
-  check('date param + local-date semantics unchanged',
-    foodPage.includes('searchParams.date ?? todayISO()'))
+  // RETARGET (LOCAL-DATE-FIX): "today" now resolves from the user's
+  // timezone cookie instead of the server's UTC clock (the hosted-QA
+  // date-boundary defect), and future blocking became pure
+  // date-string comparison. The boundaries — the selected date comes
+  // from ?date with an honest default, and future days stay blocked —
+  // are unchanged and now correct across the UTC midnight window.
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the page resolved
+  // the cookie inline via `resolveLocalToday(tz)`. The repo-wide
+  // sweep unified all server consumers onto the decode-safe
+  // localTodayFromCookies() helper; the honest ?date default is
+  // unchanged.
+  check('date param + local-date semantics (user-local today)',
+    foodPage.includes('const date = isValidDateParam(searchParams.date) ? searchParams.date : todayStr') &&
+    foodPage.includes('const todayStr = localTodayFromCookies()'))
   check('future-date blocking unchanged',
-    foodPage.includes('isFuture(addDays(current, 1))') &&
+    foodPage.includes('const isNextFuture   = next > today') &&
     foodPage.includes('aria-disabled={isNextFuture}'))
   check('old-date notice preserved', foodPage.includes('Logging more than 7 days ago'))
+  // RETARGET (LOCAL-DATE-FIX): the 14-day window is the same width,
+  // now computed with pure date-string math anchored to the USER'S
+  // local today instead of the server's UTC day.
   check('recent-food window + dedupe + cap unchanged',
-    foodPage.includes('subDays(parseISO(todayStr), 13)') &&
+    foodPage.includes('addDaysISO(todayStr, -13)') &&
     foodPage.includes('recentFoodsByName') && foodPage.includes('.slice(0, 10)'))
   check('totals/progress math via existing lib',
     foodPage.includes('computeDailyTotals(logs, date)') &&
@@ -252,8 +267,13 @@ console.log('\n7. Saved meals')
 // ── 8. Nutrition contract ────────────────────────────────────────────
 console.log('\n8. Nutrition contract')
 {
-  check('current target query unchanged (versioned latest-effective)',
-    nutritionPage.includes(".lte('effective_date', new Date().toISOString().split('T')[0])") &&
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the client page
+  // filtered with `.lte('effective_date', new Date().toISOString()
+  // .split('T')[0])`, which is the UTC day even in the browser. The
+  // versioned latest-effective query shape is unchanged; only the
+  // day anchor moved to the browser's local calendar day.
+  check('current target query unchanged (versioned latest-effective, local day)',
+    nutritionPage.includes(".lte('effective_date', localCalendarDayOf(new Date()))") &&
     nutritionPage.includes(".order('effective_date', { ascending: false })"))
   check('NEW current-target card displays the same fetched target (no new query)',
     nutritionPage.includes('Current target') &&

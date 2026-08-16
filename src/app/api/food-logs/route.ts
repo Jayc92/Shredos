@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import type { FoodLogInsert } from '@/types/database'
 
 /** GET /api/food-logs?date=YYYY-MM-DD */
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     .from('food_logs')
     .insert({
       user_id:             user.id,
-      logged_date:         body.logged_date ?? new Date().toISOString().split('T')[0],
+      logged_date:         body.logged_date ?? localTodayFromCookies(),
       meal_type:           body.meal_type ?? 'snack',
       food_name:           body.food_name.trim(),
       serving_description: body.serving_description?.trim() || null,

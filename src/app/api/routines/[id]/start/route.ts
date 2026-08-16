@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { findActiveTrainingSession, resolveActiveWorkoutConflict } from '@/lib/supabase/server'
 import { buildSessionTitle } from '@/lib/routine'
 
@@ -41,7 +42,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   const body = await request.json().catch(() => ({}))
-  const workout_date = body.workout_date ?? new Date().toISOString().split('T')[0]
+  // Local-date fix: default to the USER'S calendar day.
+  const workout_date = body.workout_date ?? localTodayFromCookies()
 
   const { data: routine, error: rErr } = await supabase
     .from('workout_routines')

@@ -14,7 +14,7 @@ import { progressColor } from '@/lib/workout'
 import type { ProgressSignal } from '@/types/app'
 import { formatDuration } from '@/lib/fasting'
 import { cn } from '@/lib/utils'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { format, parseISO } from 'date-fns'
 import { TRACKING_MODES } from '@/lib/constants'
 import type { Metadata } from 'next'
@@ -106,7 +106,7 @@ export default async function CheckInPage({
   const review = await fetchWeeklyReviewSummary(
     supabase,
     user.id,
-    todayISO(),
+    localTodayFromCookies(),
     searchParams?.week,
     target,
     profile.fasting_enabled

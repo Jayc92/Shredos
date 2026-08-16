@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { startOfISOWeek } from 'date-fns'
+import { parseISO } from 'date-fns'
+import { localTodayFromCookies } from '@/lib/local-date-server'
+import { startOfISOWeekISO } from '@/lib/local-date'
 import { setScore, epley1RM, pickRepresentativeCardioSet } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database'
@@ -109,7 +112,9 @@ export async function fetchCurrentNutritionTarget(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ) {
-  const today = new Date().toISOString().split('T')[0]
+  // Local-date fix: the active target follows the USER'S calendar
+  // day (timezone cookie), never the server's UTC day.
+  const today = localTodayFromCookies()
 
   const { data, error } = await supabase
     .from('nutrition_targets')
@@ -176,7 +181,10 @@ export async function fetchFastingLogsThisWeek(
   // the same "this week" concept, so /fasting and /check-in agree on
   // Sundays too. Same single query, same gte-only boundary, same
   // return shape — only the boundary calculation changed.
-  const weekStart = startOfISOWeek(new Date())
+  // Local-date fix: the week anchors to the USER'S calendar day.
+  // Boundary instants keep their previous semantics (Monday 00:00 as
+  // a plain instant) — only the anchor day is timezone-corrected.
+  const weekStart = startOfISOWeek(parseISO(localTodayFromCookies()))
 
   const { data, error } = await supabase
     .from('fasting_logs')
@@ -317,13 +325,10 @@ export async function fetchWorkoutWeekStats(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ) {
-  const now = new Date()
-  const day = now.getDay()
-  const diffToMon = day === 0 ? -6 : 1 - day
-  const weekStart = new Date(now)
-  weekStart.setDate(now.getDate() + diffToMon)
-  weekStart.setHours(0, 0, 0, 0)
-  const weekStartISO = weekStart.toISOString().split('T')[0]
+  // Local-date fix: "this week" anchors to the USER'S calendar day
+  // (timezone cookie) with pure calendar math — the server's UTC
+  // clock never participates.
+  const weekStartISO = startOfISOWeekISO(localTodayFromCookies())
 
   const { data: thisWeekSessions } = await supabase
     .from('workout_sessions')

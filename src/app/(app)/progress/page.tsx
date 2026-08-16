@@ -25,7 +25,8 @@ import { ProgressWeightChart } from '@/components/progress/ProgressWeightChart'
 import { TrainingCoverageSection } from '@/components/progress/TrainingCoverageSection'
 import { EnergyTrendSection } from '@/components/progress/EnergyTrendSection'
 import { fetchProgressEnergyTrends, parseEnergyRange } from '@/lib/progress-energy'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
+import { addDaysISO } from '@/lib/local-date'
 import { Card, CardContent } from '@/components/ui/card'
 import { Check } from 'lucide-react'
 import type { ProgressSignal } from '@/types/app'
@@ -176,6 +177,9 @@ export default async function ProgressPage({
   // (4/8/12 completed weeks, default 8) — evidence semantics never
   // change with the range.
   const energyRange = parseEnergyRange(searchParams?.range)
+  // Local-date fix: the energy window anchors to the user's calendar
+  // day (timezone cookie), not the server's UTC day.
+  const localToday = localTodayFromCookies()
 
   const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs, energyTrends] = await Promise.all([
     fetchStrengthRecords(supabase, user.id),
@@ -186,7 +190,7 @@ export default async function ProgressPage({
     // window ending on it) — same helper /nutrition uses.
     fetchNutritionTrendLogs(supabase, user.id),
     // Phase 5B.5: read-only aggregation over the stable 5B evidence.
-    fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile),
+    fetchProgressEnergyTrends(supabase, user.id, localToday, energyRange, target, profile),
   ])
 
   // Phase 2Y: compact 7-day-average trend for the Weight section —
@@ -213,7 +217,7 @@ export default async function ProgressPage({
   // 50-row read), windowed to the selected ?range weeks. A visual
   // window only — no evidence semantics change, no new read, no
   // synthesized observations; chronological real dates and values.
-  const chartWindowStart = format(subDays(new Date(), energyRange * 7), 'yyyy-MM-dd')
+  const chartWindowStart = addDaysISO(localToday, -(energyRange * 7))
   const chartReadings = [...weighIns]
     .filter((w) => w.weight_kg !== null && w.logged_date >= chartWindowStart)
     .reverse()

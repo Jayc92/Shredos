@@ -16,9 +16,13 @@ import {
 import { ActivityLogForm } from '@/components/activity/ActivityLogForm'
 import { AddActivityForm } from '@/components/activity/AddActivityForm'
 import { ActivitySessionList } from '@/components/activity/ActivitySessionList'
-import { todayISO } from '@/lib/dates'
+import {
+  isValidDateParam, addDaysISO,
+} from '@/lib/local-date'
+import { localTodayFromCookies } from '@/lib/local-date-server'
+import { LocalDateSync } from '@/components/shared/LocalDateSync'
 import { averageDailySteps } from '@/lib/weekly-review'
-import { format, addDays, subDays, parseISO, isToday, isFuture } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Metadata } from 'next'
@@ -26,12 +30,13 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Activity' }
 
 /** Date navigation — same pattern as /food, server component only */
-function DateNav({ date }: { date: string }) {
-  const current = parseISO(date)
-  const prev = format(addDays(current, -1), 'yyyy-MM-dd')
-  const next = format(addDays(current, 1), 'yyyy-MM-dd')
-  const isCurrentToday = isToday(current)
-  const isNextFuture = isFuture(addDays(current, 1)) && !isToday(addDays(current, 1))
+function DateNav({ date, today }: { date: string; today: string }) {
+  // Local-date fix: pure date-string math against the user's
+  // resolved local today — the server's UTC clock never participates.
+  const prev = addDaysISO(date, -1)
+  const next = addDaysISO(date, 1)
+  const isCurrentToday = date === today
+  const isNextFuture = next > today
 
   return (
     <div className="flex items-center justify-between">
@@ -45,7 +50,7 @@ function DateNav({ date }: { date: string }) {
 
       <div className="text-center">
         <p className="text-base font-semibold text-ink">
-          {isCurrentToday ? 'Today' : format(current, 'EEEE, MMMM d')}
+          {isCurrentToday ? 'Today' : format(parseISO(date), 'EEEE, MMMM d')}
         </p>
         {!isCurrentToday && (
           <Link href="/activity" className="text-xs text-brand hover:underline">
@@ -79,11 +84,15 @@ export default async function ActivityPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const todayStr = todayISO()
-  const date = searchParams.date ?? todayStr
+  // Local-date fix: "today" is the USER'S calendar day (timezone
+  // cookie set by LocalDateSync), never the server's UTC day; the
+  // cookie-less first request self-heals client-side. Invalid ?date
+  // values fall back to today instead of feeding queries.
+  const todayStr = localTodayFromCookies()
+  const date = isValidDateParam(searchParams.date) ? searchParams.date : todayStr
   const isFutureDate = date > todayStr
 
-  const sevenDaysAgo = format(subDays(parseISO(todayStr), 6), 'yyyy-MM-dd')
+  const sevenDaysAgo = addDaysISO(todayStr, -6)
 
   const [profile, existingLog, recentLogs, activitySessions, sessionsForDate] = await Promise.all([
     fetchUserProfile(supabase, user.id),
@@ -130,7 +139,8 @@ export default async function ActivityPage({
 
       <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
-      <DateNav date={date} />
+      <LocalDateSync basePath="/activity" resolvedDate={date} hadExplicitDate={isValidDateParam(searchParams.date)} />
+      <DateNav date={date} today={todayStr} />
 
       {/* key={date}: each calendar day gets its OWN form instance.
           Without it, React reuses the same-position component across

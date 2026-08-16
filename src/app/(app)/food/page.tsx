@@ -21,23 +21,28 @@ import { DayCompleteToggle } from '@/components/food/DayCompleteToggle'
 import { NutritionCoachPanel } from '@/components/nutrition/NutritionCoachPanel'
 import { fetchNutritionCoachSummary } from '@/lib/nutrition-coach'
 import { MEAL_TYPES } from '@/lib/constants'
-import { todayISO } from '@/lib/dates'
-import { format, addDays, subDays, parseISO, isToday, isFuture } from 'date-fns'
+import {
+  isValidDateParam, addDaysISO, dayDifferenceISO,
+} from '@/lib/local-date'
+import { localTodayFromCookies, localHourFromCookies } from '@/lib/local-date-server'
+import { LocalDateSync } from '@/components/shared/LocalDateSync'
+import { format, parseISO } from 'date-fns'
 import type { Metadata } from 'next'
 import type { FoodLog, MealType } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Food log' }
 
-/** Date navigation — server component, uses Links, no client JS */
-function DateNav({ date }: { date: string }) {
-  const current = parseISO(date)
-  const prev = format(addDays(current, -1), 'yyyy-MM-dd')
-  const next = format(addDays(current, 1), 'yyyy-MM-dd')
-  const isCurrentToday = isToday(current)
-  const isNextFuture   = isFuture(addDays(current, 1)) && !isToday(addDays(current, 1))
-  const oldDate = !isCurrentToday && Math.abs(
-    (current.getTime() - new Date().getTime()) / 86_400_000
-  ) > 7
+/** Date navigation — server component, uses Links, no client JS.
+ * Local-date fix: every comparison is pure DATE-STRING math against
+ * the user's resolved local today — the server's UTC clock never
+ * participates, so "Today", Previous, and future-blocking follow the
+ * user's calendar day. */
+function DateNav({ date, today }: { date: string; today: string }) {
+  const prev = addDaysISO(date, -1)
+  const next = addDaysISO(date, 1)
+  const isCurrentToday = date === today
+  const isNextFuture   = next > today
+  const oldDate = !isCurrentToday && Math.abs(dayDifferenceISO(date, today)) > 7
 
   return (
     <div className="flex items-center justify-between">
@@ -51,7 +56,7 @@ function DateNav({ date }: { date: string }) {
 
       <div className="text-center">
         <p className="text-base font-semibold text-ink">
-          {isCurrentToday ? 'Today' : format(current, 'EEEE, MMMM d')}
+          {isCurrentToday ? 'Today' : format(parseISO(date), 'EEEE, MMMM d')}
         </p>
         {!isCurrentToday && (
           <Link href="/food" className="text-xs text-brand hover:underline">
@@ -88,13 +93,18 @@ export default async function FoodPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const date    = searchParams.date ?? todayISO()
-  const todayStr = todayISO()
+  // Local-date fix: "today" is the USER'S calendar day (timezone
+  // cookie set by LocalDateSync), never the server's UTC day. The
+  // cookie-less first request falls back to the server day and the
+  // client immediately self-heals the URL. Invalid ?date values fall
+  // back to today instead of feeding queries.
+  const todayStr = localTodayFromCookies()
+  const date = isValidDateParam(searchParams.date) ? searchParams.date : todayStr
 
   // Phase 1N: 14-day window for "recent foods", anchored to today (not the
   // viewed date) — "recent" is an absolute recency concept independent of
   // which date the user happens to be logging against.
-  const fourteenDaysAgo = format(subDays(parseISO(todayStr), 13), 'yyyy-MM-dd')
+  const fourteenDaysAgo = addDaysISO(todayStr, -13)
 
   // Parallel fetch: all data needed for the food log page
   // Phase 5B.2: dayStatusRes reads the explicit completion row for
@@ -141,7 +151,10 @@ export default async function FoodPage({
     : null
 
   const totals  = computeDailyTotals(logs, date)
-  const nowHour = new Date().getHours()
+  // Local-date fix: meal pacing keys off the USER'S local hour —
+  // new Date().getHours() on the server is the UTC hour, which made
+  // evening pacing guidance wrong from 8pm ET onward.
+  const nowHour = localHourFromCookies()
   const progress = target ? computeNutritionProgress(totals, target, nowHour) : null
 
   return (
@@ -162,7 +175,8 @@ export default async function FoodPage({
       )}
 
       {/* Date navigation */}
-      <DateNav date={date} />
+      <LocalDateSync basePath="/food" resolvedDate={date} hadExplicitDate={isValidDateParam(searchParams.date)} />
+      <DateNav date={date} today={todayStr} />
 
       {/* Daily macro progress */}
       <DailyMacroSummary

@@ -70,8 +70,13 @@ console.log('\n1. Checkpoint and route identity')
     !page.includes('<h1'))
   check('legacy greeting retired (no name-dependent H1, no slogan)',
     !page.includes('getTimeOfDay') && !page.includes('Good {'))
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the label was
+  // `formatDateFull(new Date())`, the SERVER'S date (UTC on Vercel),
+  // which mislabeled the dashboard after 8pm ET. It now formats the
+  // cookie-resolved user-local day; the supporting line itself, the
+  // helper, and the {todayLabel} rendering are unchanged.
   check('local date supporting line retained (existing formatDateFull)',
-    page.includes('formatDateFull(new Date())') && page.includes('{todayLabel}'))
+    page.includes('formatDateFull(today)') && page.includes('{todayLabel}'))
 }
 
 // ── 2. Queries and domain behavior preserved ─────────────────────────

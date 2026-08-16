@@ -464,7 +464,43 @@ async function main() {
           'src/components/routine/RoutineDetailClient.tsx',
           'docs/ui5b1b-transactional-ordering-notes.md',
         ]
-        return diffFiles.every((f) => ALLOWED.includes(f) || f.startsWith('scripts/verify-'))
+        // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
+        // correction files are admitted — expanded to the full
+        // repo-wide local-calendar sweep.
+        const LOCAL_DATE_FIX = [
+          'src/app/(app)/food/page.tsx',
+          'src/app/(app)/activity/page.tsx',
+          'src/app/(app)/check-in/page.tsx',
+          'src/app/(app)/coach/page.tsx',
+          'src/app/(app)/dashboard/page.tsx',
+          'src/app/(app)/layout.tsx',
+          'src/app/(app)/nutrition/page.tsx',
+          'src/app/(app)/progress/page.tsx',
+          'src/app/(app)/weigh-in/page.tsx',
+          'src/app/(app)/workouts/page.tsx',
+          'src/app/(app)/workouts/[id]/page.tsx',
+          'src/app/api/activity/route.ts',
+          'src/app/api/activity-sessions/route.ts',
+          'src/app/api/activity-sessions/[id]/route.ts',
+          'src/app/api/food-logs/route.ts',
+          'src/app/api/goal-adjustment/route.ts',
+          'src/app/api/nutrition/day-status/route.ts',
+          'src/app/api/routines/[id]/start/route.ts',
+          'src/app/api/saved-meals/[id]/quick-add/route.ts',
+          'src/app/api/workouts/route.ts',
+          'src/components/dashboard/NutritionCard.tsx',
+          'src/components/dashboard/WeightCard.tsx',
+          'src/components/food/QuickAddPanel.tsx',
+          'src/components/food/RecentFoodPanel.tsx',
+          'src/components/onboarding/OnboardingWizard.tsx',
+          'src/components/shared/LocalDateSync.tsx',
+          'src/lib/local-date.ts',
+          'src/lib/local-date-server.ts',
+          'src/lib/supabase/server.ts',
+          'src/lib/workout-coach.ts',
+        ]
+        return diffFiles.every((f) => ALLOWED.includes(f) ||
+          LOCAL_DATE_FIX.includes(f) || f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',
       read('docs/ui5b1b-transactional-ordering-notes.md').includes('APPLIED by Joseph') &&

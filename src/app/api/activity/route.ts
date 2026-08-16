@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, upsertActivityLogForDate } from '@/lib/supabase/server'
 import { validateDailyMovementInput } from '@/lib/activity'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 
 // ============================================================
 // ForgeFitOS — passive daily aggregate movement (Phase 1H,
@@ -27,7 +27,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const today = todayISO()
+  // Local-date fix: future guard against the USER'S calendar day.
+  const today = localTodayFromCookies()
   const date = typeof body.date === 'string' && body.date ? body.date : today
 
   // Future dates are blocked — movement can only be logged for today or the past

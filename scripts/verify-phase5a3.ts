@@ -645,8 +645,10 @@ console.log('\n13. Weekly step average (runtime)')
       ]
       return computeWeeklyActivity(rows, bounds).averageSteps === 8857
     })())
+  // RETARGET (LOCAL-DATE-FIX): same 7-day window, computed with pure
+  // date-string math anchored to the user's local today.
   check('trailing window on /activity: today + previous 6 local days, inclusive fetch',
-    page.includes("format(subDays(parseISO(todayStr), 6), 'yyyy-MM-dd')") &&
+    page.includes('addDaysISO(todayStr, -6)') &&
     serverLib.includes(".gte('logged_date', startDate)") &&
     serverLib.includes(".lte('logged_date', endDate)"))
   check('local calendar dates end-to-end (no UTC shift in todayISO)',

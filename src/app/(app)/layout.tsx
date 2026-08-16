@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { LocalDateSync } from '@/components/shared/LocalDateSync'
 import { TopBar } from '@/components/layout/TopBar'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 
@@ -63,6 +64,10 @@ export default async function AppLayout({
     // sole app-content scroll owner by construction. No height class:
     // inset-0 already binds both edges to the viewport.
     <div className="fixed inset-0 flex overflow-hidden bg-canvas">
+      {/* Local-date fix: cookie-only mount — keeps the timezone
+          cookie fresh on EVERY app page so server components can
+          resolve the user's local calendar day, not UTC's. */}
+      <LocalDateSync />
       {/* Grouped sidebar — desktop only */}
       <Sidebar
         fastingEnabled={fastingEnabled}

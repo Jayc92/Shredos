@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 
 // ============================================================
 // ForgeFitOS — explicit nutrition-day completion (Phase 5B.2)
@@ -23,7 +23,8 @@ function validDateParam(raw: string | null): string | null {
   if (!raw || !DATE_PATTERN.test(raw)) return null
   // Local-calendar semantics: lexical compare against the server's
   // local today, same convention as /api/activity.
-  if (raw > todayISO()) return null
+  // Local-date fix: "future" means after the USER'S calendar day.
+  if (raw > localTodayFromCookies()) return null
   return raw
 }
 

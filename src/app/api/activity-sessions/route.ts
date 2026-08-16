@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import { TIMEZONE_COOKIE, todayInTimeZone } from '@/lib/local-date'
 import { validateActivitySessionInput } from '@/lib/activity'
 
 // ============================================================
@@ -17,12 +19,15 @@ import { validateActivitySessionInput } from '@/lib/activity'
 // ============================================================
 
 // The date-only future rule compares LOCAL calendar dates. The
-// browser's local "today" is the product truth; the server cannot
-// know the user's timezone, so its backstop allows one day of skew
-// past its own UTC date rather than rejecting a legitimate "today"
-// entered west of UTC. The client validates strictly against the
-// user's real local today before submitting.
+// timezone cookie (LocalDateSync) now tells the server the user's
+// real calendar day, so the guard is exact whenever it is present;
+// the pre-cookie fallback keeps the documented one-day-of-skew
+// tolerance so a legitimate "today" entered west of UTC is never
+// rejected on a cookie-less first request. The client still
+// validates strictly against the user's real local today.
 function serverTodayWithSkew(): string {
+  const tz = cookies().get(TIMEZONE_COOKIE)?.value
+  if (tz) return todayInTimeZone(tz)
   const d = new Date()
   d.setUTCDate(d.getUTCDate() + 1)
   return d.toISOString().split('T')[0]

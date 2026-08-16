@@ -11,6 +11,7 @@ import {
 import { WorkoutDetailClient } from '@/components/workout/WorkoutDetailClient'
 import { WorkoutsSubNav } from '@/components/workout/WorkoutsSubNav'
 import { fetchExerciseTrends } from '@/lib/workout-coach'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 import { ChevronLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -41,7 +42,7 @@ export default async function WorkoutDetailPage({ params }: { params: { id: stri
   // Fetch in parallel — all four are independent
   const [previousBests, exerciseTrends, exerciseHistory, prBaseline] = await Promise.all([
     fetchPreviousBests(supabase, user.id, exerciseIds, params.id),
-    fetchExerciseTrends(supabase, user.id, exerciseIds),
+    fetchExerciseTrends(supabase, user.id, exerciseIds, localTodayFromCookies()),
     fetchExerciseHistory(supabase, user.id, exerciseIds, params.id),
     fetchExercisePRBaseline(supabase, user.id, exerciseIds, params.id),
   ])

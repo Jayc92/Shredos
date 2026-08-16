@@ -721,8 +721,12 @@ console.log('\n9. UI, accessibility, regression')
   check('page mounts the section after the existing grids (additive)',
     page.includes('<EnergyTrendSection') &&
     page.indexOf('<EnergyTrendSection') > page.indexOf('Nutrition details'))
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the fetch was
+  // anchored at `todayISO()` (server UTC day). Argument order and the
+  // parallel-batch placement are unchanged; the anchor is now the
+  // cookie-resolved user-local day.
   check('page fetch runs in the existing parallel batch',
-    page.includes('fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile)'))
+    page.includes('fetchProgressEnergyTrends(supabase, user.id, localToday, energyRange, target, profile)'))
   check('runtime: builder is pure and repeatable',
     (() => {
       const a = buildProgressEnergyTrends(inputs({ foodRows: weekFood(MONDAYS_8[7], 5) }))
@@ -798,9 +802,13 @@ console.log('\n10. Range-control scroll-preservation correction')
     !stripComments(section).includes("'use client'") &&
     !stripComments(section).includes('useRouter') &&
     !stripComments(section).includes('useTransition'))
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the fetch anchored
+  // at todayISO() (server UTC day). The range still comes exclusively
+  // from the server-parsed ?range; only the anchor day moved to the
+  // cookie-resolved user-local day.
   check('RC12: Progress data still uses the selected server-derived range',
     page.includes('const energyRange = parseEnergyRange(searchParams?.range)') &&
-    page.includes('fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile)'))
+    page.includes('fetchProgressEnergyTrends(supabase, user.id, localToday, energyRange, target, profile)'))
   check('RC13: historical-target behavior is unchanged by this correction',
     (() => {
       const W = MONDAYS_8[7]

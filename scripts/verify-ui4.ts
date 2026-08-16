@@ -124,9 +124,13 @@ async function main() {
       }
       return safe(chartEl(input)) === safe(chartEl(input))
     })())
+    // RETARGET (LOCAL-DATE-FIX): original boundary — the chart window
+    // was `subDays(new Date(), energyRange * 7)` on the server's UTC
+    // clock. Same width, now pure date-string math anchored to the
+    // user-local day; parseEnergyRange still solely drives the range.
     check('S8: supported range behavior (existing parseEnergyRange drives the window)',
       page.includes('parseEnergyRange(searchParams?.range)') &&
-      page.includes('subDays(new Date(), energyRange * 7)') &&
+      page.includes('addDaysISO(localToday, -(energyRange * 7))') &&
       page.includes("w.logged_date >= chartWindowStart"))
     check('S9: range links retain scroll={false} (energy section untouched)',
       energySection.includes('scroll={false}') &&
@@ -292,7 +296,11 @@ async function main() {
       ['src/lib/progress-energy.ts', 'src/lib/energy-facts.ts', 'src/lib/energy-model.ts',
         'src/lib/coach-signals.ts', 'src/lib/today-energy.ts']
         .every((f) => !read(f).includes('UI-4')) &&
-      page.includes('fetchProgressEnergyTrends(supabase, user.id, todayISO(), energyRange, target, profile)'))
+      // RETARGET (LOCAL-DATE-FIX): the fetch anchor moved from
+      // todayISO() (server UTC day) to the user-local day; the
+      // byte-untouched-by-UI-4 property above is what this pin
+      // protects and it is unchanged.
+      page.includes('fetchProgressEnergyTrends(supabase, user.id, localToday, energyRange, target, profile)'))
     check('S34: no eat-back arithmetic',
       CHANGED.every((f) => !/eat.?back|earned (calories|food)/i.test(stripComments(f))))
     check('S35: no burn-credit/expenditure arithmetic',

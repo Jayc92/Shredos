@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 
 /**
  * POST /api/saved-meals/[id]/quick-add
@@ -18,7 +19,7 @@ export async function POST(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json() as { date?: string; meal_type?: string }
-  const logDate = body.date ?? new Date().toISOString().split('T')[0]
+  const logDate = body.date ?? localTodayFromCookies()
 
   // Fetch saved meal (RLS ensures user can only access their own)
   const { data: meal, error: fetchError } = await supabase

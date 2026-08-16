@@ -4,6 +4,7 @@
 // ============================================================
 
 import { differenceInDays, parseISO, subDays, format } from 'date-fns'
+import { addDaysISO } from '@/lib/local-date'
 
 // ── Coaching constants ────────────────────────────────────────────────────────
 // Hardcoded for Phase 1E. Per-user preferences deferred to Phase 2.
@@ -326,11 +327,17 @@ export async function fetchCoachSummary(
 export async function fetchExerciseTrends(
   supabase: any,
   userId: string,
-  exerciseIds: string[]
+  exerciseIds: string[],
+  // Local-date fix: this lib is imported by client components, so it
+  // cannot read the timezone cookie itself — the SERVER caller passes
+  // the user's local calendar day explicitly.
+  todayISO: string
 ): Promise<Record<string, ProgressionTrend>> {
   if (!exerciseIds.length) return {}
 
-  const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd')
+  // Local-date fix: workout_date is a user-local calendar date, so
+  // the trailing 30-day window anchors to the user's day, not UTC's.
+  const thirtyDaysAgo = addDaysISO(todayISO, -30)
 
   const { data: sessions } = await supabase
     .from('workout_sessions')

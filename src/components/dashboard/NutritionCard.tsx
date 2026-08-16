@@ -17,7 +17,7 @@ import { UtensilsCrossed } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import { computeDailyTotals, computeNutritionProgress, progressColor, remainingColor } from '@/lib/food'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies, localHourFromCookies } from '@/lib/local-date-server'
 import type { NutritionTarget, FoodLog } from '@/types/database'
 import type { NutritionCoachSummary } from '@/lib/nutrition-coach'
 
@@ -89,9 +89,10 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
   }
 
   // ── Today’s progress ───────────────────────────────────────────
-  const todayDate = todayISO()
+  // Local-date fix: user-local day/hour (timezone cookie), not UTC.
+  const todayDate = localTodayFromCookies()
   const totals    = computeDailyTotals(todayLogs, todayDate)
-  const nowHour   = new Date().getHours()
+  const nowHour   = localHourFromCookies()
   const progress  = computeNutritionProgress(totals, target, nowHour)
 
   return (

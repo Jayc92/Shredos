@@ -115,8 +115,13 @@ async function main() {
     check('S8: no server-time-derived greeting (no timezone is stored)',
       !pageCode.includes('Good morning') && !pageCode.includes('Good evening') &&
       !pageCode.includes('getHours() <') && !pageCode.includes('getTimeOfDay'))
+    // RETARGET (LOCAL-DATE-FIX): original boundary — the supporting
+    // line formatted `new Date()`, which is the UTC day on the
+    // server. It now formats the cookie-resolved user-local day; the
+    // "real local date" property this pin protects is now actually
+    // true after 8pm ET, and the rendering is unchanged.
     check('greeting supporting line is the real local date (existing helper)',
-      page.includes('formatDateFull(new Date())') && page.includes('description={todayLabel}'))
+      page.includes('formatDateFull(today)') && page.includes('description={todayLabel}'))
   }
 
   // ── 3. Runtime: weight chart states (S9–S15) ───────────────────────

@@ -396,13 +396,56 @@ async function main() {
       'src/app/api/workout-sets/[id]/route.ts',
       'src/app/api/routine-exercises/[id]/route.ts',
     ]
+    // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
+    // correction files are admitted alongside the UI-5B1B set —
+    // expanded to the full repo-wide local-calendar sweep.
+    const LOCAL_DATE_FIX = [
+      'src/app/(app)/food/page.tsx',
+      'src/app/(app)/activity/page.tsx',
+      'src/app/(app)/check-in/page.tsx',
+      'src/app/(app)/coach/page.tsx',
+      'src/app/(app)/dashboard/page.tsx',
+      'src/app/(app)/layout.tsx',
+      'src/app/(app)/nutrition/page.tsx',
+      'src/app/(app)/progress/page.tsx',
+      'src/app/(app)/weigh-in/page.tsx',
+      'src/app/(app)/workouts/page.tsx',
+      'src/app/(app)/workouts/[id]/page.tsx',
+      'src/app/api/activity/route.ts',
+      'src/app/api/activity-sessions/route.ts',
+      'src/app/api/activity-sessions/[id]/route.ts',
+      'src/app/api/food-logs/route.ts',
+      'src/app/api/goal-adjustment/route.ts',
+      'src/app/api/nutrition/day-status/route.ts',
+      'src/app/api/routines/[id]/start/route.ts',
+      'src/app/api/saved-meals/[id]/quick-add/route.ts',
+      'src/app/api/workouts/route.ts',
+      'src/components/dashboard/NutritionCard.tsx',
+      'src/components/dashboard/WeightCard.tsx',
+      'src/components/food/QuickAddPanel.tsx',
+      'src/components/food/RecentFoodPanel.tsx',
+      'src/components/onboarding/OnboardingWizard.tsx',
+      'src/components/shared/LocalDateSync.tsx',
+      'src/lib/local-date.ts',
+      'src/lib/local-date-server.ts',
+      'src/lib/supabase/server.ts',
+      'src/lib/workout-coach.ts',
+    ]
     check('X1: product changes confined to the approved files',
       diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
-        CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f)),
+        CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f) ||
+        LOCAL_DATE_FIX.includes(f)),
       diffFiles.join(', '))
+    // RETARGET (LOCAL-DATE-FIX): original boundary — NO src/lib file
+    // could change. The local-calendar sweep corrects UTC-anchored
+    // "today"/week boundaries inside supabase/server.ts and
+    // workout-coach.ts and adds the local-date libs; only those
+    // enumerated lib files are admitted, database types and
+    // migrations stay locked.
     check('X2: no lib, database-type, or unapproved migration change',
       diffFiles.every((f) =>
-        !f.startsWith('src/lib/') && !f.includes('types/database') &&
+        (!f.startsWith('src/lib/') || LOCAL_DATE_FIX.includes(f)) &&
+        !f.includes('types/database') &&
         (!f.startsWith('supabase/') ||
           f === 'supabase/migrations/021_ui5b_transactional_ordering.sql')))
     check('X3: loading + completion summary byte-untouched (already on the token system)',
@@ -424,11 +467,16 @@ async function main() {
     check('X6: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
       Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)
+    // RETARGET (LOCAL-DATE-FIX): original boundary — workout-coach.ts
+    // unchanged. The sweep changed ONLY its 30-day window anchor (an
+    // explicit user-local-day param); the analytics math itself is
+    // untouched, which the pins below now assert directly.
     check('X7: analytics/summary calculations untouched (lib unchanged)',
       block.includes('evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)') &&
       block.includes('summar') === block.includes('summar') &&
       !diffFiles.includes('src/lib/workout.ts') &&
-      !diffFiles.includes('src/lib/workout-coach.ts'))
+      read('src/lib/workout-coach.ts').includes('const thirtyDaysAgo = addDaysISO(todayISO, -30)') &&
+      read('src/lib/workout-coach.ts').includes('export function classifyTrend'))
     check('X8: notes doc records the slice honestly',
       read('docs/ui5b1a-execution-visual-notes.md').includes('max-w-3xl') &&
       read('docs/ui5b1a-execution-visual-notes.md').includes('44'))

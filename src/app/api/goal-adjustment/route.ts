@@ -31,7 +31,7 @@ import {
   fetchGoalAdjustmentReview,
   validateAdjustmentApply,
 } from '@/lib/goal-adjustments'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
 
 async function loadContext(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const [profile, target] = await Promise.all([
@@ -68,7 +68,7 @@ export async function GET() {
   const review = await fetchGoalAdjustmentReview(
     supabase,
     user.id,
-    todayISO(),
+    localTodayFromCookies(),
     profile.main_goal,
     profile.bf_pct,
     target,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
   // Server-side recomputation from FRESH data — the client's
   // eligibility claim is never trusted.
   const freshReview = await fetchGoalAdjustmentReview(
-    supabase, user.id, todayISO(), profile.main_goal, profile.bf_pct, target,
+    supabase, user.id, localTodayFromCookies(), profile.main_goal, profile.bf_pct, target,
     profileContext(profile)
   )
 
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   }
 
   const proposed = freshReview.proposedCalories as number
-  const today = todayISO()
+  const today = localTodayFromCookies()
   const direction = (freshReview.adjustmentAmount ?? 0) < 0 ? 'decreased' : 'increased'
 
   // One atomic operation (migration 013): the target-version upsert

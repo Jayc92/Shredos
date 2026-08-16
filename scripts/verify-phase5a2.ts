@@ -254,8 +254,13 @@ console.log('\n6. Live creation unchanged')
   check('DB unique-index race fallback unchanged',
     postRoute.includes('isActiveWorkoutUniqueViolation(error)') &&
     postRoute.includes('resolveActiveWorkoutConflict'))
-  check('client-preferred local workout_date unchanged',
-    postRoute.includes("body.workout_date ?? new Date().toISOString().split('T')[0]"))
+  // RETARGET (LOCAL-DATE-FIX): original boundary — the POST default
+  // was `body.workout_date ?? new Date().toISOString().split('T')[0]`,
+  // i.e. the server's UTC day. The default now resolves the USER'S
+  // local day from the timezone cookie; explicit client dates still
+  // win, which is the property this pin protects.
+  check('client-preferred local workout_date (server default = user-local day)',
+    postRoute.includes('body.workout_date ?? localTodayFromCookies()'))
   check('autoTitle fallback unchanged', postRoute.includes('autoTitle(workout_date)'))
   check('CreateWorkoutButton untouched (conflict modal flow intact)',
     createButton.includes("new Date().toLocaleDateString('en-CA')") &&

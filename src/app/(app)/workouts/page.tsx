@@ -20,7 +20,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { SectionHeader } from '@/components/ui/section-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { fetchCoachSummary } from '@/lib/workout-coach'
-import { todayISO } from '@/lib/dates'
+import { localTodayFromCookies } from '@/lib/local-date-server'
+import { addDaysISO } from '@/lib/local-date'
 import { ChevronRight, Play } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -56,7 +57,9 @@ export default async function WorkoutsPage() {
 
   await seedExercisesIfNeeded(supabase, user.id)
 
-  const today = todayISO()
+  // Local-date fix: the user's calendar day (timezone cookie), not
+  // the server's UTC day.
+  const today = localTodayFromCookies()
 
   const [sessions, weekStats, coachSummary, activeSession] = await Promise.all([
     fetchRecentSessions(supabase, user.id, 15),
@@ -65,14 +68,13 @@ export default async function WorkoutsPage() {
     findActiveTrainingSession(supabase, user.id).catch(() => null),
   ])
 
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const sevenDaysAgo = addDaysISO(today, -7)
   const { data: weekSessions } = await supabase
     .from('workout_sessions')
     .select('workout_exercises(exercise:exercises(primary_muscle), workout_sets(completed, is_warmup))')
     .eq('user_id', user.id)
     .in('status', ['in_progress', 'completed'])
-    .gte('workout_date', sevenDaysAgo.toISOString().split('T')[0])
+    .gte('workout_date', sevenDaysAgo)
 
   const muscleVolume = weeklyMuscleVolume((weekSessions ?? []) as any)
   const todaySessions = sessions.filter((s: any) => s.workout_date === today)
