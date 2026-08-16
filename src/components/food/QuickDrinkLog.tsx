@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -76,7 +77,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
               presetId === preset.id
                 ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                : 'border-border bg-background text-ink hover:bg-muted'
+                : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
             )}
           >
             {preset.label}
@@ -95,7 +96,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
             min={1}
             max={MAX_QUANTITY}
             step={1}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <div className="space-y-1.5">
@@ -108,7 +109,7 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="e.g. Bud Light"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
       </div>
@@ -118,12 +119,13 @@ export function QuickDrinkLog({ date }: QuickDrinkLogProps) {
       </p>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>
       )}
 
       {success && (
-        <p className="text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
-          ✓ Drink logged.
+        <p className="flex items-center gap-1.5 text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+          Drink logged.
         </p>
       )}
 

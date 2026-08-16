@@ -1,4 +1,5 @@
 import { progressColor, remainingColor } from '@/lib/food'
+import { ArrowRight } from 'lucide-react'
 import type { NutritionProgress } from '@/types/app'
 import type { NutritionTarget } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
@@ -46,7 +47,7 @@ function BarRow({ label, consumed, target, pct, remaining, unit = 'g', isCalorie
           </div>
         </div>
       </div>
-      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+      <div className="h-2 bg-surface-sunken rounded-full overflow-hidden">
         <div
           className={`h-full ${fillColor} rounded-full transition-all duration-300`}
           style={{ width: `${cappedPct}%` }}
@@ -63,7 +64,7 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
         <CardContent>
         <p className="text-sm text-ink-muted">
           No nutrition targets set.{' '}
-          <a href="/nutrition" className="text-brand hover:underline">Set targets →</a>
+          <a href="/nutrition" className="inline-flex items-center gap-1 text-brand hover:underline">Set targets<ArrowRight className="w-3.5 h-3.5" aria-hidden="true" /></a>
         </p>
       </CardContent>
       </Card>
@@ -83,7 +84,7 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
           <span className="text-xs text-ink-muted">Target: {target.calories.toLocaleString()} cal</span>
         </div>
         <p className="text-sm text-ink-muted">No food logged yet today.</p>
-        <a href="/food" className="text-xs text-brand hover:underline">Log food →</a>
+        <a href="/food" className="inline-flex items-center gap-1 text-xs text-brand hover:underline">Log food<ArrowRight className="w-3 h-3" aria-hidden="true" /></a>
       </CardContent>
       </Card>
     )
@@ -145,8 +146,9 @@ export function DailyMacroSummary({ progress, target, compact = false }: DailyMa
       )}
 
       <div className="pt-1 border-t border-edge-subtle">
-        <a href="/food" className="text-xs text-brand hover:underline">
-          Log food →
+        <a href="/food" className="inline-flex items-center gap-1 text-xs text-brand hover:underline">
+          Log food
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </a>
       </div>
     </CardContent>

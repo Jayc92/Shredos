@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -135,7 +136,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
         value={f.foodName}
         onChange={(e) => upd({ foodName: e.target.value })}
         placeholder="Food name"
-        className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+        className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
       />
 
       {/* Meal type — pill group, same selected-state convention used elsewhere */}
@@ -152,7 +153,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 mealType === value
                   ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                  : 'border-border bg-background text-ink hover:bg-muted'
+                  : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
               )}
             >
               {label}
@@ -172,7 +173,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             min="0.01"
             max={MAX_SERVINGS}
             step="any"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <div className="space-y-1.5">
@@ -185,7 +186,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             min="0"
             step="any"
             placeholder="0"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
       </div>
@@ -197,7 +198,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.protein}
             onChange={(e) => upd({ protein: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
@@ -206,7 +207,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.carbs}
             onChange={(e) => upd({ carbs: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
@@ -215,7 +216,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.fat}
             onChange={(e) => upd({ fat: e.target.value })}
             min="0" step="any" placeholder="0"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
@@ -230,7 +231,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.fiber}
             onChange={(e) => upd({ fiber: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
@@ -241,7 +242,7 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.sugar}
             onChange={(e) => upd({ sugar: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <div className="space-y-1.5">
@@ -252,25 +253,26 @@ export function LabelCalculatorForm({ date }: LabelCalculatorFormProps) {
             type="number" inputMode="decimal" value={f.sodium}
             onChange={(e) => upd({ sodium: e.target.value })}
             min="0" step="any" placeholder="—"
-            className="w-full px-2.5 py-2 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
 
       {/* Live preview */}
       {showPreview && (
-        <p className="text-xs text-ink-muted bg-secondary rounded-lg px-3 py-2">
+        <p className="text-xs text-ink-muted bg-surface-sunken rounded-lg px-3 py-2">
           Preview: {previewCal} cal · {previewPro}g protein · {previewCarb}g carbs · {previewFat}g fat
         </p>
       )}
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>
       )}
 
       {success && (
-        <p className="text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
-          ✓ Logged from label.
+        <p className="flex items-center gap-1.5 text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+          Logged from label.
         </p>
       )}
 

@@ -500,6 +500,8 @@ async function main() {
           'docs/ui5a-train-discovery-notes.md',
           // UI-5B2 notes: records 022's applied status + probes.
           'docs/ui5b2-workout-reuse-notes.md',
+          // RETARGET (UI-6A): the Fuel visual-rebuild notes.
+          'docs/ui6a-fuel-visual-notes.md',
           'src/app/api/workouts/[id]/save-as-routine/route.ts',
           'src/app/api/workouts/[id]/repeat/route.ts',
           'src/components/workout/SaveAsRoutineButton.tsx',
@@ -550,8 +552,30 @@ async function main() {
           'src/lib/supabase/server.ts',
           'src/lib/workout-coach.ts',
         ]
+        // RETARGET (UI-6A): the approved Fuel visual rebuild is
+        // admitted while uncommitted.
+        const UI6A = [
+          'src/app/(app)/food/page.tsx',
+          'src/app/(app)/food/loading.tsx',
+          'src/app/(app)/food/saved/page.tsx',
+          'src/app/(app)/food/saved/loading.tsx',
+          'src/app/(app)/nutrition/page.tsx',
+          'src/app/(app)/nutrition/loading.tsx',
+          'src/components/food/AddFoodForm.tsx',
+          'src/components/food/DailyMacroSummary.tsx',
+          'src/components/food/FoodLogEntry.tsx',
+          'src/components/food/LabelCalculatorForm.tsx',
+          'src/components/food/QuickAddPanel.tsx',
+          'src/components/food/QuickDrinkLog.tsx',
+          'src/components/food/RecentFoodPanel.tsx',
+          'src/components/food/SavedMealCard.tsx',
+          'src/components/food/SavedMealForm.tsx',
+          'src/components/nutrition/GoalAdjustmentReviewCard.tsx',
+          'src/components/nutrition/NutritionCoachPanel.tsx',
+        ]
         return diffFiles.every((f) => ALLOWED.includes(f) ||
           LOCAL_DATE_FIX.includes(f) || UI5B2.includes(f) ||
+          UI6A.includes(f) ||
           f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',

@@ -27,6 +27,7 @@ import {
 import { localTodayFromCookies, localHourFromCookies } from '@/lib/local-date-server'
 import { LocalDateSync } from '@/components/shared/LocalDateSync'
 import { format, parseISO } from 'date-fns'
+import { PageHeader } from '@/components/ui/page-header'
 import type { Metadata } from 'next'
 import type { FoodLog, MealType } from '@/types/database'
 
@@ -158,65 +159,78 @@ export default async function FoodPage({
   const progress = target ? computeNutritionProgress(totals, target, nowHour) : null
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-xl font-bold text-ink">Food log</h1>
-        <p className="text-sm text-ink-muted mt-0.5">
-          Log meals for the selected day and track daily totals.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-4 p-4 lg:p-6">
+      {/* UI-6A: PageHeader primitive; same title and support copy. */}
+      <PageHeader
+        title="Food log"
+        description="Log meals for the selected day and track daily totals."
+      />
 
       <FuelSubNav />
 
-      {/* Phase 1F: coaching panel (today only, hidden until enough data) */}
-      {nutritionSummary && (
-        <NutritionCoachPanel summary={nutritionSummary} />
-      )}
-
-      {/* Date navigation */}
+      {/* Date navigation — full width, above both columns, so the
+          selected day is never buried below supporting content. */}
       <LocalDateSync basePath="/food" resolvedDate={date} hadExplicitDate={isValidDateParam(searchParams.date)} />
       <DateNav date={date} today={todayStr} />
 
-      {/* Daily macro progress */}
-      <DailyMacroSummary
-        progress={progress}
-        target={target}
-        compact={false}
-      />
+      {/* UI-6A wide-route composition: the meal-entry workflow is the
+          feature column; supporting context (macro summary, coaching,
+          quick add, recent foods) sits in a naturally sized rail at
+          lg. The RAIL renders first in the DOM so the mobile single
+          column keeps the established sequence — macro summary and
+          the collapsed shortcuts ahead of the meal sections (the
+          4B.6C hierarchy). items-start: columns keep natural heights,
+          never stretched to match each other. */}
+      <div className="lg:flex lg:items-start lg:gap-6">
+        <div className="space-y-4 lg:order-2 lg:w-80 lg:flex-shrink-0">
+          {/* Daily macro progress */}
+          <DailyMacroSummary
+            progress={progress}
+            target={target}
+            compact={false}
+          />
 
-      {/* Quick shortcuts — saved-meal quick add + recent foods sit
-          ahead of the meal sections (4B.6C hierarchy); the flows
-          themselves are unchanged. */}
-      <QuickAddPanel savedMeals={savedMeals} date={date} />
-      <RecentFoodPanel recentFoods={recentFoods} date={date} />
+          {/* Phase 1F: coaching panel (today only, hidden until enough data) */}
+          {nutritionSummary && (
+            <NutritionCoachPanel summary={nutritionSummary} />
+          )}
 
-      {/* Meal sections */}
-      {MEAL_TYPES.map(({ value, label }) => (
-        <MealSection
-          key={value}
-          mealType={value as MealType}
-          label={label}
-          entries={logs.filter((l) => l.meal_type === value)}
-          date={date}
-        />
-      ))}
+          {/* Quick shortcuts — saved-meal quick add + recent foods sit
+              ahead of the meal sections (4B.6C hierarchy); the flows
+              themselves are unchanged. */}
+          <QuickAddPanel savedMeals={savedMeals} date={date} />
+          <RecentFoodPanel recentFoods={recentFoods} date={date} />
+        </div>
 
-      {/* Phase 5B.2: explicit day completion — a restrained
-          data-quality affordance closing the logging flow. Hidden on
-          future dates (a day that hasn't happened can't be finished).
-          key={date}: each selected day gets its own instance (the
-          5A.3 date-isolation lesson). */}
-      {date <= todayStr && (
-        <DayCompleteToggle key={date} date={date} initialComplete={dayStatusRes.data !== null} />
-      )}
+        <div className="mt-4 space-y-4 lg:order-1 lg:mt-0 lg:min-w-0 lg:flex-1">
+          {/* Meal sections */}
+          {MEAL_TYPES.map(({ value, label }) => (
+            <MealSection
+              key={value}
+              mealType={value as MealType}
+              label={label}
+              entries={logs.filter((l) => l.meal_type === value)}
+              date={date}
+            />
+          ))}
 
-      {/* Secondary tools */}
-      {/* Quick drink log — one aggregate row, e.g. "7 Bud Lights" */}
-      <QuickDrinkLog date={date} />
+          {/* Phase 5B.2: explicit day completion — a restrained
+              data-quality affordance closing the logging flow. Hidden on
+              future dates (a day that hasn't happened can't be finished).
+              key={date}: each selected day gets its own instance (the
+              5A.3 date-isolation lesson). */}
+          {date <= todayStr && (
+            <DayCompleteToggle key={date} date={date} initialComplete={dayStatusRes.data !== null} />
+          )}
 
-      {/* Nutrition label calculator — per-serving label values x servings eaten */}
-      <LabelCalculatorForm date={date} />
+          {/* Secondary tools */}
+          {/* Quick drink log — one aggregate row, e.g. "7 Bud Lights" */}
+          <QuickDrinkLog date={date} />
+
+          {/* Nutrition label calculator — per-serving label values x servings eaten */}
+          <LabelCalculatorForm date={date} />
+        </div>
+      </div>
     </div>
   )
 }

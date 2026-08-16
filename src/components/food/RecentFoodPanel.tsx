@@ -29,7 +29,7 @@ function RecentFoodConfirm({ entry, date, onConfirm, onCancel, saving }: RecentF
   const [mealType, setMealType] = useState<MealType>(entry.meal_type)
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-2">
+    <div className="bg-surface border border-edge rounded-xl p-4 space-y-3 mt-2">
       <p className="text-sm font-medium text-ink">
         Add <span className="text-primary">{entry.food_name}</span> to{' '}
         {date === localCalendarDayOf(new Date()) ? 'today' : date}?
@@ -53,7 +53,7 @@ function RecentFoodConfirm({ entry, date, onConfirm, onCancel, saving }: RecentF
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="flex-1 py-2 text-xs text-ink-muted border border-border rounded-lg hover:bg-muted transition-colors">
+          className="flex-1 py-2 text-xs text-ink-muted border border-edge rounded-lg hover:bg-surface-interactive transition-colors">
           Cancel
         </button>
         <button type="button" onClick={() => onConfirm(mealType)} disabled={saving}
@@ -108,7 +108,7 @@ function RecentFoodRow({ entry, date }: { entry: FoodLog; date: string }) {
           </p>
         </div>
         {justAdded ? (
-          <span className="ml-2 text-xs text-green-400 flex-shrink-0">Added</span>
+          <span className="ml-2 text-xs text-success flex-shrink-0">Added</span>
         ) : (
           <button
             type="button"

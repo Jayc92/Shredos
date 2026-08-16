@@ -25,7 +25,7 @@ function NInput({ label, value, onChange, unit, required }: {
 }) {
   return (
     <div className="min-w-0">
-      <label className="block text-xs font-medium text-muted-foreground mb-1">
+      <label className="block text-xs font-medium text-ink-muted mb-1">
         {label}{required && ' *'}
       </label>
       <div className="flex items-center gap-1.5">
@@ -33,9 +33,9 @@ function NInput({ label, value, onChange, unit, required }: {
           type="number" inputMode="decimal" value={value} min="0" step="any"
           onChange={e => onChange(e.target.value)}
           onFocus={e => e.target.select()}
-          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-secondary border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        {unit && <span className="text-xs text-muted-foreground select-none w-6 flex-shrink-0">{unit}</span>}
+        {unit && <span className="text-xs text-ink-muted select-none w-6 flex-shrink-0">{unit}</span>}
       </div>
     </div>
   )
@@ -104,24 +104,24 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
 
   return (
     <form onSubmit={handleSave} className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
+      <h3 className="text-sm font-semibold text-ink">
         {existing ? 'Edit saved meal' : 'New saved meal'}
       </h3>
 
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Meal name *</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Meal name *</label>
         <input
           type="text" value={name} onChange={e => setName(e.target.value)} autoFocus required
           placeholder="e.g. Greek yogurt + granola"
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
       {/* Default meal type — pill group, no dropdown */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-foreground">Default meal type</label>
-        <p className="text-xs text-muted-foreground">Used as the default when quick-adding this meal.</p>
+        <label className="block text-sm font-medium text-ink">Default meal type</label>
+        <p className="text-xs text-ink-muted">Used as the default when quick-adding this meal.</p>
         <div className="flex flex-wrap gap-2">
           {/* "None" option clears the default */}
           <button
@@ -132,7 +132,7 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
               !mealType
                 ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                : 'border-border bg-background text-foreground hover:bg-muted'
+                : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
             )}
           >
             None
@@ -147,7 +147,7 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 mealType === value
                   ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                  : 'border-border bg-background text-foreground hover:bg-muted'
+                  : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
               )}
             >
               {label}
@@ -170,7 +170,7 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
       </div>
 
       {crossCheck && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-3 py-2">{crossCheck}</p>
+        <p className="text-xs text-caution bg-caution-subtle rounded px-3 py-2">{crossCheck}</p>
       )}
 
       {/* Autopilot */}
@@ -179,30 +179,30 @@ export function SavedMealForm({ existing, onClose }: SavedMealFormProps) {
           <input
             type="checkbox" checked={isAutopilot}
             onChange={e => setIsAutopilot(e.target.checked)}
-            className="rounded border-border"
+            className="rounded border-edge"
           />
           <div>
-            <span className="text-sm font-medium text-foreground">Autopilot meal</span>
-            <p className="text-xs text-muted-foreground">Appears at the top of Quick Add on the food log page.</p>
+            <span className="text-sm font-medium text-ink">Autopilot meal</span>
+            <p className="text-xs text-ink-muted">Appears at the top of Quick Add on the food log page.</p>
           </div>
         </label>
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">Notes (optional)</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Notes (optional)</label>
         <input
           type="text" value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="Any notes about this meal"
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
-      {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex gap-3">
         <button type="button" onClick={onClose}
-          className="flex-1 py-2.5 rounded-lg border border-border text-muted-foreground text-sm hover:bg-muted transition-colors">
+          className="flex-1 py-2.5 rounded-lg border border-edge text-ink-muted text-sm hover:bg-surface-interactive transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={saving}

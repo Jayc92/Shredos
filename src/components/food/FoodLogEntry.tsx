@@ -33,9 +33,9 @@ function NInput({ value, onChange, unit }: {
         step="any"
         onChange={e => onChange(e.target.value)}
         onFocus={e => e.target.select()}
-        className="w-full min-w-0 px-2 py-1.5 rounded-md bg-secondary border border-input text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        className="w-full min-w-0 px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-1 focus:ring-ring"
       />
-      {unit && <span className="text-xs text-muted-foreground select-none flex-shrink-0">{unit}</span>}
+      {unit && <span className="text-xs text-ink-muted select-none flex-shrink-0">{unit}</span>}
     </div>
   )
 }
@@ -97,7 +97,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
     return (
       <form
         onSubmit={handleSaveEdit}
-        className="bg-muted/30 rounded-lg border border-border p-3 space-y-2.5 text-sm my-1"
+        className="bg-surface-sunken rounded-lg border border-edge p-3 space-y-2.5 text-sm my-1"
       >
         {/* Name */}
         <input
@@ -105,7 +105,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
           onChange={e => setFoodName(e.target.value)}
           autoFocus
           placeholder="Food name"
-          className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         />
 
         {/* Serving */}
@@ -113,12 +113,12 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
           value={serving}
           onChange={e => setServing(e.target.value)}
           placeholder="Serving (optional)"
-          className="w-full px-2 py-1.5 rounded-md bg-secondary border border-input text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-xs focus:outline-none focus:ring-1 focus:ring-ring"
         />
 
         {/* Meal type — pill group, no dropdown */}
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Meal type</p>
+          <p className="text-xs text-ink-muted">Meal type</p>
           <div className="flex flex-wrap gap-1.5">
             {MEAL_TYPE_OPTIONS.map(({ value, label }) => (
               <button
@@ -130,7 +130,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
                   'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
                   mealType === value
                     ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                    : 'border-border bg-background text-foreground hover:bg-muted'
+                    : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
                 )}
               >
                 {label}
@@ -142,42 +142,42 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
         {/* Macros: 2-col on mobile, 4-col on sm+ */}
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-0.5">Cal</p>
+            <p className="text-xs text-ink-muted mb-0.5">Cal</p>
             <NInput value={calories} onChange={setCalories} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-0.5">Protein</p>
+            <p className="text-xs text-ink-muted mb-0.5">Protein</p>
             <NInput value={protein} onChange={setProtein} unit="g" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-0.5">Carbs</p>
+            <p className="text-xs text-ink-muted mb-0.5">Carbs</p>
             <NInput value={carbs} onChange={setCarbs} unit="g" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-0.5">Fat</p>
+            <p className="text-xs text-ink-muted mb-0.5">Fat</p>
             <NInput value={fat} onChange={setFat} unit="g" />
           </div>
         </div>
 
         {crossCheck && (
-          <p className="text-xs text-amber-400">{crossCheck}</p>
+          <p className="text-xs text-caution">{crossCheck}</p>
         )}
         {error && (
-          <p className="text-xs text-destructive">{error}</p>
+          <p className="text-xs text-critical">{error}</p>
         )}
 
         <div className="flex items-center gap-3 pt-1">
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink transition-colors"
           >
             <X className="w-3 h-3" /> Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1 text-xs text-success hover:text-success/80 disabled:opacity-50 transition-colors"
           >
             <Check className="w-3 h-3" /> {saving ? 'Saving…' : 'Save'}
           </button>
@@ -187,16 +187,16 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
   }
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0 group">
+    <div className="flex items-center justify-between py-2 border-b border-edge-subtle last:border-0 group">
       <div className="flex-1 min-w-0 pr-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground truncate">{entry.food_name}</span>
+          <span className="text-sm font-medium text-ink truncate">{entry.food_name}</span>
           {entry.serving_description && (
-            <span className="text-xs text-muted-foreground">{entry.serving_description}</span>
+            <span className="text-xs text-ink-muted">{entry.serving_description}</span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-          <span className="tabular-nums font-medium text-foreground">{entry.calories} cal</span>
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-ink-muted">
+          <span className="tabular-nums font-medium text-ink">{entry.calories} cal</span>
           <span>{Number(entry.protein_g).toFixed(1)}g P</span>
           <span>{Number(entry.carbs_g).toFixed(1)}g C</span>
           <span>{Number(entry.fat_g).toFixed(1)}g F</span>
@@ -205,7 +205,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button
           onClick={() => setEditing(true)}
-          className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+          className="p-1.5 text-ink-muted hover:text-ink rounded transition-colors"
           aria-label="Edit"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -213,7 +213,7 @@ export function FoodLogEntry({ entry }: FoodLogEntryProps) {
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors disabled:opacity-40"
+          className="p-1.5 text-ink-muted hover:text-critical rounded transition-colors disabled:opacity-40"
           aria-label="Delete"
         >
           <Trash2 className="w-3.5 h-3.5" />

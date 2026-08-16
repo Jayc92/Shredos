@@ -21,10 +21,10 @@ const CONFIDENCE_LABEL: Record<string, string> = {
 }
 
 const CONFIDENCE_CLS: Record<string, string> = {
-  high:         'bg-green-500/10 text-green-400',
-  moderate:     'bg-blue-500/10 text-blue-400',
-  low:          'bg-amber-500/10 text-caution',
-  insufficient: 'bg-secondary text-ink-muted',
+  high:         'bg-success-subtle text-success',
+  moderate:     'bg-info-subtle text-info',
+  low:          'bg-caution-subtle text-caution',
+  insufficient: 'bg-surface-sunken text-ink-muted',
 }
 
 export function NutritionCoachPanel({ summary }: NutritionCoachPanelProps) {
@@ -78,9 +78,9 @@ export function NutritionCoachPanel({ summary }: NutritionCoachPanelProps) {
             <span
               className={`text-xs font-medium ${
                 summary.weightTrend === 'losing'
-                  ? 'text-green-400'
+                  ? 'text-success'
                   : summary.weightTrend === 'gaining'
-                  ? 'text-red-400'
+                  ? 'text-critical'
                   : 'text-ink-muted'
               }`}
             >
@@ -95,8 +95,8 @@ export function NutritionCoachPanel({ summary }: NutritionCoachPanelProps) {
 
       {/* Calorie suggestion — conservative, multi-gated */}
       {summary.calorieSuggestion && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2.5">
-          <p className="text-xs text-blue-400 leading-relaxed">
+        <div className="bg-info-subtle border border-info/20 rounded-lg px-3 py-2.5">
+          <p className="text-xs text-info leading-relaxed">
             {summary.calorieSuggestion}
           </p>
           <p className="text-xs text-ink-muted mt-1.5">

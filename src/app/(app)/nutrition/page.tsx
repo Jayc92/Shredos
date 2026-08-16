@@ -15,6 +15,8 @@ import { FuelSubNav } from '@/components/food/FuelSubNav'
 import { Card, CardContent } from '@/components/ui/card'
 import { GoalAdjustmentReviewCard } from '@/components/nutrition/GoalAdjustmentReviewCard'
 import { kgToLbs } from '@/lib/units'
+import { ArrowDown, CheckCircle2 } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
 import type { NutritionTarget, UserProfile } from '@/types/database'
 // The client fetch state reuses the route's own loading.tsx composition,
 // so the skeleton the router shows during navigation and the skeleton
@@ -187,15 +189,22 @@ export default function NutritionPage() {
   const trendSummary = buildNutritionTrendSummary(trendLogs, target?.protein_g ?? null)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-ink">Nutrition targets</h1>
-        <p className="text-sm text-ink-muted mt-0.5">
-          Edit your daily targets. Each change is versioned and logged.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+      {/* UI-6A: PageHeader primitive; same title and support copy. */}
+      <PageHeader
+        title="Nutrition targets"
+        description="Edit your daily targets. Each change is versioned and logged."
+      />
 
       <FuelSubNav />
+
+      {/* UI-6A two-column desktop composition (items-start, natural
+          heights): the authoritative target, the adjustment review,
+          and the edit form form the primary column; the calculated
+          suggestion and trend context sit in the second. Mobile keeps
+          one logical column. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6 space-y-5 lg:space-y-0">
+      <div className="space-y-5">
 
       {/* Current authoritative target (4B.6C) — a display of the SAME
           already-fetched target the form below edits; the suggestion
@@ -241,50 +250,6 @@ export default function NutritionPage() {
         }}
       />
 
-      {/* Calculated suggestion */}
-      {calculated && (
-        <Card variant="subtle" className="gap-0 py-4">
-          <CardContent className="space-y-3">
-          <h3 className="text-sm font-medium text-ink">
-            Calculated from profile
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            {[
-              { label: 'Calories', value: calculated.calories, color: 'text-primary' },
-              { label: 'Protein', value: `${calculated.protein_g}g`, color: 'text-blue-400' },
-              { label: 'Carbs', value: `${calculated.carbs_g}g`, color: 'text-yellow-400' },
-              { label: 'Fat', value: `${calculated.fat_g}g`, color: 'text-orange-400' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-secondary rounded-lg py-3">
-                <p className="metric-label">{label}</p>
-                <p className={`text-xl font-bold tabular-nums mt-1 ${color}`}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {calculated.warnings.length > 0 && (
-            <div className="bg-caution-subtle border border-caution/20 rounded-lg px-3 py-2">
-              {calculated.warnings.map((w, i) => (
-                <p key={i} className="text-xs text-caution">{w}</p>
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={() => {
-              setCalories(String(calculated.calories))
-              setProtein(String(calculated.protein_g))
-              setCarbs(String(calculated.carbs_g))
-              setFat(String(calculated.fat_g))
-            }}
-            className="text-xs text-brand hover:underline"
-          >
-            Use calculated values ↓
-          </button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Manual edit form */}
       <Card variant="action" className="gap-0 py-4">
         <CardContent>
@@ -308,7 +273,7 @@ export default function NutritionPage() {
                   min={min}
                   max={max}
                   required
-                  className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+                  className="w-full min-h-11 px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">{unit}</span>
               </div>
@@ -333,7 +298,7 @@ export default function NutritionPage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Reason for change..."
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full min-h-11 px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
 
@@ -341,8 +306,9 @@ export default function NutritionPage() {
           <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{saveError}</p>
         )}
         {saveSuccess && (
-          <p className="text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
-            ✓ Targets updated and logged.
+          <p className="flex items-center gap-1.5 text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            Targets updated and logged.
           </p>
         )}
 
@@ -357,9 +323,59 @@ export default function NutritionPage() {
         </CardContent>
       </Card>
 
+      </div>
+
+      <div className="mt-5 space-y-5 lg:mt-0">
+      {/* Calculated suggestion */}
+      {calculated && (
+        <Card variant="subtle" className="gap-0 py-4">
+          <CardContent className="space-y-3">
+          <h3 className="text-sm font-medium text-ink">
+            Calculated from profile
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            {[
+              { label: 'Calories', value: calculated.calories, color: 'text-ink' },
+              { label: 'Protein', value: `${calculated.protein_g}g`, color: 'text-ink' },
+              { label: 'Carbs', value: `${calculated.carbs_g}g`, color: 'text-ink' },
+              { label: 'Fat', value: `${calculated.fat_g}g`, color: 'text-ink' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-surface-sunken rounded-lg py-3">
+                <p className="metric-label">{label}</p>
+                <p className={`text-xl font-bold tabular-nums mt-1 ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {calculated.warnings.length > 0 && (
+            <div className="bg-caution-subtle border border-caution/20 rounded-lg px-3 py-2">
+              {calculated.warnings.map((w, i) => (
+                <p key={i} className="text-xs text-caution">{w}</p>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              setCalories(String(calculated.calories))
+              setProtein(String(calculated.protein_g))
+              setCarbs(String(calculated.carbs_g))
+              setFat(String(calculated.fat_g))
+            }}
+            className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline"
+          >
+            Use calculated values
+            <ArrowDown className="w-3 h-3" aria-hidden="true" />
+          </button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Phase 2Z trend summary + 28-day charts — values and math
           unchanged; now the trailing context section (4B.6C order). */}
       <NutritionTrendSection summary={trendSummary} />
+      </div>
+      </div>
     </div>
   )
 }

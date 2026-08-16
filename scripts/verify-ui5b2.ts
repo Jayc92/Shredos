@@ -445,12 +445,36 @@ async function main() {
             'src/components/workout/RepeatWorkoutButton.tsx',
             'src/components/workout/WorkoutDetailClient.tsx',
           ]
+          // RETARGET (UI-6A): the approved Fuel visual rebuild is
+          // admitted while uncommitted.
+          const UI6A = [
+            'src/app/(app)/food/page.tsx',
+            'src/app/(app)/food/loading.tsx',
+            'src/app/(app)/food/saved/page.tsx',
+            'src/app/(app)/food/saved/loading.tsx',
+            'src/app/(app)/nutrition/page.tsx',
+            'src/app/(app)/nutrition/loading.tsx',
+            'src/components/food/AddFoodForm.tsx',
+            'src/components/food/DailyMacroSummary.tsx',
+            'src/components/food/FoodLogEntry.tsx',
+            'src/components/food/LabelCalculatorForm.tsx',
+            'src/components/food/QuickAddPanel.tsx',
+            'src/components/food/QuickDrinkLog.tsx',
+            'src/components/food/RecentFoodPanel.tsx',
+            'src/components/food/SavedMealCard.tsx',
+            'src/components/food/SavedMealForm.tsx',
+            'src/components/nutrition/GoalAdjustmentReviewCard.tsx',
+            'src/components/nutrition/NutritionCoachPanel.tsx',
+          ]
+          if (UI6A.includes(f)) return true
           return f === 'supabase/migrations/022_ui5b2_workout_reuse.sql' ||
             // Approved documentation-only addendum: the Future
             // Exercise Library Expansion roadmap entry.
             f === 'docs/ui5a-train-discovery-notes.md' ||
             // UI-5B2 notes: records 022's applied status + probes.
             f === 'docs/ui5b2-workout-reuse-notes.md' ||
+            // RETARGET (UI-6A): the Fuel visual-rebuild notes.
+            f === 'docs/ui6a-fuel-visual-notes.md' ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')
         })

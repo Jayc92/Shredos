@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { localCalendarDayOf } from '@/lib/local-date'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, Zap, Plus } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronUp, Zap, Plus } from 'lucide-react'
 import { MEAL_TYPES } from '@/lib/constants'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -28,7 +28,7 @@ function QuickAddConfirm({ meal, date, onConfirm, onCancel, saving }: QuickAddCo
   const [mealType, setMealType] = useState<MealType>(meal.meal_type_default ?? 'snack')
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-2">
+    <div className="bg-surface border border-edge rounded-xl p-4 space-y-3 mt-2">
       <p className="text-sm font-medium text-ink">
         Add <span className="text-primary">{meal.name}</span> to {date === localCalendarDayOf(new Date()) ? 'today' : date}?
       </p>
@@ -51,7 +51,7 @@ function QuickAddConfirm({ meal, date, onConfirm, onCancel, saving }: QuickAddCo
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
-          className="flex-1 py-2 text-xs text-ink-muted border border-border rounded-lg hover:bg-muted transition-colors">
+          className="flex-1 py-2 text-xs text-ink-muted border border-edge rounded-lg hover:bg-surface-interactive transition-colors">
           Cancel
         </button>
         <button type="button" onClick={() => onConfirm(mealType)} disabled={saving}
@@ -132,8 +132,9 @@ export function QuickAddPanel({ savedMeals, date }: QuickAddPanelProps) {
       <Card variant="status" className="gap-0 py-4">
         <CardContent className="text-center py-4 space-y-1">
         <p className="text-sm text-ink-muted">No saved meals yet.</p>
-        <a href="/food/saved" className="text-xs text-brand hover:underline">
-          Create saved meals →
+        <a href="/food/saved" className="inline-flex items-center gap-1 text-xs text-brand hover:underline">
+          Create saved meals
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </a>
       </CardContent>
       </Card>
@@ -188,8 +189,9 @@ export function QuickAddPanel({ savedMeals, date }: QuickAddPanelProps) {
           )}
 
           <div className="pt-2 border-t border-edge-subtle mt-2">
-            <a href="/food/saved" className="text-xs text-brand hover:underline">
-              Manage saved meals →
+            <a href="/food/saved" className="inline-flex items-center gap-1 text-xs text-brand hover:underline">
+              Manage saved meals
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </a>
           </div>
         </div>

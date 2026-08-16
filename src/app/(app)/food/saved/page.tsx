@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { ArrowRight, Plus } from 'lucide-react'
 import { SavedMealCard } from '@/components/food/SavedMealCard'
 import { FuelSubNav } from '@/components/food/FuelSubNav'
 import { Card, CardContent } from '@/components/ui/card'
 import { SavedMealForm } from '@/components/food/SavedMealForm'
 import { createClient } from '@/lib/supabase/client'
+import { PageHeader } from '@/components/ui/page-header'
+import { SectionHeader } from '@/components/ui/section-header'
 import type { SavedMeal } from '@/types/database'
 // Client fetch state reuses the route's loading.tsx composition —
 // identical skeleton for router navigation and client query, never a
@@ -67,22 +69,22 @@ export default function SavedMealsPage() {
   const rest = meals.filter(m => !m.is_autopilot)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-ink">Saved meals</h1>
-          <p className="text-sm text-ink-muted mt-0.5">
-            Quick-add common meals to your food log.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-[var(--radius-control)] bg-brand text-brand-foreground text-sm font-medium hover:bg-brand-hover transition-colors"
-        >
-          <Plus className="w-4 h-4" aria-hidden="true" />
-          New meal
-        </button>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+      {/* UI-6A: PageHeader primitive with the New-meal action slot;
+          same copy and the same 44px create control. */}
+      <PageHeader
+        title="Saved meals"
+        description="Quick-add common meals to your food log."
+        action={
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-[var(--radius-control)] bg-brand text-brand-foreground text-sm font-medium hover:bg-brand-hover transition-colors"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            New meal
+          </button>
+        }
+      />
 
       <FuelSubNav />
 
@@ -105,9 +107,10 @@ export default function SavedMealsPage() {
           </p>
           <button
             onClick={() => setShowCreate(true)}
-            className="text-sm text-brand hover:underline"
+            className="inline-flex min-h-11 items-center gap-1 text-sm text-brand hover:underline"
           >
-            Create your first saved meal →
+            Create your first saved meal
+            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           </CardContent>
         </Card>
@@ -116,12 +119,12 @@ export default function SavedMealsPage() {
       {/* Autopilot meals */}
       {autopilot.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
-            Autopilot meals
-          </h2>
-          {autopilot.map(meal => (
-            <SavedMealCard key={meal.id} meal={meal} />
-          ))}
+          <SectionHeader title="Autopilot meals" spacing="compact" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 items-start">
+            {autopilot.map(meal => (
+              <SavedMealCard key={meal.id} meal={meal} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -129,11 +132,13 @@ export default function SavedMealsPage() {
       {rest.length > 0 && (
         <div className="space-y-3">
           {autopilot.length > 0 && (
-            <h2 className="text-sm font-semibold text-ink">Other saved meals</h2>
+            <SectionHeader title="Other saved meals" spacing="compact" />
           )}
-          {rest.map(meal => (
-            <SavedMealCard key={meal.id} meal={meal} />
-          ))}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 items-start">
+            {rest.map(meal => (
+              <SavedMealCard key={meal.id} meal={meal} />
+            ))}
+          </div>
         </div>
       )}
 

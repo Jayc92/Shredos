@@ -45,7 +45,7 @@ export function SavedMealCard({ meal }: SavedMealCardProps) {
             )}
             <h3 className="text-sm font-semibold text-ink truncate">{meal.name}</h3>
             {meal.is_autopilot && (
-              <span className="text-xs bg-amber-400/15 text-caution rounded-full px-2 py-0.5 flex-shrink-0">
+              <span className="text-xs bg-caution-subtle text-caution rounded-full px-2 py-0.5 flex-shrink-0">
                 Autopilot
               </span>
             )}
@@ -67,7 +67,7 @@ export function SavedMealCard({ meal }: SavedMealCardProps) {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="p-1.5 text-ink-muted hover:text-destructive rounded transition-colors disabled:opacity-40"
+            className="p-1.5 text-ink-muted hover:text-critical rounded transition-colors disabled:opacity-40"
             aria-label="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -83,7 +83,7 @@ export function SavedMealCard({ meal }: SavedMealCardProps) {
           { label: 'Carbs', value: Number(meal.carbs_g), unit: 'g' },
           { label: 'Fat', value: Number(meal.fat_g), unit: 'g' },
         ].map(({ label, value, unit, isInt }) => (
-          <div key={label} className="bg-secondary rounded-lg py-2">
+          <div key={label} className="bg-surface-sunken rounded-lg py-2">
             <p className="text-xs text-ink-muted">{label}</p>
             <p className="text-sm font-semibold tabular-nums mt-0.5">
               {isInt ? value.toLocaleString() : value.toFixed(1)}{unit ?? ''}

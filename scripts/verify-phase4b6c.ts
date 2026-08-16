@@ -81,11 +81,18 @@ console.log('\n1. Checkpoint and routes')
   check('metadata unchanged (client pages have no metadata export, as before)',
     foodPage.includes("title: 'Food log' }") &&
     nutritionPage.includes("'use client'") && profilePage.includes("'use client'"))
+  // RETARGET (UI-6A): original boundary — each route rendered its
+  // exact handwritten <h1>. The Fuel routes now render the SAME
+  // titles through the PageHeader primitive (which owns the single
+  // h1); Profile keeps its handwritten heading. One page title per
+  // route is still asserted, now via primitive-or-h1.
   check('H1s correct',
-    foodPage.includes('>Food log</h1>') && savedPage.includes('>Saved meals</h1>') &&
-    nutritionPage.includes('>Nutrition targets</h1>') && profilePage.includes('>Profile</h1>'))
+    foodPage.includes('title="Food log"') && savedPage.includes('title="Saved meals"') &&
+    nutritionPage.includes('title="Nutrition targets"') && profilePage.includes('>Profile</h1>'))
   check('exactly one H1 per route',
-    PAGES.every((p) => (p.match(/<h1/g) || []).length === 1) &&
+    [foodPage, savedPage, nutritionPage].every((p) =>
+      (p.match(/<PageHeader/g) || []).length === 1 && !p.includes('<h1')) &&
+    (profilePage.match(/<h1/g) || []).length === 1 &&
     LOADINGS.every((l) => !l.includes('<h1')))
   check('auth gates preserved',
     foodPage.includes("redirect('/login')") && nutritionPage.includes('supabase.auth.getUser()') &&
@@ -249,10 +256,14 @@ console.log('\n7. Saved meals')
   check('autopilot/other grouping preserved',
     savedPage.includes('meals.filter(m => m.is_autopilot)') &&
     savedPage.includes('Autopilot meals'))
+  // RETARGET (UI-6A): the CTA's text arrow became a Lucide
+  // ArrowRight on a 44px control; copy and the status-Card empty
+  // state are unchanged.
   check('empty state constructive (status Card + CTA)',
     savedPage.includes('variant="status"') &&
     savedPage.includes('No saved meals yet.') &&
-    savedPage.includes('Create your first saved meal →'))
+    savedPage.includes('Create your first saved meal') &&
+    savedPage.includes('<ArrowRight'))
   check('card delete endpoint unchanged',
     savedCard.includes('`/api/saved-meals/${meal.id}`'))
   check('card edit-state elevated, display default',
@@ -369,8 +380,15 @@ console.log('\n10. Legacy style removal')
       walk('src/components')
       return offenders.length === 0
     })())
+  // RETARGET (UI-6A): the Fuel pages moved their support copy into
+  // the PageHeader primitive (which renders the muted text-support
+  // role internally), so the literal token no longer appears in
+  // every page source. The property — semantic tokens across scope,
+  // no legacy aliases — is asserted directly.
   check('semantic tokens adopted across scope',
-    PAGES.every((p) => p.includes('text-ink-muted')))
+    PAGES.every((p) =>
+      p.includes('text-ink-muted') || p.includes('<PageHeader')) &&
+    PAGES.every((p) => !p.includes('text-muted-foreground')))
 }
 
 // ── 11. Loading states ───────────────────────────────────────────────
@@ -384,9 +402,11 @@ console.log('\n11. Loading states')
       !l.includes('animate-spin') && !l.includes('Loading...') && !l.includes('shred-card')))
   check('Fuel routes include the subnav strip',
     [foodLoading, savedLoading, nutritionLoading].every((l) => l.includes('h-9 w-80')))
+  // RETARGET (UI-6A): /food widened to the approved max-w-6xl
+  // wide-route composition; its loading mirrors that width.
   check('aria-hidden + matched widths',
     LOADINGS.every((l) => l.includes('aria-hidden="true"')) &&
-    foodLoading.includes('max-w-3xl') && profileLoading.includes('max-w-4xl'))
+    foodLoading.includes('max-w-6xl') && profileLoading.includes('max-w-4xl'))
   check('no viewport traps or nested scrollers',
     LOADINGS.every((l) => !l.includes('h-screen') && !l.includes('overflow-y')))
   check('profile loading mirrors section stack + save strip',
@@ -421,8 +441,11 @@ console.log('\n13. Accessibility')
     foodPage.includes('aria-label="Previous day"') &&
     foodPage.includes('aria-label="Next day"') &&
     foodPage.includes('aria-disabled={isNextFuture}'))
+  // RETARGET (UI-6A): saved-meals group titles now render through
+  // the SectionHeader primitive (default h2); the outline property
+  // is unchanged.
   check('section headings under single H1 (h2/h3)',
-    profilePage.includes('<h3') && savedPage.includes('<h2') &&
+    profilePage.includes('<h3') && savedPage.includes('<SectionHeader') &&
     nutritionPage.includes('<h2'))
   check('links remain links, buttons remain buttons',
     CHANGED.every((f) => !f.match(/<div[^>]*onClick/)))
@@ -641,12 +664,21 @@ console.log('\n21. DOM order')
   check('saved: header → subnav → form/empty → lists',
     savedPage.indexOf('<h1') < savedPage.indexOf('<FuelSubNav />') &&
     savedPage.indexOf('<FuelSubNav />') < savedPage.indexOf('Autopilot meals'))
-  check('nutrition: header → subnav → current target → review → calculated → form → trend',
+  // RETARGET (UI-6A): original boundary — single-column order with
+  // the calculated suggestion between the review card and the form.
+  // The page is now a two-column desktop composition: the PRIMARY
+  // column keeps target -> review -> form (the authoritative editing
+  // path), and the suggestion/trend context forms the second column
+  // after it in the DOM (mobile stacks it after the form). The
+  // protected property — suggestion surfaces never sit above or
+  // visually replace the authoritative target — still holds and the
+  // authoritative ordering is still asserted.
+  check('nutrition: header -> subnav -> current target -> review -> form; suggestion/trend column follows',
     nutritionPage.indexOf('<FuelSubNav />') < nutritionPage.indexOf('Current target') &&
     nutritionPage.indexOf('Current target') < nutritionPage.indexOf('<GoalAdjustmentReviewCard') &&
-    nutritionPage.indexOf('<GoalAdjustmentReviewCard') < nutritionPage.indexOf('Calculated from profile') &&
-    nutritionPage.indexOf('Calculated from profile') < nutritionPage.indexOf('Override targets') &&
-    nutritionPage.indexOf('Override targets') < nutritionPage.indexOf('<NutritionTrendSection'))
+    nutritionPage.indexOf('<GoalAdjustmentReviewCard') < nutritionPage.indexOf('Override targets') &&
+    nutritionPage.indexOf('Override targets') < nutritionPage.indexOf('Calculated from profile') &&
+    nutritionPage.indexOf('Calculated from profile') < nutritionPage.indexOf('<NutritionTrendSection'))
   check('profile: personal → goal → activity → schedule → fasting → save',
     // Heading-anchored: the change-log title strings mention the same
     // names earlier in handleSave, so match the rendered h3s.
@@ -665,8 +697,11 @@ console.log('\n22. Loading geometry detail')
     (foodLoading.match(/<SkeletonCard/g) || []).length === 7)
   check('saved loading: three meal cards',
     (savedLoading.match(/<SkeletonCard/g) || []).length === 3)
-  check('nutrition loading: target + review + form + trend regions',
-    (nutritionLoading.match(/<SkeletonCard/g) || []).length === 4)
+  // RETARGET (UI-6A): the loading now mirrors the two-column
+  // geometry — three primary-column cards (target, review, form)
+  // plus two second-column cards (suggestion, trend).
+  check('nutrition loading: target + review + form + suggestion + trend regions',
+    (nutritionLoading.match(/<SkeletonCard/g) || []).length === 5)
   check('profile loading: five sections + save strip',
     (profileLoading.match(/<SkeletonCard/g) || []).length === 5)
   check('loading pages carry no interactive elements or copy',
@@ -693,8 +728,11 @@ console.log('\n23. Copy anchors')
     foodPage.includes("? 'Today'") && foodPage.includes('Back to today'))
   check('autopilot headings preserved',
     savedPage.includes('Autopilot meals') && savedPage.includes('Other saved meals'))
+  // RETARGET (UI-6A): the down-arrow glyph became a Lucide
+  // ArrowDown on a 44px control; the affordance and copy remain.
   check('calculated card retains use-values affordance',
-    nutritionPage.includes('Use calculated values ↓'))
+    nutritionPage.includes('Use calculated values') &&
+    nutritionPage.includes('<ArrowDown'))
 }
 
 // ── 24. Structural details ───────────────────────────────────────────

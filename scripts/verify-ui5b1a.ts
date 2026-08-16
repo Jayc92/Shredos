@@ -405,6 +405,28 @@ async function main() {
     // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
     // native confirm removed from all three modal-protected discard
     // callbacks; those consumers join the admitted correction scope.
+    // RETARGET (UI-6A): the approved Fuel visual rebuild —
+    // presentation-only changes across the food/nutrition surface —
+    // is admitted while uncommitted.
+    const UI6A = [
+      'src/app/(app)/food/page.tsx',
+      'src/app/(app)/food/loading.tsx',
+      'src/app/(app)/food/saved/page.tsx',
+      'src/app/(app)/food/saved/loading.tsx',
+      'src/app/(app)/nutrition/page.tsx',
+      'src/app/(app)/nutrition/loading.tsx',
+      'src/components/food/AddFoodForm.tsx',
+      'src/components/food/DailyMacroSummary.tsx',
+      'src/components/food/FoodLogEntry.tsx',
+      'src/components/food/LabelCalculatorForm.tsx',
+      'src/components/food/QuickAddPanel.tsx',
+      'src/components/food/QuickDrinkLog.tsx',
+      'src/components/food/RecentFoodPanel.tsx',
+      'src/components/food/SavedMealCard.tsx',
+      'src/components/food/SavedMealForm.tsx',
+      'src/components/nutrition/GoalAdjustmentReviewCard.tsx',
+      'src/components/nutrition/NutritionCoachPanel.tsx',
+    ]
     const UI5B2_CORRECTION = [
       'src/components/workout/ActiveWorkoutConflictModal.tsx',
       'src/components/workout/SaveAsRoutineButton.tsx',
@@ -451,7 +473,8 @@ async function main() {
     check('X1: product changes confined to the approved files',
       diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
         CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f) ||
-        LOCAL_DATE_FIX.includes(f) || UI5B2_CORRECTION.includes(f)),
+        LOCAL_DATE_FIX.includes(f) || UI5B2_CORRECTION.includes(f) ||
+        UI6A.includes(f)),
       diffFiles.join(', '))
     // RETARGET (LOCAL-DATE-FIX): original boundary — NO src/lib file
     // could change. The local-calendar sweep corrects UTC-anchored

@@ -42,10 +42,10 @@ function NInput({ value, onChange, placeholder = '0', unit }: {
         placeholder={placeholder}
         min="0"
         step="any"
-        className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
       {unit && (
-        <span className="text-xs text-muted-foreground select-none flex-shrink-0">{unit}</span>
+        <span className="text-xs text-ink-muted select-none flex-shrink-0">{unit}</span>
       )}
     </div>
   )
@@ -56,7 +56,7 @@ function MacroField({ label, value, onChange, unit }: {
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs text-muted-foreground mb-1 truncate">{label}</p>
+      <p className="text-xs text-ink-muted mb-1 truncate">{label}</p>
       <NInput value={value} onChange={onChange} unit={unit} />
     </div>
   )
@@ -134,7 +134,7 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
   }
 
   return (
-    <form onSubmit={handleSave} className="bg-secondary rounded-xl border border-border p-4 space-y-3 mt-2">
+    <form onSubmit={handleSave} className="bg-surface-sunken rounded-xl border border-edge p-4 space-y-3 mt-2">
 
       {/* Food name — full width */}
       <input
@@ -143,7 +143,7 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
         onChange={e => upd({ food_name: e.target.value })}
         placeholder="Food name *"
         autoFocus
-        className="w-full px-3 py-2.5 rounded-lg bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
 
       {/* Serving description — full width */}
@@ -152,12 +152,12 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
         value={f.serving_description}
         onChange={e => upd({ serving_description: e.target.value })}
         placeholder="Serving (e.g. 1 cup)"
-        className="w-full px-3 py-2 rounded-lg bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full px-3 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
 
       {/* Meal type — pill group, no dropdown, no overlay */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Meal type</p>
+        <p className="text-xs font-medium text-ink-muted">Meal type</p>
         <div className="flex flex-wrap gap-2">
           {MEAL_TYPE_OPTIONS.map(({ value, label }) => (
             <button
@@ -169,7 +169,7 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 f.meal_type === value
                   ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm'
-                  : 'border-border bg-background text-foreground hover:bg-muted'
+                  : 'border-edge bg-surface-interactive text-ink hover:bg-surface-selected'
               )}
             >
               {label}
@@ -191,17 +191,17 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
 
       {/* Soft warnings */}
       {highCalWarning && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">{highCalWarning}</p>
+        <p className="text-xs text-caution bg-caution-subtle rounded px-2 py-1.5">{highCalWarning}</p>
       )}
       {crossCheck && (
-        <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-2 py-1.5">{crossCheck}</p>
+        <p className="text-xs text-caution bg-caution-subtle rounded px-2 py-1.5">{crossCheck}</p>
       )}
 
       {/* Optional fields */}
       <button
         type="button"
         onClick={() => setShowMore(!showMore)}
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="text-xs text-ink-muted hover:text-ink transition-colors"
       >
         {showMore ? '▲ Hide details' : '▼ Add fiber, sugar, sodium, notes'}
       </button>
@@ -209,40 +209,40 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
       {showMore && (
         <div className="grid grid-cols-2 gap-2">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Fiber</p>
+            <p className="text-xs text-ink-muted mb-1">Fiber</p>
             <NInput value={f.fiber}  onChange={v => upd({ fiber: v })}  unit="g" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Sugar</p>
+            <p className="text-xs text-ink-muted mb-1">Sugar</p>
             <NInput value={f.sugar}  onChange={v => upd({ sugar: v })}  unit="g" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Sodium</p>
+            <p className="text-xs text-ink-muted mb-1">Sodium</p>
             <NInput value={f.sodium} onChange={v => upd({ sodium: v })} unit="mg" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Notes</p>
+            <p className="text-xs text-ink-muted mb-1">Notes</p>
             <input
               type="text"
               value={f.notes}
               onChange={e => upd({ notes: e.target.value })}
               placeholder="Optional"
-              className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
       )}
 
       {/* Save as meal */}
-      <div className="pt-1 border-t border-border space-y-2">
+      <div className="pt-1 border-t border-edge space-y-2">
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={f.saveAsMeal}
             onChange={e => upd({ saveAsMeal: e.target.checked, mealName: e.target.checked ? f.food_name : '' })}
-            className="rounded border-border flex-shrink-0"
+            className="rounded border-edge flex-shrink-0"
           />
-          <span className="text-xs text-muted-foreground">Save as a meal for quick-add later</span>
+          <span className="text-xs text-ink-muted">Save as a meal for quick-add later</span>
         </label>
         {f.saveAsMeal && (
           <div className="space-y-2 pl-5">
@@ -251,30 +251,30 @@ export function AddFoodForm({ date, defaultMealType, onClose }: AddFoodFormProps
               value={f.mealName}
               onChange={e => upd({ mealName: e.target.value })}
               placeholder="Meal name"
-              className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full min-w-0 px-2.5 py-2 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={f.isAutopilot}
                 onChange={e => upd({ isAutopilot: e.target.checked })}
-                className="rounded border-border flex-shrink-0"
+                className="rounded border-edge flex-shrink-0"
               />
-              <span className="text-xs text-muted-foreground">Show in autopilot (top of Quick Add)</span>
+              <span className="text-xs text-ink-muted">Show in autopilot (top of Quick Add)</span>
             </label>
           </div>
         )}
       </div>
 
       {error && (
-        <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1.5">{error}</p>
+        <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5">{error}</p>
       )}
 
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+          className="py-2.5 rounded-lg border border-edge text-sm text-ink-muted hover:bg-surface-interactive transition-colors"
         >
           Cancel
         </button>

@@ -13,6 +13,7 @@
 // shows the server's readable message. Nothing is automatic.
 // ============================================================
 
+import { ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import type { GoalAdjustmentReview } from '@/lib/goal-adjustments'
@@ -171,7 +172,7 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
           )}
 
           {applied && (
-            <p className="text-xs text-green-400 bg-green-400/10 rounded px-2 py-1.5">
+            <p className="text-xs text-success bg-success-subtle rounded px-2 py-1.5">
               Calorie target updated and logged as an applied decision.
             </p>
           )}
@@ -180,17 +181,18 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
           {review.eligibility === 'eligible' && !confirming && (
             <button
               onClick={() => setConfirming(true)}
-              className="text-xs font-medium text-brand hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-brand hover:underline"
             >
-              Review proposed adjustment →
+              Review proposed adjustment
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </button>
           )}
 
           {/* Step 3: explicit before/after confirmation */}
           {review.eligibility === 'eligible' && confirming && (
-            <div className="space-y-2 border border-border rounded-lg p-3 bg-secondary/50">
+            <div className="space-y-2 border border-edge rounded-lg p-3 bg-surface-sunken">
               <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="bg-secondary rounded-lg py-2">
+                <div className="bg-surface-sunken rounded-lg py-2">
                   <p className="text-xs text-ink-muted">Current</p>
                   <p className="text-base font-bold tabular-nums">
                     {review.before?.calories.toLocaleString()} cal
@@ -240,7 +242,7 @@ export function GoalAdjustmentReviewCard({ onApplied }: GoalAdjustmentReviewCard
           )}
 
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1.5">
+            <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1.5">
               {error}
             </p>
           )}
