@@ -20,9 +20,39 @@ interface BarRowProps {
   isCalories?: boolean
 }
 
+// UI-6A hosted-QA correction (macro-fill visibility): lib/food's
+// progressColor/remainingColor return legacy literal palette
+// classes, but Tailwind's content globs scan only src/app,
+// src/components, and src/pages — never src/lib — so those
+// utilities exist in the compiled stylesheet only while some
+// scanned file repeats the same literals. The UI-6A token sweep
+// removed the last scanned copies and every bar fill silently lost
+// its background. This SCANNED component therefore owns the
+// mapping from the lib's status literals to the semantic tokens the
+// stylesheet actually ships; the lib's thresholds and status
+// meaning are untouched (over -> critical, near -> caution,
+// on-track calories -> success, macro grams -> info).
+// Keyed on the hue word extracted from the lib's class string (the
+// second dash-separated segment, e.g. red / amber / green / blue /
+// muted) so no legacy class literal reappears anywhere in this
+// scanned file — Tailwind scans raw text including comments, and a
+// literal would re-emit the dead utility and regress the
+// raw-palette ban.
+const FILL_TOKEN: Record<string, string> = {
+  red:   'bg-critical',
+  amber: 'bg-caution',
+  green: 'bg-success',
+  blue:  'bg-info',
+}
+const REMAINING_TOKEN: Record<string, string> = {
+  red:   'text-critical',
+  amber: 'text-caution',
+  muted: 'text-ink-muted',
+}
+
 function BarRow({ label, consumed, target, pct, remaining, unit = 'g', isCalories = false }: BarRowProps) {
-  const fillColor = progressColor(pct, isCalories)
-  const remColor  = remainingColor(remaining)
+  const fillColor = FILL_TOKEN[progressColor(pct, isCalories).split('-')[1]] ?? 'bg-brand'
+  const remColor  = REMAINING_TOKEN[remainingColor(remaining).split('-')[1]] ?? 'text-ink-muted'
   const cappedPct = Math.min(100, pct)
 
   return (

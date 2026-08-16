@@ -465,6 +465,9 @@ async function main() {
             'src/components/food/SavedMealForm.tsx',
             'src/components/nutrition/GoalAdjustmentReviewCard.tsx',
             'src/components/nutrition/NutritionCoachPanel.tsx',
+            // RETARGET (UI-6A hosted-QA correction, macro-fill visibility):
+            // dashboard co-victim of the dead-utility regression.
+            'src/components/dashboard/NutritionCard.tsx',
           ]
           if (UI6A.includes(f)) return true
           return f === 'supabase/migrations/022_ui5b2_workout_reuse.sql' ||

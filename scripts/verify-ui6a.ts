@@ -57,6 +57,11 @@ const INVENTORY = [
   'src/components/food/SavedMealForm.tsx',
   'src/components/nutrition/GoalAdjustmentReviewCard.tsx',
   'src/components/nutrition/NutritionCoachPanel.tsx',
+  // RETARGET (UI-6A hosted-QA correction, macro-fill visibility):
+  // the dashboard macro card provably shared the same dead-utility
+  // regression (it renders the same lib/food class strings), so it
+  // joins the corrected inventory.
+  'src/components/dashboard/NutritionCard.tsx',
 ]
 const foodPage = read('src/app/(app)/food/page.tsx')
 const savedPage = read('src/app/(app)/food/saved/page.tsx')
@@ -149,9 +154,16 @@ async function main() {
       read('src/components/food/DailyMacroSummary.tsx').includes("' remaining'") ||
       read('src/components/food/DailyMacroSummary.tsx').includes('remaining') &&
       read('src/components/food/DailyMacroSummary.tsx').includes('over target'))
-    check('H1: no text-arrow/checkmark glyph affordances remain in touched code',
-      ALL.every((s) => {
-        const code = stripComments(s)
+    // RETARGET (UI-6A hosted-QA correction, macro-fill visibility):
+    // original boundary — every inventory file glyph-free. The
+    // dashboard NutritionCard joined the inventory ONLY for the fill
+    // correction; its pre-existing 'Log food' arrow affordance is a
+    // Dashboard-pillar element pinned by verify-ui2/4b3 and is
+    // deliberately outside this Fuel slice. The Fuel files' boundary
+    // is unchanged.
+    check('H1: no text-arrow/checkmark glyph affordances remain in touched Fuel code',
+      INVENTORY.filter((f) => !f.includes('dashboard/')).every((f) => {
+        const code = stripComments(read(f))
         return !code.includes('\u2192') && !code.includes('\u2713') && !code.includes('\u2193')
       }))
     check('H2: replacements are Lucide icons',
@@ -285,6 +297,127 @@ async function main() {
         try { out = execSync('git diff --name-only -- package.json package-lock.json supabase/', { encoding: 'utf8' }) } catch { return false }
         return out.trim() === '' &&
           readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22
+      })())
+  }
+
+  // ── M. Macro-fill visibility (hosted-QA correction) ─────────────────
+  // The hosted defect survived source-string checks, so these proofs
+  // inspect the RENDERED markup (exact inline widths, real component)
+  // and the COMPILED stylesheet (actual background-color declarations)
+  // — never class names alone.
+  console.log('\nM. Macro-fill visibility')
+  {
+    const { DailyMacroSummary } = await import('../src/components/food/DailyMacroSummary')
+    const { computeNutritionProgress } = await import('../src/lib/food')
+    const target: any = {
+      calories: 2300, protein_g: 90, carbs_g: 250, fat_g: 60,
+      effective_date: '2026-08-16',
+    }
+    const totals = (cal: number, p: number, c: number, f: number) => ({
+      calories: cal, protein_g: p, carbs_g: c, fat_g: f,
+    })
+    const html = (t: any, compact = false) => renderToStaticMarkup(
+      React.createElement(DailyMacroSummary, {
+        progress: computeNutritionProgress(t as never, target, 12),
+        target, compact,
+      } as never))
+    const fillWidths = (markup: string) =>
+      Array.from(markup.matchAll(/class="h-full (bg-[a-z-]+) rounded-full[^"]*" style="width:([0-9.]+)%"/g))
+        .map((m) => ({ cls: m[1], pct: parseFloat(m[2]) }))
+
+    // The exact hosted-QA evidence values.
+    const qa1 = fillWidths(html(totals(675, 46, 100, 20)))
+    check('M1: track and fill both render for every macro row',
+      qa1.length === 4 &&
+      (html(totals(675, 46, 100, 20)).match(/h-2 bg-surface-sunken rounded-full overflow-hidden/g) || []).length === 4)
+    // The width derives from the EXISTING lib calculation, which
+    // rounds pct to whole percents (675/2300 = 29.35 -> 29). The
+    // proofs assert the exact ratio within that established integer
+    // rounding — the calculation itself is untouched (M15).
+    check('M4: 675 / 2,300 calories renders its 29.35% ratio as the established rounded 29% fill',
+      Math.abs(qa1[0].pct - (675 / 2300) * 100) < 0.5 &&
+      qa1[0].pct === 29 && qa1[0].cls === 'bg-success')
+    check('M5: 46 / 90g protein renders its 51.11% ratio as the established rounded 51% fill',
+      Math.abs(qa1[1].pct - (46 / 90) * 100) < 0.5 &&
+      qa1[1].pct === 51 && qa1[1].cls === 'bg-info')
+    const qa2 = fillWidths(html(totals(1653, 105, 100, 64)))
+    check('M6: 1,653 / 2,300 calories renders its 71.87% ratio as the established rounded 72% fill',
+      Math.abs(qa2[0].pct - (1653 / 2300) * 100) < 0.5 &&
+      qa2[0].pct === 72)
+    check('M7: 105/90g and 64/60g stay bounded at exactly 100% — the fill never overflows its track',
+      qa2[1].pct === 100 && qa2[3].pct === 100 &&
+      qa2.every((w) => w.pct <= 100))
+    check('M8: zero consumed renders width:0% — no fake sliver',
+      (() => {
+        const zero = fillWidths(html(totals(0, 0, 0, 0)))
+        return zero.length === 4 && zero.every((w) => w.pct === 0)
+      })())
+    check('M9: missing target keeps the honest no-target state',
+      renderToStaticMarkup(React.createElement(DailyMacroSummary, {
+        progress: null, target: null, compact: false } as never))
+        .includes('No nutrition targets set.'))
+    check('M10: compact and full modes both carry visible fill classes',
+      fillWidths(html(totals(675, 46, 100, 20), true)).length >= 1 &&
+      fillWidths(html(totals(675, 46, 100, 20), false)).length === 4)
+    check('M11: each status stays inside its own macro value block (over-protein next to protein)',
+      (() => {
+        const m = html(totals(675, 105, 100, 20))
+        const protein = m.indexOf('Protein')
+        const carbs = m.indexOf('Carbs')
+        const over = m.indexOf('over target')
+        return protein < over && over < carbs
+      })())
+
+    // Compiled-stylesheet computed styles: the semantic utilities
+    // exist with real, distinct background-color declarations; the
+    // dead legacy utilities are provably absent (the root cause).
+    const cssFiles = readdirSync('.next/static/css').filter((f) => f.endsWith('.css'))
+    check('M2-pre: a compiled stylesheet exists to inspect', cssFiles.length >= 1)
+    const css = cssFiles.map((f) => read(`.next/static/css/${f}`)).join('\n')
+    const decl = (cls: string) => {
+      const m = css.match(new RegExp('\\.' + cls + '(?![a-z-])[^{]*\\{([^}]*)\\}'))
+      return m ? m[1] : null
+    }
+    const track = decl('bg-surface-sunken')
+    const fills = ['bg-success', 'bg-info', 'bg-caution', 'bg-critical'].map(decl)
+    check('M2: track and all four fill tokens resolve to real, distinct compiled background colors',
+      track !== null && track.includes('background-color') &&
+      fills.every((f) => f !== null && f!.includes('background-color')) &&
+      fills.every((f) => f !== track) &&
+      new Set(fills).size === 4)
+    check('M3: fill has nonzero compiled height and no transparency suppression',
+      decl('h-2') !== null && decl('h-2')!.includes('height') &&
+      decl('h-full') !== null && decl('h-full')!.includes('100%') &&
+      !read('src/components/food/DailyMacroSummary.tsx').includes('opacity-0'))
+    check('M3b: the dead legacy utilities are absent from the compiled stylesheet (root cause on record)',
+      decl('bg-green-500') === null && decl('bg-blue-500') === null &&
+      decl('bg-amber-500') === null && decl('bg-red-500') === null)
+    check('M12: no raw palette, inline color, or forced style entered either corrected component',
+      (() => {
+        const RAW = /(?:text|bg|border|ring)-(?:green|amber|blue|red|yellow|orange|zinc|gray|grey|neutral)-\d/
+        return ['src/components/food/DailyMacroSummary.tsx',
+          'src/components/dashboard/NutritionCard.tsx'].every((f) => {
+          const code = stripComments(read(f))
+          return !RAW.test(code) && !code.includes('style={{ background') &&
+            !code.includes('!important') && !code.includes('#')
+        })
+      })())
+    check('M13: fills stay clipped inside the rounded track at every width (overflow-hidden on the track)',
+      read('src/components/food/DailyMacroSummary.tsx')
+        .includes('h-2 bg-surface-sunken rounded-full overflow-hidden') &&
+      read('src/components/dashboard/NutritionCard.tsx')
+        .includes('bg-surface-sunken rounded-full overflow-hidden'))
+    check('M14: the dashboard NutritionCard shares the correction (same regression, same mapping)',
+      (() => {
+        const nc = read('src/components/dashboard/NutritionCard.tsx')
+        return nc.includes("FILL_TOKEN[progressColor(pct, isCalories).split('-')[1]]") &&
+          nc.includes("REMAINING_TOKEN[remainingColor(remaining).split('-')[1]]")
+      })())
+    check('M15: lib/food.ts is byte-untouched by this correction (thresholds and meaning intact)',
+      (() => {
+        try {
+          return execSync('git diff --name-only -- src/lib/food.ts', { encoding: 'utf8' }).trim() === ''
+        } catch { return false }
       })())
   }
 
