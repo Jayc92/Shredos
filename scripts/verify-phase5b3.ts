@@ -120,8 +120,12 @@ console.log('\n1. Checkpoint and boundary')
   check('5B.3 notes exist', notes.length > 2500)
   // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
   // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
-  check('migration boundary: exactly 21 (020 = UI-3; 021 = UI-5B1B ordering)',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+  check('migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)',
+    // RETARGET (UI-5B2): 022_ui5b2_workout_reuse.sql is the approved
+    // workout-reuse migration (create_routine_from_workout +
+    // repeat_workout). The boundary moves from exactly-21 to
+    // exactly-22; no other migration may appear.
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
     readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('no new persisted facts',
     CHANGED.every((f) => !stripComments(f).includes('energy_balance_snapshots') &&

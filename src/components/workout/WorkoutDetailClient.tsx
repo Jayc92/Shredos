@@ -7,6 +7,8 @@ import { WorkoutExerciseBlock } from '@/components/workout/WorkoutExerciseBlock'
 import { AddExerciseSection } from '@/components/workout/AddExerciseSection'
 import { WorkoutCompletionSummaryCard } from '@/components/workout/WorkoutCompletionSummaryCard'
 import { WorkoutSessionNotes } from '@/components/workout/WorkoutSessionNotes'
+import { SaveAsRoutineButton } from '@/components/workout/SaveAsRoutineButton'
+import { RepeatWorkoutButton } from '@/components/workout/RepeatWorkoutButton'
 import { summarizeWorkout } from '@/lib/workout'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
@@ -128,6 +130,14 @@ export function WorkoutDetailClient({
         routineName={routineName}
         onSessionDeleted={handleSessionDeleted}
       />
+
+      {/* UI-5B2 workout reuse: Save as routine on live AND completed
+          workouts; Repeat only on completed ones. Both are thin
+          clients over the migration 022 RPCs. */}
+      <div className="flex flex-wrap items-start gap-2">
+        <SaveAsRoutineButton workoutId={session.id} workoutTitle={session.title} />
+        {readOnly && <RepeatWorkoutButton workoutId={session.id} />}
+      </div>
 
       <WorkoutSessionNotes
         sessionId={session.id}

@@ -362,8 +362,12 @@ async function main() {
       })())
     // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
     // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
-    check('S25: migration boundary (exactly 21; 020 = UI-3, 021 = UI-5B1B)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+    check('S25: migration boundary (exactly 22; 021 = UI-5B1B, 022 = UI-5B2)',
+      // RETARGET (UI-5B2): 022_ui5b2_workout_reuse.sql is the approved
+      // workout-reuse migration (create_routine_from_workout +
+      // repeat_workout). The boundary moves from exactly-21 to
+      // exactly-22; no other migration may appear.
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
       readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
     // RETARGET (UI-2): the pinned grid string described the pre-UI-2
     // composition; the boundary — UI-1B itself did not recompose

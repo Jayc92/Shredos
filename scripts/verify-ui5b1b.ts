@@ -440,14 +440,27 @@ async function main() {
       read('src/app/(app)/workouts/[id]/page.tsx').includes('max-w-3xl') &&
       ['\u2713', '\u2190', '\u2192'].every((g) =>
         !stripComments(block).includes(g) && !stripComments(detailClient).includes(g)))
-    check('B3: deferred UI-5B2 features absent (save-as-routine / repeat-workout)',
-      [detailClient, block, setIdRoute, setsRoute, migration].every((f) =>
+    // RETARGET (UI-5B2): original boundary — the deferred features
+    // had to be ABSENT everywhere. UI-5B2 now ships them: the detail
+    // client mounts the two approved buttons, while the UI-5B1B
+    // execution internals this suite owns (the exercise block and
+    // both set routes) and migration 021 must STILL never reference
+    // them. The features' own contracts live in verify-ui5b2.
+    check('B3: UI-5B2 reuse features live only at the approved mount, never in execution internals',
+      [block, setIdRoute, setsRoute, migration].every((f) =>
         !/save.?as.?routine|repeat.?workout|save_as_routine|repeat_workout|create_routine_from_workout/i.test(
-          stripComments(f))))
-    check('B4: migrations exactly 001–021; 021 is the only addition',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+          stripComments(f))) &&
+      detailClient.includes('<SaveAsRoutineButton workoutId={session.id} workoutTitle={session.title} />') &&
+      detailClient.includes('{readOnly && <RepeatWorkoutButton workoutId={session.id} />}'))
+    check('B4: migrations exactly 001-022; 021 is the only UI-5B1B addition',
+      // RETARGET (UI-5B2): 022_ui5b2_workout_reuse.sql is the approved
+      // workout-reuse migration (create_routine_from_workout +
+      // repeat_workout). The boundary moves from exactly-21 to
+      // exactly-22; no other migration may appear.
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('022')))
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('022')).length === 1 &&
+      !readdirSync('supabase/migrations').some((f) => f.startsWith('023')))
     check('B5: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
       Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)
@@ -474,6 +487,24 @@ async function main() {
           'src/components/workout/set-apply-reconcile.ts',
           'src/components/routine/RoutineDetailClient.tsx',
           'docs/ui5b1b-transactional-ordering-notes.md',
+        ]
+        // RETARGET (UI-5B2): the approved workout-reuse migration and
+        // its harness are admitted while uncommitted.
+        // RETARGET (UI-5B2): the approved product slice joins the
+        // migration/harness/docs set.
+        const UI5B2 = [
+          'supabase/migrations/022_ui5b2_workout_reuse.sql',
+          'scripts/verify-ui5b2.ts',
+          // Approved documentation-only addendum: the Future Exercise
+          // Library Expansion roadmap entry.
+          'docs/ui5a-train-discovery-notes.md',
+          // UI-5B2 notes: records 022's applied status + probes.
+          'docs/ui5b2-workout-reuse-notes.md',
+          'src/app/api/workouts/[id]/save-as-routine/route.ts',
+          'src/app/api/workouts/[id]/repeat/route.ts',
+          'src/components/workout/SaveAsRoutineButton.tsx',
+          'src/components/workout/RepeatWorkoutButton.tsx',
+          'src/components/workout/WorkoutDetailClient.tsx',
         ]
         // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
         // correction files are admitted — expanded to the full
@@ -511,7 +542,8 @@ async function main() {
           'src/lib/workout-coach.ts',
         ]
         return diffFiles.every((f) => ALLOWED.includes(f) ||
-          LOCAL_DATE_FIX.includes(f) || f.startsWith('scripts/verify-'))
+          LOCAL_DATE_FIX.includes(f) || UI5B2.includes(f) ||
+          f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',
       read('docs/ui5b1b-transactional-ordering-notes.md').includes('APPLIED by Joseph') &&

@@ -461,8 +461,12 @@ async function main() {
         return !/save.?as.?routine|repeat.?workout|save_as_routine|repeat_workout/i.test(code)
       }))
     // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
-    check('X5: UI-5B1A added no migration (021 = approved UI-5B1B file)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+    check('X5: UI-5B1A added no migration (exactly 22; 022 = approved UI-5B2 file)',
+      // RETARGET (UI-5B2): 022_ui5b2_workout_reuse.sql is the approved
+      // workout-reuse migration (create_routine_from_workout +
+      // repeat_workout). The boundary moves from exactly-21 to
+      // exactly-22; no other migration may appear.
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
       existsSync('supabase/migrations/021_ui5b_transactional_ordering.sql'))
     check('X6: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&

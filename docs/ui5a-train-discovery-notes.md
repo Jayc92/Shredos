@@ -259,6 +259,41 @@ UI-5A or UI-5B**.
   an existing routine.
 - Detailed product rules will be expanded in a later planning phase.
 
+### Future Exercise Library Expansion
+
+Recorded 2026-08-16 as a roadmap-only phase, scheduled AFTER UI-5B2.
+**Nothing is implemented, scraped, imported, or schema-designed in
+UI-5B2**; this entry exists so the requirements cannot be lost.
+
+Use the [StrengthLog Exercise Directory](https://www.strengthlog.com/exercise-directory/)
+as a research and discovery source to expand ForgeFitOS's default
+exercise catalog.
+
+Requirements:
+
+- Inventory the complete directory across every category.
+- Deduplicate against ForgeFitOS's existing exercises and aliases.
+- Map every accepted exercise into ForgeFitOS's canonical anatomy
+  system: primary, secondary, and tertiary muscles.
+- Classify canonical equipment, compound/isolation type, laterality,
+  and tracking mode.
+- Preserve the source URL and import provenance.
+- Assign mapping confidence: high, medium, or human-review-required.
+- Never silently invent uncertain anatomy mappings.
+- Exercise names and factual classifications may inform the dataset.
+- Do NOT copy StrengthLog descriptions, instructions, images, or
+  videos. Its stated reuse permission is limited to attributed
+  non-commercial projects, while ForgeFitOS may become commercial.
+- Write original ForgeFitOS instructions, setup steps, execution
+  cues, common mistakes, and safety guidance.
+- Use original, commissioned, generated, or properly licensed
+  demonstration media later.
+- Produce a reviewable import manifest before any database write.
+- Import must be idempotent, preserve user-created exercises, avoid
+  duplicate defaults, and support aliases without fragmenting
+  exercise history.
+- No scraping, importing, schema work, or product UI in UI-5B2.
+
 ## Honesty and protected semantics
 
 No new fetches, metrics, scores, streaks, badges, rankings, or
