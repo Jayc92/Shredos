@@ -402,10 +402,16 @@ async function main() {
     // proven in verify-ui5b2 section 9; SetRow's 44px boxes,
     // handlers, and modes are still pinned by this suite's own
     // checks, which pass unmodified.
+    // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
+    // native confirm removed from all three modal-protected discard
+    // callbacks; those consumers join the admitted correction scope.
     const UI5B2_CORRECTION = [
       'src/components/workout/ActiveWorkoutConflictModal.tsx',
       'src/components/workout/SaveAsRoutineButton.tsx',
       'src/components/workout/SetRow.tsx',
+      'src/components/routine/StartWorkoutButton.tsx',
+      'src/components/workout/CreateWorkoutButton.tsx',
+      'src/components/workout/RepeatWorkoutButton.tsx',
     ]
     // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
     // correction files are admitted alongside the UI-5B1B set —

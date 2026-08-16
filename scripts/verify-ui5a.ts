@@ -482,10 +482,17 @@ async function main() {
     // (verify-ui5b2 D-checks own its proof; role/callbacks/copy are
     // still pinned by 4b6b unmodified). Every other excluded path
     // remains untouched.
+    // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
+    // the redundant native confirm was removed from all three
+    // modal-protected discard callbacks; those consumers join the
+    // admitted correction scope.
     const UI5B2_CORRECTION = [
       'src/components/workout/ActiveWorkoutConflictModal.tsx',
       'src/components/workout/SaveAsRoutineButton.tsx',
       'src/components/workout/SetRow.tsx',
+      'src/components/routine/StartWorkoutButton.tsx',
+      'src/components/workout/CreateWorkoutButton.tsx',
+      'src/components/workout/RepeatWorkoutButton.tsx',
     ]
     check('X1: no excluded file carries any working-tree change',
       UNTOUCHED_PATHS.every((p) =>

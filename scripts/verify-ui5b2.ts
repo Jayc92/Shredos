@@ -427,7 +427,13 @@ async function main() {
           // RETARGET (UI-5B2 hosted-QA correction): the dark-dialog
           // retoken (both dialogs) and the null-never-zero SetRow
           // placeholder fix are admitted while uncommitted.
+          // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
+          // the redundant native confirm was removed from ALL THREE
+          // modal-protected discard callbacks — the two pre-existing
+          // consumers join the scope.
           const UI5B2_PRODUCT = [
+            'src/components/routine/StartWorkoutButton.tsx',
+            'src/components/workout/CreateWorkoutButton.tsx',
             'src/components/workout/ActiveWorkoutConflictModal.tsx',
             'src/components/workout/SetRow.tsx',
             'src/app/api/workouts/[id]/save-as-routine/route.ts',
@@ -616,6 +622,11 @@ async function main() {
       !read('src/components/workout/WorkoutExerciseBlock.tsx').includes('SaveAsRoutine') &&
       !read('src/components/workout/SetRow.tsx').includes('Repeat') &&
       !read('src/app/api/workout-sets/[id]/route.ts').includes('repeat_workout'))
+    // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
+    // original boundary — no routine-component change. The shared
+    // conflict-modal confirmation fix necessarily touches
+    // StartWorkoutButton (a routine component); it is the ONLY
+    // admitted exception, and business libraries stay locked.
     check('G3: routine components and business libraries untouched (git)',
       (() => {
         let out = ''
@@ -624,7 +635,9 @@ async function main() {
         } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return !f.startsWith('src/components/routine/') && !f.startsWith('src/lib/')
+          return (!f.startsWith('src/components/routine/') ||
+              f === 'src/components/routine/StartWorkoutButton.tsx') &&
+            !f.startsWith('src/lib/')
         })
       })())
     check('G4: Exercise Library Expansion stays roadmap-only (doc entry, zero product code)',
@@ -743,6 +756,74 @@ async function main() {
     check('N6: no "0" placeholder anywhere in SetRow — only unit/name placeholders remain',
       !setRowSrc.includes('placeholder="0"') &&
       setRowSrc.includes('placeholder="lbs"') && setRowSrc.includes('placeholder="mi"'))
+  }
+
+  // ── 10. Single-confirmation boundary (hosted-QA correction) ────────
+  console.log('\n10. Single-confirmation boundary')
+  {
+    const stripC = (t: string) =>
+      t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    const repeatBtn = read('src/components/workout/RepeatWorkoutButton.tsx')
+    const startBtn = read('src/components/routine/StartWorkoutButton.tsx')
+    const createBtn = read('src/components/workout/CreateWorkoutButton.tsx')
+
+    // The app modal is the ONE confirmation: no native confirm
+    // survives in any modal-protected discard callback.
+    for (const [label, src] of [
+      ['RepeatWorkoutButton', repeatBtn],
+      ['StartWorkoutButton', startBtn],
+      ['CreateWorkoutButton', createBtn],
+    ] as const) {
+      check(`F1-${label}: no window.confirm / bare confirm in code (modal is the sole confirmation)`,
+        (() => {
+          const code = stripC(src)
+          return !/\bwindow\.confirm\b|(?<![.\w])confirm\(/.test(code)
+        })())
+    }
+    check('F2: one Discard click = exactly one authorized skip request, then exactly one retry',
+      (repeatBtn.match(/fetch\(`\/api\/workouts\/\$\{conflictId\}\/skip`/g) || []).length === 1 &&
+      (repeatBtn.match(/await attemptRepeat\(\)/g) || []).length === 2 &&
+      repeatBtn.indexOf('/skip`', repeatBtn.indexOf('handleDiscardAndRetry')) <
+        repeatBtn.indexOf('await attemptRepeat()', repeatBtn.indexOf('handleDiscardAndRetry')))
+    check('F3: skip failure stops the flow — no retry, honest inline message',
+      repeatBtn.includes("if (!skipRes.ok) {") &&
+      repeatBtn.includes("setModalError('Could not discard the existing workout. Please try again.')") &&
+      repeatBtn.indexOf('if (!skipRes.ok)') <
+        repeatBtn.indexOf('await attemptRepeat()', repeatBtn.indexOf('handleDiscardAndRetry')))
+    check('F4: a second conflict re-renders the modal and never loops (return, no further call)',
+      (() => {
+        const h = repeatBtn.slice(repeatBtn.indexOf('async function handleDiscardAndRetry'))
+        const afterRetry = h.slice(h.indexOf('await attemptRepeat()'))
+        return afterRetry.includes("if (result.status === 'conflict') {") &&
+          afterRetry.includes('setConflictId(result.activeWorkoutId)') &&
+          !afterRetry.slice(afterRetry.indexOf('setConflictId(result.activeWorkoutId)'))
+            .includes('await attemptRepeat()')
+      })())
+    check('F5: Resume and Cancel behavior unchanged in all three consumers',
+      repeatBtn.includes('router.push(`/workouts/${conflictId}`)') &&
+      startBtn.includes('router.push(`/workouts/${conflictId}`)') &&
+      createBtn.includes('conflictId') &&
+      repeatBtn.includes('setConflictId(null)\n    setModalError(null)') &&
+      startBtn.includes('setConflictId(null)') && createBtn.includes('setConflictId(null)'))
+    check('F6: no duplicate session possible — modal-busy gate plus the 008-index-backed 409 flow',
+      repeatBtn.includes('setModalBusy(true)') &&
+      repeatBtn.includes('disabled={busy}') === false && // busy prop lives in the modal
+      read('src/components/workout/ActiveWorkoutConflictModal.tsx')
+        .split('disabled={busy}').length - 1 === 3)
+    check('F7: direct destructive actions NOT behind the modal retain their confirmations',
+      stripC(read('src/components/workout/SetRow.tsx')).includes("confirm('Delete this set?')") &&
+      stripC(read('src/components/workout/WorkoutExerciseBlock.tsx')).includes('Remove ${we.exercise.name} from this workout?') &&
+      stripC(read('src/components/routine/RoutineDetailClient.tsx')).includes('Permanently delete') &&
+      stripC(read('src/components/workout/SessionHeader.tsx')).includes('confirm('))
+    check('F8: the modal itself stays semantic-dark, accessible, and worded identically',
+      (() => {
+        const m = read('src/components/workout/ActiveWorkoutConflictModal.tsx')
+        return m.includes('bg-surface-raised') && m.includes('role="dialog"') &&
+          m.includes('aria-modal="true"') &&
+          m.includes('You already have a workout in progress') &&
+          m.includes('Resume it, or discard it to start a new one.') &&
+          m.includes('Discard existing workout and start new')
+      })())
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

@@ -507,8 +507,13 @@ async function main() {
           'src/components/workout/WorkoutDetailClient.tsx',
           // RETARGET (UI-5B2 hosted-QA correction): dark-dialog
           // retoken + null-never-zero SetRow placeholders.
+          // RETARGET (UI-5B2 hosted-QA correction, single-confirmation):
+          // native confirm removed from the modal-protected discard
+          // callbacks; those consumers join the admitted scope.
           'src/components/workout/ActiveWorkoutConflictModal.tsx',
           'src/components/workout/SetRow.tsx',
+          'src/components/routine/StartWorkoutButton.tsx',
+          'src/components/workout/CreateWorkoutButton.tsx',
         ]
         // RETARGET (LOCAL-DATE-FIX): the approved date-boundary
         // correction files are admitted — expanded to the full

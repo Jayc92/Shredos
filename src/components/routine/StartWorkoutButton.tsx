@@ -87,7 +87,12 @@ export function StartWorkoutButton({ routineId, routineName, isActive = true, cl
 
   async function handleDiscardAndRetry() {
     if (!conflictId) return
-    if (!confirm(`Discard the existing in-progress workout and start ${routineName}? The old workout will be marked skipped, but its data will be preserved.`)) return
+    // UI-5B2 hosted-QA correction: the app's ActiveWorkoutConflictModal
+    // IS the confirmation — the user explicitly chose "Discard
+    // existing workout and start new" on it. The former native
+    // confirm() here was a redundant second confirmation that Safari
+    // forces white, so it is gone: this callback proceeds directly
+    // to the authorized skip request.
 
     setModalBusy(true)
     setModalError(null)
