@@ -7,7 +7,8 @@ import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNext
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
-import { ChevronDown, ChevronRight, MoveRight, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CopyPlus, MoveRight, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { awaitPendingSetSaves } from './set-save-coordinator'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
@@ -49,13 +50,32 @@ interface WorkoutExerciseBlockProps {
   history?: ExerciseHistoryEntry[]
   prBaseline?: PRBaseline
   readOnly?: boolean
+  /** UI-5B1B reordering: presentational move controls; the parent
+   *  owns the optimistic order and the transactional endpoint call.
+   *  Available in read-only (completed) workouts too — the server
+   *  RPC can only change presentation order. */
+  isFirst?: boolean
+  isLast?: boolean
+  isReordering?: boolean
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
-export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBaseline, readOnly = false }: WorkoutExerciseBlockProps) {
+export function WorkoutExerciseBlock({
+  we, previousBest, trend, history, prBaseline, readOnly = false,
+  isFirst = false, isLast = false, isReordering = false, onMoveUp, onMoveDown,
+}: WorkoutExerciseBlockProps) {
   const router = useRouter()
   const [open, setOpen]           = useState(true)
   const [addingSet, setAddingSet] = useState(false)
   const [removing, setRemoving]   = useState(false)
+  // UI-5B1B: explicit, never-automatic set replication. Eligibility
+  // derives from PERSISTED server props; the route re-reads the
+  // database at execution, so an in-flight blur save can never leak
+  // unsaved values into the copy.
+  const [applying, setApplying]   = useState(false)
+  const [applyMessage, setApplyMessage] = useState<string | null>(null)
+  const [applyIsError, setApplyIsError] = useState(false)
 
   const sets    = we.workout_sets ?? []
   // Phase 2U: cardio/timed use the tracking-aware representative-set
@@ -211,6 +231,74 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
     router.refresh()
   }
 
+  // UI-5B1B Apply-to-remaining eligibility (persisted values only).
+  // Required template fields per mode before the action enables:
+  // weight_reps -> reps + weight; bodyweight -> reps; cardio/timed ->
+  // duration. Targets: later, non-warmup, incomplete sets with at
+  // least one blank copyable field.
+  const APPLY_COPY_FIELDS: Record<string, readonly string[]> = {
+    weight_reps: ['reps', 'weight_kg', 'rpe'],
+    bodyweight:  ['reps', 'weight_kg', 'rpe'],
+    cardio:      ['duration_seconds', 'distance_meters'],
+    timed:       ['duration_seconds', 'rpe'],
+  }
+  const applyTemplate = (sets as any[]).find((s) => !s.is_warmup) ?? null
+  const applyRequiredReady = applyTemplate !== null && (
+    we.exercise.tracking_mode === 'weight_reps'
+      ? applyTemplate.reps !== null && applyTemplate.weight_kg !== null
+      : we.exercise.tracking_mode === 'bodyweight'
+        ? applyTemplate.reps !== null
+        : applyTemplate.duration_seconds !== null
+  )
+  const applyCopyFields = (APPLY_COPY_FIELDS[we.exercise.tracking_mode] ?? [])
+    .filter((f) => applyTemplate && applyTemplate[f] !== null)
+  const applyTargets = applyTemplate === null ? [] : (sets as any[]).filter((s) =>
+    s.set_number > applyTemplate.set_number && !s.is_warmup && !s.completed &&
+    applyCopyFields.some((f) => s[f] === null))
+  const applyEnabled = !readOnly && applyRequiredReady && applyTargets.length > 0
+
+  async function handleApplyToRemaining() {
+    if (readOnly || applying || !applyEnabled) return
+    // setApplying(true) runs synchronously before any await, so a
+    // double-click can never start a second Apply operation.
+    setApplying(true)
+    setApplyMessage(null)
+    setApplyIsError(false)
+    // UI-5B1B blur-race correction: clicking Apply blurs the focused
+    // set input, which STARTS a blur save. Deterministically await
+    // every in-flight save for this exercise before the Apply request
+    // is allowed to exist — no timeouts, no ordering assumptions. If
+    // any awaited save failed, Apply never runs.
+    const savesSucceeded = await awaitPendingSetSaves(we.id)
+    if (!savesSucceeded) {
+      setApplyMessage("Couldn't save the set values — fix the set marked \u201cNot saved\u201d and try again.")
+      setApplyIsError(true)
+      setApplying(false)
+      return
+    }
+    try {
+      const res = await fetch(`/api/workout-exercises/${we.id}/apply-first-set`, { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setApplyMessage(body.error ?? 'Could not apply — please try again.')
+        setApplyIsError(true)
+      } else {
+        const { applied, eligible, failed } = body.data ?? {}
+        if (failed > 0) {
+          setApplyMessage(`Applied to ${applied} of ${eligible} sets. Try again for the remaining sets.`)
+          setApplyIsError(true)
+        } else {
+          setApplyMessage(`Applied to ${applied} set${applied === 1 ? '' : 's'}.`)
+        }
+      }
+    } catch {
+      setApplyMessage('Network error — please try again.')
+      setApplyIsError(true)
+    }
+    setApplying(false)
+    router.refresh()
+  }
+
   const trendLabel = trend ? TREND_LABEL[trend] : undefined
   const trendCls   = trend ? TREND_CLS[trend]   : undefined
   const TrendIcon  = trend ? TREND_ICON[trend]  : undefined
@@ -250,13 +338,31 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
           </div>
         </button>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {/* QA fix: previousBest exists but nothing completed yet this
               session -> no meaningful comparison exists, so show no
               badge at all rather than a misleading "Same". New-exercise
               behavior (no previousBest) is unaffected either way. */}
           {(curBest || !previousBest) && (
             <ProgressBadge signal={signal} previousSummary={prevSummary} />
+          )}
+          {/* UI-5B1B: real named move controls (44px), available for
+              live AND completed workouts (presentation order only). */}
+          {onMoveUp && onMoveDown && (
+            <>
+              <button type="button" onClick={onMoveUp}
+                disabled={isFirst || isReordering}
+                aria-label="Move exercise up"
+                className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink transition-colors disabled:opacity-40">
+                <ChevronsUp className="w-4 h-4" aria-hidden="true" />
+              </button>
+              <button type="button" onClick={onMoveDown}
+                disabled={isLast || isReordering}
+                aria-label="Move exercise down"
+                className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink transition-colors disabled:opacity-40">
+                <ChevronsDown className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </>
           )}
           {/* UI-5B1A: 44px remove target. */}
           {!readOnly && (
@@ -402,13 +508,39 @@ export function WorkoutExerciseBlock({ we, previousBest, trend, history, prBasel
       )}
 
       {open && !readOnly && (
-        <div className="pl-0 sm:pl-6">
-          {/* UI-5B1A: 44px add-set target. */}
-          <button type="button" onClick={handleAddSet} disabled={addingSet}
-            className="flex min-h-11 items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
-            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-            {addingSet ? 'Adding…' : 'Add set'}
-          </button>
+        <div className="pl-0 sm:pl-6 space-y-1">
+          <div className="flex flex-wrap items-center gap-x-4">
+            {/* UI-5B1A: 44px add-set target. */}
+            <button type="button" onClick={handleAddSet} disabled={addingSet}
+              className="flex min-h-11 items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+              {addingSet ? 'Adding…' : 'Add set'}
+            </button>
+            {/* UI-5B1B: explicit action — never automatic. Disabled
+                with an honest reason until the first working set's
+                required values are SAVED and a blank target exists. */}
+            {sets.length > 1 && (
+              <button type="button" onClick={handleApplyToRemaining}
+                disabled={!applyEnabled || applying}
+                className="flex min-h-11 items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
+                <CopyPlus className="w-3.5 h-3.5" aria-hidden="true" />
+                {applying ? 'Applying…' : 'Apply to remaining sets'}
+              </button>
+            )}
+          </div>
+          {!readOnly && sets.length > 1 && !applyEnabled && !applying && !applyMessage && (
+            <p className="text-xs text-ink-muted" aria-live="polite">
+              {!applyRequiredReady
+                ? "Apply to remaining sets unlocks once the first set's values are saved."
+                : 'All remaining sets already have values.'}
+            </p>
+          )}
+          {applyMessage && (
+            <p className={cn('text-xs', applyIsError ? 'text-critical' : 'text-ink-muted')}
+              aria-live="polite">
+              {applyMessage}
+            </p>
+          )}
         </div>
       )}
     </CardContent>

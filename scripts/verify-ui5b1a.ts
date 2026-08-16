@@ -113,10 +113,14 @@ async function main() {
       sessionNotes.includes("fetch(`/api/workouts/${sessionId}`") &&
       sessionNotes.includes('body: JSON.stringify({ notes: draft })') &&
       sessionNotes.includes("setDraft(notes ?? '')"))
-    check('H11: no new fetch/endpoint anywhere in the slice',
+    // RETARGET (UI-5B1B): the block gained exactly one approved
+    // fetch — the explicit apply-first-set action. Every other count
+    // is unchanged and no other endpoint may appear.
+    check('H11: no new fetch/endpoint anywhere in the slice (one approved UI-5B1B addition)',
       (stripComments(setRow).match(/fetch\(/g) || []).length === 2 &&
       (stripComments(header).match(/fetch\(/g) || []).length === 6 &&
-      (stripComments(block).match(/fetch\(/g) || []).length === 3 &&
+      (stripComments(block).match(/fetch\(/g) || []).length === 4 &&
+      block.includes('/apply-first-set`') &&
       (stripComments(sessionNotes).match(/fetch\(/g) || []).length === 1 &&
       !stripComments(page).includes('fetch('))
   }
@@ -377,28 +381,46 @@ async function main() {
       diffFiles = execSync('git diff --name-only HEAD', { encoding: 'utf8' })
         .split('\n').filter(Boolean)
     } catch { diffFiles = ['<git unavailable>'] }
-    check('X1: product changes confined to the five approved files',
-      diffFiles.filter((f) => f.startsWith('src/')).every((f) => CHANGED_PATHS.includes(f)),
+    // RETARGET (UI-5B1B): the approved UI-5B1B scope adds the
+    // ordering/set routes, the two detail clients, and migration 021.
+    // The boundary — nothing outside a declared, approved inventory —
+    // is unchanged.
+    const UI5B1B_APPROVED = [
+      'src/components/workout/WorkoutDetailClient.tsx',
+      'src/components/routine/RoutineDetailClient.tsx',
+      'src/app/api/workouts/[id]/exercise-order/route.ts',
+      'src/app/api/routines/[id]/exercise-order/route.ts',
+      'src/app/api/workout-exercises/[id]/route.ts',
+      'src/app/api/workout-exercises/[id]/sets/route.ts',
+      'src/app/api/workout-exercises/[id]/apply-first-set/route.ts',
+      'src/app/api/workout-sets/[id]/route.ts',
+      'src/app/api/routine-exercises/[id]/route.ts',
+    ]
+    check('X1: product changes confined to the approved files',
+      diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
+        CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f)),
       diffFiles.join(', '))
-    check('X2: no API, lib, migration, or type change',
-      diffFiles.every((f) => !f.startsWith('src/app/api/') &&
-        !f.startsWith('src/lib/') && !f.startsWith('supabase/') &&
-        !f.includes('types/database')))
+    check('X2: no lib, database-type, or unapproved migration change',
+      diffFiles.every((f) =>
+        !f.startsWith('src/lib/') && !f.includes('types/database') &&
+        (!f.startsWith('supabase/') ||
+          f === 'supabase/migrations/021_ui5b_transactional_ordering.sql')))
     check('X3: loading + completion summary byte-untouched (already on the token system)',
       !diffFiles.includes('src/app/(app)/workouts/[id]/loading.tsx') &&
       !diffFiles.includes('src/components/workout/WorkoutCompletionSummaryCard.tsx') &&
       !/(green|red|amber)-\d{3}|text-muted-foreground/.test(stripComments(summaryCard)))
-    check('X4: no reorder / apply-to-remaining / repeat / save-as-routine implementation',
+    // RETARGET (UI-5B1B): reordering and Apply-to-remaining are now
+    // the approved UI-5B1B implementation. The surviving boundary is
+    // that the DEFERRED UI-5B2 features stay absent.
+    check('X4: no repeat-workout / save-as-routine implementation (UI-5B2 deferred)',
       TOUCHED.every((f) => {
         const code = stripComments(f)
-        return !code.includes('order_index') &&
-          !/apply to remaining/i.test(code) &&
-          !/save.?as.?routine|repeat.?workout/i.test(code) &&
-          !code.includes('Move up')
+        return !/save.?as.?routine|repeat.?workout|save_as_routine|repeat_workout/i.test(code)
       }))
-    check('X5: migrations exactly 001–020 (no 021)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
-      !existsSync('supabase/migrations/021_ui5b_transactional_reordering.sql'))
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('X5: UI-5B1A added no migration (021 = approved UI-5B1B file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+      existsSync('supabase/migrations/021_ui5b_transactional_ordering.sql'))
     check('X6: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
       Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)

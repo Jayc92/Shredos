@@ -31,6 +31,59 @@ export function WorkoutDetailClient({
   const router = useRouter()
   const [sessionDeleted, setSessionDeleted] = useState(false)
 
+  // UI-5B1B exercise reordering: an ID-ORDER overlay rather than
+  // copied exercise objects, so every server refresh (set saves,
+  // add/remove) keeps flowing fresh data into the blocks while the
+  // optimistic order applies on top. The transactional
+  // exercise-order endpoint (migration 021 RPC) is the integrity
+  // authority; on failure the previous order is restored, an
+  // accessible error is shown, and the page refreshes to server
+  // truth. Completed workouts may reorder too — the RPC can only
+  // touch presentation order, never logged evidence.
+  const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
+  const [reordering, setReordering] = useState(false)
+  const [reorderError, setReorderError] = useState<string | null>(null)
+
+  const orderedExercises = orderOverride
+    ? [...exercises].sort((a: any, b: any) => {
+        const ai = orderOverride.indexOf(a.id)
+        const bi = orderOverride.indexOf(b.id)
+        // Ids unknown to the override (e.g. just added) keep their
+        // server position after the known ones.
+        if (ai === -1 && bi === -1) return 0
+        if (ai === -1) return 1
+        if (bi === -1) return -1
+        return ai - bi
+      })
+    : exercises
+
+  async function moveExercise(index: number, direction: -1 | 1) {
+    if (reordering) return
+    const target = index + direction
+    if (target < 0 || target >= orderedExercises.length) return
+
+    const previousOrder = orderedExercises.map((we: any) => we.id)
+    const nextOrder = [...previousOrder]
+    ;[nextOrder[index], nextOrder[target]] = [nextOrder[target], nextOrder[index]]
+
+    setOrderOverride(nextOrder)
+    setReordering(true)
+    setReorderError(null)
+
+    const res = await fetch(`/api/workouts/${session.id}/exercise-order`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ordered_ids: nextOrder }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setOrderOverride(previousOrder)
+      setReorderError(body.error ?? 'Reorder failed — please try again.')
+    }
+    setReordering(false)
+    router.refresh()
+  }
+
   function handleSessionDeleted() {
     setSessionDeleted(true)
     router.replace('/workouts')
@@ -90,7 +143,13 @@ export function WorkoutDetailClient({
         </Card>
       )}
 
-      {exercises.map((we: any) => (
+      {reorderError && (
+        <p className="text-xs text-critical bg-critical-subtle rounded px-2 py-1" aria-live="polite">
+          {reorderError}
+        </p>
+      )}
+
+      {orderedExercises.map((we: any, index: number) => (
         <WorkoutExerciseBlock
           key={we.id}
           we={we}
@@ -99,6 +158,11 @@ export function WorkoutDetailClient({
           history={exerciseHistory?.[we.exercise_id]}
           prBaseline={prBaseline?.[we.exercise_id]}
           readOnly={readOnly}
+          isFirst={index === 0}
+          isLast={index === orderedExercises.length - 1}
+          isReordering={reordering}
+          onMoveUp={() => moveExercise(index, -1)}
+          onMoveDown={() => moveExercise(index, 1)}
         />
       ))}
 

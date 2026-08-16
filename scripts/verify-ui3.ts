@@ -165,9 +165,10 @@ async function main() {
   // ── 2. Persistence and security (S19–S30) ──────────────────────────
   console.log('\n2. Persistence and security')
   {
-    check('S19: migration 020 exists and is the ONLY new migration',
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S19: migration 020 exists and remains the only UI-3 migration',
       existsSync('supabase/migrations/020_ui3_dashboard_preferences.sql') &&
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1)
     check('S20: JSONB dashboard_prefs on user_profiles',
       migration.includes('ALTER TABLE user_profiles') &&
@@ -398,8 +399,11 @@ async function main() {
         return !c.includes('streak') && !c.includes('badge') && !c.includes('upcoming run') &&
           !c.includes('consistency')
       }))
-    check('S71: no migration beyond 020',
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('021')))
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S71: no migration beyond 020 except the approved 021',
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql') &&
+      !readdirSync('supabase/migrations').some((f) => f.startsWith('022')))
     check('S72: no new dependency',
       !read('package.json').includes('dnd') && !read('package.json').includes('sortable') &&
       read('package.json').includes('"next": "14.2.13"'))

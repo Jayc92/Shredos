@@ -60,7 +60,14 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
   }
 
   // moveExercise: shared helper for handleMoveUp and handleMoveDown.
-  // Swaps positions AND order_index values so subsequent moves read correct indexes.
+  // Swaps positions AND order_index values so subsequent moves read
+  // correct indexes. UI-5B1B: the optimistic swap stays for
+  // responsiveness, but persistence is now ONE call to the
+  // transactional exercise-order endpoint (migration 021 RPC) with
+  // the complete ordered id list — the server validates the exact
+  // membership and commits the whole ordering or nothing, replacing
+  // the old two-independent-PATCH sequence whose partial failure
+  // could corrupt ordering.
   async function moveExercise(fromIdx: number, toIdx: number) {
     if (reordering) return
 
@@ -68,29 +75,21 @@ export function RoutineDetailClient({ routine, allExercises }: RoutineDetailClie
     const toOrderIndex   = exerciseList[toIdx].order_index
     const snapshot: any[] = exerciseList.map((e: any) => ({ ...e }))
 
-    setExerciseList(prev => {
-      const next = prev.map((e: any) => ({ ...e }))
-      ;[next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]]
-      next[toIdx]   = { ...next[toIdx],   order_index: toOrderIndex }
-      next[fromIdx] = { ...next[fromIdx], order_index: fromOrderIndex }
-      return next
-    })
+    const next = exerciseList.map((e: any) => ({ ...e }))
+    ;[next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]]
+    next[toIdx]   = { ...next[toIdx],   order_index: toOrderIndex }
+    next[fromIdx] = { ...next[fromIdx], order_index: fromOrderIndex }
+    setExerciseList(next)
 
     setReordering(true)
     setReorderErr(null)
 
-    const [r1, r2] = await Promise.all([
-      fetch(`/api/routine-exercises/${snapshot[fromIdx].id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: toOrderIndex }),
-      }),
-      fetch(`/api/routine-exercises/${snapshot[toIdx].id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_index: fromOrderIndex }),
-      }),
-    ])
+    const res = await fetch(`/api/routines/${routine.id}/exercise-order`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ordered_ids: next.map((e: any) => e.id) }),
+    })
 
-    if (!r1.ok || !r2.ok) {
+    if (!res.ok) {
       setExerciseList(snapshot)
       setReorderErr('Reorder failed — please try again.')
     }

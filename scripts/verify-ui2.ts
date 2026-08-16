@@ -379,8 +379,9 @@ async function main() {
       !read('package.json').includes('recharts') && !read('package.json').includes('framer') &&
       read('package.json').includes('"next": "14.2.13"'))
     // RETARGET (UI-3): 020 is the approved dashboard-prefs migration.
-    check('S46: migration boundary (exactly 20; 020 = approved UI-3 file)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S46: migration boundary (exactly 21; 020 = UI-3, 021 = UI-5B1B)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
       readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
     check('S47: Progress range links + scroll={false} unchanged',
       (() => {

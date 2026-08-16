@@ -292,13 +292,26 @@ console.log('\n7. Routine regression')
 // ── 8. User control preserved ────────────────────────────────────────
 console.log('\n8. User control')
 {
+  // RETARGET (UI-5B1B): next set_number is still server-controlled,
+  // now computed inside append_workout_set (migration 021) under the
+  // shared per-exercise numbering lock — never by the client. The
+  // boundary (user controls set count only through explicit
+  // add/delete; numbering is the server's) is unchanged.
   check('Add set route unchanged (server-controlled next set_number)',
-    setsRoute.includes('const set_number = ((lastSet as any)?.set_number ?? 0) + 1'))
+    setsRoute.includes("supabase.rpc('append_workout_set'") &&
+    setsRoute.includes('p_workout_exercise_id: params.id') &&
+    !setsRoute.includes('p_set_number') &&
+    !setsRoute.includes('set_number,'))
   check('Add set button still present in the block UI',
     block.includes('handleAddSet') && block.includes("'Add set'"))
+  // RETARGET (UI-5B1B): deletion now commits atomically with
+  // contiguous resequencing (delete_workout_set_and_resequence,
+  // migration 021) — the user-control boundary (any set may be
+  // deleted, including the last; no minimum is enforced) is
+  // unchanged.
   check('Delete set route unchanged',
     setIdRoute.includes('export async function DELETE') &&
-    setIdRoute.includes(".from('workout_sets').delete().eq('id', params.id)"))
+    setIdRoute.includes("supabase.rpc('delete_workout_set_and_resequence'"))
   check('no minimum-set enforcement anywhere',
     !setIdRoute.includes('DEFAULT_MANUAL_SET_COUNT') &&
     !stripComments(setIdRoute).includes('minimum') &&

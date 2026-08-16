@@ -238,8 +238,10 @@ async function main() {
       recent.includes('truncate') && quickAdd.includes('truncate') &&
       CHANGED.every((f) => !stripComments(f).includes('w-[') &&
         !stripComments(f).includes('overflow-x')))
-    check('S36: no migration (exactly 20)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20)
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S36: no migration by this correction (exactly 21; 021 = approved UI-5B1B file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+      readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql'))
     check('S37: no dependency',
       read('package.json').includes('"next": "14.2.13"') &&
       !read('package.json').includes('collapsible'))

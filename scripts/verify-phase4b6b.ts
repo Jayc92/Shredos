@@ -509,8 +509,13 @@ console.log('\n18. DOM order')
     client.indexOf('<SessionHeader') < client.indexOf('<WorkoutSessionNotes') &&
     client.indexOf('<WorkoutSessionNotes') < client.indexOf('<WorkoutExerciseBlock') &&
     client.indexOf('<WorkoutExerciseBlock') < client.indexOf('<AddExerciseSection'))
+  // RETARGET (UI-5B1B): the block map now renders the optimistic
+  // ordered list (orderedExercises); the empty-card-before-blocks
+  // boundary is unchanged and re-anchored (the old anchor would have
+  // compared against indexOf -1).
   check('empty-exercises card sits before blocks',
-    client.indexOf('No exercises yet.') < client.indexOf('exercises.map'))
+    client.indexOf('No exercises yet.') > 0 &&
+    client.indexOf('No exercises yet.') < client.indexOf('{orderedExercises.map'))
 }
 
 // ── 19. Copy anchors ─────────────────────────────────────────────────

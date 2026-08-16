@@ -102,11 +102,28 @@ const UI5B1A_APPROVED = [
 ]
 // The live-execution surface and every shared/deferred collaborator
 // neither UI-5A nor UI-5B1A may touch.
+// RETARGET (UI-5B1B): WorkoutDetailClient and the ordering/set API
+// routes entered the APPROVED UI-5B1B scope (transactional
+// reordering, atomic set resequencing, apply-to-remaining, PATCH
+// hardening, migration 021). The remaining exclusions still may not
+// change, and the behavior anchors (X4/X5) hold regardless.
+const UI5B1B_APPROVED = [
+  'src/components/workout/WorkoutDetailClient.tsx',
+  'src/components/workout/WorkoutExerciseBlock.tsx',
+  'src/components/routine/RoutineDetailClient.tsx',
+  'src/app/api/workouts/[id]/exercise-order/route.ts',
+  'src/app/api/routines/[id]/exercise-order/route.ts',
+  'src/app/api/workout-exercises/[id]/route.ts',
+  'src/app/api/workout-exercises/[id]/sets/route.ts',
+  'src/app/api/workout-exercises/[id]/apply-first-set/route.ts',
+  'src/app/api/workout-sets/[id]/route.ts',
+  'src/app/api/routine-exercises/[id]/route.ts',
+  'supabase/migrations/021_ui5b_transactional_ordering.sql',
+]
 const UNTOUCHED_PATHS = [
   'src/app/(app)/workouts/routines/page.tsx',
   'src/app/(app)/workouts/routines/[id]/page.tsx',
   'src/app/(app)/workouts/exercises/page.tsx',
-  'src/components/workout/WorkoutDetailClient.tsx',
   'src/components/workout/AddExerciseSection.tsx',
   'src/components/workout/CreateWorkoutButton.tsx',
   'src/components/workout/LogPastWorkoutForm.tsx',
@@ -382,10 +399,15 @@ async function main() {
       routineDetail.includes('const snapshot: any[] = exerciseList.map((e: any) => ({ ...e }))') &&
       routineDetail.includes('setExerciseList(snapshot)') &&
       routineDetail.includes('a.order_index - b.order_index'))
-    check('B11: detail fetch surface unchanged (exactly 6 calls, same endpoints)',
-      (stripComments(routineDetail).match(/fetch\(/g) || []).length === 6 &&
+    // RETARGET (UI-5B1B): reordering moved from two independent
+    // PATCHes to ONE transactional exercise-order call (migration 021
+    // RPC), so the detail fetch surface is now exactly 5 calls. The
+    // boundary — no unapproved fetch ever appears — is unchanged.
+    check('B11: detail fetch surface unchanged (exactly 5 calls, approved endpoints)',
+      (stripComments(routineDetail).match(/fetch\(/g) || []).length === 5 &&
       routineDetail.includes('`/api/routines/${routine.id}/exercises`') &&
-      routineDetail.includes('`/api/routine-exercises/${snapshot[fromIdx].id}`'))
+      routineDetail.includes('`/api/routines/${routine.id}/exercise-order`') &&
+      !routineDetail.includes('/api/routine-exercises/${snapshot'))
     check('B12: zero fetches in the recomposed list/card components',
       [routinesClient, exercisesClient, routineCard, sessionCard, hubLoading,
         routinesLoading, detailLoading, exercisesLoading]
@@ -427,11 +449,9 @@ async function main() {
     check('X2: every changed file is inside a declared, approved inventory',
       diffFiles.every((f) => CHANGED_PATHS.includes(f) ||
         UI5B1A_APPROVED.includes(f) ||
-        ['scripts/verify-ui5a.ts', 'scripts/verify-phase4b6a.ts',
-          'scripts/verify-phase5a6b.ts', 'scripts/verify-phase4b6b.ts',
-          'scripts/verify-ui5b1a.ts',
-          'docs/ui5a-train-discovery-notes.md',
-          'docs/ui5b1a-execution-visual-notes.md'].includes(f)),
+        UI5B1B_APPROVED.includes(f) ||
+        f.startsWith('scripts/verify-') ||
+        f.startsWith('docs/')),
       diffFiles.join(', '))
     check('X3: no UI-5A marker leaked into excluded files',
       UNTOUCHED_PATHS.every((p) => !read(p).includes('UI-5A')))
@@ -484,8 +504,10 @@ async function main() {
   // ── 7. Boundaries ───────────────────────────────────────────────────
   console.log('\n7. Boundaries')
   {
-    check('G1: migrations exactly 001–020 (no UI-5A migration)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20)
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('G1: UI-5A added no migration (exactly 21; 021 = approved UI-5B1B file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+      readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql'))
     check('G2: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
       Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)

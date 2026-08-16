@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select('exercise:exercises ( tracking_mode )')
     .eq('id', params.id)
     .maybeSingle()
-  if (weError) return NextResponse.json({ error: weError.message }, { status: 500 })
+  if (weError) return NextResponse.json({ error: 'Could not read the exercise.' }, { status: 500 })
   const trackingMode: TrackingMode | undefined = (we as any)?.exercise?.tracking_mode
   if (!trackingMode) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -52,12 +52,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     )
   }
 
-  // Next set_number — unchanged, server-controlled.
-  const { data: lastSet } = await supabase
-    .from('workout_sets').select('set_number')
-    .eq('workout_exercise_id', params.id)
-    .order('set_number', { ascending: false }).limit(1).maybeSingle()
-  const set_number = ((lastSet as any)?.set_number ?? 0) + 1
+  // Next set_number stays server-controlled — it is now computed by
+  // append_workout_set (migration 021) INSIDE the shared numbering
+  // lock, never here and never by the client.
 
   // Accept weight_lbs (client standard) or weight_kg (internal override) —
   // only reachable for weight_reps/bodyweight, since any other mode
@@ -91,7 +88,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // Supabase would otherwise apply.
   const insertPayload: Record<string, unknown> = {
     workout_exercise_id: params.id,
-    set_number,
     completed,
     is_warmup: (trackingMode === 'cardio' || trackingMode === 'timed') ? false : isWarmup,
     notes: body.notes ?? null,
@@ -114,10 +110,47 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     insertPayload.rpe = body.rpe ?? null
   }
 
-  const { data, error } = await supabase
-    .from('workout_sets')
-    .insert(insertPayload)
-    .select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // UI-5B1B: the insert now goes through append_workout_set
+  // (migration 021), which computes the next set_number under the
+  // SAME per-exercise advisory lock as delete-and-resequence — so
+  // add-after-delete always continues the contiguous sequence and
+  // concurrent add/delete cannot duplicate or gap numbers. All
+  // tracking-mode validation, defaults, and carry-forward behavior
+  // above are unchanged; numbering stays server-controlled (the
+  // function ignores any client notion of set_number by contract).
+  // Security-review correction: the function takes explicit TYPED
+  // parameters (never a JSONB blob), re-derives the tracking mode
+  // from the caller's own exercise row, and re-validates every field
+  // itself — a direct RPC caller gets exactly the same contract.
+  const { data, error } = await supabase.rpc('append_workout_set', {
+    p_workout_exercise_id: params.id,
+    p_reps: insertPayload.reps,
+    p_weight_kg: insertPayload.weight_kg,
+    p_rpe: insertPayload.rpe,
+    p_duration_seconds: insertPayload.duration_seconds,
+    p_distance_meters: insertPayload.distance_meters,
+    p_completed: insertPayload.completed,
+    p_is_warmup: insertPayload.is_warmup,
+    p_notes: insertPayload.notes,
+  })
+  if (error) {
+    const message = error.message ?? ''
+    if (message.includes('not_found')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    if (message.includes('workout_completed')) {
+      return NextResponse.json(
+        { error: 'Completed workouts are read-only. Reopen the workout before editing.' },
+        { status: 409 }
+      )
+    }
+    if (message.includes('invalid_input')) {
+      return NextResponse.json(
+        { error: "Only fields supported by this exercise's tracking mode can be set." },
+        { status: 400 }
+      )
+    }
+    return NextResponse.json({ error: 'Could not add the set.' }, { status: 500 })
+  }
   return NextResponse.json({ data }, { status: 201 })
 }

@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .eq('id', params.id)
     .maybeSingle()
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Could not read the set.' }, { status: 500 })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const trackingMode: TrackingMode | undefined =
@@ -128,7 +128,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .eq('id', params.id).select().single()
   if (error) {
     if (error.code === 'PGRST116') return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Could not save the set.' }, { status: 500 })
   }
   return NextResponse.json({ data })
 }
@@ -141,8 +141,31 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const locked = await blockIfWorkoutSetCompleted(supabase, params.id, user.id)
   if (locked) return locked
 
-  const { error } = await supabase
-    .from('workout_sets').delete().eq('id', params.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  // UI-5B1B: delete and resequence commit in ONE transaction
+  // (migration 021). The remaining sets renumber contiguously to
+  // 1..N with ids, values, nulls, completion, warmup, and notes
+  // untouched; no partial delete-without-resequence state can ever
+  // commit, and success is only returned after both have committed.
+  // The function re-checks ownership and the completed-workout lock
+  // fail-closed, on top of the route guard above.
+  const { data, error } = await supabase.rpc('delete_workout_set_and_resequence', {
+    p_set_id: params.id,
+  })
+  if (error) {
+    const message = error.message ?? ''
+    if (message.includes('not_found')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    if (message.includes('workout_completed')) {
+      return NextResponse.json(
+        { error: 'Completed workouts are read-only. Reopen the workout before editing.' },
+        { status: 409 }
+      )
+    }
+    if (message.includes('invalid_input')) {
+      return NextResponse.json({ error: 'Invalid set.' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Could not delete the set.' }, { status: 500 })
+  }
+  return NextResponse.json({ success: true, data })
 }

@@ -79,9 +79,11 @@ async function main() {
     check('S1: built from the stable UI-3 contract (customization intact)',
       read('src/lib/dashboard-prefs.ts').includes('DASHBOARD_WIDGET_IDS') &&
       read('src/app/(app)/dashboard/page.tsx').includes('visibleDashboardWidgets'))
-    check('S2: NO migration 021 (exactly 20)',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('021')))
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S2: UI-4 added no migration (exactly 21; 021 = approved UI-5B1B file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql'))
     check('S3: Progress is the only product route carrying UI-4 markers',
       page.includes('UI-4') &&
       ['src/app/(app)/dashboard/page.tsx', 'src/app/(app)/workouts/page.tsx',
@@ -334,8 +336,9 @@ async function main() {
   // ── 7. Boundaries (S47–S54) ────────────────────────────────────────
   console.log('\n7. Boundaries')
   {
-    check('S47: no migration added',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20)
+    // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+    check('S47: UI-4 added no migration (021 = approved UI-5B1B file)',
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21)
     check('S48: no new dependency (existing plain-SVG stack meets the requirements)',
       !read('package.json').includes('recharts') && !read('package.json').includes('"d3') &&
       !read('package.json').includes('chart') &&

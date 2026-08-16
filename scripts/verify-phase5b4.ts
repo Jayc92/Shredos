@@ -594,8 +594,9 @@ console.log('\n10. Boundary and docs')
   // RETARGET (UI-3): 020 is that approved phase's dashboard-prefs
   // migration — the boundary (no UNEXPECTED migration) survives as
   // "exactly 20, and the single addition is the named UI-3 file".
-  check('migration boundary: exactly 20 (020 = approved UI-3 dashboard prefs)',
-    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 20 &&
+  // RETARGET (UI-5B1B): 021_ui5b_transactional_ordering.sql is the approved transactional-ordering migration.
+  check('migration boundary: exactly 21 (020 = UI-3; 021 = UI-5B1B ordering)',
+    readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 21 &&
     readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1 &&
     readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('no persisted adaptive state introduced',

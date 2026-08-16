@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
 import type { PRType } from '@/lib/workout'
 import { Trash2, AlertCircle, Check } from 'lucide-react'
+import { trackSetSave } from './set-save-coordinator'
 import type { WorkoutSet, TrackingMode } from '@/types/database'
 
 // Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
@@ -68,17 +69,24 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
     // caller that forgets its own guard still can't reach the network.
     if (readOnly) return false
     setSaveError(null)
-    const res = await fetch(`/api/workout-sets/${set.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(update),
-    })
-    if (!res.ok) {
-      setSaveError('Not saved')
-      return false
-    }
-    router.refresh()
-    return true
+    // UI-5B1B: the in-flight save registers with the coordinator so
+    // Apply-to-remaining can deterministically await it. The promise
+    // is returned unchanged — every caller's await/rollback behavior
+    // is identical to before.
+    const save = (async () => {
+      const res = await fetch(`/api/workout-sets/${set.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      })
+      if (!res.ok) {
+        setSaveError('Not saved')
+        return false
+      }
+      router.refresh()
+      return true
+    })()
+    return trackSetSave(set.workout_exercise_id, save)
   }
 
   async function handleRepsBlur() {
