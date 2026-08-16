@@ -7,6 +7,7 @@ import { displayWeight } from '@/lib/workout'
 import type { PRType } from '@/lib/workout'
 import { Trash2, AlertCircle, Check } from 'lucide-react'
 import { trackSetSave } from './set-save-coordinator'
+import { reconcileSetRowState } from './set-apply-reconcile'
 import type { WorkoutSet, TrackingMode } from '@/types/database'
 
 // Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
@@ -61,6 +62,31 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
     set.distance_meters !== null ? String(Math.round((set.distance_meters / METERS_PER_MILE) * 100) / 100) : ''
   )
   const [addedWeightExpanded, setAddedWeightExpanded] = useState(set.weight_kg !== null)
+
+  // UI-5B1B stale-state correction: the useState initializers above
+  // run ONCE, and router.refresh() preserves client state — so a
+  // server-side change to this set (Apply-to-remaining's reconciled
+  // response, or a refresh landing new values) previously never
+  // reached the visible inputs until a full remount. This is React's
+  // adjust-state-during-render pattern: when the server row changes,
+  // reconcileSetRowState diffs it field-by-field against the last
+  // synced row and updates ONLY the fields whose SERVER value
+  // changed — in-progress typing in other fields, busy/saveError
+  // indicators, and the component instance itself are untouched.
+  const [syncedSet, setSyncedSet] = useState(set)
+  if (set !== syncedSet) {
+    const u = reconcileSetRowState(syncedSet, set)
+    if (u.reps        !== undefined) setReps(u.reps)
+    if (u.lbs         !== undefined) setLbs(u.lbs)
+    if (u.rpe         !== undefined) setRpe(u.rpe)
+    if (u.durationMin !== undefined) setDurationMin(u.durationMin)
+    if (u.durationSec !== undefined) setDurationSec(u.durationSec)
+    if (u.distanceMi  !== undefined) setDistanceMi(u.distanceMi)
+    if (u.completed   !== undefined) setCompleted(u.completed)
+    if (u.isWarmup    !== undefined) setIsWarmup(u.isWarmup)
+    if (u.addedWeightExpanded)       setAddedWeightExpanded(true)
+    setSyncedSet(set)
+  }
 
   async function patch(update: Record<string, unknown>) {
     // Phase 2I backstop: the UI hides/disables every mutation control

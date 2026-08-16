@@ -396,9 +396,19 @@ async function main() {
     check('A5: never touches notes, ids, numbering, warmup, or completion',
       !applyRoute.includes('update.notes') && !applyRoute.includes('update.set_number') &&
       !applyRoute.includes('update.completed') && !applyRoute.includes('update.is_warmup'))
+    // RETARGET (UI-5B1B stale-state correction): original boundary —
+    // the response carried only the honest counts. Hosted QA proved
+    // the writes correct but the visible inputs stale (SetRow's
+    // useState initializers never rerun across router.refresh), so
+    // the response now ALSO returns the authoritative post-write
+    // target rows for client reconciliation. The guard and the
+    // honest counts are unchanged and still pinned; the rows come
+    // from a re-read, never an echo of the template.
     check('A6: completed-workout guard + honest partial reporting',
       applyRoute.includes('blockIfWorkoutExerciseCompleted') &&
-      applyRoute.includes('data: { applied, eligible: targets.length, failed }'))
+      applyRoute.includes('data: { applied, eligible: targets.length, failed, sets: updatedRows }') &&
+      applyRoute.includes("select('id, reps, weight_kg, rpe, duration_seconds, distance_meters')") &&
+      applyRoute.indexOf('const { data: reread }') > applyRoute.indexOf('for (const target of targets'))
     check('A7: client action is explicit, never automatic, 44px, honest disabled reasons',
       block.includes("'Apply to remaining sets'") &&
       block.includes('onClick={handleApplyToRemaining}') &&
@@ -461,6 +471,7 @@ async function main() {
           'src/components/workout/WorkoutExerciseBlock.tsx',
           'src/components/workout/SetRow.tsx',
           'src/components/workout/set-save-coordinator.ts',
+          'src/components/workout/set-apply-reconcile.ts',
           'src/components/routine/RoutineDetailClient.tsx',
           'docs/ui5b1b-transactional-ordering-notes.md',
         ]
@@ -899,6 +910,173 @@ async function main() {
       appendBody.includes('SELECT ws.status INTO v_session_status') &&
       appendBody.indexOf('SELECT ws.status') < modeLockAt &&
       migration.includes('then exercise row, then child'))
+  }
+
+  // ── 15. Apply stale-state reconciliation (runtime interaction) ─────
+  // Hosted QA proved the writes persisted (values present after a
+  // browser refresh) but the visible inputs stayed blank: SetRow's
+  // useState initializers run once and router.refresh() preserves
+  // client state. These proofs drive the EXACT pure functions the
+  // components call, then render the real SetRow with the resulting
+  // rows to prove the visible input values.
+  console.log('\n15. Apply stale-state reconciliation (runtime)')
+  {
+    const {
+      buildAppliedOverrides, mergeAppliedSets, resolveActiveOverrides,
+      reconcileSetRowState,
+    } = await import('../src/components/workout/set-apply-reconcile')
+    const { displayWeight } = await import('../src/lib/workout')
+    const { SetRow } = await import('../src/components/workout/SetRow')
+
+    const KG20 = 9.0718474 // stored kg for the 20 lbs the user typed
+    const mk = (id: string, n: number, v: Record<string, unknown> = {}) => ({
+      id, workout_exercise_id: 'we1', set_number: n,
+      reps: null, weight_kg: null, rpe: null,
+      duration_seconds: null, distance_meters: null,
+      completed: false, is_warmup: false, notes: null, ...v,
+    })
+    const rowHtml = (set: any, mode = 'weight_reps') =>
+      renderToStaticMarkup(React.createElement(SetRow, {
+        set: set as never, isUnilateral: false, trackingMode: mode as never,
+        prType: null,
+      }))
+
+    // The hosted case: Set 1 = 10 reps / 20 lbs / RPE 8, completed;
+    // Sets 2 and 3 blank. The route's authoritative post-write
+    // re-read of the two targets comes back in the response.
+    const rawSets = [
+      mk('s1', 1, { reps: 10, weight_kg: KG20, rpe: 8, completed: true }),
+      mk('s2', 2, { notes: 'keep this note' }),
+      mk('s3', 3),
+    ]
+    const responseRows = [
+      { id: 's2', reps: 10, weight_kg: KG20, rpe: 8, duration_seconds: null, distance_meters: null },
+      { id: 's3', reps: 10, weight_kg: KG20, rpe: 8, duration_seconds: null, distance_meters: null },
+    ]
+    const overrides = buildAppliedOverrides(responseRows)
+    check('R1: response rows become per-ID overrides of exactly the five value fields',
+      Object.keys(overrides).sort().join(',') === 's2,s3' &&
+      Object.keys(overrides.s2).sort().join(',') ===
+        'distance_meters,duration_seconds,reps,rpe,weight_kg' &&
+      (overrides.s2 as any).reps === 10 && (overrides.s3 as any).rpe === 8)
+
+    const state = { baseline: rawSets, overrides }
+    const active = resolveActiveOverrides(state, rawSets)
+    const merged = mergeAppliedSets(rawSets as any[], active.overrides)
+    check('R2: both visible rows update immediately; identity, order, notes, completion all preserved',
+      active.cleared === false &&
+      merged[1].reps === 10 && merged[1].weight_kg === KG20 && merged[1].rpe === 8 &&
+      merged[2].reps === 10 && merged[2].weight_kg === KG20 && merged[2].rpe === 8 &&
+      merged[0] === rawSets[0] &&
+      merged[1].id === 's2' && merged[1].set_number === 2 &&
+      merged[1].completed === false && merged[1].is_warmup === false &&
+      (merged[1] as any).notes === 'keep this note' &&
+      merged.map((m: any) => m.id).join(',') === 's1,s2,s3')
+
+    const u2 = reconcileSetRowState(rawSets[1] as never, merged[1] as never)
+    check('R3: SetRow state updates match the initializers exactly, including kg-to-lbs display',
+      u2.reps === '10' && u2.lbs === String(displayWeight(KG20)) && u2.lbs === '20' &&
+      u2.rpe === '8' &&
+      u2.completed === undefined && u2.isWarmup === undefined &&
+      u2.durationMin === undefined && u2.distanceMi === undefined)
+
+    const liveHtml = rowHtml(merged[1])
+    check('R4: the real SetRow renders 10 reps / 20 lbs / RPE 8 from the reconciled row',
+      liveHtml.includes('value="10"') && liveHtml.includes('value="20"') &&
+      liveHtml.includes('value="8"'))
+
+    // Simulated refresh: the next server render carries the applied
+    // values in its own rows; the override snapshot clears (baseline
+    // identity changed) and the display is identical.
+    const refreshedRaw = [
+      mk('s1', 1, { reps: 10, weight_kg: KG20, rpe: 8, completed: true }),
+      mk('s2', 2, { reps: 10, weight_kg: KG20, rpe: 8, notes: 'keep this note' }),
+      mk('s3', 3, { reps: 10, weight_kg: KG20, rpe: 8 }),
+    ]
+    const afterRefresh = resolveActiveOverrides(state, refreshedRaw)
+    const mergedAfter = mergeAppliedSets(refreshedRaw as any[], afterRefresh.overrides)
+    const refreshedHtml = rowHtml(mergedAfter[1])
+    check('R5: refresh persistence — overrides clear on the new server render, values identical',
+      afterRefresh.cleared === true &&
+      mergedAfter[1] === refreshedRaw[1] &&
+      refreshedHtml.includes('value="10"') && refreshedHtml.includes('value="20"') &&
+      refreshedHtml.includes('value="8"'))
+
+    // A later edit can never be clobbered: the edit\u2019s refresh
+    // delivers a new rows array, so the stale response snapshot is
+    // dropped on identity, and the newer server value flows through
+    // reconciliation.
+    const editedRaw = [
+      refreshedRaw[0],
+      mk('s2', 2, { reps: 12, weight_kg: KG20, rpe: 8, notes: 'keep this note' }),
+      refreshedRaw[2],
+    ]
+    const afterEdit = resolveActiveOverrides(state, editedRaw)
+    const mergedEdit = mergeAppliedSets(editedRaw as any[], afterEdit.overrides)
+    check('R6: a later user edit wins — stale override snapshot never reapplies',
+      afterEdit.cleared === true && mergedEdit[1].reps === 12 &&
+      reconcileSetRowState(merged[1] as never, mergedEdit[1] as never).reps === '12')
+
+    // Partial application: the response is a post-write RE-READ, so a
+    // value the user saved between the route\u2019s read and write (the
+    // IS NULL predicate skipped it) comes back as THEIR value.
+    const partial = buildAppliedOverrides([
+      { id: 's2', reps: 11, weight_kg: KG20, rpe: 8, duration_seconds: null, distance_meters: null },
+    ])
+    const mergedPartial = mergeAppliedSets(rawSets as any[],
+      resolveActiveOverrides({ baseline: rawSets, overrides: partial }, rawSets).overrides)
+    check('R7: partial application — the concurrent user entry survives reconciliation',
+      mergedPartial[1].reps === 11 && mergedPartial[2] === rawSets[2] &&
+      reconcileSetRowState(rawSets[1] as never, mergedPartial[1] as never).reps === '11')
+
+    // In-progress typing protection: unchanged server fields produce
+    // NO update keys, so unrelated local input state is untouched.
+    check('R8: unchanged server fields produce zero state updates',
+      Object.keys(reconcileSetRowState(merged[1] as never, { ...(merged[1] as any) } as never)).length === 0 &&
+      Object.keys(reconcileSetRowState(mk('x', 2) as never, mk('x', 2, { rpe: 7 }) as never)).join(',') === 'rpe')
+
+    // All four tracking modes reconcile and render.
+    const bwNext = mk('b1', 2, { reps: 8, weight_kg: 2.2679618, rpe: null })
+    const uBw = reconcileSetRowState(mk('b1', 2) as never, bwNext as never)
+    check('R9: bodyweight — added weight reconciles and expands the affordance',
+      uBw.reps === '8' && uBw.lbs === String(displayWeight(2.2679618)) &&
+      uBw.addedWeightExpanded === true &&
+      rowHtml(bwNext, 'bodyweight').includes(`value="${uBw.lbs}"`))
+    const cardioNext = mk('c1', 2, { duration_seconds: 330, distance_meters: 1609.34 })
+    const uCardio = reconcileSetRowState(mk('c1', 2) as never, cardioNext as never)
+    const cardioHtml = rowHtml(cardioNext, 'cardio')
+    check('R10: cardio — duration splits to min:sec and distance converts to miles',
+      uCardio.durationMin === '5' && uCardio.durationSec === '30' && uCardio.distanceMi === '1' &&
+      cardioHtml.includes('value="5"') && cardioHtml.includes('value="30"') &&
+      cardioHtml.includes('value="1"'))
+    const timedNext = mk('t1', 2, { duration_seconds: 90, rpe: 6 })
+    const uTimed = reconcileSetRowState(mk('t1', 2) as never, timedNext as never)
+    const timedHtml = rowHtml(timedNext, 'timed')
+    check('R11: timed — duration + RPE reconcile and render',
+      uTimed.durationMin === '1' && uTimed.durationSec === '30' && uTimed.rpe === '6' &&
+      timedHtml.includes('value="1"') && timedHtml.includes('value="30"') &&
+      timedHtml.includes('value="6"'))
+
+    // Component wiring: reconciliation is the components\u2019 real path.
+    check('R12: block merges overrides over props with the baseline-identity guard',
+      block.includes('const [applyState, setApplyState] = useState<ApplyReconcileState>(EMPTY_APPLY_STATE)') &&
+      block.includes('const resolvedOverrides = resolveActiveOverrides(applyState, we.workout_sets)') &&
+      block.includes('if (resolvedOverrides.cleared) setApplyState(EMPTY_APPLY_STATE)') &&
+      block.includes('mergeAppliedSets(rawSets as WorkoutSet[], resolvedOverrides.overrides)') &&
+      block.includes('baseline: we.workout_sets') &&
+      block.includes('overrides: buildAppliedOverrides(updatedRows)'))
+    check('R13: SetRow adjusts state during render from the server row — no remount, no new fetch',
+      setRow.includes('const [syncedSet, setSyncedSet] = useState(set)') &&
+      setRow.includes('if (set !== syncedSet) {') &&
+      setRow.includes('const u = reconcileSetRowState(syncedSet, set)') &&
+      setRow.includes('setSyncedSet(set)') &&
+      block.includes('key={s.id}') &&
+      (stripComments(block).match(/fetch\(`\/api\/workout-exercises\/\$\{we\.id\}\/apply-first-set`/g) || []).length === 1 &&
+      stripComments(block).includes('router.refresh()'))
+    check('R14: saving/error indicators and readOnly guards untouched by the reconciliation',
+      setRow.includes("const [saveError, setSaveError] = useState<string | null>(null)") &&
+      setRow.includes('const [busy,      setBusy]      = useState(false)') &&
+      setRow.includes('if (readOnly) return false'))
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

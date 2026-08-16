@@ -98,7 +98,22 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     else if (wroteAnyField) applied++
   }
 
+  // UI-5B1B stale-state correction: return the authoritative
+  // POST-WRITE rows for the target sets so the client can reconcile
+  // its visible inputs immediately, without waiting for (or
+  // duplicating) a refresh fetch. A re-read, never an echo of the
+  // template — per-field IS NULL predicates above mean a concurrent
+  // user entry survives, and this read reports what actually landed.
+  let updatedRows: Record<string, unknown>[] = []
+  if (targets.length > 0) {
+    const { data: reread } = await supabase
+      .from('workout_sets')
+      .select('id, reps, weight_kg, rpe, duration_seconds, distance_meters')
+      .in('id', (targets as any[]).map((t) => t.id))
+    updatedRows = reread ?? []
+  }
+
   return NextResponse.json({
-    data: { applied, eligible: targets.length, failed },
+    data: { applied, eligible: targets.length, failed, sets: updatedRows },
   })
 }

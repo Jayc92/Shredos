@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal } from '@/lib/workout'
@@ -9,6 +9,10 @@ import { SetRow } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CopyPlus, MoveRight, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import { awaitPendingSetSaves } from './set-save-coordinator'
+import {
+  buildAppliedOverrides, mergeAppliedSets, resolveActiveOverrides,
+  EMPTY_APPLY_STATE, type ApplyReconcileState,
+} from './set-apply-reconcile'
 import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
@@ -76,8 +80,23 @@ export function WorkoutExerciseBlock({
   const [applying, setApplying]   = useState(false)
   const [applyMessage, setApplyMessage] = useState<string | null>(null)
   const [applyIsError, setApplyIsError] = useState(false)
+  // UI-5B1B stale-state correction: authoritative values returned by
+  // a successful Apply, keyed by set ID, merged over the server-prop
+  // rows so the visible SetRows update immediately — no remount, no
+  // extra fetch. The overrides live EXACTLY until the next server
+  // render (baseline identity check): every later render's rows
+  // already include the committed writes, and clearing on identity
+  // means a stale response snapshot can never clobber a later edit.
+  const [applyState, setApplyState] = useState<ApplyReconcileState>(EMPTY_APPLY_STATE)
+  const resolvedOverrides = resolveActiveOverrides(applyState, we.workout_sets)
+  if (resolvedOverrides.cleared) setApplyState(EMPTY_APPLY_STATE)
 
-  const sets    = we.workout_sets ?? []
+  const rawSets = we.workout_sets ?? []
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sets = useMemo(
+    () => mergeAppliedSets(rawSets as WorkoutSet[], resolvedOverrides.overrides),
+    [we.workout_sets, applyState]
+  )
   // Phase 2U: cardio/timed use the tracking-aware representative-set
   // picker and comparison signal -- bestSet()/progressSignal() would
   // always return null/'same' for these modes, since bestSet's filter
@@ -283,7 +302,15 @@ export function WorkoutExerciseBlock({
         setApplyMessage(body.error ?? 'Could not apply — please try again.')
         setApplyIsError(true)
       } else {
-        const { applied, eligible, failed } = body.data ?? {}
+        const { applied, eligible, failed, sets: updatedRows } = body.data ?? {}
+        // Reconcile the authoritative post-write rows into the
+        // visible SetRows by set ID, immediately.
+        if (Array.isArray(updatedRows)) {
+          setApplyState({
+            baseline: we.workout_sets,
+            overrides: buildAppliedOverrides(updatedRows),
+          })
+        }
         if (failed > 0) {
           setApplyMessage(`Applied to ${applied} of ${eligible} sets. Try again for the remaining sets.`)
           setApplyIsError(true)
