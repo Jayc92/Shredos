@@ -464,6 +464,9 @@ async function main() {
             'src/components/decisions/DecisionCard.tsx',
             'src/components/decisions/DecisionList.tsx',
             'src/components/workout/ProgressBadge.tsx',
+            // RETARGET (UI-6C hosted-QA correction, human-readable decision
+            // diffs): the diff formatter/presenter joins the admitted scope.
+            'src/components/decisions/DecisionValueChanges.tsx',
           ]
           if (UI6C.includes(f)) return true
           const UI6B = [

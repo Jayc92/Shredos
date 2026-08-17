@@ -79,6 +79,9 @@ async function main() {
           'src/components/decisions/DecisionCard.tsx',
           'src/components/decisions/DecisionList.tsx',
           'src/components/workout/ProgressBadge.tsx',
+          // RETARGET (UI-6C hosted-QA correction, human-readable decision
+          // diffs): the diff formatter/presenter joins the admitted scope.
+          'src/components/decisions/DecisionValueChanges.tsx',
         ]
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()

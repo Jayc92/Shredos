@@ -118,6 +118,42 @@ the three decisions cards measured 58/106/58px tall — proof of
 `items-start` natural, independent heights. The `lg:col-span-2`
 wide sections computed `grid-column: span 2 / span 2` at 1024+.
 
+## Hosted-QA correction — human-readable decision diffs
+
+Hosted QA rejected the expanded DecisionCard's raw JSON "Before"/
+"After" boxes (braces, quoted keys, internal names like `protein_g`)
+as the default presentation. Presentation-only correction: the new
+colocated `DecisionValueChanges` component (with its pure
+`buildDecisionDiff` formatter) renders the SAME stored audit
+payloads as a concise change list — only fields whose values
+actually changed, friendly labels (Calorie target, Protein target,
+Carbohydrate target, Fat target, Weigh-in schedule, Step goal,
+Fasting goal, Main goal — every key any repository code path writes
+today), formatted values (`2,100 cal`, `90 g`, `Weekly`,
+`Every two weeks`), `Not set` for null/absent, sr-only Before/After
+labels with an aria-hidden ArrowRight, flex-wrap/break-words/min-w-0
+mobile-safe rows. Identical snapshots say
+"No value changes were recorded." Any DIFFERING content the registry
+cannot translate confidently (unknown key, nested object, unexpected
+type) keeps the untouched raw JSON available behind a collapsed
+"Technical details" disclosure — raw JSON is never the default and
+nothing is silently omitted or invented. Stored payloads, endpoints,
+mutations, lifecycle transitions, pending count, ordering, and every
+DecisionCard control are byte-preserved.
+
+Empirics (same production-build fixture method as the main table,
+expanded card with a long label, a long wrapping value, a
+deliberately unbroken 60-character value token, and an open
+Technical details JSON block): no horizontal overflow and zero
+out-of-viewport elements at 320/375/768/1024/1440/1920; decisions
+grid one column below `lg`, two at `lg`+; shell 1152px centered at
+1440/1920; card heights stay natural (58/330-432/58 — the expanded
+card alone grows). One real defect was caught and fixed by the 320px
+measurement: `overflow-wrap: break-word` does not constrain a flex
+item's intrinsic min-content width, so an unbroken long value forced
+471px scroll width; the value spans now use `overflow-wrap: anywhere`
+(pinned by the harness), which does.
+
 ## Exclusions and stop boundary
 
 No Suggested Routine implementation (roadmap-only, recorded in the

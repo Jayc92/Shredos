@@ -116,6 +116,22 @@ const CANDIDATE_22 = [
   'scripts/verify-ui6c.ts',
   'docs/ui6c-coach-visual-notes.md',
 ]
+// UI-6C hosted-QA correction (human-readable decision diffs): the
+// uncommitted correction's own paths, allowed alongside the
+// committed candidate.
+const CORRECTION_FILES = [
+  'src/components/decisions/DecisionValueChanges.tsx',
+  'src/components/decisions/DecisionCard.tsx',
+  'scripts/verify-phase4b4.ts',
+  'scripts/verify-ui5a.ts',
+  'scripts/verify-ui5b1a.ts',
+  'scripts/verify-ui5b1b.ts',
+  'scripts/verify-ui5b2.ts',
+  'scripts/verify-ui6a.ts',
+  'scripts/verify-ui6b.ts',
+  'scripts/verify-ui6c.ts',
+  'docs/ui6c-coach-visual-notes.md',
+]
 const coachPage = read('src/app/(app)/coach/page.tsx')
 const reviewPage = read('src/app/(app)/check-in/page.tsx')
 const decisionsPage = read('src/app/(app)/decisions/page.tsx')
@@ -133,15 +149,33 @@ async function main() {
   // ── A. Inventory and exclusions ─────────────────────────────────────
   console.log('\nA. Inventory and exclusions')
   {
-    check('A1: the worktree holds EXACTLY the 22 declared UI-6C candidate paths (no more, no fewer)',
+    // RETARGET (UI-6C hosted-QA correction, human-readable decision
+    // diffs): original boundary — the worktree held EXACTLY the 22
+    // uncommitted candidate paths. The candidate is now COMMITTED as
+    // 6d2a317 on ui6c-qa, so the boundary splits: (a) the committed
+    // candidate contains exactly the declared 22 paths, and (b) any
+    // current worktree change stays inside the candidate + declared
+    // correction scope.
+    check('A1a: the committed UI-6C candidate (6d2a317) contains exactly the 22 declared paths',
+      (() => {
+        let out = ''
+        try {
+          out = execSync(
+            'git diff-tree --no-commit-id --name-only -r 6d2a3176cba7e0940fb2a4486d3e49d5a0d6f38b',
+            { encoding: 'utf8' })
+        } catch { return false }
+        const actual = out.split('\n').filter(Boolean).sort()
+        const expected = [...CANDIDATE_22].sort()
+        return actual.length === 22 && actual.every((f, i) => f === expected[i])
+      })())
+    check('A1b: worktree changes stay inside the candidate + correction scope',
       (() => {
         let out = ''
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
-        const actual = out.split('\n').filter(Boolean).map((l) => l.slice(3).trim()).sort()
-        const expected = [...CANDIDATE_22].sort()
-        return actual.length === 22 &&
-          actual.length === expected.length &&
-          actual.every((f, i) => f === expected[i])
+        return out.split('\n').filter(Boolean).every((line) => {
+          const f = line.slice(3).trim()
+          return CANDIDATE_22.includes(f) || CORRECTION_FILES.includes(f)
+        })
       })())
     check('A2: protected libs, APIs, schema, and deps byte-untouched (git)',
       (() => {
@@ -301,6 +335,152 @@ async function main() {
       decisionCard.includes('isReviewDateSaveable(decision.review_on ?? null, reviewDateInput)') &&
       decisionCard.includes('Review now') &&
       decisionCard.includes('Applied: {formatDateShort(new Date(decision.applied_at))}'))
+  }
+
+  // ── ND. Human-readable decision diffs (hosted-QA correction) ───────
+  console.log('\nND. Human-readable decision diffs')
+  {
+    const { buildDecisionDiff, DecisionValueChanges } =
+      await import('../src/components/decisions/DecisionValueChanges')
+    const dvc = read('src/components/decisions/DecisionValueChanges.tsx')
+    const render = (previous: unknown, next: unknown) =>
+      renderToStaticMarkup(React.createElement(DecisionValueChanges, { previous, next }))
+
+    check('ND1: cadence weekly -> biweekly renders "Weigh-in schedule" with friendly values',
+      (() => {
+        const d = buildDecisionDiff({ cadence: 'weekly' }, { cadence: 'biweekly' })
+        const html = render({ cadence: 'weekly' }, { cadence: 'biweekly' })
+        return d.rows.length === 1 && d.rows[0].label === 'Weigh-in schedule' &&
+          d.rows[0].before === 'Weekly' && d.rows[0].after === 'Every two weeks' &&
+          !d.hasUntranslated &&
+          html.includes('Weigh-in schedule') && html.includes('Weekly') &&
+          html.includes('Every two weeks') && !html.includes('cadence') &&
+          !html.includes('{')
+      })())
+    check('ND2: protein-only change lists ONE row; unchanged calories/carbs/fat are omitted',
+      (() => {
+        const prev = { calories: 2200, protein_g: 200, carbs_g: 220, fat_g: 70 }
+        const next = { calories: 2200, protein_g: 90, carbs_g: 220, fat_g: 70 }
+        const d = buildDecisionDiff(prev, next)
+        const html = render(prev, next)
+        return d.rows.length === 1 && d.rows[0].label === 'Protein target' &&
+          d.rows[0].before === '200 g' && d.rows[0].after === '90 g' &&
+          !html.includes('Calorie target') && !html.includes('Carbohydrate target') &&
+          !html.includes('Fat target') && !html.includes('protein_g') &&
+          !html.includes('2200') && !html.includes('2,200')
+      })())
+    check('ND3: multiple changed macros render every changed row with units and comma formatting',
+      (() => {
+        const d = buildDecisionDiff(
+          { calories: 2450, protein_g: 200, carbs_g: 220, fat_g: 70 },
+          { calories: 2100, protein_g: 180, carbs_g: 220, fat_g: 60 })
+        return d.rows.length === 3 &&
+          d.rows[0].label === 'Calorie target' &&
+          d.rows[0].before === '2,450 cal' && d.rows[0].after === '2,100 cal' &&
+          d.rows[1].before === '200 g' && d.rows[1].after === '180 g' &&
+          d.rows[2].label === 'Fat target' && d.rows[2].after === '60 g'
+      })())
+    check('ND4: added value (no previous snapshot) reads "Not set" -> value',
+      (() => {
+        const d = buildDecisionDiff(null, { calories: 2100 })
+        return d.rows.length === 1 && d.rows[0].before === 'Not set' &&
+          d.rows[0].after === '2,100 cal' && !d.hasUntranslated
+      })())
+    check('ND5: removed/null value reads value -> "Not set" (missing is never zero)',
+      (() => {
+        const d = buildDecisionDiff({ fasting_goal_hours: 16 }, { fasting_goal_hours: null })
+        return d.rows.length === 1 && d.rows[0].label === 'Fasting goal' &&
+          d.rows[0].before === '16 hours' && d.rows[0].after === 'Not set'
+      })())
+    check('ND6: boolean change under an unknown key routes to Technical details (no invented label)',
+      (() => {
+        const d = buildDecisionDiff({ fasting_enabled: false }, { fasting_enabled: true })
+        const html = render({ fasting_enabled: false }, { fasting_enabled: true })
+        return d.rows.length === 0 && d.hasUntranslated &&
+          html.includes('Technical details') && !html.includes('<details open')
+      })())
+    check('ND7: date-string change under an unknown key routes to Technical details, no crash',
+      (() => {
+        const d = buildDecisionDiff(
+          { effective_date: '2026-08-01' }, { effective_date: '2026-08-15' })
+        return d.rows.length === 0 && d.hasUntranslated
+      })())
+    check('ND8: unknown-key change -> collapsed Technical details carrying the untouched raw payload',
+      (() => {
+        const html = render({ mystery_field: 1 }, { mystery_field: 2 })
+        return html.includes('Technical details') &&
+          html.includes('&quot;mystery_field&quot;: 1') &&
+          html.includes('&quot;mystery_field&quot;: 2') &&
+          html.includes('Before') && html.includes('After') &&
+          !html.includes('<details open')
+      })())
+    check('ND9: nested object under a KNOWN key falls back honestly instead of inventing text',
+      (() => {
+        const d = buildDecisionDiff(
+          { calories: { total: 2400 } }, { calories: { total: 2100 } })
+        return d.rows.length === 0 && d.hasUntranslated
+      })())
+    check('ND10: identical snapshots -> "No value changes were recorded." (no empty boxes, no JSON)',
+      (() => {
+        const same = { calories: 2100, protein_g: 180 }
+        const d = buildDecisionDiff(same, { ...same })
+        const html = render(same, { ...same })
+        return d.identical && d.rows.length === 0 && !d.hasUntranslated &&
+          html.includes('No value changes were recorded.') &&
+          html.includes('<p') && !html.includes('Technical details') && !html.includes('{')
+      })())
+    check('ND11: field order is deterministic registry order regardless of payload key order',
+      (() => {
+        const a = buildDecisionDiff(
+          { fat_g: 70, calories: 2400, protein_g: 200 },
+          { fat_g: 60, calories: 2100, protein_g: 180 })
+        const b = buildDecisionDiff(
+          { protein_g: 200, fat_g: 70, calories: 2400 },
+          { protein_g: 180, fat_g: 60, calories: 2100 })
+        const order = (d: { rows: Array<{ key: string }> }) => d.rows.map((r) => r.key).join(',')
+        return order(a) === order(b) && order(a) === 'calories,protein_g,fat_g'
+      })())
+    check('ND12: mobile-safe structure — flex-wrap rows, break-words values, min-w-0, wrapping pre',
+      (() => {
+        const html = render({ protein_g: 200 }, { protein_g: 90 })
+        // overflow-wrap:anywhere is load-bearing: break-word alone
+        // does NOT constrain a flex item's intrinsic min-content
+        // width, so an unbroken long value would overflow at 320px
+        // (caught empirically in the fixture measurements).
+        return html.includes('flex-wrap') && html.includes('break-words') &&
+          html.includes('min-w-0') &&
+          html.includes('[overflow-wrap:anywhere]') &&
+          dvc.includes('whitespace-pre-wrap break-words')
+      })())
+    check('ND13: raw JSON is NEVER the default — fully-translatable diffs render zero JSON syntax',
+      (() => {
+        const html = render(
+          { calories: 2400, protein_g: 200 }, { calories: 2100, protein_g: 180 })
+        return !html.includes('{') && !html.includes('&quot;') &&
+          !html.includes('Technical details') &&
+          !decisionCard.includes('JSON.stringify(decision.previous_value')
+      })())
+    check('ND14: accessible comparison — sr-only Before/After labels + aria-hidden ArrowRight',
+      (() => {
+        const html = render({ calories: 2400 }, { calories: 2100 })
+        return html.includes('Before') && html.includes('After') &&
+          html.includes('sr-only') &&
+          /<svg[^>]*aria-hidden="true"/.test(html)
+      })())
+    check('ND15: semantic tokens only in the new component (no raw palette/legacy/glyph arrows)',
+      (() => {
+        const code = stripComments(dvc)
+        const LEGACY = /text-muted-foreground|text-foreground|bg-background|bg-secondary|bg-card|bg-muted(?!ed)|border-border|border-input|text-destructive|bg-destructive/
+        const RAW = /(?:text|bg|border|ring)-(?:green|amber|blue|red|yellow|orange|zinc|gray|grey|neutral)-\d/
+        return !LEGACY.test(code) && !RAW.test(code) &&
+          !code.includes('\u2192') && !code.includes('bg-white') &&
+          !code.includes('!important') && !code.includes('safelist')
+      })())
+    check('ND16: DecisionCard renders the change list inside the expanded section, gated as before',
+      decisionCard.includes('(decision.previous_value || decision.new_value) && (') &&
+      decisionCard.includes('<DecisionValueChanges') &&
+      decisionCard.includes('previous={decision.previous_value}') &&
+      decisionCard.includes('next={decision.new_value}'))
   }
 
   // ── O/P. Local date and honesty ─────────────────────────────────────

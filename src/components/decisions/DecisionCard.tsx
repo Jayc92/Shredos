@@ -17,6 +17,7 @@ import {
 } from '@/lib/decisions'
 import { ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { DecisionValueChanges } from '@/components/decisions/DecisionValueChanges'
 import type { DecisionLog, DecisionOutcome } from '@/types/database'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -160,26 +161,15 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
         <div className="space-y-3 pt-1 border-t border-edge-subtle">
           <p className="text-xs text-ink-muted leading-relaxed">{decision.reason}</p>
 
-          {/* Value change display */}
+          {/* Value change display — UI-6C hosted-QA correction: the
+              stored audit payloads render as a human-readable change
+              list; raw JSON survives untouched behind the collapsed
+              Technical details disclosure, never as the default. */}
           {(decision.previous_value || decision.new_value) && (
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {decision.previous_value && (
-                <div className="bg-surface-sunken rounded px-2 py-1.5">
-                  <p className="text-ink-muted mb-1">Before</p>
-                  <pre className="text-ink font-mono text-xs whitespace-pre-wrap">
-                    {JSON.stringify(decision.previous_value, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {decision.new_value && (
-                <div className="bg-brand-subtle/40 border border-brand/20 rounded px-2 py-1.5">
-                  <p className="text-ink-muted mb-1">After</p>
-                  <pre className="text-ink font-mono text-xs whitespace-pre-wrap">
-                    {JSON.stringify(decision.new_value, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
+            <DecisionValueChanges
+              previous={decision.previous_value}
+              next={decision.new_value}
+            />
           )}
 
           {decision.applied_at && (

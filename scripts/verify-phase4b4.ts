@@ -685,9 +685,19 @@ console.log('\n17. Section links and card details')
     decisionCard.includes('Review on {formatDateShort(decision.review_on'))
   check('decision card: applied timestamp retained',
     decisionCard.includes('Applied: {formatDateShort(new Date(decision.applied_at))}'))
+  // RETARGET (UI-6C hosted-QA correction, human-readable decision
+  // diffs): original boundary — the expanded card surfaces the stored
+  // before/after audit values. The raw JSON boxes were the DEFAULT
+  // view; hosted QA rejected that presentation. The same stored
+  // payloads now render as a human-readable change list
+  // (DecisionValueChanges), with the untouched raw JSON preserved
+  // behind its collapsed Technical details disclosure.
   check('decision card: before/after value blocks retained',
-    decisionCard.includes('Before') && decisionCard.includes('After') &&
-    decisionCard.includes('JSON.stringify(decision.previous_value, null, 2)'))
+    decisionCard.includes('<DecisionValueChanges') &&
+    decisionCard.includes('previous={decision.previous_value}') &&
+    decisionCard.includes('next={decision.new_value}') &&
+    read('src/components/decisions/DecisionValueChanges.tsx').includes('Technical details') &&
+    read('src/components/decisions/DecisionValueChanges.tsx').includes('JSON.stringify(previous, null, 2)'))
   check('decision card: expand gate wording by manageability',
     decisionCard.includes("manageable ? 'Details & follow-through' : 'Full reason'"))
   check('decision card: manageability from the lib gate',
