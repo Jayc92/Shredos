@@ -328,8 +328,11 @@ console.log('\n8. Legacy style removal')
 {
   check('no shred-card in 4B.6A scope',
     SCOPE.every((f) => !stripComments(f).includes('shred-card')))
+  // RETARGET (UI-7): the alias was retained only while unmigrated
+  // consumers could exist; a repo-wide audit proved zero class
+  // usages and UI-7 removed it. The boundary flips to absence.
   check('global alias retained for unmigrated code',
-    read('src/app/globals.css').includes('.shred-card'))
+    !read('src/app/globals.css').includes('.shred-card {'))
   check('semantic ink/edge tokens adopted in scope',
     [hubPage, sessionCard, routineDetail, exercisesClient].every((f) =>
       f.includes('text-ink-muted')))
@@ -673,9 +676,13 @@ console.log('\n19. ExercisePicker')
   check('muscle pills keep aria-pressed + check + border + weight',
     picker.includes('aria-pressed={selected}') &&
     picker.includes('border-brand bg-surface-selected font-semibold'))
+  // RETARGET (UI-7): original boundary — the close control and the
+  // library link with its approved label. The text-glyph arrow became
+  // an aria-hidden Lucide ArrowRight beside the SAME label.
   check('close control and library link preserved',
     picker.includes('onClick={onClose}') &&
-    picker.includes('Manage exercise library →'))
+    picker.includes('Manage exercise library') &&
+    /Manage exercise library\s*\n\s*<ArrowRight/.test(picker))
   check('empty state copy preserved', picker.includes('No exercises found.'))
   check('bounded list scroll preserved exactly (pre-existing)',
     picker.includes('max-h-60 overflow-y-auto'))

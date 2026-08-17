@@ -13,6 +13,7 @@
 // ============================================================
 
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -55,8 +56,9 @@ export function DailyMetricTile({
             <Icon className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
             <span className="truncate text-sm font-medium text-ink-muted">{label}</span>
           </div>
-          <Link href={href} className="shrink-0 text-xs text-brand hover:underline">
+          <Link href={href} className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs text-brand hover:underline">
             {linkLabel}
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </div>
 

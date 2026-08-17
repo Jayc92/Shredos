@@ -274,7 +274,10 @@ console.log('\n9. Legacy style removal')
 {
   check('zero shred-card in active 4B.6B route scope',
     CHANGED.every((f) => !stripComments(f).includes('shred-card')))
-  check('global alias retained', read('src/app/globals.css').includes('.shred-card'))
+  // RETARGET (UI-7): the alias was retained only while unmigrated
+  // consumers could exist; a repo-wide audit proved zero class
+  // usages and UI-7 removed it. The boundary flips to absence.
+  check('global alias retained', !read('src/app/globals.css').includes('.shred-card {'))
   check('semantic tokens adopted',
     [client, header, block, sessionNotes, summaryCard].every((f) =>
       f.includes('text-ink-muted')))
@@ -556,8 +559,11 @@ console.log('\n20. Collaborator detail')
     conflictModal.includes('Resume') && conflictModal.includes('onDiscardAndRetry'))
   check('history rows renderer untouched (presentational only)',
     !historyRows.includes('fetch(') && historyRows.length > 200)
+  // RETARGET (UI-7): same boundary as 4B.6A — approved label kept,
+  // text-glyph arrow replaced by an aria-hidden Lucide ArrowRight.
   check('picker close/library affordances preserved',
-    picker.includes('onClick={onClose}') && picker.includes('Manage exercise library →'))
+    picker.includes('onClick={onClose}') &&
+    /Manage exercise library\s*\n\s*<ArrowRight/.test(picker))
   check('add-section refresh convention preserved',
     addSection.includes('router.refresh()'))
   check('notes cancel restores persisted value',

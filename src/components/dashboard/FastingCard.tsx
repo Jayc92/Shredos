@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Timer } from 'lucide-react'
+import { ArrowRight, Check, Timer } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import {
@@ -85,7 +85,7 @@ function ActiveFastTimer({ fast }: { fast: FastingLog }) {
         href="/fasting"
         className="block w-full text-center text-sm font-medium text-primary border border-primary/30 rounded-lg py-2 hover:bg-primary/10 transition-colors"
       >
-        Manage fast →
+        <span className="inline-flex items-center gap-1">Manage fast <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" /></span>
       </a>
     </div>
   )
@@ -132,7 +132,9 @@ export function FastingCard({
               })()}
               {lastCompletedFast.completed_goal !== null && (
                 <p className={`text-xs mt-0.5 ${lastCompletedFast.completed_goal ? 'text-green-400' : 'text-ink-muted'}`}>
-                  {lastCompletedFast.completed_goal ? '✓ Goal met' : 'Goal not reached'}
+                  {lastCompletedFast.completed_goal ? (
+                    <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" aria-hidden="true" />Goal met</span>
+                  ) : 'Goal not reached'}
                 </p>
               )}
             </div>
@@ -163,7 +165,7 @@ export function FastingCard({
             href="/fasting"
             className="block w-full text-center text-sm font-medium text-primary border border-primary/30 rounded-lg py-2 hover:bg-primary/10 transition-colors"
           >
-            {fastingEnabled ? 'Start a fast →' : 'Fasting log →'}
+            <span className="inline-flex items-center gap-1">{fastingEnabled ? 'Start a fast' : 'Fasting log'} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" /></span>
           </a>
         </div>
       )}

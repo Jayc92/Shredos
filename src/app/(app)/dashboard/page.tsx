@@ -26,7 +26,7 @@ import { TodayPrimaryAction } from '@/components/dashboard/TodayPrimaryAction'
 import { TodayWidget } from '@/components/dashboard/TodayWidget'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Flame, Beef, SlidersHorizontal, LayoutGrid } from 'lucide-react'
+import { ArrowRight, Flame, Beef, SlidersHorizontal, LayoutGrid } from 'lucide-react'
 import {
   normalizeDashboardPrefs,
   visibleDashboardWidgets,
@@ -182,11 +182,13 @@ export default async function DashboardPage() {
         description={todayLabel}
         action={
           <>
-            <Link href="/check-in" className="text-xs text-brand hover:underline">
-              Weekly review →
+            <Link href="/check-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Weekly review
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
-            <Link href="/coach" className="text-xs text-brand hover:underline">
-              Coach →
+            <Link href="/coach" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Coach
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
             {/* UI-3: the Edit layout control ships only now that it
                 is functional. */}
@@ -221,7 +223,7 @@ export default async function DashboardPage() {
                 icon={Flame}
                 label="Calories"
                 href="/food"
-                linkLabel="Log food →"
+                linkLabel="Log food"
                 value={hasFoodToday && tileProgress ? tileProgress.calories.consumed.toLocaleString() : null}
                 targetLine={nutritionTarget ? `/ ${nutritionTarget.calories.toLocaleString()} cal` : null}
                 barValue={hasFoodToday && tileProgress ? tileProgress.calories.consumed : null}
@@ -238,7 +240,7 @@ export default async function DashboardPage() {
                 icon={Beef}
                 label="Protein"
                 href="/nutrition"
-                linkLabel="Targets →"
+                linkLabel="Targets"
                 value={hasFoodToday && tileProgress ? `${Math.round(Number(tileProgress.protein_g.consumed))}g` : null}
                 targetLine={nutritionTarget ? `/ ${nutritionTarget.protein_g}g` : null}
                 barValue={hasFoodToday && tileProgress ? Number(tileProgress.protein_g.consumed) : null}

@@ -109,11 +109,20 @@ console.log('\n2. Typography')
     !rootLayout.includes('GeistMono') && !rootLayout.includes('geist/font/mono'))
   check('Tailwind sans uses the Geist variable with system fallbacks',
     tw.includes("'var(--font-geist-sans)'") && tw.includes("'system-ui'"))
-  const ROLES = ['text-display', 'text-page-title', 'text-section-title', 'text-card-title',
-    'text-body', 'text-support', 'text-metric', 'text-label', 'text-button', 'text-badge',
-    'text-chart-annotation']
+  // RETARGET (UI-7): original boundary — the typography role system
+  // exists. UI-7 removed the seven roles a repo-wide audit proved
+  // unreferenced; the four live roles (consumed by PageHeader,
+  // SectionHeader, EmptyState, MetricValue) must remain, and the
+  // removed ones must stay gone (a reintroduction would be dead on
+  // arrival).
+  const ROLES = ['text-page-title', 'text-section-title', 'text-support', 'text-label']
   for (const role of ROLES) {
     check(`typography role: .${role}`, globals.includes(`.${role} `) || globals.includes(`.${role}{`))
+  }
+  const REMOVED_ROLES = ['text-display', 'text-card-title', 'text-body', 'text-metric',
+    'text-button', 'text-badge', 'text-chart-annotation']
+  for (const role of REMOVED_ROLES) {
+    check(`typography role: .${role}`, !globals.includes(`.${role} `) && !globals.includes(`.${role}{`))
   }
   check('tabular-number utility available',
     globals.includes('.font-stat') && globals.includes("'tnum'"))
@@ -187,9 +196,12 @@ console.log('\n5. Card hierarchy')
     card.includes('bg-card ring-1 ring-foreground/10'))
   check('selected card variant not color-only (ring + doc note)',
     card.includes('ring-2 ring-[hsl(var(--brand))]') && card.includes('never color-only'))
+  // RETARGET (UI-7): original boundary — while any consumer remained,
+  // the transitional alias had to stay mapped to the semantic surface.
+  // Every route now composes <Card variant> (zero class usages proven),
+  // so the alias was removed; the boundary flips to absence.
   check('legacy shred-card compatibility alias documented and mapped',
-    globals.includes('TRANSITIONAL ALIAS') &&
-    globals.includes('background-color: hsl(var(--surface));') &&
+    !globals.includes('.shred-card {') &&
     notes.includes('.shred-card'))
 }
 
@@ -396,8 +408,11 @@ console.log('\n12. Phase boundary')
   check('old CSS token compatibility (legacy vars still defined)',
     ['--background', '--card', '--primary', '--secondary', '--muted', '--border']
       .every((t) => globals.includes(`${t}:`)))
+  // RETARGET (UI-7): original boundary — the utilities consumers use
+  // remain available. The legacy literal palette block had zero class
+  // usages and was removed; semantic utilities stay.
   check('current Tailwind utilities remain available',
-    tw.includes("border: 'hsl(var(--border))'") && tw.includes('shred:'))
+    tw.includes("border: 'hsl(var(--border))'") && !tw.includes('shred:'))
   check('no .DS_Store tracked in scope dirs',
     !existsSync('src/.DS_Store') && !existsSync('docs/.DS_Store'))
   check('user control principle preserved (notes distinguish current vs later)',
@@ -436,8 +451,10 @@ console.log('\n13. QA correction: legacy theme compatibility (dark, UI-1A)')
     return m ? m[1] : ''
   }
   const shredCard = cssOf('shred-card')
+  // RETARGET (UI-7): the alias was removed (zero usages proven); the
+  // surface token itself still exists and is consumed by Card.
   check('shred-card maps to the semantic surface token',
-    shredCard.includes('hsl(var(--surface))'))
+    shredCard === '' && globals.includes('--surface:'))
   // RETARGET (UI-1A): was lightness >= 90 (light alias); the boundary
   // is "card surface matches the rendered theme" — now dark.
   check('shred-card surface is dark (compatible with the dark canvas)',
@@ -453,8 +470,9 @@ console.log('\n13. QA correction: legacy theme compatibility (dark, UI-1A)')
     lightness('--text-primary') >= 90 && lightness('--text-secondary') >= 65)
   // RETARGET (UI-1A): border stays the subtle edge token, now valued to
   // read as a hairline on the dark surface (distinct from it).
+  // RETARGET (UI-7): the legacy alias is gone; the subtle edge token
+  // it mapped to keeps its dark-visible value contract.
   check('legacy card borders use the subtle edge token, visible on dark',
-    shredCard.includes('hsl(var(--border-subtle))') &&
     lightness('--border-subtle') >= 14 && lightness('--border-subtle') <= 34 &&
     lightness('--border-subtle') > lightness('--surface'))
   check('shred-card sets no text color of its own (inherits readable body text)',

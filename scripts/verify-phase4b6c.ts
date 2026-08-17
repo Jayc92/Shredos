@@ -86,13 +86,17 @@ console.log('\n1. Checkpoint and routes')
   // titles through the PageHeader primitive (which owns the single
   // h1); Profile keeps its handwritten heading. One page title per
   // route is still asserted, now via primitive-or-h1.
+  // RETARGET (UI-7): original boundary — each route renders its exact
+  // title. The profile page's handwritten <h1> became the SAME title
+  // through the PageHeader primitive (which owns the single h1).
   check('H1s correct',
     foodPage.includes('title="Food log"') && savedPage.includes('title="Saved meals"') &&
-    nutritionPage.includes('title="Nutrition targets"') && profilePage.includes('>Profile</h1>'))
+    nutritionPage.includes('title="Nutrition targets"') && profilePage.includes('title="Profile"'))
+  // RETARGET (UI-7): profile joined the PageHeader convention — one
+  // primitive-owned title per route, zero handwritten h1 anywhere.
   check('exactly one H1 per route',
-    [foodPage, savedPage, nutritionPage].every((p) =>
+    [foodPage, savedPage, nutritionPage, profilePage].every((p) =>
       (p.match(/<PageHeader/g) || []).length === 1 && !p.includes('<h1')) &&
-    (profilePage.match(/<h1/g) || []).length === 1 &&
     LOADINGS.every((l) => !l.includes('<h1')))
   check('auth gates preserved',
     foodPage.includes("redirect('/login')") && nutritionPage.includes('supabase.auth.getUser()') &&
@@ -351,8 +355,11 @@ console.log('\n9. Profile contract')
   check('five section Cards with varied hierarchy',
     (profilePage.match(/variant="default"/g) || []).length === 3 &&
     profilePage.includes('variant="elevated"') && profilePage.includes('variant="subtle"'))
+  // RETARGET (UI-7): original boundary — the exact user-control
+  // sentence. It moved verbatim into the PageHeader description prop
+  // (single-line string), so the anchor drops the JSX line wrap.
   check('user-control copy present (no hidden target changes)',
-    profilePage.includes('never\n          changes nutrition targets on its own'))
+    profilePage.includes('never changes nutrition targets on its own'))
   check('per-section persistence NOT introduced (4A decision documented)',
     !profilePage.includes('saveSection') &&
     notes.includes('no per-section persistence was introduced'))
@@ -364,7 +371,10 @@ console.log('\n10. Legacy style removal')
 {
   check('zero shred-card on all active 4B.6C route scopes',
     CHANGED.every((f) => !stripComments(f).includes('shred-card')))
-  check('global alias retained', read('src/app/globals.css').includes('.shred-card'))
+  // RETARGET (UI-7): the alias was retained only while unmigrated
+  // consumers could exist; a repo-wide audit proved zero class
+  // usages and UI-7 removed it. The boundary flips to absence.
+  check('global alias retained', !read('src/app/globals.css').includes('.shred-card {'))
   check('no active src consumer remains (4B.6D migrated onboarding)',
     (() => {
       const offenders: string[] = []

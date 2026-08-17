@@ -468,6 +468,34 @@ async function main() {
             // diffs): the diff formatter/presenter joins the admitted scope.
             'src/components/decisions/DecisionValueChanges.tsx',
           ]
+          // RETARGET (UI-7): the approved Profile/Onboarding/Auth/
+          // consistency phase (incl. glyph + dead-presentation cleanup) is
+          // admitted while uncommitted.
+          const UI7 = [
+            '.env.example',
+            'src/app/(app)/dashboard/page.tsx',
+            'src/app/(app)/profile/page.tsx',
+            'src/app/(app)/progress/exercises/[id]/page.tsx',
+            'src/app/(app)/progress/page.tsx',
+            'src/app/(app)/weigh-in/page.tsx',
+            'src/app/(auth)/login/page.tsx',
+            'src/app/globals.css',
+            'src/components/dashboard/DailyMetricTile.tsx',
+            'src/components/dashboard/DecisionLogCard.tsx',
+            'src/components/dashboard/FastingCard.tsx',
+            'src/components/dashboard/NutritionCard.tsx',
+            'src/components/dashboard/StepsCard.tsx',
+            'src/components/dashboard/WeightCard.tsx',
+            'src/components/dashboard/WorkoutCard.tsx',
+            'src/components/onboarding/OnboardingWizard.tsx',
+            'src/components/onboarding/Step1Bio.tsx',
+            'src/components/onboarding/Step3Schedule.tsx',
+            'src/components/onboarding/Step4Nutrition.tsx',
+            'src/components/weigh-in/WeighInForm.tsx',
+            'src/components/workout/ExercisePicker.tsx',
+            'src/components/workout/ProgressBadge.tsx',
+            'tailwind.config.ts',
+          ]
           if (UI6C.includes(f)) return true
           const UI6B = [
             'src/app/(app)/fasting/page.tsx',
@@ -513,6 +541,10 @@ async function main() {
             f === 'docs/ui6b-fasting-visual-notes.md' ||
             // RETARGET (UI-6C): the Coach-pillar visual-rebuild notes.
             f === 'docs/ui6c-coach-visual-notes.md' ||
+            // RETARGET (UI-7): the UI-7 phase notes + product scope are
+            // admitted while uncommitted.
+            f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+            UI7.includes(f) ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')
         })

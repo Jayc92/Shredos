@@ -511,6 +511,34 @@ async function main() {
       // diffs): the diff formatter/presenter joins the admitted scope.
       'src/components/decisions/DecisionValueChanges.tsx',
     ]
+    // RETARGET (UI-7): the approved Profile/Onboarding/Auth/
+    // consistency phase (incl. glyph + dead-presentation cleanup) is
+    // admitted while uncommitted.
+    const UI7 = [
+      '.env.example',
+      'src/app/(app)/dashboard/page.tsx',
+      'src/app/(app)/profile/page.tsx',
+      'src/app/(app)/progress/exercises/[id]/page.tsx',
+      'src/app/(app)/progress/page.tsx',
+      'src/app/(app)/weigh-in/page.tsx',
+      'src/app/(auth)/login/page.tsx',
+      'src/app/globals.css',
+      'src/components/dashboard/DailyMetricTile.tsx',
+      'src/components/dashboard/DecisionLogCard.tsx',
+      'src/components/dashboard/FastingCard.tsx',
+      'src/components/dashboard/NutritionCard.tsx',
+      'src/components/dashboard/StepsCard.tsx',
+      'src/components/dashboard/WeightCard.tsx',
+      'src/components/dashboard/WorkoutCard.tsx',
+      'src/components/onboarding/OnboardingWizard.tsx',
+      'src/components/onboarding/Step1Bio.tsx',
+      'src/components/onboarding/Step3Schedule.tsx',
+      'src/components/onboarding/Step4Nutrition.tsx',
+      'src/components/weigh-in/WeighInForm.tsx',
+      'src/components/workout/ExercisePicker.tsx',
+      'src/components/workout/ProgressBadge.tsx',
+      'tailwind.config.ts',
+    ]
     const UI6B = [
       'src/app/(app)/fasting/page.tsx',
       'src/app/(app)/fasting/loading.tsx',
@@ -558,7 +586,7 @@ async function main() {
         UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) ||
         UI5B2_CORRECTION.includes(f) ||
-        UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) ||
+        UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) || UI7.includes(f) ||
         f.startsWith('scripts/verify-') ||
         f.startsWith('docs/')),
       diffFiles.join(', '))

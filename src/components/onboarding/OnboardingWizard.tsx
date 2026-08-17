@@ -5,6 +5,7 @@ import { localCalendarDayOf } from '@/lib/local-date'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import { Step1Bio } from './Step1Bio'
 import { Step2Goals } from './Step2Goals'
 import { Step3Schedule } from './Step3Schedule'
@@ -204,11 +205,12 @@ export function OnboardingWizard() {
     // No viewport-height wrapper: onboarding lives inside the pinned
     // shell and scrolls within <main> like every other route.
     <div ref={topRef} className="mx-auto max-w-lg space-y-6 p-4 lg:p-6">
-      {/* Header */}
-      <div className="text-center space-y-1">
-        <h1 className="text-xl font-bold text-ink">Set up your profile</h1>
-        <p className="text-sm text-ink-muted">Step {step} of 4 — {STEP_LABELS[step - 1]}</p>
-      </div>
+      {/* Header — UI-7: PageHeader owns the single route title; the
+          accessible step state stays in the description line. */}
+      <PageHeader
+        title="Set up your profile"
+        description={`Step ${step} of 4 — ${STEP_LABELS[step - 1]}`}
+      />
 
       {/* Progress segments. Decorative only (aria-hidden): the
           "Step X of 4" line above is the accessible step state.

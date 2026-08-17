@@ -1,4 +1,4 @@
-import { Dumbbell } from 'lucide-react'
+import { ArrowRight, Dumbbell } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { format, parseISO } from 'date-fns'
 import { formatWorkoutDuration } from '@/lib/workout'
@@ -19,8 +19,9 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
           <Dumbbell className="w-4 h-4 text-ink-muted" />
           <span className="text-sm font-medium text-ink-muted">Workouts</span>
         </div>
-        <a href="/workouts" className="text-xs text-brand hover:underline">
-          {last_session?.status === 'in_progress' ? 'Continue →' : 'Log workout →'}
+        <a href="/workouts" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          {last_session?.status === 'in_progress' ? 'Continue' : 'Log workout'}
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </a>
       </div>
 
@@ -66,8 +67,9 @@ export function WorkoutCard({ stats }: WorkoutCardProps) {
           <span className="text-xs text-ink-muted">
             {active_routine_count} routine{active_routine_count !== 1 ? 's' : ''} saved
           </span>
-          <a href="/workouts/routines" className="text-xs text-brand hover:underline">
-            Start a routine →
+          <a href="/workouts/routines" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+            Start a routine
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </a>
         </div>
       )}

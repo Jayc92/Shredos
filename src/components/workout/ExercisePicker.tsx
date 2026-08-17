@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { PRIMARY_MUSCLES } from '@/lib/constants'
-import { Check, Search, Plus, X } from 'lucide-react'
+import { ArrowRight, Check, Search, Plus, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Exercise } from '@/types/database'
 
@@ -130,8 +130,9 @@ export function ExercisePicker({ exercises, onAdd, onClose }: ExercisePickerProp
       </div>
 
       <div className="pt-1 border-t border-edge-subtle">
-        <a href="/workouts/exercises" className="text-xs text-brand hover:underline">
-          Manage exercise library →
+        <a href="/workouts/exercises" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Manage exercise library
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </a>
       </div>
       </CardContent>

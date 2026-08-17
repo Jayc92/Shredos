@@ -28,7 +28,8 @@ import { fetchProgressEnergyTrends, parseEnergyRange } from '@/lib/progress-ener
 import { localTodayFromCookies } from '@/lib/local-date-server'
 import { addDaysISO } from '@/lib/local-date'
 import { Card, CardContent } from '@/components/ui/card'
-import { Check } from 'lucide-react'
+import { ArrowRight, Check, MoveRight, TrendingDown, TrendingUp } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { ProgressSignal } from '@/types/app'
 import { cn } from '@/lib/utils'
 import { kgToLbs } from '@/lib/units'
@@ -40,12 +41,14 @@ export const metadata: Metadata = { title: 'Progress' }
 
 // Phase 2X: spec'd status labels — text always present, never
 // color-alone (the badge colors reuse workout.ts's existing
-// progressColor conventions).
-const STATUS_LABELS: Record<OverviewStatus, string> = {
-  improved: '↑ Improving',
-  same: '→ Steady',
-  declined: '↓ Declining',
-  needs_data: 'More data needed',
+// progressColor conventions). UI-7: the direction glyphs became
+// aria-hidden Lucide icons beside the SAME text — matching the
+// Weekly Review StatusBadge exactly.
+const STATUS_META: Record<OverviewStatus, { label: string; Icon: LucideIcon | null }> = {
+  improved: { label: 'Improving', Icon: TrendingUp },
+  same: { label: 'Steady', Icon: MoveRight },
+  declined: { label: 'Declining', Icon: TrendingDown },
+  needs_data: { label: 'More data needed', Icon: null },
 }
 
 /** Human-readable label lookup against the constants.ts option lists. */
@@ -79,14 +82,16 @@ function StatusBadge({ status }: { status: OverviewStatus }) {
   // needs_data borrows the existing 'new' badge treatment — both mean
   // "no baseline to compare against yet".
   const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  const { label, Icon } = STATUS_META[status]
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
         signalBadgeClass(signalForColor)
       )}
     >
-      {STATUS_LABELS[status]}
+      {Icon && <Icon className="w-3 h-3" aria-hidden="true" />}
+      {label}
     </span>
   )
 }
@@ -157,9 +162,10 @@ function ExerciseOverviewCard({ row }: { row: ExerciseProgressOverviewRow }) {
       <Link
         href={`/progress/exercises/${row.exerciseId}`}
         aria-label={`View ${row.exerciseName} progress`}
-        className="text-xs text-brand hover:underline inline-block pt-0.5"
+        className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline pt-0.5"
       >
-        View progress →
+        View progress
+        <ArrowRight className="w-3 h-3" aria-hidden="true" />
       </Link>
       </CardContent>
     </Card>
@@ -393,8 +399,9 @@ export default async function ProgressPage({
             <p className="text-sm text-ink-muted">
               Log your first weigh-in to begin tracking body weight.
             </p>
-            <Link href="/weigh-in" className="text-xs text-brand hover:underline">
-              Log a weigh-in →
+            <Link href="/weigh-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log a weigh-in
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -443,8 +450,9 @@ export default async function ProgressPage({
                 No weigh-ins recorded in the selected range.
               </p>
             )}
-            <Link href="/weigh-in" className="text-xs text-brand hover:underline">
-              Weigh-in details →
+            <Link href="/weigh-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Weigh-in details
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -463,8 +471,9 @@ export default async function ProgressPage({
             <p className="text-sm text-ink-muted">
               Log food to begin tracking nutrition consistency.
             </p>
-            <Link href="/food" className="text-xs text-brand hover:underline">
-              Log food →
+            <Link href="/food" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log food
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -514,8 +523,9 @@ export default async function ProgressPage({
                 )}
               </>
             )}
-            <Link href="/nutrition" className="text-xs text-brand hover:underline">
-              Nutrition details →
+            <Link href="/nutrition" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Nutrition details
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -534,14 +544,17 @@ export default async function ProgressPage({
 
       {/* Bottom links */}
       <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
-        <Link href="/check-in" className="text-xs text-brand hover:underline">
-          Weekly review →
+        <Link href="/check-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Weekly review
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
-        <Link href="/coach" className="text-xs text-brand hover:underline">
-          Coach →
+        <Link href="/coach" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Coach
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
-        <Link href="/decisions" className="text-xs text-brand hover:underline">
-          Decisions →
+        <Link href="/decisions" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Decisions
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
     </div>

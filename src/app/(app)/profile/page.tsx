@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -12,13 +12,18 @@ import {
 } from '@/components/ui/select'
 import { OptionCard } from '@/components/ui/option-card'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import type { UserProfile } from '@/types/database'
 // Client fetch state reuses the route's loading.tsx composition —
 // identical skeleton for router navigation and client query, never a
 // bare text fallback (4B.6C QA correction).
 import ProfileLoading from './loading'
 
-/** Inline numeric input with adjacent unit label */
+/** Inline numeric input with adjacent unit label. UI-7: the label is
+ * programmatically associated (htmlFor/id), the control meets the
+ * 44px target, and an empty value shows only its placeholder — a
+ * stored zero renders as the literal "0", never as placeholder
+ * text, so missing and zero stay visibly distinct. */
 function NumField({
   label, value, onChange, placeholder, min, max, step = 'any', unit,
 }: {
@@ -31,11 +36,13 @@ function NumField({
   step?: string
   unit?: string
 }) {
+  const id = useId()
   return (
     <div>
-      <label className="block text-sm font-medium text-ink mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-ink mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
         <input
+          id={id}
           type="number"
           inputMode="decimal"
           value={value}
@@ -45,7 +52,7 @@ function NumField({
           min={min}
           max={max}
           step={step}
-          className="flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+          className="flex-1 min-w-0 min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
         />
         {unit && (
           <span className="text-sm text-ink-muted flex-shrink-0 w-8 text-center select-none">
@@ -183,14 +190,12 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-4 lg:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-ink">Profile</h1>
-        <p className="text-sm text-ink-muted mt-0.5">
-          Biometrics and preferences. Changes save when you submit; schedule and
-          goal changes are logged automatically, and changing your main goal never
-          changes nutrition targets on its own.
-        </p>
-      </div>
+      {/* UI-7: PageHeader owns the route title; the support copy is
+          the same established sentence. */}
+      <PageHeader
+        title="Profile"
+        description="Biometrics and preferences. Changes save when you submit; schedule and goal changes are logged automatically, and changing your main goal never changes nutrition targets on its own."
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
 
@@ -199,12 +204,13 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
           <h3 className="text-sm font-semibold text-ink">Personal info</h3>
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">Name</label>
+            <label htmlFor="profile-name" className="block text-sm font-medium text-ink mb-1.5">Name</label>
             <input
+              id="profile-name"
               type="text" value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               onFocus={e => e.target.select()} required
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -216,12 +222,14 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-2">
                 <input type="number" inputMode="numeric" value={heightFt} onChange={e => setHeightFt(e.target.value)} onFocus={e => e.target.select()} placeholder="6" min="3" max="8"
-                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  aria-label="Height feet"
+                  className="flex-1 min-w-0 min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring" />
                 <span className="text-sm text-ink-muted select-none w-6 text-center">ft</span>
               </div>
               <div className="flex items-center gap-2">
                 <input type="number" inputMode="numeric" value={heightIn} onChange={e => setHeightIn(e.target.value)} onFocus={e => e.target.select()} placeholder="1" min="0" max="11"
-                  className="flex-1 px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  aria-label="Height inches"
+                  className="flex-1 min-w-0 min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring" />
                 <span className="text-sm text-ink-muted select-none w-6 text-center">in</span>
               </div>
             </div>
@@ -322,10 +330,11 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ink">Fasting</h3>
             <button type="button" role="switch" aria-checked={fastingEnabled}
+              aria-label="Fasting tracking"
               onClick={() => setFastingEnabled(!fastingEnabled)}
-              className={['relative w-11 h-6 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+              className={['relative w-11 h-6 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring',
                 fastingEnabled ? 'bg-brand' : 'bg-surface-sunken border border-edge'].join(' ')}>
-              <span className={['absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+              <span className={['absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-ink shadow transition-transform',
                 fastingEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
             </button>
           </div>

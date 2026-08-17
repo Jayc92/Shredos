@@ -103,8 +103,11 @@ console.log('\n2. Wizard structure and step state')
     (wizard.match(/update={update}/g) || []).length === 4)
   check('step labels exact',
     wizard.includes("const STEP_LABELS = ['Personal details', 'Goals', 'Schedule', 'Nutrition']"))
+  // RETARGET (UI-7): original boundary — the accessible textual step
+  // state. Same copy, now the PageHeader description (template
+  // literal instead of JSX interpolation).
   check('textual step context (not color-only)',
-    wizard.includes('Step {step} of 4 — {STEP_LABELS[step - 1]}'))
+    wizard.includes('description={`Step ${step} of 4 — ${STEP_LABELS[step - 1]}`}'))
   check('no autosave / no per-step persistence: the ONLY supabase writes live in handleComplete',
     (wizard.match(/supabase\.from\(/g) || []).length === 3 &&
     wizard.indexOf('async function handleComplete') <
@@ -140,12 +143,21 @@ console.log('\n3. Step 1 contract')
     (step1.match(/min="50" max="700" step="0.1"/g) || []).length === 2)
   check('body fat bounds unchanged (1–60, 0.1 step)',
     (step1.match(/min="1" max="60" step="0.1"/g) || []).length === 2)
-  check('units adjacent to inputs', ['>ft</span>', '>in</span>', '>lbs</span>', '>%</span>']
-    .every((u) => step1.includes(u)))
+  // RETARGET (UI-7): original boundary — every numeric input shows
+  // its unit. The ad-hoc absolute spans became the shared Input
+  // suffix slot (reserved pr-10 padding, pointer-events-none, so the
+  // unit can never overlap typed values or Safari spinners).
+  check('units adjacent to inputs',
+    ['suffix="ft"', 'suffix="in"', 'suffix="lbs"', 'suffix="%"']
+      .every((u) => step1.includes(u)) &&
+    step1.includes('{suffix}') && step1.includes('pr-10') &&
+    step1.includes('pointer-events-none'))
+  // RETARGET (UI-7): same two required fields; the Label now also
+  // carries htmlFor for programmatic association.
   check('required marker only on the two actually-required fields',
-    (step1.match(/<Label required>/g) || []).length === 2 &&
-    step1.includes('<Label required>Name</Label>') &&
-    step1.includes('<Label required>Current weight</Label>'))
+    (step1.match(/<Label required/g) || []).length === 2 &&
+    step1.includes('<Label required htmlFor="ob-name">Name</Label>') &&
+    step1.includes('<Label required htmlFor="ob-weight">Current weight</Label>'))
   check('optional fields explicitly optional (goal weight, both body fat)',
     (step1.match(/\(optional\)/g) || []).length === 3 &&
     !step1.includes('required>Est. body fat'))
@@ -355,8 +367,14 @@ console.log('\n8. Presentation')
         !c.includes('bg-primary') && !c.includes('text-primary') &&
         !c.includes('accent-primary') && !c.includes('amber-')
     }))
+  // RETARGET (UI-7): original boundary — onboarding inputs match the
+  // profile-page input convention. BOTH surfaces moved off the legacy
+  // aliases onto the semantic tokens, so the shared convention is now
+  // the semantic string.
   check('input chrome matches the profile-page convention',
-    step1.includes('bg-secondary border border-input text-ink placeholder:text-ink-muted'))
+    step1.includes('bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted') &&
+    read('src/app/(app)/profile/page.tsx')
+      .includes('bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted'))
   check('brand tint tip uses valid semantic token (Step 3)',
     step3.includes('bg-brand-subtle rounded-lg px-4 py-3'))
   check('Step 4 tiles mirror the /nutrition sunken-tile pattern',
@@ -441,8 +459,11 @@ console.log('\n11. Final legacy audit')
   walk('src/components')
   check('zero active .shred-card consumers across all of src', offenders.length === 0,
     offenders.join(', '))
+  // RETARGET (UI-7): the 4B.1 contract kept the alias while any
+  // consumer remained; a repo-wide audit proved zero usages and UI-7
+  // removed it. The boundary flips to absence.
   check('compatibility alias retained in globals (deliberate 4B.1 contract)',
-    globals.includes('.shred-card {'))
+    !globals.includes('.shred-card {'))
   check('card.tsx reference is comment-only',
     !stripComments(read('src/components/ui/card.tsx')).includes('shred-card'))
   check('metric-label compatibility class retained (still consumed by /nutrition)',
@@ -503,13 +524,19 @@ console.log('\n12. Responsive')
 // ── 13. Accessibility ────────────────────────────────────────────────
 console.log('\n13. Accessibility')
 {
+  // RETARGET (UI-7): the wizard's handwritten h1 became the SAME
+  // title through PageHeader (which owns the single h1).
   check('exactly one H1 (wizard header)',
-    (wizard.match(/<h1/g) || []).length === 1 &&
+    (wizard.match(/<PageHeader/g) || []).length === 1 &&
+    !wizard.includes('<h1') &&
+    wizard.includes('title="Set up your profile"') &&
     STEPS.every((s) => !s.includes('<h1')))
   check('each step contributes exactly one H2',
     STEPS.every((s) => (s.match(/<h2/g) || []).length === 1))
+  // RETARGET (UI-7): same explicit labels — Step 1's Label helper now
+  // also carries the htmlFor association.
   check('explicit labels throughout',
-    step1.includes('<label className="block text-sm font-medium text-ink mb-1.5">') &&
+    step1.includes('<label htmlFor={htmlFor} className="block text-sm font-medium text-ink mb-1.5">') &&
     step3.includes('<label className="block text-sm font-medium text-ink mb-1.5">'))
   check('required marker is text-adjacent (asterisk in the label element)',
     step1.includes("{required && <span className=\"text-critical ml-1\">*</span>}"))

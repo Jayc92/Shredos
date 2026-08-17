@@ -164,16 +164,9 @@
   .status-info    { color: hsl(var(--info)); }
   .status-muted   { @apply text-muted-foreground; }
 
-  /* Legacy card utility — TRANSITIONAL ALIAS (Phase 4B.1): now maps
-     to the ForgeFitOS default surface (see Card variants in
-     src/components/ui/card.tsx). Route-by-route 4B phases replace
-     usages with <Card variant>; do not use shred-card in new code. */
-  .shred-card {
-    background-color: hsl(var(--surface));
-    border: 1px solid hsl(var(--border-subtle));
-    border-radius: var(--radius-card);
-    @apply p-4;
-  }
+  /* UI-7 cleanup: the transitional legacy card alias (4B.1) was
+     removed — every route now composes <Card variant>; a repo-wide
+     audit found zero remaining class usages. */
 
   /* Large metric number display */
   .metric-value {
@@ -337,17 +330,14 @@
   /* ── Typography roles (Geist Sans everywhere; one family) ──
      display > page title > section title > card title > body >
      support; metric is the only "loud" numeric role. */
-  .text-display        { @apply text-3xl font-semibold tracking-tight; }
+  /* UI-7 cleanup: the unused roles (display, card-title, body,
+     metric, button, badge, chart-annotation) were removed after a
+     proven zero-reference audit; only the four roles below have live
+     consumers (PageHeader, SectionHeader, EmptyState, MetricValue). */
   .text-page-title     { @apply text-xl font-semibold tracking-tight; }
   .text-section-title  { @apply text-sm font-semibold; }
-  .text-card-title     { @apply text-sm font-medium; }
-  .text-body           { @apply text-sm; }
   .text-support        { @apply text-xs; color: hsl(var(--text-muted)); }
-  .text-metric         { @apply text-2xl font-semibold tabular-nums; font-feature-settings: 'tnum'; }
   .text-label          { @apply text-xs font-medium uppercase tracking-wider; color: hsl(var(--text-muted)); }
-  .text-button         { @apply text-sm font-medium; }
-  .text-badge          { @apply text-xs font-medium; }
-  .text-chart-annotation { @apply text-[10px]; color: hsl(var(--text-muted)); }
 
   /* ── Skeleton primitives (calm pulse; honors reduced motion;
      approximate final geometry to avoid layout shift). ── */

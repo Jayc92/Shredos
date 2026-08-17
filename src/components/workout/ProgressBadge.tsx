@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils'
+import { MoveRight, TrendingDown, TrendingUp } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { progressLabel, progressColor } from '@/lib/workout'
 import type { ProgressSignal } from '@/types/app'
 
@@ -25,16 +27,31 @@ const SIGNAL_TOKEN: Record<string, string> = {
 const signalBadgeClass = (signal: ProgressSignal): string =>
   SIGNAL_TOKEN[progressColor(signal).split(' ')[0].split('-')[1]] ?? 'bg-surface-sunken text-ink border-edge'
 
+// UI-7: progressLabel's returned strings carry direction glyphs
+// (e.g. 'Improved' prefixed by an up glyph); this SCANNED consumer maps each signal to the
+// SAME wording with an aria-hidden Lucide icon instead — matching
+// the Weekly Review and Progress overview StatusBadges. The lib
+// helper stays byte-untouched and remains the fallback for any
+// signal this map does not know.
+const SIGNAL_META: Record<string, { label: string; Icon: LucideIcon | null }> = {
+  improved: { label: 'Improved', Icon: TrendingUp },
+  declined: { label: 'Declined', Icon: TrendingDown },
+  same: { label: 'Same', Icon: MoveRight },
+  new: { label: 'New exercise', Icon: null },
+}
+
 export function ProgressBadge({ signal, previousSummary }: ProgressBadgeProps) {
+  const meta = SIGNAL_META[signal]
   return (
     <span
       title={previousSummary ? `Previous: ${previousSummary}` : undefined}
       className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
         signalBadgeClass(signal)
       )}
     >
-      {progressLabel(signal)}
+      {meta?.Icon && <meta.Icon className="w-3 h-3" aria-hidden="true" />}
+      {meta ? meta.label : progressLabel(signal)}
     </span>
   )
 }

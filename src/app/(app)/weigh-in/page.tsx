@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Check } from 'lucide-react'
 import { createClient, fetchUserProfile, fetchRecentWeighIns } from '@/lib/supabase/server'
 import { WeighInForm } from '@/components/weigh-in/WeighInForm'
 import { WeighInHistory } from '@/components/weigh-in/WeighInHistory'
@@ -127,7 +128,9 @@ export default async function WeighInPage() {
             ? 'bg-info-subtle text-info'
             : 'bg-caution-subtle text-caution'
         }`}>
-          {confidence === 'high' && '✓ High confidence — enough data for trend analysis.'}
+          {confidence === 'high' && (
+            <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />High confidence — enough data for trend analysis.</span>
+          )}
           {confidence === 'medium' && `Building confidence — ${weighIns.length} weigh-ins recorded. A few more before strong recommendations.`}
           {confidence === 'low' && `Low confidence — ${weighIns.length} weigh-in${weighIns.length !== 1 ? 's' : ''} recorded. Keep logging to unlock trend analysis.`}
         </div>

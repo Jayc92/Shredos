@@ -4,7 +4,7 @@
 // manual step logging data. No wearable language remains.
 // ============================================================
 
-import { Footprints } from 'lucide-react'
+import { ArrowRight, Footprints } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -35,8 +35,9 @@ export function StepsCard({ stepGoal, todayLog }: StepsCardProps) {
           <Footprints className="w-4 h-4 text-ink-muted" />
           <span className="text-sm font-medium text-ink-muted">Steps</span>
         </div>
-        <Link href="/activity" className="text-xs text-brand hover:underline">
-          Log steps →
+        <Link href="/activity" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Log steps
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
 

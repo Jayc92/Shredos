@@ -240,10 +240,14 @@ async function main() {
     check('single source per metric: nutrition card dropped its calorie/protein bars',
       !nutrition.includes('label="Calories"') && !nutrition.includes('label="Protein"') &&
       nutrition.includes('label="Carbs"') && nutrition.includes('label="Fat"'))
+    // RETARGET (UI-7): original boundary — the card keeps its links
+    // and detail. 'Log food' keeps its label; the text-glyph arrow is
+    // now an aria-hidden Lucide ArrowRight.
     check('nutrition detail preserved (warnings, footer, completion, links)',
-      ['Log food →', 'loggedDaysLast7', 'low_carb_warning', 'primaryNudge',
+      ['Log food', 'loggedDaysLast7', 'low_carb_warning', 'primaryNudge',
         'No nutrition targets set.', 'No food logged yet today.']
-        .every((x) => nutrition.includes(x)))
+        .every((x) => nutrition.includes(x)) &&
+      nutrition.includes('<ArrowRight'))
   }
 
   // ── 5. Workout, fasting, energy (S23–S28) ──────────────────────────
@@ -256,7 +260,10 @@ async function main() {
       read('src/components/routine/StartWorkoutButton.tsx').includes('ActiveWorkoutConflictModal'))
     check('S24: fasting behavior connected to existing implementation (timer, links, stats)',
       fasting.includes('setInterval(tick, 1000)') && fasting.includes('clearInterval') &&
-      fasting.includes('Manage fast →') && fasting.includes('Start a fast →') &&
+      // RETARGET (UI-7): same labels, aria-hidden ArrowRight icons
+      // instead of text glyphs.
+      fasting.includes('Manage fast') && fasting.includes('Start a fast') &&
+      fasting.includes('<ArrowRight') &&
       fasting.includes('computeFastingWeekStats') === false && // stats computed by the page, as before
       page.includes('computeFastingWeekStats(weekFasts)'))
     check('S25: fasting arithmetic stays outside ProgressRing',

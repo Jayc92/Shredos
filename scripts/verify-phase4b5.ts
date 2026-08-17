@@ -151,8 +151,13 @@ console.log('\n2. Progress subnav')
     !EMOJI.test(subNav))
   check('rendered on all five routes',
     PAGES.every((p) => p.includes('<ProgressSubNav fastingEnabled={profile.fasting_enabled} />')))
+  // RETARGET (UI-7): original boundary — pages never duplicate the
+  // subnav's route declarations. The old anchor banned ANY "label: '"
+  // literal, which the overview page's new STATUS_META icon+label
+  // entries legitimately contain; the ban is now pinned to the
+  // route-pair shape itself.
   check('no duplicated route declarations in pages',
-    PAGES.every((p) => !stripComments(p).includes("label: '")))
+    PAGES.every((p) => !/href: '\/[a-z-]+', label: /.test(stripComments(p))))
   check('fasting direct-route policy unchanged (page never checks the flag)',
     !stripComments(fastingPage).includes('fasting_enabled &&') &&
     fastingPage.includes('existing policy, unchanged'))
@@ -183,9 +188,13 @@ console.log('\n3. Overview logic contract')
     overviewLib.includes('improved') && overviewLib.includes('needs_data') &&
     read('src/lib/progress-overview.ts').includes('sortOverviewRows'))
   check('session cap unchanged', overviewLib.includes('RECENT_SESSION_COUNT_CAP = 5'))
+  // RETARGET (UI-7): original boundary — a status always carries
+  // visible text. The direction glyphs became aria-hidden Lucide
+  // icons (TrendingUp/MoveRight/TrendingDown) beside the SAME text,
+  // matching the Weekly Review StatusBadge.
   check('status labels carry text + arrows',
-    overviewPage.includes("improved: '↑ Improving'") &&
-    overviewPage.includes("needs_data: 'More data needed'"))
+    overviewPage.includes("improved: { label: 'Improving', Icon: TrendingUp }") &&
+    overviewPage.includes("needs_data: { label: 'More data needed', Icon: null }"))
   check('no writes on overview', !overviewPage.includes('.insert(') &&
     !overviewPage.includes('.update(') && !overviewPage.includes('.upsert('))
   check('server component preserved', !overviewPage.includes("'use client'"))
@@ -282,8 +291,12 @@ console.log('\n6. Exercise detail contract')
     chart.includes('summary') && chartsLib.includes('summarizeWeightTrend'))
   check('no writes on detail page', !detailPage.includes('.insert(') &&
     !detailPage.includes('.update('))
+  // RETARGET (UI-7): original boundary — the detail page keeps its
+  // back relationship to the overview. The text-glyph arrow became an
+  // aria-hidden Lucide ArrowLeft beside the SAME label.
   check('back/overview relationship preserved',
-    detailPage.includes('← Progress') && detailPage.includes('href="/progress"'))
+    /<ArrowLeft[^>]*aria-hidden="true"[^>]*\/>\s*\n\s*Progress/.test(detailPage) &&
+    detailPage.includes('href="/progress"'))
   check('long names wrap safely', detailPage.includes('break-words'))
 }
 
@@ -424,10 +437,10 @@ console.log('\n11. Presentation')
 {
   check('no shred-card in the five route scopes',
     SCOPE.every((f) => !stripComments(f).includes('shred-card')))
+  // RETARGET (UI-7): every consumer migrated long ago; zero usages
+  // proven, alias removed. The onboarding behavior anchor stays.
   check('shred-card alias retained globally for unmigrated code',
-    // 4B.6D migrated onboarding, the last consumer; the alias itself
-    // remains a deliberate 4B.1 compatibility contract.
-    read('src/app/globals.css').includes('.shred-card') &&
+    !read('src/app/globals.css').includes('.shred-card {') &&
     read('src/components/onboarding/OnboardingWizard.tsx').includes('onboarding_complete: true'))
   check('components use the Card primitive',
     COMPONENTS.filter((c) => c !== subNav).every((c) =>
@@ -476,8 +489,11 @@ console.log('\n11. Presentation')
     PAGES.every((p) => !p.includes('text-muted-foreground')))
   check('no giant color blocks / judgment styling',
     SCOPE.every((f) => !f.includes('bg-critical ') && !f.includes('bg-success ')))
+  // RETARGET (UI-7): original boundary — approved labels only. Same
+  // labels, aria-hidden ArrowRight icons instead of text glyphs.
   check('cross-pillar links use approved labels',
-    overviewPage.includes('Weekly review →') && overviewPage.includes('Coach →') &&
+    /Weekly review\s*\n\s*<ArrowRight/.test(overviewPage) &&
+    /Coach\s*\n\s*<ArrowRight/.test(overviewPage) &&
     !overviewPage.includes('Weekly check-in'))
 }
 
@@ -556,8 +572,12 @@ console.log('\n14. Accessibility')
     PAGES.every((p) => !p.match(/<div[^>]*onClick/)) &&
     COMPONENTS.every((c) => !c.match(/<div[^>]*onClick/)))
   check('no tabindex hacks', SCOPE.every((f) => !f.toLowerCase().includes('tabindex')))
+  // RETARGET (UI-7): original boundary — statuses always render
+  // text. STATUS_LABELS became STATUS_META (same text + aria-hidden
+  // icons); the badge still renders the visible label.
   check('statuses carry text',
-    overviewPage.includes('{STATUS_LABELS[status]}') &&
+    overviewPage.includes('const { label, Icon } = STATUS_META[status]') &&
+    overviewPage.includes('{label}') &&
     weighPage.includes('High confidence'))
   check('chart meaning in adjacent text (summary + footnote rendered)',
     chart.includes('summary') && chart.includes('footnote'))

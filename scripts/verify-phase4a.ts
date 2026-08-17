@@ -233,9 +233,13 @@ console.log('\n8. Visual hierarchy and design system')
   check('mixed HSL/oklch token formats documented and real',
     has('HSL triplets') && has('oklch') &&
     readFileSync('src/app/globals.css', 'utf8').includes('oklch'))
+  // RETARGET (UI-7): original boundary — the audit notes document
+  // the design-token reality, including the legacy card alias. UI-7
+  // REMOVED the alias after a proven zero-usage audit; the notes
+  // still record it historically, and globals must now NOT define it.
   check('current design-token reality documented',
     has('shred-card') &&
-    readFileSync('src/app/globals.css', 'utf8').includes('.shred-card'))
+    !readFileSync('src/app/globals.css', 'utf8').includes('.shred-card {'))
   check('typography roles listed',
     ['display', 'page title', 'section title', 'card title', 'metric', 'chart annotation']
       .every((r) => has(r)))

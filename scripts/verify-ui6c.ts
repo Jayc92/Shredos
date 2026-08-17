@@ -132,6 +132,33 @@ const CORRECTION_FILES = [
   'scripts/verify-ui6c.ts',
   'docs/ui6c-coach-visual-notes.md',
 ]
+// RETARGET (UI-7): the approved UI-7 product scope, admitted
+// while uncommitted.
+const UI7 = [
+  '.env.example',
+  'src/app/(app)/dashboard/page.tsx',
+  'src/app/(app)/profile/page.tsx',
+  'src/app/(app)/progress/exercises/[id]/page.tsx',
+  'src/app/(app)/progress/page.tsx',
+  'src/app/(app)/weigh-in/page.tsx',
+  'src/app/(auth)/login/page.tsx',
+  'src/app/globals.css',
+  'src/components/dashboard/DailyMetricTile.tsx',
+  'src/components/dashboard/DecisionLogCard.tsx',
+  'src/components/dashboard/FastingCard.tsx',
+  'src/components/dashboard/NutritionCard.tsx',
+  'src/components/dashboard/StepsCard.tsx',
+  'src/components/dashboard/WeightCard.tsx',
+  'src/components/dashboard/WorkoutCard.tsx',
+  'src/components/onboarding/OnboardingWizard.tsx',
+  'src/components/onboarding/Step1Bio.tsx',
+  'src/components/onboarding/Step3Schedule.tsx',
+  'src/components/onboarding/Step4Nutrition.tsx',
+  'src/components/weigh-in/WeighInForm.tsx',
+  'src/components/workout/ExercisePicker.tsx',
+  'src/components/workout/ProgressBadge.tsx',
+  'tailwind.config.ts',
+]
 const coachPage = read('src/app/(app)/coach/page.tsx')
 const reviewPage = read('src/app/(app)/check-in/page.tsx')
 const decisionsPage = read('src/app/(app)/decisions/page.tsx')
@@ -174,7 +201,13 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return CANDIDATE_22.includes(f) || CORRECTION_FILES.includes(f)
+          // RETARGET (UI-7): the approved UI-7 product scope + notes
+          // are admitted while uncommitted.
+          return CANDIDATE_22.includes(f) || CORRECTION_FILES.includes(f) ||
+            UI7.includes(f) ||
+            f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+            f === 'src/components/dashboard/DecisionLogCard.tsx' ||
+            f.startsWith('scripts/verify-')
         })
       })())
     check('A2: protected libs, APIs, schema, and deps byte-untouched (git)',
@@ -593,9 +626,17 @@ async function main() {
         const code = stripComments(s)
         return !/(?:bg|border)-(?:green|red|blue)-500/.test(code)
       }))
+    // RETARGET (UI-7): original boundary — every badge keeps visible
+    // text and lib/workout stays byte-untouched (S1 still proves the
+    // latter). UI-7 replaced the lib label's direction glyphs with
+    // consumer-side SIGNAL_META/STATUS_META (same wording, aria-hidden
+    // icons); progressLabel remains the explicit fallback.
     check('X1: labels stay text-present — progressLabel untouched and rendered',
-      progressBadge.includes('{progressLabel(signal)}') &&
-      reviewPage.includes('{label}') && progressPage.includes('{STATUS_LABELS[status]}'))
+      progressBadge.includes('progressLabel(signal)') &&
+      progressBadge.includes("improved: { label: 'Improved', Icon: TrendingUp }") &&
+      progressBadge.includes('{meta ? meta.label : progressLabel(signal)}') &&
+      reviewPage.includes('{label}') &&
+      progressPage.includes('const { label, Icon } = STATUS_META[status]'))
     // DecisionCard runtime matrix (client component rendered for
     // real) — one render per representative lifecycle status. The
     // review_on probes use extreme fixed dates so due/not-due is

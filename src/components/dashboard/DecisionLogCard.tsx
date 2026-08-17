@@ -1,4 +1,4 @@
-import { ClipboardList } from 'lucide-react'
+import { ArrowRight, ClipboardList } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatRelativeDate } from '@/lib/dates'
 import { DECISION_STATUS_LABELS } from '@/lib/constants'
@@ -25,8 +25,9 @@ export function DecisionLogCard({ decision }: DecisionLogCardProps) {
           <ClipboardList className="w-4 h-4 text-ink-muted" />
           <span className="text-sm font-medium text-ink-muted">Latest decision</span>
         </div>
-        <a href="/decisions" className="text-xs text-brand hover:underline">
+        <a href="/decisions" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
           View all
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </a>
       </div>
 

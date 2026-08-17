@@ -13,7 +13,7 @@
 // colors; copy unchanged.
 // ============================================================
 
-import { UtensilsCrossed } from 'lucide-react'
+import { ArrowRight, UtensilsCrossed } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import { computeDailyTotals, computeNutritionProgress, progressColor, remainingColor } from '@/lib/food'
@@ -110,8 +110,9 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
             <span className="text-sm font-medium text-ink-muted">Nutrition</span>
           </div>
           <p className="text-sm text-ink-muted">No nutrition targets set.</p>
-          <Link href="/nutrition" className="text-sm text-brand hover:underline">
-            Set up targets →
+          <Link href="/nutrition" className="inline-flex min-h-11 items-center gap-1 text-sm text-brand hover:underline">
+            Set up targets
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </CardContent>
       </Card>
@@ -134,8 +135,9 @@ export function NutritionCard({ target, todayLogs, nutritionSummary }: Nutrition
           <UtensilsCrossed className="w-4 h-4 text-ink-muted" />
           <span className="text-sm font-medium text-ink-muted">Nutrition details</span>
         </div>
-        <Link href="/food" className="text-xs text-brand hover:underline">
-          Log food →
+        <Link href="/food" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Log food
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
 

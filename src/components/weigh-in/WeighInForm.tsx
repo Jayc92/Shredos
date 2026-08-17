@@ -1,5 +1,6 @@
 'use client'
 
+import { Check } from 'lucide-react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -90,7 +91,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-ink">
-            Weight <span className="text-destructive">*</span>
+            Weight <span className="text-critical">*</span>
           </label>
           <div className="relative">
             <input
@@ -102,7 +103,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
               max="700"
               step="0.1"
               required
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+              className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm pr-10"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">lbs</span>
           </div>
@@ -115,7 +116,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             max={todayISO()}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
           />
         </div>
       </div>
@@ -135,7 +136,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
               min="1"
               max="60"
               step="0.1"
-              className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-8"
+              className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm pr-8"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">%</span>
           </div>
@@ -149,7 +150,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
           <select
             value={energy}
             onChange={(e) => setEnergy(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
           >
             <option value="">Skip</option>
             <option value="1">1 — Very low</option>
@@ -175,7 +176,7 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
             min="10"
             max="80"
             step="0.1"
-            className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm pr-10"
+            className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm pr-10"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">in</span>
         </div>
@@ -191,17 +192,18 @@ export function WeighInForm({ onSuccess }: WeighInFormProps) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="e.g. after gym, 8hr sleep"
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>
       )}
 
       {success && (
-        <p className="text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
-          ✓ Weigh-in saved.
+        <p className="inline-flex items-center gap-1 text-sm text-success bg-success-subtle rounded-lg px-3 py-2">
+          <Check className="w-3.5 h-3.5" aria-hidden="true" />
+          Weigh-in saved.
         </p>
       )}
 

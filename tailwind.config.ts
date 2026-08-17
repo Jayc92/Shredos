@@ -47,14 +47,9 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Legacy ShredOS-era literals — retained for compatibility;
-        // superseded by the semantic roles below (do not use in new code).
-        shred: {
-          green: '#22c55e',
-          amber: '#f59e0b',
-          red: '#ef4444',
-          blue: '#3b82f6',
-        },
+        // UI-7 cleanup: the legacy ShredOS-era literal palette block
+        // was removed - a repo-wide audit found zero class usages of
+        // it in source or scripts.
 
         // ── ForgeFitOS semantic roles (Phase 4B.1) ──────────────
         canvas: {

@@ -1,4 +1,4 @@
-import { Scale, TrendingDown, TrendingUp, Minus, Calendar } from 'lucide-react'
+import { ArrowRight, Scale, TrendingDown, TrendingUp, Minus, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs, calculateBMI } from '@/lib/units'
 import { WeightTrendChart } from '@/components/dashboard/WeightTrendChart'
@@ -152,9 +152,10 @@ export function WeightCard({ weighIns, profile }: WeightCardProps) {
           <p className="text-ink-muted text-sm">No weigh-in recorded yet.</p>
           <a
             href="/weigh-in"
-            className="inline-block mt-2 text-sm text-brand hover:underline"
+            className="inline-flex min-h-11 mt-2 items-center gap-1 text-sm text-brand hover:underline"
           >
-            Log your first weigh-in →
+            Log your first weigh-in
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </a>
         </div>
       )}

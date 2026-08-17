@@ -26,7 +26,19 @@ import {
   buildCardioTrends,
   buildTimedTrend,
 } from '@/lib/progress-charts'
+import { ArrowLeft } from 'lucide-react'
 import ExerciseTrendChart from '@/components/progress/ExerciseTrendChart'
+
+// UI-7: progressLabel's returned strings carry direction glyphs; this
+// page maps each signal to the SAME wording without the glyph. The
+// lib helper stays byte-untouched and remains the fallback for any
+// future signal this map does not know.
+const SIGNAL_TEXT: Record<string, string> = {
+  improved: 'Improved',
+  declined: 'Declined',
+  same: 'Same',
+  new: 'New exercise',
+}
 import { ProgressSubNav } from '@/components/progress/ProgressSubNav'
 import { Card, CardContent } from '@/components/ui/card'
 import { kgToLbs } from '@/lib/units'
@@ -145,8 +157,9 @@ export default async function ExerciseProgressDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
-      <Link href="/progress" className="text-xs text-ink-muted hover:text-ink">
-        ← Progress
+      <Link href="/progress" className="inline-flex min-h-11 items-center gap-1 text-xs text-ink-muted hover:text-ink">
+        <ArrowLeft className="w-3 h-3" aria-hidden="true" />
+        Progress
       </Link>
 
       <div>
@@ -576,7 +589,7 @@ function CardioTimedSections({
             </p>
             {signal && (
               <p className="text-xs text-ink-muted">
-                Vs. previous session: {progressLabel(signal)}
+                Vs. previous session: {SIGNAL_TEXT[signal] ?? progressLabel(signal)}
               </p>
             )}
           </div>

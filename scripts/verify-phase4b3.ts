@@ -120,10 +120,13 @@ console.log('\n2. Queries and domain behavior')
 // ── 3. Link destinations preserved ───────────────────────────────────
 console.log('\n3. Link destinations')
 {
+  // RETARGET (UI-7): original boundary — the approved labels and
+  // destinations. The text-glyph arrows became aria-hidden Lucide
+  // ArrowRight icons beside the SAME labels; bans retained.
   check('header quick links preserved with approved labels',
-    page.includes('href="/check-in"') && page.includes('Weekly review →') &&
-    page.includes('href="/coach"') && page.includes('Coach →') &&
-    !page.includes('Weekly check-in') && !page.includes('Coach actions →'))
+    page.includes('href="/check-in"') && /Weekly review\s*\n\s*<ArrowRight/.test(page) &&
+    page.includes('href="/coach"') && /Coach\s*\n\s*<ArrowRight/.test(page) &&
+    !page.includes('Weekly check-in') && !page.includes('Coach actions'))
   check('workout links preserved', workout.includes('href="/workouts"') &&
     workout.includes('/workouts/routines'))
   check('nutrition links preserved', nutrition.includes('href="/nutrition"') &&
@@ -325,8 +328,11 @@ console.log('\n11. Phase boundary invariants')
   check('canvas theme determinism untouched (now dark)',
     read('src/app/globals.css').includes('color-scheme: dark;') &&
     read('src/app/layout.tsx').includes('bg-canvas text-ink'))
+  // RETARGET (UI-7): the alias was retained only while unmigrated
+  // consumers could exist; a repo-wide audit proved zero class
+  // usages and UI-7 removed it. The boundary flips to absence.
   check('.shred-card alias still defined for other routes',
-    read('src/app/globals.css').includes('.shred-card'))
+    !read('src/app/globals.css').includes('.shred-card {'))
   check('other routes unchanged (behavior anchors)',
     // 4B.4 redesigned the Coach-pillar presentation; durable anchors
     // are the routes' behavior contracts, not the retired H1 copy.
@@ -438,11 +444,11 @@ console.log('\n13. Per-card contracts')
 {
   // [name, src, variant, action label, empty text, domain helper]
   const CARDS: Array<[string, string, string, string, string, string]> = [
-    ['Workout', workout, 'elevated', 'Log workout →', 'No workouts yet.', 'formatWorkoutDuration'],
-    ['Nutrition', nutrition, 'metric', 'Log food →', 'No food logged yet today.', 'computeNutritionProgress'],
-    ['Weight', weight, 'metric', 'Log your first weigh-in →', 'No weigh-in recorded yet.', 'computeWeightChange'],
-    ['Steps', steps, 'metric', 'Log steps →', 'No steps logged yet today.', 'toLocaleString'],
-    ['Fasting', fasting, 'status', 'Manage fast →', 'No fasts recorded yet.', 'getFastingDuration'],
+    ['Workout', workout, 'elevated', 'Log workout', 'No workouts yet.', 'formatWorkoutDuration'],
+    ['Nutrition', nutrition, 'metric', 'Log food', 'No food logged yet today.', 'computeNutritionProgress'],
+    ['Weight', weight, 'metric', 'Log your first weigh-in', 'No weigh-in recorded yet.', 'computeWeightChange'],
+    ['Steps', steps, 'metric', 'Log steps', 'No steps logged yet today.', 'toLocaleString'],
+    ['Fasting', fasting, 'status', 'Manage fast', 'No fasts recorded yet.', 'getFastingDuration'],
     ['Decisions', decisions, 'subtle', 'View all', 'No decisions recorded yet.', 'formatRelativeDate'],
   ]
   for (const [name, src, variant, action, empty, helper] of CARDS) {
@@ -450,7 +456,12 @@ console.log('\n13. Per-card contracts')
       src.includes("from '@/components/ui/card'") && src.includes('<Card '))
     check(`${name}: expected variant ${variant}`, src.includes(`variant="${variant}"`))
     check(`${name}: no shred-card`, !src.includes('shred-card'))
-    check(`${name}: direct action label present`, src.includes(action))
+    // RETARGET (UI-7): original boundary — each card keeps its direct
+    // action with the approved label. The trailing text-glyph arrow
+    // became an aria-hidden Lucide ArrowRight beside the SAME label.
+    check(`${name}: direct action label present`,
+      src.includes(action) && src.includes('<ArrowRight') &&
+      src.includes('aria-hidden="true"'))
     check(`${name}: existing domain helper retained (${helper})`, src.includes(helper))
     check(`${name}: empty branch exists`, src.includes(empty))
     check(`${name}: decorative icon aria-hidden or text-labeled header`,

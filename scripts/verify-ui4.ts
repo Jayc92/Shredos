@@ -335,8 +335,11 @@ async function main() {
     check('S43: visible focus preserved (global focus-visible intact; none removed)',
       read('src/app/globals.css').includes(':focus-visible {') &&
       CHANGED.every((f) => !f.includes('outline-none')))
+    // RETARGET (UI-7): original boundary — badges always carry text.
+    // STATUS_LABELS became STATUS_META (same text, aria-hidden Lucide
+    // icons); the badge still renders the visible label.
     check('S44: state not color-alone (status badges carry text; coverage carries counts)',
-      page.includes('STATUS_LABELS[status]') &&
+      page.includes('STATUS_META[status]') && page.includes('{label}') &&
       coverage.includes('trained recently'))
     check('S45: bottom-nav clearance untouched (shell padding intact)',
       read('src/app/(app)/layout.tsx').includes('pb-[calc(4.5rem+env(safe-area-inset-bottom))]'))

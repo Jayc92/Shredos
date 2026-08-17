@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { calculateNutritionTargets } from '@/lib/nutrition'
 import { parseFloat2 } from '@/lib/units'
 import { DEFAULT_DEFICIT } from '@/lib/constants'
@@ -150,21 +151,24 @@ export function Step4Nutrition({ form, update, onBack, onComplete, saving }: Ste
         </>
       ) : null}
 
-      {/* Action buttons */}
+      {/* Action buttons — UI-7: aria-hidden Lucide icons beside the
+          same wording; no text-glyph arrows. */}
       <div className="grid grid-cols-2 gap-3 pt-2">
         <button
           onClick={onBack}
           disabled={saving}
-          className="py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors disabled:opacity-50"
+          className="min-h-11 py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
         >
-          ← Back
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+          Back
         </button>
         <button
           onClick={() => onComplete(deficitSlider !== DEFAULT_DEFICIT ? deficitSlider : undefined)}
           disabled={saving}
-          className="py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors disabled:opacity-50"
+          className="min-h-11 py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
         >
-          {saving ? 'Saving...' : 'Start tracking →'}
+          {saving ? 'Saving...' : 'Start tracking'}
+          {!saving && <ArrowRight className="w-4 h-4" aria-hidden="true" />}
         </button>
       </div>
 

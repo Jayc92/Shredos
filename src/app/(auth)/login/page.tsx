@@ -86,11 +86,12 @@ export default function LoginPage() {
               key={m}
               type="button"
               onClick={() => { setMode(m); setError(null); setDone(null) }}
+              aria-pressed={mode === m}
               className={[
-                'flex-1 py-1.5 rounded-md text-xs font-medium transition-colors',
+                'flex-1 min-h-11 rounded-md text-xs transition-colors',
                 mode === m
-                  ? 'bg-surface-raised text-ink shadow-sm'
-                  : 'text-ink-muted hover:text-ink',
+                  ? 'bg-surface-raised text-ink font-semibold shadow-sm'
+                  : 'text-ink-muted font-medium hover:text-ink',
               ].join(' ')}
             >
               {title[m]}
@@ -109,24 +110,24 @@ export default function LoginPage() {
         {mode === 'signin' && (
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">Email</label>
-              <input type="email" autoComplete="email" autoFocus required
+              <label htmlFor="signin-email" className="block text-sm font-medium text-ink">Email</label>
+              <input id="signin-email" type="email" autoComplete="email" autoFocus required
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+                className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">Password</label>
-              <input type="password" autoComplete="current-password" required
+              <label htmlFor="signin-password" className="block text-sm font-medium text-ink">Password</label>
+              <input id="signin-password" type="password" autoComplete="current-password" required
                 value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="Your password"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+                className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
             {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-brand text-[hsl(var(--brand-foreground))] font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
+              className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
@@ -136,24 +137,24 @@ export default function LoginPage() {
         {mode === 'signup' && (
           <form onSubmit={handleSignUp} className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">Email</label>
-              <input type="email" autoComplete="email" autoFocus required
+              <label htmlFor="signup-email" className="block text-sm font-medium text-ink">Email</label>
+              <input id="signup-email" type="email" autoComplete="email" autoFocus required
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+                className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">Password</label>
-              <input type="password" autoComplete="new-password" required minLength={8}
+              <label htmlFor="signup-password" className="block text-sm font-medium text-ink">Password</label>
+              <input id="signup-password" type="password" autoComplete="new-password" required minLength={8}
                 value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="Min. 8 characters"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+                className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
             {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-brand text-[hsl(var(--brand-foreground))] font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
+              className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Creating account...' : 'Create account'}
             </button>
             <p className="text-xs text-center text-ink-muted">
@@ -166,16 +167,16 @@ export default function LoginPage() {
         {mode === 'magic' && (
           <form onSubmit={handleMagicLink} className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-ink">Email</label>
-              <input type="email" autoComplete="email" autoFocus required
+              <label htmlFor="magic-email" className="block text-sm font-medium text-ink">Email</label>
+              <input id="magic-email" type="email" autoComplete="email" autoFocus required
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
+                className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
             {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-brand text-[hsl(var(--brand-foreground))] font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
+              className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Sending...' : 'Send magic link'}
             </button>
             <p className="text-xs text-center text-ink-muted">

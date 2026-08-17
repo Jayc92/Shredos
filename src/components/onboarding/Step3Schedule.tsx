@@ -108,15 +108,16 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
             type="button"
             role="switch"
             aria-checked={form.fasting_enabled}
+            aria-label="Enable fasting tracking"
             onClick={() => update({ fasting_enabled: !form.fasting_enabled })}
             className={[
               'relative w-11 h-6 rounded-full transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
               form.fasting_enabled ? 'bg-brand' : 'bg-surface-sunken border border-edge',
             ].join(' ')}
           >
             <span className={[
-              'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+              'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-ink shadow transition-transform',
               form.fasting_enabled ? 'translate-x-5' : 'translate-x-0',
             ].join(' ')} />
           </button>
@@ -171,17 +172,17 @@ export function Step3Schedule({ form, update, onNext, onBack }: Step3Props) {
           onChange={(e) => update({ injuries: e.target.value })}
           placeholder="e.g. bad left knee, lower back pain"
           rows={2}
-          className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none"
+          className="w-full min-h-11 px-3 py-2.5 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm resize-none"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3 pt-2">
         <button type="button" onClick={onBack}
-          className="py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors">
+          className="min-h-11 py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors">
           Back
         </button>
         <button type="button" onClick={onNext}
-          className="py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors">
+          className="min-h-11 py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover transition-colors">
           Review targets
         </button>
       </div>

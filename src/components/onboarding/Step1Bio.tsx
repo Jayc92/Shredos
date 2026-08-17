@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import type { OnboardingFormState } from '@/types/app'
 
 interface StepProps {
@@ -9,9 +10,9 @@ interface StepProps {
   onBack?: () => void
 }
 
-function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function Label({ children, required, htmlFor }: { children: React.ReactNode; required?: boolean; htmlFor?: string }) {
   return (
-    <label className="block text-sm font-medium text-ink mb-1.5">
+    <label htmlFor={htmlFor} className="block text-sm font-medium text-ink mb-1.5">
       {children}
       {required && <span className="text-critical ml-1">*</span>}
     </label>
@@ -22,6 +23,10 @@ function Field({ children }: { children: React.ReactNode }) {
   return <div className="space-y-1">{children}</div>
 }
 
+// UI-7: semantic input tokens, 44px control height, associated ids,
+// and a real suffix slot — the unit renders inside the control with
+// reserved right padding, so it can never overlap typed values or
+// Safari's number spinners.
 function Input({
   value,
   onChange,
@@ -30,6 +35,9 @@ function Input({
   min,
   max,
   step,
+  id,
+  suffix,
+  ariaLabel,
 }: {
   value: string
   onChange: (v: string) => void
@@ -38,9 +46,14 @@ function Input({
   min?: string
   max?: string
   step?: string
+  id?: string
+  suffix?: string
+  ariaLabel?: string
 }) {
-  return (
+  const input = (
     <input
+      id={id}
+      aria-label={ariaLabel}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -48,8 +61,17 @@ function Input({
       min={min}
       max={max}
       step={step}
-      className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+      className={`w-full min-h-11 px-3 ${suffix ? 'pr-10' : ''} rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm`}
     />
+  )
+  if (!suffix) return input
+  return (
+    <div className="relative">
+      {input}
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs select-none pointer-events-none">
+        {suffix}
+      </span>
+    </div>
   )
 }
 
@@ -57,16 +79,19 @@ function Select({
   value,
   onChange,
   children,
+  id,
 }: {
   value: string
   onChange: (v: string) => void
   children: React.ReactNode
+  id?: string
 }) {
   return (
     <select
+      id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-input text-ink focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+      className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
     >
       {children}
     </select>
@@ -76,7 +101,7 @@ function Select({
 function NextButton({
   onClick,
   disabled,
-  label = 'Continue →',
+  label = 'Continue',
 }: {
   onClick: () => void
   disabled?: boolean
@@ -86,9 +111,10 @@ function NextButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="w-full min-h-11 py-3 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-1.5"
     >
       {label}
+      <ArrowRight className="w-4 h-4" aria-hidden="true" />
     </button>
   )
 }
@@ -97,9 +123,10 @@ function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-full py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors"
+      className="w-full min-h-11 py-3 rounded-lg border border-edge text-ink-muted font-medium text-sm hover:bg-surface-sunken transition-colors inline-flex items-center justify-center gap-1.5"
     >
-      ← Back
+      <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+      Back
     </button>
   )
 }
@@ -117,18 +144,18 @@ export function Step1Bio({ form, update, onNext }: StepProps) {
       </div>
 
       <Field>
-        <Label required>Name</Label>
-        <Input value={form.display_name} onChange={(v) => update({ display_name: v })} placeholder="Your name" />
+        <Label required htmlFor="ob-name">Name</Label>
+        <Input id="ob-name" value={form.display_name} onChange={(v) => update({ display_name: v })} placeholder="Your name" />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field>
-          <Label>Age</Label>
-          <Input value={form.age} onChange={(v) => update({ age: v })} type="number" placeholder="35" min="13" max="100" />
+          <Label htmlFor="ob-age">Age</Label>
+          <Input id="ob-age" value={form.age} onChange={(v) => update({ age: v })} type="number" placeholder="35" min="13" max="100" />
         </Field>
         <Field>
-          <Label>Sex</Label>
-          <Select value={form.sex} onChange={(v) => update({ sex: v })}>
+          <Label htmlFor="ob-sex">Sex</Label>
+          <Select id="ob-sex" value={form.sex} onChange={(v) => update({ sex: v })}>
             <option value="">Prefer not to say</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -140,47 +167,29 @@ export function Step1Bio({ form, update, onNext }: StepProps) {
       <Field>
         <Label>Height</Label>
         <div className="grid grid-cols-2 gap-2">
-          <div className="relative">
-            <Input value={form.height_ft} onChange={(v) => update({ height_ft: v })} type="number" placeholder="6" min="3" max="8" />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">ft</span>
-          </div>
-          <div className="relative">
-            <Input value={form.height_in} onChange={(v) => update({ height_in: v })} type="number" placeholder="1" min="0" max="11" />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">in</span>
-          </div>
+          <Input value={form.height_ft} onChange={(v) => update({ height_ft: v })} type="number" placeholder="6" min="3" max="8" suffix="ft" ariaLabel="Height feet" />
+          <Input value={form.height_in} onChange={(v) => update({ height_in: v })} type="number" placeholder="1" min="0" max="11" suffix="in" ariaLabel="Height inches" />
         </div>
       </Field>
 
       <Field>
-        <Label required>Current weight</Label>
-        <div className="relative">
-          <Input value={form.weight_lbs} onChange={(v) => update({ weight_lbs: v })} type="number" placeholder="185" min="50" max="700" step="0.1" />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">lbs</span>
-        </div>
+        <Label required htmlFor="ob-weight">Current weight</Label>
+        <Input id="ob-weight" value={form.weight_lbs} onChange={(v) => update({ weight_lbs: v })} type="number" placeholder="185" min="50" max="700" step="0.1" suffix="lbs" />
       </Field>
 
       <Field>
-        <Label>Goal weight <span className="text-ink-muted font-normal">(optional)</span></Label>
-        <div className="relative">
-          <Input value={form.goal_weight_lbs} onChange={(v) => update({ goal_weight_lbs: v })} type="number" placeholder="165" min="50" max="700" step="0.1" />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">lbs</span>
-        </div>
+        <Label htmlFor="ob-goal-weight">Goal weight <span className="text-ink-muted font-normal">(optional)</span></Label>
+        <Input id="ob-goal-weight" value={form.goal_weight_lbs} onChange={(v) => update({ goal_weight_lbs: v })} type="number" placeholder="165" min="50" max="700" step="0.1" suffix="lbs" />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field>
-          <Label>Est. body fat % <span className="text-ink-muted font-normal">(optional)</span></Label>
-          <div className="relative">
-            <Input value={form.bf_pct} onChange={(v) => update({ bf_pct: v })} type="number" placeholder="22" min="1" max="60" step="0.1" />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">%</span>
-          </div>
+          <Label htmlFor="ob-bf">Est. body fat % <span className="text-ink-muted font-normal">(optional)</span></Label>
+          <Input id="ob-bf" value={form.bf_pct} onChange={(v) => update({ bf_pct: v })} type="number" placeholder="22" min="1" max="60" step="0.1" suffix="%" />
         </Field>
         <Field>
-          <Label>Goal body fat % <span className="text-ink-muted font-normal">(optional)</span></Label>
-          <div className="relative">
-            <Input value={form.goal_bf_pct} onChange={(v) => update({ goal_bf_pct: v })} type="number" placeholder="15" min="1" max="60" step="0.1" />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted text-xs">%</span>
-          </div>
+          <Label htmlFor="ob-goal-bf">Goal body fat % <span className="text-ink-muted font-normal">(optional)</span></Label>
+          <Input id="ob-goal-bf" value={form.goal_bf_pct} onChange={(v) => update({ goal_bf_pct: v })} type="number" placeholder="15" min="1" max="60" step="0.1" suffix="%" />
         </Field>
       </div>
 
