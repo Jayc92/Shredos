@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { APP_NAME } from '@/lib/constants'
 import { BrandMark } from '@/components/layout/BrandMark'
+import { SIGNUP_NEUTRAL_MESSAGE, presentAuthError } from './auth-messages'
 
 type Mode = 'signin' | 'signup' | 'magic'
 
@@ -21,19 +22,19 @@ export default function LoginPage() {
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
-    setError(null); setLoading(true)
+    setError(null); setDone(null); setLoading(true)
     const { error: err } = await createClient().auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (err) { setError(presentAuthError(err.message)); return }
     window.location.assign('/dashboard')
   }
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault()
-    setError(null); setLoading(true)
+    setError(null); setDone(null); setLoading(true)
     const { error: err } = await createClient().auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -42,14 +43,14 @@ export default function LoginPage() {
       },
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
-    setDone('Account created. Check your email to confirm, then sign in.')
+    if (err) { setError(presentAuthError(err.message)); return }
+    setDone(SIGNUP_NEUTRAL_MESSAGE)
     setMode('signin')
   }
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
-    setError(null); setLoading(true)
+    setError(null); setDone(null); setLoading(true)
     const { error: err } = await createClient().auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
@@ -58,7 +59,7 @@ export default function LoginPage() {
       },
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (err) { setError(presentAuthError(err.message)); return }
     setDone('Magic link sent. Check your email.')
   }
 
@@ -101,7 +102,7 @@ export default function LoginPage() {
 
         {/* Success message */}
         {done && (
-          <div className="bg-success-subtle border border-edge rounded-lg px-4 py-3">
+          <div role="status" aria-live="polite" className="bg-success-subtle border border-edge rounded-lg px-4 py-3">
             <p className="text-sm text-success">{done}</p>
           </div>
         )}
@@ -125,7 +126,7 @@ export default function LoginPage() {
                 className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
-            {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
+            {error && <p role="alert" className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
               className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Signing in...' : 'Sign in'}
@@ -152,7 +153,7 @@ export default function LoginPage() {
                 className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
-            {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
+            {error && <p role="alert" className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
               className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Creating account...' : 'Create account'}
@@ -174,7 +175,7 @@ export default function LoginPage() {
                 className="w-full min-h-11 px-3 rounded-lg bg-surface-interactive border border-edge text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-focus-ring text-sm"
               />
             </div>
-            {error && <p className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
+            {error && <p role="alert" className="text-sm text-critical bg-critical-subtle rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading}
               className="w-full min-h-11 rounded-lg bg-brand text-brand-foreground font-semibold text-sm hover:bg-brand-hover disabled:opacity-50 transition-colors">
               {loading ? 'Sending...' : 'Send magic link'}

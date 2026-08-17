@@ -53,6 +53,9 @@ const UI7_PRODUCT = [
   'src/app/(app)/progress/page.tsx',
   'src/app/(app)/weigh-in/page.tsx',
   'src/app/(auth)/login/page.tsx',
+  // RETARGET (UI-7 closeout correction, authentication messaging):
+  // the colocated pure message helper joins the admitted scope.
+  'src/app/(auth)/login/auth-messages.ts',
   'src/app/globals.css',
   'src/components/dashboard/DailyMetricTile.tsx',
   'src/components/dashboard/DecisionLogCard.tsx',
@@ -240,6 +243,39 @@ async function main() {
     check('E5: callback route still exchanges the code and redirects (untouched)',
       callbackRoute.includes('exchangeCodeForSession') &&
       callbackRoute.includes('/login'))
+    // UI-7 closeout correction — authentication messaging.
+    const { SIGNUP_NEUTRAL_MESSAGE, presentAuthError } =
+      await import('../src/app/(auth)/login/auth-messages')
+    check('E6: signup copy is neutral and anti-enumeration-safe; definitive copy gone',
+      SIGNUP_NEUTRAL_MESSAGE ===
+        'Check your email to continue. If this address can be registered, we sent a confirmation link.' &&
+      loginPage.includes('setDone(SIGNUP_NEUTRAL_MESSAGE)') &&
+      !loginPage.includes('Account created'))
+    check('E7: email throttle maps to friendly copy; unrelated errors pass through verbatim',
+      presentAuthError('email rate limit exceeded') ===
+        'Too many email attempts. Please wait before trying again.' &&
+      presentAuthError('Email rate limit exceeded') ===
+        'Too many email attempts. Please wait before trying again.' &&
+      presentAuthError('Invalid login credentials') === 'Invalid login credentials' &&
+      presentAuthError('User already registered') === 'User already registered' &&
+      presentAuthError('') === '' &&
+      (loginPage.match(/setError\(presentAuthError\(err\.message\)\); return/g) || []).length === 3)
+    check('E8: every submission clears BOTH stale messages before awaiting; panels never coexist',
+      (loginPage.match(/setError\(null\); setDone\(null\); setLoading\(true\)/g) || []).length === 3 &&
+      (loginPage.match(/setError\(/g) || []).length === 7 &&
+      loginPage.indexOf('setError(null); setDone(null); setLoading(true)') <
+        loginPage.indexOf('auth.signInWithPassword'))
+    check('E9: mode change clears both messages and preserves the typed email',
+      loginPage.includes('onClick={() => { setMode(m); setError(null); setDone(null) }}') &&
+      !loginPage.includes("setEmail('')"))
+    check('E10: no account-existence probe or client-supplied identity logic introduced',
+      !loginPage.includes('getUserByEmail') && !loginPage.includes('admin.') &&
+      !loginPage.includes('fetch(') &&
+      !read('src/app/(auth)/login/auth-messages.ts').includes('supabase') &&
+      !read('src/app/(auth)/login/auth-messages.ts').includes('fetch'))
+    check('E11: status semantics — polite live region for success, alert for errors',
+      loginPage.includes('role="status" aria-live="polite"') &&
+      (loginPage.match(/role="alert"/g) || []).length === 3)
   }
 
   // ── F. Terminology (labels only — never routes) ─────────────────────

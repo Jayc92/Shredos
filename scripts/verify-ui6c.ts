@@ -142,6 +142,9 @@ const UI7 = [
   'src/app/(app)/progress/page.tsx',
   'src/app/(app)/weigh-in/page.tsx',
   'src/app/(auth)/login/page.tsx',
+  // RETARGET (UI-7 closeout correction, authentication
+  // messaging): the colocated message helper is admitted.
+  'src/app/(auth)/login/auth-messages.ts',
   'src/app/globals.css',
   'src/components/dashboard/DailyMetricTile.tsx',
   'src/components/dashboard/DecisionLogCard.tsx',
