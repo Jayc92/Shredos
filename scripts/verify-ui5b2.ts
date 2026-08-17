@@ -449,6 +449,23 @@ async function main() {
           // admitted while uncommitted.
           // RETARGET (UI-6B): the approved Fasting visual rebuild is
           // admitted while uncommitted.
+          // RETARGET (UI-6C): the approved Coach-pillar visual rebuild +
+          // badge correction is admitted while uncommitted.
+          const UI6C = [
+            'src/app/(app)/coach/page.tsx',
+            'src/app/(app)/coach/loading.tsx',
+            'src/app/(app)/check-in/page.tsx',
+            'src/app/(app)/check-in/loading.tsx',
+            'src/app/(app)/decisions/page.tsx',
+            'src/app/(app)/decisions/loading.tsx',
+            'src/app/(app)/progress/page.tsx',
+            'src/components/coach/CoachCard.tsx',
+            'src/components/coach/MuscleReadinessPanel.tsx',
+            'src/components/decisions/DecisionCard.tsx',
+            'src/components/decisions/DecisionList.tsx',
+            'src/components/workout/ProgressBadge.tsx',
+          ]
+          if (UI6C.includes(f)) return true
           const UI6B = [
             'src/app/(app)/fasting/page.tsx',
             'src/app/(app)/fasting/loading.tsx',
@@ -491,6 +508,8 @@ async function main() {
             f === 'docs/ui6a-fuel-visual-notes.md' ||
             // RETARGET (UI-6B): the Fasting visual-rebuild notes.
             f === 'docs/ui6b-fasting-visual-notes.md' ||
+            // RETARGET (UI-6C): the Coach-pillar visual-rebuild notes.
+            f === 'docs/ui6c-coach-visual-notes.md' ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')
         })

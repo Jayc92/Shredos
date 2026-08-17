@@ -411,6 +411,22 @@ async function main() {
     // RETARGET (UI-6B): the approved Fasting visual rebuild —
     // presentation-only changes across the fasting surface — is
     // admitted while uncommitted.
+    // RETARGET (UI-6C): the approved Coach-pillar visual rebuild +
+    // badge correction is admitted while uncommitted.
+    const UI6C = [
+      'src/app/(app)/coach/page.tsx',
+      'src/app/(app)/coach/loading.tsx',
+      'src/app/(app)/check-in/page.tsx',
+      'src/app/(app)/check-in/loading.tsx',
+      'src/app/(app)/decisions/page.tsx',
+      'src/app/(app)/decisions/loading.tsx',
+      'src/app/(app)/progress/page.tsx',
+      'src/components/coach/CoachCard.tsx',
+      'src/components/coach/MuscleReadinessPanel.tsx',
+      'src/components/decisions/DecisionCard.tsx',
+      'src/components/decisions/DecisionList.tsx',
+      'src/components/workout/ProgressBadge.tsx',
+    ]
     const UI6B = [
       'src/app/(app)/fasting/page.tsx',
       'src/app/(app)/fasting/loading.tsx',
@@ -485,7 +501,7 @@ async function main() {
       diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
         CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) || UI5B2_CORRECTION.includes(f) ||
-        UI6A.includes(f) || UI6B.includes(f)),
+        UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f)),
       diffFiles.join(', '))
     // RETARGET (LOCAL-DATE-FIX): original boundary — NO src/lib file
     // could change. The local-calendar sweep corrects UTC-anchored

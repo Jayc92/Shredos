@@ -75,11 +75,16 @@ console.log('\n1. Checkpoint and routes')
   check('coach metadata aligned to Coach', coachPage.includes("title: 'Coach' }"))
   check('review metadata Weekly review', reviewPage.includes("title: 'Weekly review' }"))
   check('decisions metadata Decisions', decisionsPage.includes("title: 'Decisions' }"))
-  check('H1: Coach', coachPage.includes('>Coach</h1>'))
-  check('H1: Weekly review', reviewPage.includes('>Weekly review</h1>'))
-  check('H1: Decisions', decisionsPage.includes('>Decisions</h1>'))
+  // RETARGET (UI-6C): original boundary — each route rendered its
+  // exact handwritten <h1>. The three Coach-pillar routes now render
+  // the SAME titles through the PageHeader primitive (which owns the
+  // single h1). One page title per route is still asserted.
+  check('H1: Coach', coachPage.includes('title="Coach"'))
+  check('H1: Weekly review', reviewPage.includes('title="Weekly review"'))
+  check('H1: Decisions', decisionsPage.includes('title="Decisions"'))
   check('exactly one H1 per route',
-    PAGES.every((p) => (p.match(/<h1/g) || []).length === 1) &&
+    PAGES.every((p) =>
+      (p.match(/<PageHeader/g) || []).length === 1 && !p.includes('<h1')) &&
     LOADINGS.every((l) => !l.includes('<h1')))
   check('auth gates preserved',
     PAGES.every((p) => p.includes("redirect('/login')")))
@@ -114,8 +119,14 @@ console.log('\n2. Shared subnav')
     !EMOJI.test(subNav))
   check('rendered on all three routes',
     PAGES.every((p) => p.includes('<CoachSubNav />')))
+  // RETARGET (UI-6C): original boundary — no page may duplicate the
+  // subnav's route declarations. The old anchor banned any
+  // "label: '" literal, which the review page's STATUS_META icon
+  // table now legitimately uses for its status TEXT labels. The
+  // protected property is pinned precisely: no href+label route
+  // pair outside CoachSubNav.
   check('no duplicated route declarations outside the component',
-    PAGES.every((p) => !stripComments(p).includes("label: '")))
+    PAGES.every((p) => !/href: '\/[a-z-]+', label: /.test(stripComments(p))))
 }
 
 // ── 3. Coach query/logic contract ────────────────────────────────────
@@ -273,8 +284,16 @@ console.log('\n6. Weekly Review presentation')
   check('notable rows preserve link + status badge',
     reviewPage.includes('/progress/exercises/${row.exerciseId}') &&
     reviewPage.includes('<StatusBadge status={row.status} />'))
+  // RETARGET (UI-6C): original boundary — status labels always
+  // visible text. The direction glyphs became aria-hidden Lucide
+  // icons (TrendingUp/MoveRight/TrendingDown) beside the SAME text
+  // labels; text-always-present is asserted on the new structure.
   check('status labels always text (never color alone)',
-    reviewPage.includes("improved: '↑ Improving'") && reviewPage.includes("needs_data: 'More data needed'"))
+    reviewPage.includes("improved: { label: 'Improving', Icon: TrendingUp }") &&
+    reviewPage.includes("same: { label: 'Steady', Icon: MoveRight }") &&
+    reviewPage.includes("declined: { label: 'Declining', Icon: TrendingDown }") &&
+    reviewPage.includes("needs_data: { label: 'More data needed', Icon: null }") &&
+    reviewPage.includes('{label}'))
   check('no shred-card in review page', !reviewPage.includes('shred-card'))
   check('no success/failure score language',
     !/perfect week|bad week|you failed|score/i.test(stripComments(reviewPage)))
@@ -359,9 +378,15 @@ console.log('\n7. Decision model/API contract')
 // ── 8. Decisions presentation ────────────────────────────────────────
 console.log('\n8. Decisions presentation')
 {
+  // RETARGET (UI-6C): original boundary — the lifecycle strip uses
+  // the existing vocabulary only. The prose arrows became aria-hidden
+  // ArrowRight icons between the SAME stage words; vocabulary is
+  // still asserted exactly and 'Archived' still banned.
   check('lifecycle strip uses existing vocabulary only',
-    decisionsPage.includes('Suggested →') && decisionsPage.includes('Follow-through') &&
-    decisionsPage.includes('Review outcome') && !decisionsPage.includes('Archived'))
+    decisionsPage.includes('Suggested') && decisionsPage.includes('Accepted or Applied') &&
+    decisionsPage.includes('Follow-through') && decisionsPage.includes('Review outcome') &&
+    (decisionsPage.match(/<ArrowRight className="w-3 h-3 flex-shrink-0" aria-hidden="true" \/>/g) || []).length === 3 &&
+    !decisionsPage.includes('Archived'))
   check('lifecycle does not imply a mandatory path',
     decisionsPage.includes('Not every decision follows every stage') &&
     decisionsPage.includes('dismissed decisions stay in'))
@@ -410,8 +435,14 @@ console.log('\n8. Decisions presentation')
     decisionList.includes('No decisions match this filter.'))
   check('decisions loading exists with chip-row geometry',
     decisionsLoading.includes('rounded-full') && decisionsLoading.includes('SkeletonCard'))
-  check('decisions readable width (max-w-3xl, documented)',
-    decisionsPage.includes('max-w-3xl') && notes.includes('max-w-3xl'))
+  // RETARGET (UI-6C): original boundary — the documented readable
+  // 3xl width. That decision was explicitly superseded by the
+  // approved UI-6C contract: the route widened to the app-wide
+  // max-w-6xl with a two-column lg DecisionList; the UI-6C notes
+  // document records the change.
+  check('decisions approved width (max-w-6xl, documented in UI-6C notes)',
+    decisionsPage.includes('max-w-6xl') && !decisionsPage.includes('max-w-3xl') &&
+    read('docs/ui6c-coach-visual-notes.md').includes('max-w-6xl'))
 }
 
 // ── 9. Accessibility ─────────────────────────────────────────────────
@@ -475,9 +506,11 @@ console.log('\n11. Loading states')
   check('shell not duplicated', LOADINGS.every((l) =>
     !l.includes('Sidebar') && !l.includes('TopBar') && !l.includes('CoachSubNav')))
   check('aria-hidden loading regions', LOADINGS.every((l) => l.includes('aria-hidden="true"')))
+  // RETARGET (UI-6C): decisions widened to max-w-6xl (approved); its
+  // loading mirrors that width.
   check('route-specific geometry (widths match pages)',
     coachLoading.includes('max-w-6xl') && reviewLoading.includes('max-w-6xl') &&
-    decisionsLoading.includes('max-w-3xl'))
+    decisionsLoading.includes('max-w-6xl'))
   check('reduced-motion inherited (4B.1 block intact)',
     read('src/app/globals.css').includes('prefers-reduced-motion'))
 }
@@ -641,8 +674,11 @@ console.log('\n17. Section links and card details')
   for (const href of REVIEW_LINKS) {
     check(`review section link retained: ${href}`, reviewPage.includes(`href="${href}"`))
   }
+  // RETARGET (UI-6C): the label's text arrow became an aria-hidden
+  // ArrowRight icon; the approved 'Coach' label (never 'Coach
+  // actions') is still asserted.
   check('review bottom links use approved labels',
-    reviewPage.includes('Coach →') && !reviewPage.includes('Coach actions →'))
+    /Coach\s*\n\s*<ArrowRight/.test(reviewPage) && !reviewPage.includes('Coach actions'))
   check('decision card: due pill retained (Review now)',
     decisionCard.includes('Review now'))
   check('decision card: scheduled review pill retained',
@@ -676,10 +712,16 @@ console.log('\n18. Loading geometry detail')
   check('review loading: summary + four domain cards + wide sections',
     reviewLoading.includes('h-28') &&
     (reviewLoading.match(/<SkeletonCard/g) || []).length === 7)
-  check('decisions loading: lifecycle strip + chip row + card stack',
-    decisionsLoading.includes('h-14 w-full') &&
-    (decisionsLoading.match(/rounded-full/g) || []).length === 4 &&
-    (decisionsLoading.match(/<SkeletonCard/g) || []).length === 3)
+  // RETARGET (UI-6C): original boundary — the loading mirrored the
+  // old single-column stack (lifecycle h-14 strip, 4 rounded chips, 3
+  // stacked cards). It now mirrors the rebuilt page: PageHeader block
+  // with the pending-pill slot, lifecycle explainer, chip row, and
+  // the one-column / lg two-column natural-height card grid.
+  check('decisions loading: lifecycle strip + chip row + card grid',
+    decisionsLoading.includes('h-20') &&
+    decisionsLoading.includes('rounded-full') &&
+    decisionsLoading.includes('grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start') &&
+    (decisionsLoading.match(/<SkeletonCard/g) || []).length === 5)
   check('loading pages carry no interactive elements',
     LOADINGS.every((l) => !l.includes('<Link') && !l.includes('<button')))
   check('loading pages carry no text content',

@@ -16,30 +16,56 @@ import { formatDuration } from '@/lib/fasting'
 import { cn } from '@/lib/utils'
 import { localTodayFromCookies } from '@/lib/local-date-server'
 import { format, parseISO } from 'date-fns'
+import { PageHeader } from '@/components/ui/page-header'
+import {
+  ArrowRight, ChevronLeft, ChevronRight, MoveRight, TrendingDown, TrendingUp,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { TRACKING_MODES } from '@/lib/constants'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weekly review' }
 
-// Same status labels/colors the Progress overview uses (Phase 2X) —
-// text always present, never color-alone.
-const STATUS_LABELS: Record<OverviewStatus, string> = {
-  improved: '↑ Improving',
-  same: '→ Steady',
-  declined: '↓ Declining',
-  needs_data: 'More data needed',
+// Same status meanings the Progress overview uses (Phase 2X) — text
+// is ALWAYS present; UI-6C replaced the direction glyphs with
+// aria-hidden Lucide icons.
+const STATUS_META: Record<OverviewStatus, { label: string; Icon: LucideIcon | null }> = {
+  improved: { label: 'Improving', Icon: TrendingUp },
+  same: { label: 'Steady', Icon: MoveRight },
+  declined: { label: 'Declining', Icon: TrendingDown },
+  needs_data: { label: 'More data needed', Icon: null },
 }
+
+// UI-6C badge correction: lib/workout's progressColor returns legacy
+// literal palette composites, but Tailwind scans only src/app,
+// src/components, and src/pages — never src/lib — so those utilities
+// are not in the compiled stylesheet and the chips rendered with
+// transparent backgrounds/borders. This SCANNED consumer maps the
+// helper's result to the semantic tokens the stylesheet actually
+// ships, keyed on the hue word of the FIRST class token so no dead
+// literal reappears anywhere in this file. The helper call and
+// its signal meaning are untouched.
+const SIGNAL_TOKEN: Record<string, string> = {
+  green: 'bg-success-subtle text-success border-success/20',
+  red: 'bg-critical-subtle text-critical border-critical/20',
+  blue: 'bg-info-subtle text-info border-info/20',
+  secondary: 'bg-surface-sunken text-ink-muted border-edge',
+}
+const signalBadgeClass = (signal: ProgressSignal): string =>
+  SIGNAL_TOKEN[progressColor(signal).split(' ')[0].split('-')[1]] ?? 'bg-surface-sunken text-ink border-edge'
 
 function StatusBadge({ status }: { status: OverviewStatus }) {
   const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  const { label, Icon } = STATUS_META[status]
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
-        progressColor(signalForColor)
+        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
+        signalBadgeClass(signalForColor)
       )}
     >
-      {STATUS_LABELS[status]}
+      {Icon && <Icon className="w-3 h-3" aria-hidden="true" />}
+      {label}
     </span>
   )
 }
@@ -117,14 +143,12 @@ export default async function CheckInPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
-      {/* 1. Review header */}
-      <div>
-        <h1 className="text-xl font-bold text-ink">Weekly review</h1>
-        <p className="text-sm text-ink-muted mt-0.5">
-          Evidence summary for a completed week — the current partial week is
-          never shown as reviewed.
-        </p>
-      </div>
+      {/* 1. Review header — UI-6C: PageHeader primitive; same title
+          and completed-week support copy. */}
+      <PageHeader
+        title="Weekly review"
+        description="Evidence summary for a completed week — the current partial week is never shown as reviewed."
+      />
 
       <CoachSubNav />
 
@@ -139,21 +163,24 @@ export default async function CheckInPage({
             <nav aria-label="Review week navigation" className="flex flex-wrap gap-3 pt-1">
               <Link
                 href={`/check-in?week=${navigation.previousWeekStart}`}
-                className="text-xs text-brand hover:underline"
+                className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline"
               >
-                ← Previous week
+                <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                Previous week
               </Link>
               {navigation.nextWeekStart && (
                 <Link
                   href={`/check-in?week=${navigation.nextWeekStart}`}
-                  className="text-xs text-brand hover:underline"
+                  className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline"
                 >
-                  Next week →
+                  Next week
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               )}
               {!navigation.isLatest && (
-                <Link href="/check-in" className="text-xs text-brand hover:underline">
-                  Latest week →
+                <Link href="/check-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+                  Latest week
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               )}
             </nav>
@@ -177,14 +204,17 @@ export default async function CheckInPage({
             No data was logged for this review period.
           </p>
           <div className="flex items-center justify-center gap-4 pt-1 flex-wrap">
-            <Link href="/food" className="text-xs text-brand hover:underline">
-              Log food →
+            <Link href="/food" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log food
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
-            <Link href="/weigh-in" className="text-xs text-brand hover:underline">
-              Log weigh-in →
+            <Link href="/weigh-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log weigh-in
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
-            <Link href="/workouts" className="text-xs text-brand hover:underline">
-              Log workout →
+            <Link href="/workouts" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log workout
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
           </CardContent>
@@ -203,8 +233,9 @@ export default async function CheckInPage({
         {weight.loggedDays === 0 ? (
           <div className="space-y-1">
             <p className="text-sm text-ink-muted">No weigh-ins this week.</p>
-            <Link href="/weigh-in" className="text-xs text-brand hover:underline">
-              Weigh-in →
+            <Link href="/weigh-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Weigh-in
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -228,8 +259,9 @@ export default async function CheckInPage({
             <p className="text-xs text-ink-muted">
               {weight.loggedDays} weigh-in day{weight.loggedDays !== 1 ? 's' : ''}
             </p>
-            <Link href="/weigh-in" className="text-xs text-brand hover:underline">
-              Weigh-in details →
+            <Link href="/weigh-in" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Weigh-in details
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -243,8 +275,9 @@ export default async function CheckInPage({
         {nutrition.loggedDays === 0 ? (
           <div className="space-y-1">
             <p className="text-sm text-ink-muted">No nutrition logs this week.</p>
-            <Link href="/food" className="text-xs text-brand hover:underline">
-              Log food →
+            <Link href="/food" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Log food
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -284,8 +317,9 @@ export default async function CheckInPage({
                 Not enough prior data for a weekly comparison.
               </p>
             )}
-            <Link href="/nutrition" className="text-xs text-brand hover:underline">
-              Nutrition details →
+            <Link href="/nutrition" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Nutrition details
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -305,8 +339,9 @@ export default async function CheckInPage({
                 {training.skippedWorkouts !== 1 ? 's' : ''} skipped
               </p>
             )}
-            <Link href="/workouts" className="text-xs text-brand hover:underline">
-              Workouts →
+            <Link href="/workouts" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Workouts
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -318,8 +353,9 @@ export default async function CheckInPage({
                 {training.skippedWorkouts !== 1 ? 's' : ''} skipped
               </p>
             )}
-            <Link href="/workouts" className="text-xs text-brand hover:underline">
-              Workouts →
+            <Link href="/workouts" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Workouts
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -347,8 +383,9 @@ export default async function CheckInPage({
                 {activity.totalSteps.toLocaleString()} total steps
               </p>
             )}
-            <Link href="/activity" className="text-xs text-brand hover:underline">
-              Activity →
+            <Link href="/activity" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Activity
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -374,8 +411,9 @@ export default async function CheckInPage({
                   Longest fast: {formatDuration(fasting.longestDurationMinutes)}
                 </p>
               )}
-              <Link href="/fasting" className="text-xs text-brand hover:underline">
-                Fasting →
+              <Link href="/fasting" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+                Fasting
+                <ArrowRight className="w-3 h-3" aria-hidden="true" />
               </Link>
             </div>
           )}
@@ -429,8 +467,9 @@ export default async function CheckInPage({
                 ))}
               </div>
             )}
-            <Link href="/progress" className="text-xs text-brand hover:underline">
-              Full progress →
+            <Link href="/progress" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+              Full progress
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </Link>
           </>
         )}
@@ -454,11 +493,13 @@ export default async function CheckInPage({
 
       {/* Bottom links */}
       <div className="pt-2 flex items-center justify-center gap-4 flex-wrap">
-        <Link href="/coach" className="text-xs text-brand hover:underline">
-          Coach →
+        <Link href="/coach" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Coach
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
-        <Link href="/progress" className="text-xs text-brand hover:underline">
-          Progress →
+        <Link href="/progress" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+          Progress
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
     </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import type { CoachSummary, FreshnessLevel } from '@/lib/workout-coach'
@@ -83,8 +84,9 @@ export function MuscleReadinessPanel({ summary }: MuscleReadinessPanelProps) {
           <div className="flex items-center justify-between border-t border-edge-subtle pt-2">
             <p className="text-xs text-ink-muted">Suggested next</p>
             <a href={`/workouts/routines/${topRoutine.id}`}
-              className="text-xs text-brand hover:underline font-medium">
-              {topRoutine.name} →
+              className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline font-medium">
+              {topRoutine.name}
+              <ArrowRight className="w-3 h-3" aria-hidden="true" />
             </a>
           </div>
         )}

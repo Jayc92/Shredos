@@ -454,11 +454,17 @@ async function main() {
     // (Edit layout / empty-state actions — the 44px rule). The
     // equalization boundary survives: no min-h on any card or widget
     // span wrapper, only the interactive-target utility.
+    // RETARGET (UI-6C): original boundary — no min-h equalization;
+    // the old anchor banned ALL min-h in the four cards, which the
+    // check's own label already excepted for 44px touch targets.
+    // UI-6C gave CoachCard's links real min-h-11 targets; the
+    // equalization ban is now pinned precisely (any min-h other than
+    // the 44px token remains banned everywhere in scope).
     check('C8: no min-h equalization (only 44px touch targets allowed)',
       (pageCode.match(/min-h-(?!11)/g) || []).length === 0 &&
       !pageCode.includes('dashboardSpanClasses(w.size)} min-h') &&
       [read('src/components/dashboard/EnergyBalanceCard.tsx'), fasting, coach, decisions]
-        .every((f) => !stripComments(f).includes('min-h-')))
+        .every((f) => (stripComments(f).match(/min-h-(?!11)/g) || []).length === 0))
     check('C9: no JS measurement/layout API introduced',
       CHANGED.every((f) => !stripComments(f).includes('getBoundingClientRect') &&
         !stripComments(f).includes('ResizeObserver') && !stripComments(f).includes('offsetHeight')))

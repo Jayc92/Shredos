@@ -150,9 +150,9 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
       {/* Expand/collapse full reason + management */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink transition-colors"
+        className="flex min-h-11 items-center gap-1 text-xs text-ink-muted hover:text-ink transition-colors"
       >
-        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {expanded ? <ChevronUp className="w-3 h-3" aria-hidden="true" /> : <ChevronDown className="w-3 h-3" aria-hidden="true" />}
         {expanded ? 'Less detail' : manageable ? 'Details & follow-through' : 'Full reason'}
       </button>
 
@@ -201,21 +201,21 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'completed' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-success hover:text-success/80 disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-xs font-medium text-success hover:text-success/80 disabled:opacity-50"
                     >
                       Mark completed
                     </button>
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'abandoned' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Mark abandoned
                     </button>
                     <button
                       onClick={() => handleUpdate({ follow_through_status: 'not_applicable' })}
                       disabled={actioning}
-                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Not applicable
                     </button>
@@ -246,7 +246,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                       actioning ||
                       !isReviewDateSaveable(decision.review_on ?? null, reviewDateInput)
                     }
-                    className="text-xs font-medium text-brand hover:underline disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center text-xs font-medium text-brand hover:underline disabled:opacity-50"
                   >
                     Set review date
                   </button>
@@ -257,7 +257,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                         handleUpdate({ review_on: null })
                       }}
                       disabled={actioning}
-                      className="text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
                     >
                       Clear
                     </button>
@@ -308,7 +308,7 @@ export function DecisionCard({ decision, onDecisionChange }: DecisionCardProps) 
                         })
                       }
                       disabled={actioning || outcomeInput === ''}
-                      className="text-xs font-medium text-brand hover:underline disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center text-xs font-medium text-brand hover:underline disabled:opacity-50"
                     >
                       {outcome === null ? 'Record outcome' : 'Update outcome'}
                     </button>

@@ -64,9 +64,25 @@ async function main() {
       (() => {
         let out = ''
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
+        // RETARGET (UI-6C): the approved Coach-pillar rebuild +
+        // badge correction is admitted while uncommitted.
+        const UI6C = [
+          'src/app/(app)/coach/page.tsx',
+          'src/app/(app)/coach/loading.tsx',
+          'src/app/(app)/check-in/page.tsx',
+          'src/app/(app)/check-in/loading.tsx',
+          'src/app/(app)/decisions/page.tsx',
+          'src/app/(app)/decisions/loading.tsx',
+          'src/app/(app)/progress/page.tsx',
+          'src/components/coach/CoachCard.tsx',
+          'src/components/coach/MuscleReadinessPanel.tsx',
+          'src/components/decisions/DecisionCard.tsx',
+          'src/components/decisions/DecisionList.tsx',
+          'src/components/workout/ProgressBadge.tsx',
+        ]
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return INVENTORY.includes(f) ||
+          return INVENTORY.includes(f) || UI6C.includes(f) ||
             f.startsWith('scripts/verify-') || f.startsWith('docs/')
         })
       })())
@@ -76,10 +92,12 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
+          // RETARGET (UI-6C): the Coach pillar and the badge
+          // co-victims are now their own approved slice; libs, APIs,
+          // schema, deps, and Fuel stay locked.
           return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/') &&
             !f.startsWith('supabase/') && !f.includes('package') &&
-            !f.includes('food') && !f.includes('nutrition') && !f.includes('coach') &&
-            !f.includes('check-in') && !f.includes('decisions') && !f.includes('workout')
+            !f.includes('food') && !f.includes('nutrition')
         })
       })())
     check('A3: FastingStats untouched (already clean)',

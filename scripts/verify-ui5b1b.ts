@@ -504,6 +504,8 @@ async function main() {
           'docs/ui6a-fuel-visual-notes.md',
           // RETARGET (UI-6B): the Fasting visual-rebuild notes.
           'docs/ui6b-fasting-visual-notes.md',
+          // RETARGET (UI-6C): the Coach-pillar visual-rebuild notes.
+          'docs/ui6c-coach-visual-notes.md',
           'src/app/api/workouts/[id]/save-as-routine/route.ts',
           'src/app/api/workouts/[id]/repeat/route.ts',
           'src/components/workout/SaveAsRoutineButton.tsx',
@@ -558,6 +560,22 @@ async function main() {
         // admitted while uncommitted.
         // RETARGET (UI-6B): the approved Fasting visual rebuild is
         // admitted while uncommitted.
+        // RETARGET (UI-6C): the approved Coach-pillar visual rebuild +
+        // badge correction is admitted while uncommitted.
+        const UI6C = [
+          'src/app/(app)/coach/page.tsx',
+          'src/app/(app)/coach/loading.tsx',
+          'src/app/(app)/check-in/page.tsx',
+          'src/app/(app)/check-in/loading.tsx',
+          'src/app/(app)/decisions/page.tsx',
+          'src/app/(app)/decisions/loading.tsx',
+          'src/app/(app)/progress/page.tsx',
+          'src/components/coach/CoachCard.tsx',
+          'src/components/coach/MuscleReadinessPanel.tsx',
+          'src/components/decisions/DecisionCard.tsx',
+          'src/components/decisions/DecisionList.tsx',
+          'src/components/workout/ProgressBadge.tsx',
+        ]
         const UI6B = [
           'src/app/(app)/fasting/page.tsx',
           'src/app/(app)/fasting/loading.tsx',
@@ -587,7 +605,7 @@ async function main() {
         ]
         return diffFiles.every((f) => ALLOWED.includes(f) ||
           LOCAL_DATE_FIX.includes(f) || UI5B2.includes(f) ||
-          UI6A.includes(f) || UI6B.includes(f) ||
+          UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) ||
           f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',

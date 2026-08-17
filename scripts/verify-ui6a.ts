@@ -83,6 +83,22 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         // RETARGET (UI-6B): the approved Fasting visual rebuild is
         // admitted while uncommitted.
+        // RETARGET (UI-6C): the approved Coach-pillar visual rebuild +
+        // badge correction is admitted while uncommitted.
+        const UI6C = [
+          'src/app/(app)/coach/page.tsx',
+          'src/app/(app)/coach/loading.tsx',
+          'src/app/(app)/check-in/page.tsx',
+          'src/app/(app)/check-in/loading.tsx',
+          'src/app/(app)/decisions/page.tsx',
+          'src/app/(app)/decisions/loading.tsx',
+          'src/app/(app)/progress/page.tsx',
+          'src/components/coach/CoachCard.tsx',
+          'src/components/coach/MuscleReadinessPanel.tsx',
+          'src/components/decisions/DecisionCard.tsx',
+          'src/components/decisions/DecisionList.tsx',
+          'src/components/workout/ProgressBadge.tsx',
+        ]
         const UI6B = [
           'src/app/(app)/fasting/page.tsx',
           'src/app/(app)/fasting/loading.tsx',
@@ -93,7 +109,7 @@ async function main() {
         ]
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return INVENTORY.includes(f) || UI6B.includes(f) ||
+          return INVENTORY.includes(f) || UI6B.includes(f) || UI6C.includes(f) ||
             f.startsWith('scripts/verify-') || f.startsWith('docs/')
         })
       })())
@@ -103,11 +119,10 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          // RETARGET (UI-6B): fasting is now its own approved slice;
-          // this suite's boundary keeps libs/APIs/Coach locked.
-          return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/') &&
-            !f.includes('coach') && !f.includes('check-in') &&
-            !f.includes('decisions')
+          // RETARGET (UI-6C): the Coach pillar is now its own
+          // approved slice; this suite's boundary keeps libs and
+          // APIs locked.
+          return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/')
         })
       })())
   }

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { DecisionList } from '@/components/decisions/DecisionList'
 import { CoachSubNav } from '@/components/coach/CoachSubNav'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
+import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Decisions' }
@@ -21,21 +23,20 @@ export default async function DecisionsPage() {
   const pendingCount = decisions?.filter((d) => d.status === 'suggested').length ?? 0
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 p-4 lg:p-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-ink">Decisions</h1>
-          {/* Grounded count: this page loads the full uncapped list. */}
-          {pendingCount > 0 && (
+    <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
+      {/* UI-6C: PageHeader primitive; the grounded pending count (this
+          page loads the full uncapped list) rides the action slot. */}
+      <PageHeader
+        title="Decisions"
+        description="Every recommendation and change is logged here. Nothing changes silently."
+        action={
+          pendingCount > 0 ? (
             <span className="rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-semibold text-ink">
               {pendingCount} pending
             </span>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-ink-muted">
-          Every recommendation and change is logged here. Nothing changes silently.
-        </p>
-      </div>
+          ) : undefined
+        }
+      />
 
       <CoachSubNav />
 
@@ -43,9 +44,15 @@ export default async function DecisionsPage() {
           decision follows every stage. */}
       <Card variant="subtle" className="gap-0 py-3">
         <CardContent className="space-y-1">
-          <p className="text-xs text-ink-muted">
-            <span className="font-medium text-ink">Lifecycle:</span> Suggested →
-            Accepted or Applied → Follow-through → Review outcome.
+          <p className="flex flex-wrap items-center gap-1 text-xs text-ink-muted">
+            <span className="font-medium text-ink">Lifecycle:</span>
+            Suggested
+            <ArrowRight className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+            Accepted or Applied
+            <ArrowRight className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+            Follow-through
+            <ArrowRight className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+            Review outcome.
           </p>
           <p className="text-xs text-ink-muted">
             Not every decision follows every stage — dismissed decisions stay in

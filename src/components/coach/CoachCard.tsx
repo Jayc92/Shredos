@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { StartWorkoutButton } from '@/components/routine/StartWorkoutButton'
-import { Dumbbell } from 'lucide-react'
+import { ArrowRight, Dumbbell } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { CoachSummary } from '@/lib/workout-coach'
 
@@ -39,8 +39,9 @@ export function CoachCard({ summary }: CoachCardProps) {
           <p className="text-xs text-ink-muted">
             Log a few workouts to see personalised training recommendations.
           </p>
-          <Link href="/workouts" className="text-xs text-brand hover:underline">
-            Start logging workouts →
+          <Link href="/workouts" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+            Start logging workouts
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </div>
       ) : topRoutine ? (
@@ -83,8 +84,9 @@ export function CoachCard({ summary }: CoachCardProps) {
               Keep light: {recoveringMuscles.slice(0, 3).map(m => m.label).join(', ')}
             </p>
           )}
-          <Link href="/workouts/routines" className="text-xs text-brand hover:underline block">
-            Create a routine to get recommendations →
+          <Link href="/workouts/routines" className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline">
+            Create a routine to get recommendations
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </>
       )}

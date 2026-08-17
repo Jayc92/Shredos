@@ -13,6 +13,8 @@ import { CoachSubNav } from '@/components/coach/CoachSubNav'
 import { MuscleReadinessPanel } from '@/components/coach/MuscleReadinessPanel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Notice } from '@/components/ui/notice'
+import { PageHeader } from '@/components/ui/page-header'
+import { ArrowRight } from 'lucide-react'
 import { localTodayFromCookies } from '@/lib/local-date-server'
 import type { Metadata } from 'next'
 import type { CoachAction } from '@/lib/coach-actions'
@@ -82,8 +84,12 @@ function ActionCard({
         </p>
 
         <div className="flex items-center justify-between gap-3 pt-1">
-          <Link href={action.linkHref} className="text-xs text-brand hover:underline">
-            {action.linkLabel} →
+          <Link
+            href={action.linkHref}
+            className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline"
+          >
+            {action.linkLabel}
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </div>
 
@@ -129,13 +135,11 @@ export default async function CoachPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-ink">Coach</h1>
-        <p className="text-sm text-ink-muted">
-          A short, rule-based read on what to focus on this week, based on this
-          week&apos;s available data.
-        </p>
-      </div>
+      {/* UI-6C: PageHeader primitive; same title and support copy. */}
+      <PageHeader
+        title="Coach"
+        description="A short, rule-based read on what to focus on this week, based on this week's available data."
+      />
 
       <CoachSubNav />
 
@@ -185,8 +189,12 @@ export default async function CoachPage() {
       <MuscleReadinessPanel summary={coachSummary} />
 
       <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-        <Link href="/progress" className="text-xs text-brand hover:underline">
-          Progress →
+        <Link
+          href="/progress"
+          className="inline-flex min-h-11 items-center gap-1 text-xs text-brand hover:underline"
+        >
+          Progress
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
     </div>

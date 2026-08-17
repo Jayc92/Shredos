@@ -88,7 +88,11 @@ export function DecisionList({ decisions: initialDecisions }: DecisionListProps)
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        /* UI-6C: one column below lg, two columns at lg — natural
+           independent card heights (items-start), stable keys, and
+           the same newest-first DATA order (row-major reading
+           order). */
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
           {filtered.map((d) => (
             <DecisionCard key={d.id} decision={d} onDecisionChange={handleDecisionChange} />
           ))}
