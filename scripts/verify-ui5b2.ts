@@ -547,6 +547,9 @@ async function main() {
             // RETARGET (UI-7): the UI-7 phase notes + product scope are
             // admitted while uncommitted.
             f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+            // RETARGET (UI-overhaul closeout): the final closeout
+            // document is admitted while uncommitted.
+            f === 'docs/ui-overhaul-closeout.md' ||
             UI7.includes(f) ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')

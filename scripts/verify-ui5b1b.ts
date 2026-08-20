@@ -642,6 +642,9 @@ async function main() {
           UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) ||
           UI7.includes(f) ||
           f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+          // RETARGET (UI-overhaul closeout): the final closeout
+          // document is admitted while uncommitted.
+          f === 'docs/ui-overhaul-closeout.md' ||
           f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',

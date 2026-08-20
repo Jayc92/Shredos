@@ -100,6 +100,9 @@ async function main() {
           const f = line.slice(3).trim()
           return UI7_PRODUCT.includes(f) ||
             f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+            // RETARGET (UI-overhaul closeout): the final closeout
+            // document is admitted while uncommitted.
+            f === 'docs/ui-overhaul-closeout.md' ||
             f.startsWith('scripts/verify-')
         })
       })())

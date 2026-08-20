@@ -209,6 +209,9 @@ async function main() {
           return CANDIDATE_22.includes(f) || CORRECTION_FILES.includes(f) ||
             UI7.includes(f) ||
             f === 'docs/ui7-profile-onboarding-auth-consistency-notes.md' ||
+            // RETARGET (UI-overhaul closeout): the final closeout
+            // document is admitted while uncommitted.
+            f === 'docs/ui-overhaul-closeout.md' ||
             f === 'src/components/dashboard/DecisionLogCard.tsx' ||
             f.startsWith('scripts/verify-')
         })
