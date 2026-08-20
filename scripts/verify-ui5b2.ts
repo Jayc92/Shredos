@@ -550,6 +550,9 @@ async function main() {
             // RETARGET (UI-overhaul closeout): the final closeout
             // document is admitted while uncommitted.
             f === 'docs/ui-overhaul-closeout.md' ||
+            // RETARGET (EXLIB-1A): the discovery-phase research
+            // artifacts (docs/exlib1a-*) are admitted while uncommitted.
+            f.startsWith('docs/exlib1a-') ||
             UI7.includes(f) ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')
