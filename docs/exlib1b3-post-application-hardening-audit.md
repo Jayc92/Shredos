@@ -1,8 +1,11 @@
 # EXLIB-1B3A — Post-application hardening audit (audit only)
 
-**MIGRATION 024: DRAFT — NOT APPLIED — NOT APPROVED FOR
-APPLICATION** (fingerprint approved for candidate preparation only —
-see the approval record in section 9). Sections 1-6
+**MIGRATION 024: DRAFT at review time; promoted at `f42eb43...`;
+APPLIED by ChatGPT on 2026-08-24** — see the production-application
+record in section 10. The migration file's internal review-status
+header is preserved as historical reviewed-artifact text; this
+document plus the Supabase migration history are authoritative for
+applied status. Sections 1-6
 are the EXLIB-1B3A audit that determined the justified scope (they
 predate the draft and contain no executable SQL; their statements
 about migration 024 not existing describe the audit-time starting
@@ -484,9 +487,10 @@ passed, 0 failed. Supabase is never contacted.
 
 ## 8. Boundaries
 
-MIGRATION 024 IS A DRAFT — NOT APPLIED — NOT APPROVED FOR
-APPLICATION; its exact fingerprint is approved for candidate
-preparation only (section 9). EXLIB-1C (catalog data
+MIGRATION 024 was drafted, fingerprint-approved for candidate
+preparation (section 9), promoted, and then APPLIED by ChatGPT on
+2026-08-24 (section 10). Application does not change any other
+boundary in this section. EXLIB-1C (catalog data
 loading) remains blocked pending explicit legal and product approval
 and its own phase instruction; the 48 review-ledger records remain
 pending with null reviewer fields and MUST NOT be approved, edited,
@@ -509,3 +513,51 @@ during this audit; migration 023's bytes remain frozen.
   fingerprint, and only after the candidate is committed,
   independently verified, promoted, and recorded.
 - ANY byte change to the migration voids this approval.
+
+## 10. Migration 024 — production-application record (2026-08-24)
+
+**Authoritative application facts:**
+
+- Applied by: ChatGPT — Claude did NOT apply the migration and did
+  NOT contact Supabase (standing security boundary: Supabase
+  migrations are applied only by Joseph or ChatGPT, never Claude).
+- Date: 2026-08-24.
+- Project: ShredOS (`ttybyljytiwntvorugcv`).
+- File: `supabase/migrations/024_exlib_post_application_hardening.sql`.
+- Exact applied size: 3,726 bytes.
+- Exact applied SHA-256:
+  `190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980`
+  (identical to the fingerprint approved for candidate preparation
+  and promoted to main at commit `f42eb43b1dabd29560ff0771f562d46063eda7c0`).
+- Supabase history entry:
+  `20260824174252_exlib_post_application_hardening`.
+- **Migrations applied to ShredOS are now exactly 001-024.**
+
+**Read-only verification results (all as expected):**
+
+| Check | Result |
+|---|---|
+| exlib_verify_catalog_claims proconfig | the empty-string search_path pin |
+| exlib_verify_alias_lifecycle proconfig | the empty-string search_path pin |
+| both functions' source MD5, niladic signature, result type, SECURITY INVOKER, stable volatility, unsafe parallel setting, postgres owner, ACL | unchanged from pre-application |
+| exercises_catalog_id_idx / exercise_aliases_catalog_alias_id_idx / exercise_catalog_run_items_catalog_id_idx / exercise_catalog_run_items_catalog_alias_id_idx | all present; each non-unique btree on its single FK column with the exact column-is-not-null partial predicate |
+| exlib_verify_catalog_claims() | orphaned_claims = 0, unclaimed_bearers = 0 |
+| exlib_verify_alias_lifecycle() | active aliases on inactive exercises = 0 |
+| exercise_catalog / exercise_catalog_aliases / exercise_catalog_run_items / exercise_catalog_review_events | 0 / 0 / 0 / 0 — no content data was loaded |
+| review ledger | 48/48 pending with null review fields — no ledger approval occurred |
+| the four targeted unindexed-FK advisor notices | gone |
+| unused-index INFO notices | expected and accepted for now: no catalog delivery activity exists yet, so the four new indexes have no scans to show |
+
+**Status wording:** the review-time status lines
+"MIGRATION 024: DRAFT — NOT APPLIED — NOT APPROVED FOR APPLICATION"
+and "MIGRATION 024 IS A DRAFT — NOT APPLIED — NOT APPROVED FOR
+APPLICATION", and the migration file's internal
+review-status header, are preserved verbatim as historical
+reviewed-artifact text; they described the artifact during review
+and are deliberately not rewritten. The applied status is carried by
+this section and the Supabase migration history.
+
+**Boundary:** application of migration 024 does NOT authorize
+EXLIB-1C. Catalog data loading remains blocked pending explicit
+legal and product approval and its own phase instruction; the 48
+review-ledger records remain pending and untouched.
