@@ -126,7 +126,14 @@ async function main() {
       // 023 (DRAFT, not applied).
       readdirSync('supabase/migrations').filter((f) => f.startsWith('023')).length === 1 &&
       readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') &&
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23)
+      // RETARGET (EXLIB-1B3B migration 024 draft): the approved-scope
+      // hardening draft 024_exlib_post_application_hardening.sql is
+      // the only permitted 024 (DRAFT, not applied); the boundary
+      // moves from exactly-23 to exactly-24; both filenames stay
+      // pinned; no other migration may appear.
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('024')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') &&
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 24)
     check('C2: migration 022 fingerprint intact',
       (() => {
         const m022 = readFileSync('supabase/migrations/022_ui5b2_workout_reuse.sql')
@@ -234,8 +241,14 @@ async function main() {
           const f = line.slice(3).trim()
           // RETARGET (EXLIB-1B2): the approved-for-drafting migration
           // 023 draft is admitted while uncommitted.
+          // ADMISSION (EXLIB-1B3A): the audit-only hardening notes
+          // (docs/exlib1b3-*) are admitted while uncommitted.
           return f.startsWith('docs/exlib1b1-') ||
+            f.startsWith('docs/exlib1b3-') ||
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
+            // ADMISSION (EXLIB-1B3B migration 024 draft): the
+            // uncommitted hardening draft is admitted.
+            f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
             f.startsWith('scripts/verify-')
         })
       })())

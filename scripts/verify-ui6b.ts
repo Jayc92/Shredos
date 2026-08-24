@@ -119,6 +119,9 @@ async function main() {
           // RETARGET (EXLIB-1B2): the approved-for-drafting migration
           // 023 draft is admitted while uncommitted.
           if (f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') return true
+          // ADMISSION (EXLIB-1B3B migration 024 draft): the
+          // uncommitted hardening draft is admitted.
+          if (f === 'supabase/migrations/024_exlib_post_application_hardening.sql') return true
           return INVENTORY.includes(f) || UI6C.includes(f) || UI7.includes(f) ||
             f.startsWith('scripts/verify-') || f.startsWith('docs/')
         })
@@ -136,6 +139,9 @@ async function main() {
           // 023 draft is admitted while uncommitted, and retargeted
           // harnesses (e.g. verify-food-log-ux) are worktree-present.
           if (f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') return true
+          // ADMISSION (EXLIB-1B3B migration 024 draft): the
+          // uncommitted hardening draft is admitted.
+          if (f === 'supabase/migrations/024_exlib_post_application_hardening.sql') return true
           if (f.startsWith('scripts/verify-')) return true
           return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/') &&
             !f.startsWith('supabase/') && !f.includes('package') &&
@@ -352,7 +358,7 @@ async function main() {
         // modification is admitted. Nothing else may appear.
         return out.trim().split('\n').filter(Boolean)
           .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') &&
-          (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql'))
+          (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 24 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql'))
       })())
   }
 

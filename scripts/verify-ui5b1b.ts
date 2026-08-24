@@ -457,7 +457,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 24 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql')) &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('022')).length === 1 &&
       // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB catalog
@@ -654,6 +654,12 @@ async function main() {
           // RETARGET (EXLIB-1B1): the architecture/review-contract
           // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
           f.startsWith('docs/exlib1b1-') ||
+          // ADMISSION (EXLIB-1B3A): the audit-only hardening
+          // notes (docs/exlib1b3-*) are admitted while uncommitted.
+          f.startsWith('docs/exlib1b3-') ||
+          // ADMISSION (EXLIB-1B3B migration 024 draft): the
+          // uncommitted hardening draft is admitted.
+          f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
           // RETARGET (EXLIB-1B2): the approved-for-drafting migration
           // 023 draft is admitted while uncommitted.
           f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||

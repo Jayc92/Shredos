@@ -218,6 +218,12 @@ async function main() {
             // RETARGET (EXLIB-1B1): the architecture/review-contract
             // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
             f.startsWith('docs/exlib1b1-') ||
+            // ADMISSION (EXLIB-1B3A): the audit-only hardening
+            // notes (docs/exlib1b3-*) are admitted while uncommitted.
+            f.startsWith('docs/exlib1b3-') ||
+            // ADMISSION (EXLIB-1B3B migration 024 draft): the
+            // uncommitted hardening draft is admitted.
+            f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
             // RETARGET (EXLIB-1B2): the approved-for-drafting migration
             // 023 draft is admitted while uncommitted.
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
@@ -808,8 +814,12 @@ async function main() {
         const { createHash } = require('crypto')
         // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB
         // catalog migration joins the boundary (DRAFT, not applied).
-        return files.length === 23 &&
+        // RETARGET (EXLIB-1B3B migration 024 draft): the hardening
+        // draft joins the boundary (DRAFT, not applied);
+        // exactly-23 becomes exactly-24 with both filenames pinned.
+        return files.length === 24 &&
           files.includes('023_exlib_catalog_and_delivery_contract.sql') &&
+          files.includes('024_exlib_post_application_hardening.sql') &&
           m022.length === 19112 &&
           createHash('sha256').update(m022).digest('hex') ===
             '1432692f700b1686243aa8219ea4af3146e2bec30b228b3f9138d60e072e1241'

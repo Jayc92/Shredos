@@ -167,11 +167,17 @@ async function main() {
         // EXLIB-1B2 later authored the approved-for-drafting catalog
         // migration (DRAFT, not applied). The 022 fingerprint and the
         // exactly-one-023 rule carry the original boundary forward.
-        return files.length === 23 && m022.length === 19112 &&
+        // RETARGET (EXLIB-1B3B migration 024 draft): the hardening
+        // draft is the only permitted 024 (DRAFT, not applied); the
+        // boundary moves from exactly-23 to exactly-24; the 022
+        // fingerprint and both later filenames stay pinned.
+        return files.length === 24 && m022.length === 19112 &&
           createHash('sha256').update(m022).digest('hex') ===
             '1432692f700b1686243aa8219ea4af3146e2bec30b228b3f9138d60e072e1241' &&
           files.filter((f) => f.startsWith('023')).length === 1 &&
-          files.includes('023_exlib_catalog_and_delivery_contract.sql')
+          files.includes('023_exlib_catalog_and_delivery_contract.sql') &&
+          files.filter((f) => f.startsWith('024')).length === 1 &&
+          files.includes('024_exlib_post_application_hardening.sql')
       })())
     check('D3: worktree changes stay inside the declared EXLIB-1A scope',
       (() => {
@@ -183,8 +189,14 @@ async function main() {
           // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
           // RETARGET (EXLIB-1B2): the approved-for-drafting migration
           // 023 draft is admitted while uncommitted.
+          // ADMISSION (EXLIB-1B3A): the audit-only hardening notes
+          // (docs/exlib1b3-*) are admitted while uncommitted.
           return f.startsWith('docs/exlib1a-') || f.startsWith('docs/exlib1b1-') ||
+            f.startsWith('docs/exlib1b3-') ||
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
+            // ADMISSION (EXLIB-1B3B migration 024 draft): the
+            // uncommitted hardening draft is admitted.
+            f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
             f.startsWith('scripts/verify-')
         })
       })())

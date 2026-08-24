@@ -98,9 +98,13 @@ async function main() {
   console.log('\nA. Inventory, fingerprints, revision record')
   {
     const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-    check('A1: migrations are exactly 001-023; 023 has the approved draft filename',
-      files.length === 23 &&
+    // RETARGET (EXLIB-1B3B migration 024 draft): the approved-scope
+    // hardening draft joins the boundary (DRAFT, not applied);
+    // exactly-23 becomes exactly-24 with both filenames pinned.
+    check('A1: migrations are exactly 001-024; 023 and the 024 draft have the pinned filenames',
+      files.length === 24 &&
       files[22] === '023_exlib_catalog_and_delivery_contract.sql' &&
+      files[23] === '024_exlib_post_application_hardening.sql' &&
       files.every((f, i) => f.startsWith(String(i + 1).padStart(3, '0'))))
     check('A2: migration 022 fingerprint unchanged',
       (() => {
