@@ -367,7 +367,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
       readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
     // RETARGET (UI-2): the pinned grid string described the pre-UI-2
     // composition; the boundary — UI-1B itself did not recompose

@@ -457,10 +457,13 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('022')).length === 1 &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('023')))
+      // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB catalog
+      // migration is the only permitted 023 (DRAFT, not applied).
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('023')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql'))
     check('B5: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
       Object.keys(JSON.parse(read('package.json')).dependencies).length === 22)
@@ -648,6 +651,12 @@ async function main() {
           // RETARGET (EXLIB-1A): the discovery-phase research
           // artifacts (docs/exlib1a-*) are admitted while uncommitted.
           f.startsWith('docs/exlib1a-') ||
+          // RETARGET (EXLIB-1B1): the architecture/review-contract
+          // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
+          f.startsWith('docs/exlib1b1-') ||
+          // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+          // 023 draft is admitted while uncommitted.
+          f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
           f.startsWith('scripts/verify-'))
       })())
     check('B7: application status recorded honestly (021 applied by Joseph, verified read-only)',

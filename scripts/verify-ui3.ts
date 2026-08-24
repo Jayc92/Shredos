@@ -172,7 +172,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1)
     check('S20: JSONB dashboard_prefs on user_profiles',
       migration.includes('ALTER TABLE user_profiles') &&
@@ -413,7 +413,10 @@ async function main() {
       readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql') &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('022')).length === 1 &&
       readdirSync('supabase/migrations').some((f) => f === '022_ui5b2_workout_reuse.sql') &&
-      !readdirSync('supabase/migrations').some((f) => f.startsWith('023')))
+      // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB catalog
+      // migration is the only permitted 023 (DRAFT, not applied).
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('023')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql'))
     check('S72: no new dependency',
       !read('package.json').includes('dnd') && !read('package.json').includes('sortable') &&
       read('package.json').includes('"next": "14.2.13"'))

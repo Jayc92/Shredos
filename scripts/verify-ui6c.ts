@@ -215,6 +215,12 @@ async function main() {
             // RETARGET (EXLIB-1A): the discovery-phase research
             // artifacts (docs/exlib1a-*) are admitted while uncommitted.
             f.startsWith('docs/exlib1a-') ||
+            // RETARGET (EXLIB-1B1): the architecture/review-contract
+            // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
+            f.startsWith('docs/exlib1b1-') ||
+            // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+            // 023 draft is admitted while uncommitted.
+            f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
             f === 'src/components/dashboard/DecisionLogCard.tsx' ||
             f.startsWith('scripts/verify-')
         })
@@ -796,7 +802,10 @@ async function main() {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
         const m022 = readFileSync('supabase/migrations/022_ui5b2_workout_reuse.sql')
         const { createHash } = require('crypto')
-        return files.length === 22 &&
+        // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB
+        // catalog migration joins the boundary (DRAFT, not applied).
+        return files.length === 23 &&
+          files.includes('023_exlib_catalog_and_delivery_contract.sql') &&
           m022.length === 19112 &&
           createHash('sha256').update(m022).digest('hex') ===
             '1432692f700b1686243aa8219ea4af3146e2bec30b228b3f9138d60e072e1241'

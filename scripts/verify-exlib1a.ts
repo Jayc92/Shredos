@@ -157,10 +157,15 @@ async function main() {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
         const m022 = readFileSync('supabase/migrations/022_ui5b2_workout_reuse.sql')
         const { createHash } = require('crypto')
-        return files.length === 22 && m022.length === 19112 &&
+        // RETARGET (EXLIB-1B2): EXLIB-1A required no 023 to exist;
+        // EXLIB-1B2 later authored the approved-for-drafting catalog
+        // migration (DRAFT, not applied). The 022 fingerprint and the
+        // exactly-one-023 rule carry the original boundary forward.
+        return files.length === 23 && m022.length === 19112 &&
           createHash('sha256').update(m022).digest('hex') ===
             '1432692f700b1686243aa8219ea4af3146e2bec30b228b3f9138d60e072e1241' &&
-          !files.some((f) => f.startsWith('023'))
+          files.filter((f) => f.startsWith('023')).length === 1 &&
+          files.includes('023_exlib_catalog_and_delivery_contract.sql')
       })())
     check('D3: worktree changes stay inside the declared EXLIB-1A scope',
       (() => {
@@ -168,7 +173,13 @@ async function main() {
         try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
-          return f.startsWith('docs/exlib1a-') || f.startsWith('scripts/verify-')
+          // RETARGET (EXLIB-1B1): the architecture/review-contract
+          // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
+          // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+          // 023 draft is admitted while uncommitted.
+          return f.startsWith('docs/exlib1a-') || f.startsWith('docs/exlib1b1-') ||
+            f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
+            f.startsWith('scripts/verify-')
         })
       })())
     check('D4: seed library untouched and still exactly 15 canonical exercises',

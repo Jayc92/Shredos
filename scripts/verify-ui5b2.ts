@@ -403,7 +403,7 @@ async function main() {
       createHash('sha256').update(m021).digest('hex') ===
         '916e1665fdb1d4e9705b23300d258db63d690cd2422a09c12a63df068510eac0')
     check('S2: migrations exactly 001-022; 022 is the only addition',
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
       readdirSync('supabase/migrations').some((f) => f === '022_ui5b2_workout_reuse.sql'))
     // RETARGET (UI-5B2): original boundary — the product slice had
     // to be ABSENT until ChatGPT approved the SQL and Joseph applied
@@ -553,6 +553,12 @@ async function main() {
             // RETARGET (EXLIB-1A): the discovery-phase research
             // artifacts (docs/exlib1a-*) are admitted while uncommitted.
             f.startsWith('docs/exlib1a-') ||
+            // RETARGET (EXLIB-1B1): the architecture/review-contract
+            // artifacts (docs/exlib1b1-*) are admitted while uncommitted.
+            f.startsWith('docs/exlib1b1-') ||
+            // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+            // 023 draft is admitted while uncommitted.
+            f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
             UI7.includes(f) ||
             UI5B2_PRODUCT.includes(f) ||
             f.startsWith('scripts/verify-')

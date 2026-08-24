@@ -116,6 +116,9 @@ async function main() {
         ]
         return out.split('\n').filter(Boolean).every((line) => {
           const f = line.slice(3).trim()
+          // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+          // 023 draft is admitted while uncommitted.
+          if (f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') return true
           return INVENTORY.includes(f) || UI6C.includes(f) || UI7.includes(f) ||
             f.startsWith('scripts/verify-') || f.startsWith('docs/')
         })
@@ -129,6 +132,11 @@ async function main() {
           // RETARGET (UI-6C): the Coach pillar and the badge
           // co-victims are now their own approved slice; libs, APIs,
           // schema, deps, and Fuel stay locked.
+          // RETARGET (EXLIB-1B2): the approved-for-drafting migration
+          // 023 draft is admitted while uncommitted, and retargeted
+          // harnesses (e.g. verify-food-log-ux) are worktree-present.
+          if (f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') return true
+          if (f.startsWith('scripts/verify-')) return true
           return !f.startsWith('src/lib/') && !f.startsWith('src/app/api/') &&
             !f.startsWith('supabase/') && !f.includes('package') &&
             !f.includes('food') && !f.includes('nutrition')
@@ -340,7 +348,7 @@ async function main() {
         let out = ''
         try { out = execSync('git diff --name-only -- package.json package-lock.json supabase/', { encoding: 'utf8' }) } catch { return false }
         return out.trim() === '' &&
-          readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22
+          (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql'))
       })())
   }
 

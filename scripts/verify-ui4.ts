@@ -85,7 +85,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22 &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')) &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
       readdirSync('supabase/migrations').some((f) => f === '021_ui5b_transactional_ordering.sql'))
     check('S3: Progress is the only product route carrying UI-4 markers',
@@ -357,7 +357,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 22)
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql')))
     check('S48: no new dependency (existing plain-SVG stack meets the requirements)',
       !read('package.json').includes('recharts') && !read('package.json').includes('"d3') &&
       !read('package.json').includes('chart') &&
