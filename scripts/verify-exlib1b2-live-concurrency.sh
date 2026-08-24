@@ -34,11 +34,12 @@ export LC_ALL=C LANG=C
 
 MIG="supabase/migrations/023_exlib_catalog_and_delivery_contract.sql"
 
-# The ONLY artifact this suite may exercise is the exact reviewed and
-# approved Revision G migration. Verified below BEFORE initdb or any
-# SQL execution; anything else fails closed immediately.
-APPROVED_SHA256="7653b4c87835b0318f8a298855571ddcfe2ffef4ed00fa8e9178f252491e9f92"
-APPROVED_BYTES=91382
+# The ONLY artifact this suite may exercise is the exact Revision H
+# migration (the approved Revision G architecture plus the top-level
+# atomic-install transaction wrapper). Verified below BEFORE initdb
+# or any SQL execution; anything else fails closed immediately.
+APPROVED_SHA256="0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2"
+APPROVED_BYTES=92806
 TMP="$(mktemp -d /tmp/exlib1b2-pg.XXXXXX)"
 PGDATA="$TMP/pgdata"
 SOCK="$TMP"
@@ -63,12 +64,12 @@ echo "Approved-fingerprint gate (before initdb or any SQL execution)"
 ACTUAL_SHA256=$(shasum -a 256 "$MIG" | awk '{print $1}')
 ACTUAL_BYTES=$(wc -c < "$MIG" | tr -d ' ')
 if [ "$ACTUAL_SHA256" != "$APPROVED_SHA256" ] || [ "$ACTUAL_BYTES" != "$APPROVED_BYTES" ]; then
-  printf '  FAIL  fingerprint gate: %s is NOT the approved Revision G artifact\n' "$MIG"
+  printf '  FAIL  fingerprint gate: %s is NOT the expected Revision H artifact\n' "$MIG"
   printf '        expected sha256=%s bytes=%s\n' "$APPROVED_SHA256" "$APPROVED_BYTES"
   printf '        actual   sha256=%s bytes=%s\n' "$ACTUAL_SHA256" "$ACTUAL_BYTES"
   exit 1
 fi
-ok "fingerprint gate: $MIG matches approved Revision G ($APPROVED_BYTES bytes, sha256 $ACTUAL_SHA256)"
+ok "fingerprint gate: $MIG matches Revision H ($APPROVED_BYTES bytes, sha256 $ACTUAL_SHA256)"
 
 # expect_ok "name" "sql"
 expect_ok() {

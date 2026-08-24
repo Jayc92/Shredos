@@ -228,9 +228,13 @@ async function main() {
     check('A2: protected libs, APIs, schema, and deps byte-untouched (git)',
       (() => {
         try {
+          // ADMISSION (EXLIB-1B2 Revision H): the committed 023
+          // draft (candidate 8ec67b4) is corrected in-review; its
+          // tracked modification is admitted. Nothing else may.
           return execSync(
             'git diff --name-only -- src/lib/ src/app/api/ supabase/ package.json package-lock.json',
-            { encoding: 'utf8' }).trim() === ''
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
         } catch { return false }
       })())
     check('A3: CoachSubNav and RecordDecisionButton untouched (already clean)',

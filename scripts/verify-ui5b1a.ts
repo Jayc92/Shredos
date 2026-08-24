@@ -548,7 +548,11 @@ async function main() {
         (!f.startsWith('src/lib/') || LOCAL_DATE_FIX.includes(f)) &&
         !f.includes('types/database') &&
         (!f.startsWith('supabase/') ||
-          f === 'supabase/migrations/021_ui5b_transactional_ordering.sql')))
+          f === 'supabase/migrations/021_ui5b_transactional_ordering.sql' ||
+          // ADMISSION (EXLIB-1B2 Revision H): the committed 023 draft
+          // (candidate 8ec67b4) is corrected in-review; its tracked
+          // modification is admitted. No other supabase/ change may.
+          f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')))
     check('X3: loading + completion summary byte-untouched (already on the token system)',
       !diffFiles.includes('src/app/(app)/workouts/[id]/loading.tsx') &&
       !diffFiles.includes('src/components/workout/WorkoutCompletionSummaryCard.tsx') &&

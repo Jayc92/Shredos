@@ -215,9 +215,15 @@ async function main() {
     check('E3: zero product, API, lib, schema, Supabase, or dependency changes (git)',
       (() => {
         try {
+          // ADMISSION (EXLIB-1B2 Revision H): migration 023 is now a
+          // COMMITTED phase artifact (candidate 8ec67b4); the
+          // in-review Revision H correction to that same declared
+          // draft appears as a tracked modification and is admitted.
+          // Everything else under these paths must remain untouched.
           return execSync(
             'git diff --name-only -- src/ supabase/ package.json package-lock.json next.config.mjs tailwind.config.ts tsconfig.json',
-            { encoding: 'utf8' }).trim() === ''
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
         } catch { return false }
       })())
     check('E4: worktree changes stay inside the declared EXLIB-1B1 scope',

@@ -1,6 +1,6 @@
 // ============================================================
 // ForgeFitOS — EXLIB-1B2 migration-023 static-verification harness
-// (Revision G). Deterministically proves the DRAFT migration closes
+// (Revision H). Deterministically proves the DRAFT migration closes
 // every SQL review finding: deactivate-all rollback, one database-
 // enforced name/alias namespace (claims table + PK, not function
 // pre-checks), stable logical catalog identity with alias
@@ -36,7 +36,8 @@ const notesFlat = notes.replace(/\s+/g, ' ')
 // markers so prose anchors inside function bodies flatten cleanly
 // (strictly more permissive for prose; no check weakened).
 const sqlFlat = sql.replace(/^\s*--\s?/gm, '').replace(/\s+/g, ' ')
-const M023_SHA = '7653b4c87835b0318f8a298855571ddcfe2ffef4ed00fa8e9178f252491e9f92'
+const M023_SHA = '0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2'
+const REV_G_SHA = '7653b4c87835b0318f8a298855571ddcfe2ffef4ed00fa8e9178f252491e9f92'
 const REV_F_SHA = '77ddadff1f3cc8a5b718d82432e912280ad5f1504ca612ddf2f65e3ce65ca00b'
 const REV_E_SHA = '8b155d4709c595b7ea15f847eaf7d9bac6c893696d71bf8ccc8e7954d615df16'
 const REV_D_SHA = '4d27e0e79693d396b75e3a8a8db09567f29e7c2e4f9c44d3756fe5d58a08de22'
@@ -120,20 +121,26 @@ async function main() {
     // REVISED (EXLIB-1B2 Revision G): fingerprint advanced to the
     // Revision G bytes; Revision F was REJECTED in review and joins
     // the superseded set with that rejection recorded.
-    check('A3: Revision G fingerprint matches the notes; ALL SEVEN superseded fingerprints marked DO NOT APPLY (E and F recorded REJECTED)',
-      sqlBytes.length === 91382 &&
+    // REVISED (EXLIB-1B2 Revision H): fingerprint advanced to the
+    // Revision H bytes; Revision G joins the superseded set with its
+    // approved-architecture status recorded (superseded, NOT
+    // rejected — solely the atomic-install correction).
+    check('A3: Revision H fingerprint matches the notes; ALL EIGHT superseded fingerprints marked DO NOT APPLY (G superseded-not-rejected)',
+      sqlBytes.length === 92806 &&
       createHash('sha256').update(sqlBytes).digest('hex') === M023_SHA &&
-      notes.includes(M023_SHA) && notes.includes('91,382 bytes') &&
+      notes.includes(M023_SHA) && notes.includes('92,806 bytes') &&
       notes.includes(OLD_SHA) && notes.includes(REV_A_SHA) &&
       notes.includes(REV_B_SHA) && notes.includes(REV_C_SHA) &&
       notes.includes(REV_D_SHA) && notes.includes(REV_E_SHA) &&
-      notes.includes(REV_F_SHA) &&
+      notes.includes(REV_F_SHA) && notes.includes(REV_G_SHA) &&
+      sql.includes(REV_G_SHA) &&
       sql.includes(REV_F_SHA) && sql.includes(REV_E_SHA) &&
       sql.includes(REV_D_SHA) && sql.includes(REV_C_SHA) &&
       sql.includes(REV_B_SHA) &&
       sql.includes(REV_A_SHA) && sql.includes(OLD_SHA) &&
       sql.includes('Revision E (REJECTED in review):') &&
       sql.includes('Revision F (REJECTED in review):') &&
+      sqlFlat.includes('Revision G (architecture APPROVED; superseded SOLELY by the Revision H atomic-install transaction wrapper — not rejected)') &&
       notesFlat.includes('DO NOT APPLY') &&
       notesFlat.includes('DRAFT — NOT APPLIED') &&
       notesFlat.includes(`Revision B (\`${REV_B_SHA}\`): SUPERSEDED — DO NOT APPLY`) &&
@@ -141,8 +148,10 @@ async function main() {
       notesFlat.includes(`Revision D (\`${REV_D_SHA}\`): SUPERSEDED — DO NOT APPLY`) &&
       notesFlat.includes(`Revision E (\`${REV_E_SHA}\`): REJECTED — SUPERSEDED — DO NOT APPLY`) &&
       notesFlat.includes(`Revision F (\`${REV_F_SHA}\`): REJECTED — SUPERSEDED — DO NOT APPLY`) &&
+      notesFlat.includes(`Revision G (\`${REV_G_SHA}\`): SUPERSEDED — DO NOT APPLY`) &&
+      notesFlat.includes('NOT rejected') &&
       sql.includes('STATUS: DRAFT — NOT APPLIED') &&
-      sql.includes('(REVISION G)'))
+      sql.includes('(REVISION H)'))
   }
 
   console.log('\nB. Zero content data, additive preservation')
@@ -758,15 +767,21 @@ async function main() {
     // their superseded fingerprints.
     // REVISED (EXLIB-1B2 Revision G): the live artifact is the
     // Revision G copy; D, E, and F copies retained pinned.
-    check('O11: the Revision G review-copy artifact is byte-identical to the draft; the D, E, and F copies still match their superseded fingerprints',
+    // REVISED (EXLIB-1B2 Revision H): the live artifact is the
+    // Revision H copy; the G copy is retained pinned to its
+    // superseded (approved-architecture) fingerprint.
+    check('O11: the Revision H review-copy artifact is byte-identical to the draft; the D, E, F, and G copies still match their superseded fingerprints',
       (() => {
-        const copy = readFileSync('docs/exlib1b1-migration-023-revision-g-review-copy.sql')
+        const copy = readFileSync('docs/exlib1b1-migration-023-revision-h-review-copy.sql')
+        const gCopy = readFileSync('docs/exlib1b1-migration-023-revision-g-review-copy.sql')
         const fCopy = readFileSync('docs/exlib1b1-migration-023-revision-f-review-copy.sql')
         const eCopy = readFileSync('docs/exlib1b1-migration-023-revision-e-review-copy.sql')
         const dCopy = readFileSync('docs/exlib1b1-migration-023-revision-d-review-copy.sql')
         return copy.length === sqlBytes.length &&
           createHash('sha256').update(copy).digest('hex') === M023_SHA &&
           copy.equals(sqlBytes) &&
+          gCopy.length === 91382 &&
+          createHash('sha256').update(gCopy).digest('hex') === REV_G_SHA &&
           fCopy.length === 83969 &&
           createHash('sha256').update(fCopy).digest('hex') === REV_F_SHA &&
           eCopy.length === 65288 &&
@@ -1008,7 +1023,9 @@ async function main() {
         return sh.includes('DISPOSABLE LOCAL PostgreSQL cluster') &&
           sh.includes('NEVER contacts Supabase') &&
           sh.includes(`APPROVED_SHA256="${M023_SHA}"`) &&
-          sh.includes('APPROVED_BYTES=91382') &&
+          // REVISED (EXLIB-1B2 Revision H): the gate pins the
+          // Revision H byte count.
+          sh.includes('APPROVED_BYTES=92806') &&
           sh.includes('Approved-fingerprint gate (before initdb or any SQL execution)') &&
           sh.indexOf('ACTUAL_SHA256=$(shasum -a 256 "$MIG"') < sh.indexOf('initdb -D') &&
           sh.includes('set -uo pipefail') &&
@@ -1028,6 +1045,49 @@ async function main() {
           // Excluded from the deterministic offline battery by type.
           !existsSync('scripts/verify-exlib1b2-live-concurrency.ts')
       })())
+  }
+
+  console.log('\nS. Revision H atomic-install wrapper (fail-closed proofs)')
+  {
+    // Top-level analysis: strip every dollar-quoted PL/pgSQL body so
+    // function-internal BEGIN/END can never be miscounted as
+    // transaction boundaries.
+    const topLevel = sql.replace(/\$\$[\s\S]*?\$\$/g, '$BODY$')
+    const lines = topLevel.split('\n')
+    const isExecutable = (l: string) =>
+      /^(CREATE|ALTER|INSERT|REVOKE|GRANT|DROP|UPDATE|DELETE|SELECT|COMMENT)\b/.test(l.trim()) &&
+      !l.trim().startsWith('--')
+    const beginIdx = lines.findIndex((l) => l === 'BEGIN;')
+    const commitIdx = lines.findIndex((l) => l === 'COMMIT;')
+    check('S1: the top-level transaction wrapper exists — exactly one BEGIN; and one COMMIT;',
+      (topLevel.match(/^BEGIN;$/gm) || []).length === 1 &&
+      (topLevel.match(/^COMMIT;$/gm) || []).length === 1 &&
+      beginIdx > -1 && commitIdx > beginIdx)
+    check('S2: the wrapper encloses EVERY executable migration statement',
+      lines.every((l, i) => !isExecutable(l) || (i > beginIdx && i < commitIdx)))
+    check('S3: BEGIN precedes the first DDL/DML/REVOKE/GRANT — only comments and blanks before it',
+      lines.slice(0, beginIdx)
+        .every((l) => l.trim() === '' || l.trim().startsWith('--')) &&
+      lines.findIndex(isExecutable) > beginIdx)
+    check('S4: COMMIT follows the final executable statement — only comments and blanks after it',
+      lines.slice(commitIdx + 1)
+        .every((l) => l.trim() === '' || l.trim().startsWith('--')))
+    check('S5: no top-level ROLLBACK, SAVEPOINT, or additional transaction boundary exists',
+      !/ROLLBACK/.test(topLevel) &&
+      !/SAVEPOINT/.test(topLevel) &&
+      !/START TRANSACTION/.test(topLevel) &&
+      !/^BEGIN\s*;?\s*$/m.test(topLevel.split('\n').filter((l, i) => i !== beginIdx).join('\n')))
+    check('S6: PL/pgSQL BEGIN/END blocks are NOT miscounted — the raw file has many, the stripped top level exactly one',
+      (sql.match(/^BEGIN$/gm) || []).length >= 10 &&
+      !topLevel.includes('RAISE EXCEPTION') &&
+      (topLevel.match(/\$BODY\$/g) || []).length >= 16 &&
+      (topLevel.match(/^BEGIN;$/gm) || []).length === 1)
+    check('S7: Revision G is marked superseded (NOT rejected) and Revision H is the only current draft fingerprint',
+      sqlFlat.includes('superseded SOLELY by the Revision H atomic-install transaction wrapper') &&
+      notesFlat.includes(`Revision G (\`${REV_G_SHA}\`): SUPERSEDED — DO NOT APPLY`) &&
+      notesFlat.includes('NOT rejected: its architecture passed review') &&
+      notesFlat.includes(`\`${M023_SHA}\``) &&
+      notesFlat.includes('## Migration 023 — REVISION H — DRAFT — NOT APPLIED'))
   }
 
   console.log('\nK. Phase boundary')

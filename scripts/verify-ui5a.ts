@@ -583,8 +583,14 @@ async function main() {
       diffFiles.filter((f) => UNTOUCHED_PATHS.includes(f)).join(', '))
     // RETARGET (UI-5B1A): the inventory boundary now admits the
     // approved UI-5B1A presentation slice and its harness/notes.
+    // ADMISSION (EXLIB-1B2 Revision H): migration 023 is now a
+    // COMMITTED phase artifact (candidate 8ec67b4); the in-review
+    // Revision H correction to that same declared draft appears as
+    // a tracked modification and is admitted. No other supabase/
+    // path may appear.
     check('X2: every changed file is inside a declared, approved inventory',
       diffFiles.every((f) => CHANGED_PATHS.includes(f) ||
+        f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
         UI5B1A_APPROVED.includes(f) ||
         UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) ||

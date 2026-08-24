@@ -359,7 +359,11 @@ async function main() {
       (() => {
         let out = ''
         try { out = execSync('git diff --name-only -- package.json package-lock.json supabase/', { encoding: 'utf8' }) } catch { return false }
-        return out.trim() === '' &&
+        // ADMISSION (EXLIB-1B2 Revision H): the committed 023 draft
+        // (candidate 8ec67b4) is corrected in-review; its tracked
+        // modification is admitted. Nothing else may appear.
+        return out.trim().split('\n').filter(Boolean)
+          .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') &&
           (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 23 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql'))
       })())
   }

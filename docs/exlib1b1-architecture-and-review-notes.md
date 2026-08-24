@@ -1248,11 +1248,22 @@ regression proofs; revised checks A3, B4, I3, I4, L8, O10, O11, P2,
 P3, P5, P8 are labeled `REVISED (EXLIB-1B2 Revision F, ...)` inline;
 results in the phase report).
 
-## Migration 023 — REVISION G — DRAFT — NOT APPLIED
+## Migration 023 — Revision G — SUPERSEDED — DO NOT APPLY
 
-**Joseph must NOT apply ANY version of migration 023 until ChatGPT
-reviews Revision G line by line and explicitly approves the exact
-fingerprint below.**
+Revision G
+(`7653b4c87835b0318f8a298855571ddcfe2ffef4ed00fa8e9178f252491e9f92`):
+SUPERSEDED — DO NOT APPLY. NOT rejected: its architecture passed
+review, was approved for candidate preparation at exactly this
+fingerprint, and is committed and pushed as candidate commit
+8ec67b4899d08af1909c7b194739690c004325fe (which remains intact).
+It is superseded SOLELY by the Revision H atomic-install correction:
+Revision G carried no explicit top-level transaction, so a failure
+halfway through application could leave partially created objects
+if the executing client did not batch atomically. Apply Revision H
+(below) instead, never this fingerprint. Revision G's record is
+retained verbatim below for audit, and
+`docs/exlib1b1-migration-023-revision-g-review-copy.sql` remains its
+byte-exact historical artifact.
 
 - File: `supabase/migrations/023_exlib_catalog_and_delivery_contract.sql`
 - Review artifact (byte-identical mechanical copy for line-by-line
@@ -1375,6 +1386,54 @@ Revision G (new section R with nine fail-closed proofs; revised
 checks A3, C1, J2, L8, O10, O11, P8, Q9 are labeled
 `REVISED (EXLIB-1B2 Revision G, ...)` inline; results in the phase
 report).
+
+## Migration 023 — REVISION H — DRAFT — NOT APPLIED
+
+**Joseph must NOT apply ANY version of migration 023 until ChatGPT
+reviews Revision H and explicitly approves the exact fingerprint
+below and gives the explicit application instruction.**
+
+- File: `supabase/migrations/023_exlib_catalog_and_delivery_contract.sql`
+- Review artifact (byte-identical mechanical copy):
+  `docs/exlib1b1-migration-023-revision-h-review-copy.sql`
+- Size: 92,806 bytes
+- SHA-256:
+  `0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2`
+- Status: **DRAFT — NOT APPLIED**. Superseded — DO NOT APPLY:
+  Revision G (approved architecture; superseded solely by this
+  correction) `7653b4c8...91e9f92`; Revision F (REJECTED)
+  `77ddadff...ca00b`; Revision E (REJECTED) `8b155d47...15df16`;
+  Revision D `4d27e0e7...08de22`; Revision C `5923075e...a12e153`;
+  Revision B `730899c7...bf13c37`; Revision A `944c2186...699dee232`;
+  original `8c90b889...4e50af6a`.
+
+**Exact diff from Revision G (operational safety ONLY):**
+
+1. One top-level `BEGIN;` (with a two-line comment) inserted
+   immediately after the header block, before the first executable
+   statement (section 1's first table-creation statement).
+2. One top-level `COMMIT;` (with a one-line comment) appended after
+   the final executable statement (the last `GRANT EXECUTE`).
+3. Header documentation: revision marker `(REVISION H)`, the
+   Revision G fingerprint added to the superseded list (explicitly
+   NOT rejected), and the (H1) correction note.
+Nothing else: every Revision G schema, function, trigger, policy,
+grant, lifecycle, delivery, rollback, approval, membership, and
+concurrency behavior is byte-for-byte unchanged. A failure at any
+point during application now rolls back the entire migration —
+atomicity no longer depends on the executing client. There is
+exactly ONE top-level `BEGIN;` and ONE top-level `COMMIT;`
+(PL/pgSQL function-body BEGIN/END blocks are code, not transaction
+boundaries), no top-level ROLLBACK/SAVEPOINT/START TRANSACTION, and
+no executable statement outside the wrapper.
+
+**Static verification:** `scripts/verify-exlib1b2.ts` extended for
+Revision H (new section S with seven fail-closed wrapper proofs
+using dollar-quote-stripped top-level analysis; revised checks A3,
+O11, R9 are labeled `REVISED (EXLIB-1B2 Revision H)` inline). The
+hardened live-concurrency script's approved-fingerprint gate now
+pins the Revision H SHA-256 and byte count, still executing before
+initdb or any SQL.
 
 ## Deliverables and boundary
 
