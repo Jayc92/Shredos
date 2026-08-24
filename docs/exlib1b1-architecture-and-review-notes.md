@@ -1399,7 +1399,9 @@ below and gives the explicit application instruction.**
 - Size: 92,806 bytes
 - SHA-256:
   `0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2`
-- Status: **DRAFT — NOT APPLIED**. Superseded — DO NOT APPLY:
+- Status: DRAFT at review time; **APPLIED 2026-08-24** at exactly
+  this fingerprint — see the application record below. Superseded —
+  DO NOT APPLY:
   Revision G (approved architecture; superseded solely by this
   correction) `7653b4c8...91e9f92`; Revision F (REJECTED)
   `77ddadff...ca00b`; Revision E (REJECTED) `8b155d47...15df16`;
@@ -1434,6 +1436,83 @@ O11, R9 are labeled `REVISED (EXLIB-1B2 Revision H)` inline). The
 hardened live-concurrency script's approved-fingerprint gate now
 pins the Revision H SHA-256 and byte count, still executing before
 initdb or any SQL.
+
+## Migration 023 — Revision H — APPLIED TO PRODUCTION (2026-08-24)
+
+ChatGPT applied Revision H to Supabase project ShredOS
+(`ttybyljytiwntvorugcv`) — never Claude, per the standing rule. The
+applied artifact was verified at exactly **92,806 bytes**, SHA-256
+`0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2`,
+recorded in Supabase migration history as
+`20260824135804_exlib_catalog_and_delivery_contract_revision_h`.
+
+The migration file's bytes remain FROZEN exactly as reviewed and
+applied; its internal review-status header line is a historical
+artifact of the review process and is deliberately NOT rewritten.
+This section plus the Supabase history entry are the authoritative
+application record.
+
+**Post-application read-only verification (all as expected):**
+
+| Check | Result |
+|---|---|
+| new tables | 10 |
+| new functions | 18 |
+| exercise_aliases policies | 1 |
+| exercises / exercise_name_claims | 84 / 84, backfill_ok = true |
+| catalog rows / import runs / run items / review events / tenant aliases | 0 / 0 / 0 / 0 / 0 |
+| alias RLS enabled | true |
+| catalog policies | 0 — intentionally closed |
+
+The catalog machinery is live but EMPTY and closed: no content data,
+no runs, no approvals. Product behavior is unchanged. Migrations
+applied to ShredOS are now exactly 001-023.
+
+## EXLIB-1B3 — post-application hardening review (PROPOSED, awaiting
+ChatGPT approval; no SQL authored yet)
+
+Scope derived from the post-application Supabase advisor findings:
+
+1. **Fixed `search_path` for the two verify functions.**
+   `exlib_verify_catalog_claims()` and
+   `exlib_verify_alias_lifecycle()` are SECURITY INVOKER,
+   client-revoked, and use only schema-qualified references — but
+   they lack a fixed `search_path`, which the advisor flags. B3
+   would add `SET search_path = public, pg_temp` to both (keeping
+   them INVOKER) in a small migration 024, drafted and fingerprinted
+   under the same review protocol.
+2. **Unindexed-foreign-key review — analysis first, indexes only
+   where justified.** Enumerate every FK whose referencing side
+   lacks a leading-column index (candidates include
+   `exercise_aliases.catalog_alias_id` and `.import_run_id`,
+   `exercise_name_claims.alias_id`, `exercises.catalog_id` /
+   `.catalog_logical_id` / `.import_run_id`, and
+   `exercise_catalog_run_items.catalog_id` / `.catalog_alias_id`,
+   which are covered only as trailing columns of composite/partial
+   indexes). Map each against the REAL access patterns (delivery
+   loops key on user-leading indexes; rollback scans
+   `(user_id, import_run_id)`, already covered; RESTRICT-FK reverse
+   lookups fire only on rare parent deletes, most of which the
+   delete gate or seal makes impossible). Add ONLY the indexes an
+   actual path justifies, in the same migration 024; document every
+   rejected candidate with its reason.
+3. **Zero-policy RLS notices are intentional** on the closed catalog
+   tables (documented design: RLS enabled, zero policies, REVOKE
+   ALL). Document-only; no SQL change.
+4. **`authenticated` EXECUTE on `deliver_catalog_exercises` and
+   `rollback_catalog_delivery` is intentional** — both derive
+   identity solely from `auth.uid()` and are the designed tenant
+   surface. Document-only; no SQL change.
+5. **Unrelated pre-existing advisor findings are out of scope** and
+   must not be altered by B3.
+
+B3 boundary: migration 024 SQL is authored only after ChatGPT
+approves this scope; applied only by Joseph/ChatGPT after
+fingerprint approval; no catalog data, no ledger approvals, no
+EXLIB-1C work (which additionally still requires explicit legal and
+product approval); a `verify-exlib1b3` harness plus the standard
+migration-boundary retargets (exactly-23 to exactly-24, pinned
+filename) across the committed suites.
 
 ## Deliverables and boundary
 
