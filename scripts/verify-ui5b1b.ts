@@ -661,6 +661,10 @@ async function main() {
           // review-proposal artifacts are admitted while
           // uncommitted.
           f.startsWith('docs/exlib1c0-') ||
+          // ADMISSION (EXLIB-1C0A): the private-use decision and
+          // equipment-resolution overlay artifacts are admitted
+          // while uncommitted.
+          f.startsWith('docs/exlib1c0a-') ||
           // ADMISSION (EXLIB-1B3B migration 024 draft): the
           // uncommitted hardening draft is admitted.
           f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||

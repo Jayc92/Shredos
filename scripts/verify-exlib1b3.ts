@@ -263,6 +263,10 @@ async function main() {
             // review-proposal artifacts are admitted while
             // uncommitted.
             f.startsWith('docs/exlib1c0-') ||
+            // ADMISSION (EXLIB-1C0A): the private-use decision and
+            // equipment-resolution overlay artifacts are admitted
+            // while uncommitted.
+            f.startsWith('docs/exlib1c0a-') ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the phase's
             // mechanical migration-boundary retargets and worktree
             // admissions touch committed harnesses across the

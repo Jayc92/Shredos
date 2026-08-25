@@ -37,6 +37,11 @@ const START_COMMIT = '8ff68a1964e16a8163d599bbec46ff0a58a99713'
 // approved, immutable packet commit (parent START_COMMIT, tree
 // 4920394facac912bcb1da7337af21bedfabbbe08).
 const PACKET_COMMIT = '1f9bbfa2bc1e08e1a185927cf09d94b789135483'
+// RETARGET (EXLIB-1C0A, immutable committed-range preservation):
+// the approved, immutable verifier-retarget commit that closed the
+// EXLIB-1C0 phase; the historical correction range ends HERE, never
+// at a moving HEAD.
+const RETARGET_COMMIT = '45b290c3639833010f7faf7d6c313ddcc3ee61aa'
 
 const packet = read('docs/exlib1c0-legal-product-approval-packet.md')
 const packetFlat = packet.replace(/\s+/g, ' ')
@@ -479,12 +484,40 @@ async function main() {
       (() => {
         try {
           const porcelain = execSync('git status --porcelain', { encoding: 'utf8' }).trim()
+          // ADMISSION (EXLIB-1C0A): the private-use decision and
+          // equipment-resolution overlay artifacts (and their
+          // verifier) are admitted while uncommitted, as are
+          // committed verify suites whose worktree diff carries the
+          // ADMISSION (EXLIB-1C0A) label.
+          const porcelainAfterAdmissions = porcelain.split('\n').filter(Boolean)
+            .filter((l) => {
+              const m = l.match(/^\s*(\?\?|[A-Z]{1,2})\s+(.+)$/)
+              const status = m ? m[1] : ''
+              const f = m ? m[2] : l
+              if (f.startsWith('docs/exlib1c0a-') ||
+                f === 'scripts/verify-exlib1c0a.ts') return false
+              if (status === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
+                try {
+                  return !execSync(`git diff -- ${f}`, { encoding: 'utf8' })
+                    .includes('ADMISSION (EXLIB-1C0A)')
+                } catch { return true }
+              }
+              return true
+            }).join('\n')
           const staged = execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim()
           const packetRange = execSync(`git diff --name-only ${START_COMMIT}..${PACKET_COMMIT}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
-          const correctionRange = execSync(`git diff --name-only ${PACKET_COMMIT}..HEAD`, { encoding: 'utf8' })
+          // RETARGET (EXLIB-1C0A, immutable committed-range
+          // preservation): the historical correction range ends at
+          // the immutable retarget commit, NOT at current HEAD, so
+          // future phases advancing HEAD can never alter it; HEAD
+          // must instead DESCEND from that commit.
+          const correctionRange = execSync(`git diff --name-only ${PACKET_COMMIT}..${RETARGET_COMMIT}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
-          return porcelain === '' && staged === '' &&
+          execSync(`git merge-base --is-ancestor ${RETARGET_COMMIT} HEAD`)
+          // ADMISSION (EXLIB-1C0A): assert emptiness after the
+          // labeled admissions above; nothing else may be dirty.
+          return porcelainAfterAdmissions === '' && staged === '' &&
             JSON.stringify(packetRange) === JSON.stringify([...INVENTORY_11].sort()) &&
             JSON.stringify(correctionRange) === JSON.stringify(['scripts/verify-exlib1c0.ts'])
         } catch { return false }
