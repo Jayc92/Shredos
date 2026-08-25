@@ -33,6 +33,10 @@ const MANIFEST_SHA = '336cd4253f747cdb3ba73ffa2af5a63e255c7c87cc452d4c43ed59a654
 const M023_SHA = '0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2'
 const M024_SHA = '190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980'
 const START_COMMIT = '8ff68a1964e16a8163d599bbec46ff0a58a99713'
+// RETARGET (EXLIB-1C0 promotion, committed-state verification): the
+// approved, immutable packet commit (parent START_COMMIT, tree
+// 4920394facac912bcb1da7337af21bedfabbbe08).
+const PACKET_COMMIT = '1f9bbfa2bc1e08e1a185927cf09d94b789135483'
 
 const packet = read('docs/exlib1c0-legal-product-approval-packet.md')
 const packetFlat = packet.replace(/\s+/g, ' ')
@@ -62,12 +66,21 @@ const ADMISSION_SUITES = INVENTORY_11.filter((f) =>
 async function main() {
   console.log('\nA. Immutable baseline')
   {
-    check('A1: starting commit and tag anchors are exact (recorded and current)',
+    // RETARGET (EXLIB-1C0 promotion, committed-state verification):
+    // A1 no longer pins the MOVABLE main ref to the pre-promotion
+    // commit. It proves immutable ancestry instead: the stable tag
+    // still dereferences to the starting commit, the approved packet
+    // commit exists with exactly that parent, and the tested HEAD
+    // contains the packet commit as an ancestor. Valid both on the
+    // pre-promotion candidate and on promoted main.
+    check('A1: immutable ancestry — stable tag at the starting commit; packet commit exists with that exact parent; HEAD descends from the packet commit',
       (() => {
         try {
-          const head = execSync('git rev-parse main', { encoding: 'utf8' }).trim()
           const tag = execSync('git rev-parse "exlib1b3-migration-024-application-record-stable^{}"', { encoding: 'utf8' }).trim()
-          return head === START_COMMIT && tag === START_COMMIT
+          const packet = execSync(`git rev-parse "${PACKET_COMMIT}^{commit}"`, { encoding: 'utf8' }).trim()
+          const parent = execSync(`git rev-parse "${PACKET_COMMIT}^"`, { encoding: 'utf8' }).trim()
+          execSync(`git merge-base --is-ancestor ${PACKET_COMMIT} HEAD`)
+          return tag === START_COMMIT && packet === PACKET_COMMIT && parent === START_COMMIT
         } catch { return false }
       })())
     check('A2: applied migration fingerprints exact; inventory exactly 001-024; NO migration 025',
@@ -455,33 +468,47 @@ async function main() {
       [packet, guide, proposalsRaw].every((t) =>
         !/muscles worked|benefits of|how to perform/i.test(t) &&
         !/\.(jpg|jpeg|png|gif|webp|mp4|webm)/i.test(t)))
-    // REVISED (EXLIB-1C0 review correction, finding E): exact 11-path
-    // inventory replaces the broad scripts/verify-* allowance.
-    check('E2: the worktree is EXACTLY the declared 11-path inventory',
+    // RETARGET (EXLIB-1C0 promotion, committed-state verification):
+    // E2 no longer requires the former 11-path DIRTY worktree. It
+    // requires a completely clean worktree and index, proves the
+    // IMMUTABLE packet-commit range changed exactly the reviewed
+    // 11-path inventory, and separately proves the correction range
+    // after the packet commit changed exactly this verifier. No
+    // prefix or wildcard allowance.
+    check('E2: clean worktree/index; the immutable packet range changed EXACTLY the 11-path inventory; the correction range changed EXACTLY this verifier',
       (() => {
-        let out = ''
-        try { out = execSync('git status --porcelain', { encoding: 'utf8' }) } catch { return false }
-        const paths = out.split('\n').filter(Boolean).map((l) => l.slice(3).trim()).sort()
-        return JSON.stringify(paths) === JSON.stringify([...INVENTORY_11].sort())
+        try {
+          const porcelain = execSync('git status --porcelain', { encoding: 'utf8' }).trim()
+          const staged = execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim()
+          const packetRange = execSync(`git diff --name-only ${START_COMMIT}..${PACKET_COMMIT}`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          const correctionRange = execSync(`git diff --name-only ${PACKET_COMMIT}..HEAD`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          return porcelain === '' && staged === '' &&
+            JSON.stringify(packetRange) === JSON.stringify([...INVENTORY_11].sort()) &&
+            JSON.stringify(correctionRange) === JSON.stringify(['scripts/verify-exlib1c0.ts'])
+        } catch { return false }
       })())
     check('E3: this phase authored no SQL and no migration 025',
       !/CREATE TABLE|ALTER TABLE|INSERT INTO|CREATE POLICY|CREATE INDEX/.test(packet + guide) &&
       readdirSync('supabase/migrations').every((f) => !f.startsWith('025')))
-    // REVISED (EXLIB-1C0 final review correction): the seven
-    // committed-suite diffs are proven LINE-EXACT — zero deletions,
-    // exactly one added executable expression, exactly one ADMISSION
-    // label, and the remaining additions exactly the three expected
-    // comment lines. Nothing else may be added.
+    // RETARGET (EXLIB-1C0 promotion, committed-state verification):
+    // E4 no longer reads admissions from the (now clean) worktree
+    // diff. It inspects each suite's diff over the IMMUTABLE packet
+    // commit range and preserves the full LINE-EXACT proof — zero
+    // deletions, exactly one added executable expression, exactly
+    // one ADMISSION label, and the remaining additions exactly the
+    // three expected comment lines. Nothing else may be added.
     const ADMISSION_EXPR = "f.startsWith('docs/exlib1c0-') ||"
     const ADMISSION_COMMENTS = [
       '// ADMISSION (EXLIB-1C0): the approval-packet and',
       '// review-proposal artifacts are admitted while',
       '// uncommitted.',
     ]
-    check('E4: each committed-suite diff is admission-only and LINE-EXACT — zero deletions; exactly one added expression; exactly one ADMISSION (EXLIB-1C0) label; exactly the three expected comment lines; nothing else',
+    check('E4: each committed-suite change in the immutable packet range is admission-only and LINE-EXACT — zero deletions; exactly one added expression; exactly one ADMISSION (EXLIB-1C0) label; exactly the three expected comment lines; nothing else',
       ADMISSION_SUITES.every((f) => {
         let d = ''
-        try { d = execSync(`git diff -- ${f}`, { encoding: 'utf8' }) } catch { return false }
+        try { d = execSync(`git diff ${START_COMMIT}..${PACKET_COMMIT} -- ${f}`, { encoding: 'utf8' }) } catch { return false }
         const adds = d.split('\n')
           .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
           .map((l) => l.slice(1).trim())
