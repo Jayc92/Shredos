@@ -416,7 +416,27 @@ async function main() {
           }
           // Committed state: clean tree, unique mechanically found
           // phase commit, immutable-range proofs.
-          if (execSync('git status --porcelain', { encoding: 'utf8' }).trim() !== '') return false
+          // ADMISSION (EXLIB-1C0B): the displacement-audit artifacts
+          // (and their verifier), plus committed verify suites whose
+          // worktree diff carries the ADMISSION (EXLIB-1C0B) label,
+          // are admitted while that phase is uncommitted.
+          const dirtyAfterAdmissions = execSync('git status --porcelain', { encoding: 'utf8' })
+            .split('\n').filter(Boolean)
+            .filter((l) => {
+              const mm = l.match(/^\s*(\?\?|[A-Z]{1,2})\s+(.+)$/)
+              const st = mm ? mm[1] : ''
+              const f = mm ? mm[2] : l
+              if (f.startsWith('docs/exlib1c0b-') ||
+                f === 'scripts/verify-exlib1c0b.ts') return false
+              if (st === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
+                try {
+                  return !execSync(`git diff -- ${f}`, { encoding: 'utf8' })
+                    .includes('ADMISSION (EXLIB-1C0B)')
+                } catch { return true }
+              }
+              return true
+            })
+          if (dirtyAfterAdmissions.length !== 0) return false
           if (execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() !== '') return false
           const adders = execSync(
             'git log --all --format=%H --diff-filter=A -- docs/exlib1c0a-private-use-product-decision.md',

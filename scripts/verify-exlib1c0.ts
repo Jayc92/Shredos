@@ -496,10 +496,15 @@ async function main() {
               const f = m ? m[2] : l
               if (f.startsWith('docs/exlib1c0a-') ||
                 f === 'scripts/verify-exlib1c0a.ts') return false
+              // ADMISSION (EXLIB-1C0B): the displacement-audit
+              // artifacts (and their verifier) are admitted while
+              // uncommitted.
+              if (f.startsWith('docs/exlib1c0b-') ||
+                f === 'scripts/verify-exlib1c0b.ts') return false
               if (status === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
-                  return !execSync(`git diff -- ${f}`, { encoding: 'utf8' })
-                    .includes('ADMISSION (EXLIB-1C0A)')
+                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)/.test(
+                    execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }
               return true

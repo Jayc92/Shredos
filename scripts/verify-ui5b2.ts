@@ -567,6 +567,9 @@ async function main() {
             // equipment-resolution overlay artifacts are admitted
             // while uncommitted.
             f.startsWith('docs/exlib1c0a-') ||
+            // ADMISSION (EXLIB-1C0B): the displacement-audit
+            // artifacts are admitted while uncommitted.
+            f.startsWith('docs/exlib1c0b-') ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the
             // uncommitted hardening draft is admitted.
             f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
