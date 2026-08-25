@@ -193,6 +193,10 @@ async function main() {
           // (docs/exlib1b3-*) are admitted while uncommitted.
           return f.startsWith('docs/exlib1a-') || f.startsWith('docs/exlib1b1-') ||
             f.startsWith('docs/exlib1b3-') ||
+            // ADMISSION (EXLIB-1C0): the approval-packet and
+            // review-proposal artifacts are admitted while
+            // uncommitted.
+            f.startsWith('docs/exlib1c0-') ||
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the
             // uncommitted hardening draft is admitted.

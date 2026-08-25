@@ -259,6 +259,10 @@ async function main() {
           const f = line.slice(3).trim()
           return f === 'docs/exlib1b3-post-application-hardening-audit.md' ||
             f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
+            // ADMISSION (EXLIB-1C0): the approval-packet and
+            // review-proposal artifacts are admitted while
+            // uncommitted.
+            f.startsWith('docs/exlib1c0-') ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the phase's
             // mechanical migration-boundary retargets and worktree
             // admissions touch committed harnesses across the

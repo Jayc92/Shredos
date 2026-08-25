@@ -657,6 +657,10 @@ async function main() {
           // ADMISSION (EXLIB-1B3A): the audit-only hardening
           // notes (docs/exlib1b3-*) are admitted while uncommitted.
           f.startsWith('docs/exlib1b3-') ||
+          // ADMISSION (EXLIB-1C0): the approval-packet and
+          // review-proposal artifacts are admitted while
+          // uncommitted.
+          f.startsWith('docs/exlib1c0-') ||
           // ADMISSION (EXLIB-1B3B migration 024 draft): the
           // uncommitted hardening draft is admitted.
           f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
