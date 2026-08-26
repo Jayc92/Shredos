@@ -102,9 +102,14 @@ async function main() {
     // hardening draft joins the boundary (DRAFT, not applied);
     // exactly-23 becomes exactly-24 with both filenames pinned.
     check('A1: migrations are exactly 001-024; 023 and the 024 draft have the pinned filenames',
-      files.length === 24 &&
+      // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+      // equipment-vocabulary draft joins the boundary (DRAFT, not
+      // applied); exactly-24 becomes exactly-25 with 024 and 025
+      // both pinned.
+      files.length === 25 &&
       files[22] === '023_exlib_catalog_and_delivery_contract.sql' &&
       files[23] === '024_exlib_post_application_hardening.sql' &&
+      files[24] === '025_exlib_equipment_vocabulary_support.sql' &&
       files.every((f, i) => f.startsWith(String(i + 1).padStart(3, '0'))))
     check('A2: migration 022 fingerprint unchanged',
       (() => {
@@ -205,8 +210,14 @@ async function main() {
     check('B5: zero product, API, lib, or seeder changes accompany the draft (git)',
       (() => {
         try {
+          // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+          // equipment-vocabulary product changes are admitted while
+          // uncommitted (exact four paths only).
           return execSync('git diff --name-only -- src/ package.json package-lock.json',
-            { encoding: 'utf8' }).trim() === ''
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts')
         } catch { return false }
       })())
   }

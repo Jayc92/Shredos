@@ -115,6 +115,10 @@ export interface MuscleTarget {
 export const EQUIPMENT_TYPES = [
   'barbell', 'dumbbell', 'cable', 'machine',
   'bodyweight', 'resistance_band', 'kettlebell', 'other',
+  // EXLIB-1C0B3: the four approved additions (migration 025). Must
+  // stay in lockstep with both database equipment CHECKs and
+  // ExerciseEquipment in src/types/database.ts.
+  'weight_plate', 'weighted_vest', 'smith_machine', 'sandbag',
 ] as const
 export const EXERCISE_TYPES = [
   'strength', 'bodyweight', 'machine', 'cable',

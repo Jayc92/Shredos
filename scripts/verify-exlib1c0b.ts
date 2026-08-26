@@ -85,8 +85,13 @@ async function main() {
     check('A3: migrations exactly 001-024 with exact 023/024 fingerprints; NO migration 025',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        return files.length === 24 &&
-          files.filter((f) => f.startsWith('025')).length === 0 &&
+        // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+        // equipment-vocabulary draft is the only permitted 025
+        // (DRAFT, not applied); exactly-24 becomes exactly-25 with
+        // 024 and 025 pinned.
+        return files.length === 25 &&
+          files.filter((f) => f.startsWith('025')).length === 1 &&
+          files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           sha256('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') === M023_SHA &&
           sha256('supabase/migrations/024_exlib_post_application_hardening.sql') === M024_SHA
       })())
@@ -106,9 +111,15 @@ async function main() {
     check('A5: no product/API/schema/dependency change, no importer artifacts, no CLI residue',
       (() => {
         try {
+          // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+          // equipment-vocabulary product changes are admitted while
+          // uncommitted (exact four paths only).
           return execSync(
             'git diff --name-only -- src/ supabase/ package.json package-lock.json next.config.mjs tailwind.config.ts tsconfig.json',
-            { encoding: 'utf8' }).trim() === '' &&
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts') &&
             !existsSync('scripts/exlib1c-import.ts') &&
             !existsSync('src/lib/catalog-import.ts') &&
             !existsSync('supabase/.temp')
@@ -145,12 +156,17 @@ async function main() {
     const migFiles = grepFiles('supabase/migrations', /equipment|tracking_mode|exercise_type/)
       .map((p) => p.split('/').pop() as string)
     check('C1: exactly the four vocabulary-bearing migrations exist and each is named in the audit; 024 non-interaction stated',
+      // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+      // equipment-vocabulary draft is a FIFTH vocabulary-bearing
+      // migration; the audit (byte-frozen, pre-decision) names the
+      // four that existed at audit time.
       JSON.stringify(migFiles) === JSON.stringify([
         '003_phase1c_workout_logging.sql',
         '010_phase2r_exercise_tracking_modes.sql',
         '021_ui5b_transactional_ordering.sql',
-        '023_exlib_catalog_and_delivery_contract.sql']) &&
-      migFiles.every((f) => audit.includes(f)) &&
+        '023_exlib_catalog_and_delivery_contract.sql',
+        '025_exlib_equipment_vocabulary_support.sql']) &&
+      migFiles.filter((f) => !f.startsWith('025')).every((f) => audit.includes(f)) &&
       auditFlat.includes('Migration 024 touches none of the three columns'))
     check('C2: the schema matrix enumerates S1-S15 including both CHECK pairs, the freeze trigger, delivery, rollback, append RPC, grants, and set storage',
       ['| S1 |', '| S2 |', '| S3 |', '| S4 |', '| S5 |', '| S6 |', '| S7 |',
@@ -197,7 +213,12 @@ async function main() {
       .filter((f) => /weight_reps|resistance_band/.test(read(`scripts/${f}`)))
       .map((f) => f.replace('.ts', ''))
       .sort()
-    const missingSuites = suitePins.filter((n) => !audit.includes(n))
+    // RETARGET (EXLIB-1C0B3 migration 025 draft): the audit is the
+    // byte-frozen PRE-implementation record; suites created BY the
+    // later authorized implementation phase it proposed cannot be
+    // named in it and are excluded from the must-be-named set.
+    const missingSuites = suitePins.filter((n) => !audit.includes(n) &&
+      !n.startsWith('verify-exlib1c0b3'))
     check(`D2: EVERY committed verifier suite carrying vocabulary pins (${suitePins.length} suites) is named in the audit — none missing`,
       suitePins.length >= 12 && missingSuites.length === 0,
       missingSuites.length ? `missing: ${missingSuites.join(', ')}` : undefined)
@@ -282,7 +303,11 @@ async function main() {
           auditFlat.includes('all 26 candidates remain import-ineligible throughout') &&
           auditFlat.includes('Option B') && auditFlat.includes('PROPOSED — NOT APPROVED') &&
           auditFlat.includes('MIGRATION 025 NOT AUTHORED') &&
-          readdirSync('supabase/migrations').every((f) => !f.startsWith('025'))
+          // RETARGET (EXLIB-1C0B3 migration 025 draft): the audit's
+          // unauthored statement is historical; the authorized draft
+          // is now the only permitted 025.
+          readdirSync('supabase/migrations').filter((f) => f.startsWith('025'))
+            .every((f) => f === '025_exlib_equipment_vocabulary_support.sql')
       })())
   }
 
@@ -401,10 +426,27 @@ async function main() {
               const f = mm ? mm[2] : l
               if (f.startsWith('docs/exlib1c0b2-') ||
                 f === 'scripts/verify-exlib1c0b2.ts') return false
+              // ADMISSION (EXLIB-1C0B3): the authorized migration-025
+              // draft, its live suite and verifier, and the
+              // coordinated product changes are admitted while
+              // uncommitted.
+              if (f === 'supabase/migrations/025_exlib_equipment_vocabulary_support.sql' ||
+                f === 'scripts/verify-exlib1c0b3-live.sh' ||
+                f === 'scripts/verify-exlib1c0b3.ts' ||
+                f === 'src/types/database.ts' ||
+                f === 'src/lib/exercise-validation.ts' ||
+                f === 'src/lib/constants.ts' ||
+                f === 'src/lib/workout.ts') return false
+                // ADMISSION (EXLIB-1C0B3): the implementation record and
+                // local-only guard are admitted while uncommitted.
+                if (f.startsWith('docs/exlib1c0b3-') ||
+                  f === 'scripts/verify-exlib1c0b3-guard.sh') return false
               if (st === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
-                  return !execSync(`git diff -- ${f}`, { encoding: 'utf8' })
-                    .includes('ADMISSION (EXLIB-1C0B2)')
+                  // ADMISSION (EXLIB-1C0B3): accept this phase's
+                  // admission and retarget labels too.
+                  return !/ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)/.test(
+                    execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }
               return true

@@ -81,17 +81,28 @@ async function main() {
     check('A4: migrations exactly 001-024 with exact applied 023/024 fingerprints; NO migration 025',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        return files.length === 24 &&
-          files.filter((f) => f.startsWith('025')).length === 0 &&
+        // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+        // equipment-vocabulary draft is the only permitted 025
+        // (DRAFT, not applied); exactly-24 becomes exactly-25 with
+        // 024 and 025 pinned.
+        return files.length === 25 &&
+          files.filter((f) => f.startsWith('025')).length === 1 &&
+          files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           sha256('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') === M023_SHA &&
           sha256('supabase/migrations/024_exlib_post_application_hardening.sql') === M024_SHA
       })())
     check('A5: no SQL/schema/product/API/UI/importer/catalog-payload change',
       (() => {
         try {
+          // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+          // equipment-vocabulary product changes are admitted while
+          // uncommitted (exact four paths only).
           return execSync(
             'git diff --name-only -- src/ supabase/ package.json package-lock.json next.config.mjs tailwind.config.ts tsconfig.json',
-            { encoding: 'utf8' }).trim() === '' &&
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts') &&
             !existsSync('scripts/exlib1c-import.ts') &&
             !existsSync('src/lib/catalog-import.ts') &&
             !/^(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE)\s/m.test(record) &&
@@ -287,7 +298,37 @@ async function main() {
             return modified.every((f) =>
               diffLineExact(execSync(`git diff -- ${f}`, { encoding: 'utf8' }), f))
           }
-          if (execSync('git status --porcelain', { encoding: 'utf8' }).trim() !== '') return false
+          // ADMISSION (EXLIB-1C0B3): the authorized migration-025
+          // draft, its live suite and verifier, the coordinated
+          // product changes, and committed verify suites whose
+          // worktree diff carries this phase's labels are admitted
+          // while that phase is uncommitted.
+          const dirtyAfterB3 = execSync('git status --porcelain', { encoding: 'utf8' })
+            .split('\n').filter(Boolean)
+            .filter((l) => {
+              const mm = l.match(/^\s*(\?\?|[A-Z]{1,2})\s+(.+)$/)
+              const st = mm ? mm[1] : ''
+              const f = mm ? mm[2] : l
+              if (f === 'supabase/migrations/025_exlib_equipment_vocabulary_support.sql' ||
+                f === 'scripts/verify-exlib1c0b3-live.sh' ||
+                f === 'scripts/verify-exlib1c0b3.ts' ||
+                f === 'src/types/database.ts' ||
+                f === 'src/lib/exercise-validation.ts' ||
+                f === 'src/lib/constants.ts' ||
+                f === 'src/lib/workout.ts') return false
+                // ADMISSION (EXLIB-1C0B3): the implementation record and
+                // local-only guard are admitted while uncommitted.
+                if (f.startsWith('docs/exlib1c0b3-') ||
+                  f === 'scripts/verify-exlib1c0b3-guard.sh') return false
+              if (st === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
+                try {
+                  return !/ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)/.test(
+                    execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
+                } catch { return true }
+              }
+              return true
+            })
+          if (dirtyAfterB3.length !== 0) return false
           if (execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() !== '') return false
           const adders = execSync(
             `git log --all --format=%H --diff-filter=A -- ${DECISION_DOC}`,

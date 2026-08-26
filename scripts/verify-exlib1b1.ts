@@ -133,7 +133,13 @@ async function main() {
       // pinned; no other migration may appear.
       readdirSync('supabase/migrations').filter((f) => f.startsWith('024')).length === 1 &&
       readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') &&
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 24)
+      // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+      // equipment-vocabulary draft is the only permitted 025 (DRAFT,
+      // not applied); the boundary moves from exactly-24 to
+      // exactly-25 with 024 and 025 both pinned.
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('025')).length === 1 &&
+      readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql') &&
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 25)
     check('C2: migration 022 fingerprint intact',
       (() => {
         const m022 = readFileSync('supabase/migrations/022_ui5b2_workout_reuse.sql')
@@ -230,7 +236,14 @@ async function main() {
           return execSync(
             'git diff --name-only -- src/ supabase/ package.json package-lock.json next.config.mjs tailwind.config.ts tsconfig.json',
             { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
+              /* ADMISSION (EXLIB-1C0B3): the authorized coordinated
+                 equipment-vocabulary product changes are admitted
+                 while uncommitted (exact four paths only). */
+              f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' ||
+              f === 'src/lib/workout.ts')
         } catch { return false }
       })())
     check('E4: worktree changes stay inside the declared EXLIB-1B1 scope',
@@ -263,6 +276,17 @@ async function main() {
             // ADMISSION (EXLIB-1B3B migration 024 draft): the
             // uncommitted hardening draft is admitted.
             f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
+            // ADMISSION (EXLIB-1C0B3): the authorized migration-025
+            // draft and the coordinated equipment-vocabulary product
+            // changes are admitted while uncommitted.
+            f === 'supabase/migrations/025_exlib_equipment_vocabulary_support.sql' ||
+            f === 'src/types/database.ts' ||
+            f === 'src/lib/exercise-validation.ts' ||
+            f === 'src/lib/constants.ts' ||
+            f === 'src/lib/workout.ts' ||
+            // ADMISSION (EXLIB-1C0B3): the implementation record and
+            // local-only guard are admitted while uncommitted.
+            f.startsWith('docs/exlib1c0b3-') ||
             f.startsWith('scripts/verify-')
         })
       })())

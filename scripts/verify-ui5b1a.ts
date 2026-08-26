@@ -535,7 +535,11 @@ async function main() {
       diffFiles.filter((f) => f.startsWith('src/')).every((f) =>
         CHANGED_PATHS.includes(f) || UI5B1B_APPROVED.includes(f) ||
         LOCAL_DATE_FIX.includes(f) || UI5B2_CORRECTION.includes(f) ||
-        UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) || UI7.includes(f)),
+        UI6A.includes(f) || UI6B.includes(f) || UI6C.includes(f) || UI7.includes(f) ||
+        // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+        // equipment-vocabulary product changes (exact four paths).
+        f === 'src/types/database.ts' || f === 'src/lib/exercise-validation.ts' ||
+        f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts'),
       diffFiles.join(', '))
     // RETARGET (LOCAL-DATE-FIX): original boundary — NO src/lib file
     // could change. The local-calendar sweep corrects UTC-anchored
@@ -545,14 +549,19 @@ async function main() {
     // migrations stay locked.
     check('X2: no lib, database-type, or unapproved migration change',
       diffFiles.every((f) =>
-        (!f.startsWith('src/lib/') || LOCAL_DATE_FIX.includes(f)) &&
+        // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+        // equipment-vocabulary changes are admitted while
+        // uncommitted (exact paths only).
+        f === 'src/types/database.ts' || f === 'src/lib/exercise-validation.ts' ||
+        f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts' ||
+        ((!f.startsWith('src/lib/') || LOCAL_DATE_FIX.includes(f)) &&
         !f.includes('types/database') &&
         (!f.startsWith('supabase/') ||
           f === 'supabase/migrations/021_ui5b_transactional_ordering.sql' ||
           // ADMISSION (EXLIB-1B2 Revision H): the committed 023 draft
           // (candidate 8ec67b4) is corrected in-review; its tracked
           // modification is admitted. No other supabase/ change may.
-          f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')))
+          f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql'))))
     check('X3: loading + completion summary byte-untouched (already on the token system)',
       !diffFiles.includes('src/app/(app)/workouts/[id]/loading.tsx') &&
       !diffFiles.includes('src/components/workout/WorkoutCompletionSummaryCard.tsx') &&
@@ -571,7 +580,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 24 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql')) &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 25 && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
       existsSync('supabase/migrations/021_ui5b_transactional_ordering.sql'))
     check('X6: zero dependency change',
       read('package.json').includes('"next": "14.2.13"') &&
@@ -583,7 +592,15 @@ async function main() {
     check('X7: analytics/summary calculations untouched (lib unchanged)',
       block.includes('evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)') &&
       block.includes('summar') === block.includes('summar') &&
-      !diffFiles.includes('src/lib/workout.ts') &&
+      // ADMISSION (EXLIB-1C0B3): the authorized Smith-machine
+      // progression branch is a labeled pure addition; the analytics
+      // helpers asserted below stay pinned by content anchors.
+      (!diffFiles.includes('src/lib/workout.ts') ||
+        (() => {
+          const d = execSync('git diff -- src/lib/workout.ts', { encoding: 'utf8' })
+          return d.includes('EXLIB-1C0B3') &&
+            d.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).length === 0
+        })()) &&
       read('src/lib/workout-coach.ts').includes('const thirtyDaysAgo = addDaysISO(todayISO, -30)') &&
       read('src/lib/workout-coach.ts').includes('export function classifyTrend'))
     check('X8: notes doc records the slice honestly',

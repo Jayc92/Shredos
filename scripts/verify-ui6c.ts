@@ -238,6 +238,17 @@ async function main() {
             // ADMISSION (EXLIB-1B3B migration 024 draft): the
             // uncommitted hardening draft is admitted.
             f === 'supabase/migrations/024_exlib_post_application_hardening.sql' ||
+            // ADMISSION (EXLIB-1C0B3): the authorized migration-025
+            // draft and the coordinated equipment-vocabulary product
+            // changes are admitted while uncommitted.
+            f === 'supabase/migrations/025_exlib_equipment_vocabulary_support.sql' ||
+            f === 'src/types/database.ts' ||
+            f === 'src/lib/exercise-validation.ts' ||
+            f === 'src/lib/constants.ts' ||
+            f === 'src/lib/workout.ts' ||
+            // ADMISSION (EXLIB-1C0B3): the implementation record and
+            // local-only guard are admitted while uncommitted.
+            f.startsWith('docs/exlib1c0b3-') ||
             // RETARGET (EXLIB-1B2): the approved-for-drafting migration
             // 023 draft is admitted while uncommitted.
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
@@ -254,7 +265,14 @@ async function main() {
           return execSync(
             'git diff --name-only -- src/lib/ src/app/api/ supabase/ package.json package-lock.json',
             { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+            .every((f) => f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
+              /* ADMISSION (EXLIB-1C0B3): the authorized coordinated
+                 equipment-vocabulary product changes are admitted
+                 while uncommitted (exact four paths only). */
+              f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' ||
+              f === 'src/lib/workout.ts')
         } catch { return false }
       })())
     check('A3: CoachSubNav and RecordDecisionButton untouched (already clean)',
@@ -582,7 +600,13 @@ async function main() {
     check('S1: src/lib/workout.ts byte-untouched (helpers and meanings intact)',
       (() => {
         try {
-          return execSync('git diff --name-only -- src/lib/workout.ts', { encoding: 'utf8' }).trim() === ''
+          // ADMISSION (EXLIB-1C0B3): the authorized Smith-machine
+          // progression branch is admitted — pure additions only,
+          // carrying the phase label; existing helpers untouched.
+          const d = execSync('git diff -- src/lib/workout.ts', { encoding: 'utf8' })
+          return d === '' ||
+            (d.includes('EXLIB-1C0B3') &&
+              d.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).length === 0)
         } catch { return false }
       })())
   }
@@ -831,9 +855,14 @@ async function main() {
         // RETARGET (EXLIB-1B3B migration 024 draft): the hardening
         // draft joins the boundary (DRAFT, not applied);
         // exactly-23 becomes exactly-24 with both filenames pinned.
-        return files.length === 24 &&
+        // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+        // equipment-vocabulary draft joins the boundary (DRAFT, not
+        // applied); exactly-24 becomes exactly-25 with 024 and 025
+        // both pinned.
+        return files.length === 25 &&
           files.includes('023_exlib_catalog_and_delivery_contract.sql') &&
           files.includes('024_exlib_post_application_hardening.sql') &&
+          files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           m022.length === 19112 &&
           createHash('sha256').update(m022).digest('hex') ===
             '1432692f700b1686243aa8219ea4af3146e2bec30b228b3f9138d60e072e1241'

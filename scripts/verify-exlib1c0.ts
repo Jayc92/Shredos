@@ -93,8 +93,14 @@ async function main() {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
         const m023 = readFileSync('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
         const m024 = readFileSync('supabase/migrations/024_exlib_post_application_hardening.sql')
-        return files.length === 24 &&
-          files.filter((f) => f.startsWith('025')).length === 0 &&
+        // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+        // equipment-vocabulary draft is the only permitted 025
+        // (DRAFT, not applied; 3,587 bytes, sha256
+        // fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c);
+        // exactly-24 becomes exactly-25 with 024 and 025 pinned.
+        return files.length === 25 &&
+          files.filter((f) => f.startsWith('025')).length === 1 &&
+          files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           m023.length === 92806 &&
           createHash('sha256').update(m023).digest('hex') === M023_SHA &&
           m024.length === 3726 &&
@@ -119,9 +125,15 @@ async function main() {
     check('A5: no catalog data, no EXLIB-1C implementation, no product/API/schema/dependency change',
       (() => {
         try {
+          // ADMISSION (EXLIB-1C0B3): the authorized coordinated
+          // equipment-vocabulary product changes are admitted while
+          // uncommitted (exact four paths only).
           return execSync(
             'git diff --name-only -- src/ supabase/ package.json package-lock.json next.config.mjs tailwind.config.ts tsconfig.json',
-            { encoding: 'utf8' }).trim() === '' &&
+            { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+            .every((f) => f === 'src/types/database.ts' ||
+              f === 'src/lib/exercise-validation.ts' ||
+              f === 'src/lib/constants.ts' || f === 'src/lib/workout.ts') &&
             !existsSync('scripts/exlib1c-import.ts') &&
             !existsSync('src/lib/catalog-import.ts')
         } catch { return false }
@@ -505,10 +517,27 @@ async function main() {
               // record artifacts are admitted while uncommitted.
               if (f.startsWith('docs/exlib1c0b2-') ||
                 f === 'scripts/verify-exlib1c0b2.ts') return false
+              // ADMISSION (EXLIB-1C0B3): the authorized migration-025
+              // draft, its live suite and verifier, and the
+              // coordinated product changes are admitted while
+              // uncommitted.
+              if (f === 'supabase/migrations/025_exlib_equipment_vocabulary_support.sql' ||
+                f === 'scripts/verify-exlib1c0b3-live.sh' ||
+                f === 'scripts/verify-exlib1c0b3.ts' ||
+                f === 'src/types/database.ts' ||
+                f === 'src/lib/exercise-validation.ts' ||
+                f === 'src/lib/constants.ts' ||
+                f === 'src/lib/workout.ts') return false
+                // ADMISSION (EXLIB-1C0B3): the implementation record and
+                // local-only guard are admitted while uncommitted.
+                if (f.startsWith('docs/exlib1c0b3-') ||
+                  f === 'scripts/verify-exlib1c0b3-guard.sh') return false
               if (status === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
                   // ADMISSION (EXLIB-1C0B2): accept the new label.
-                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)|ADMISSION \(EXLIB-1C0B2\)/.test(
+                  // ADMISSION (EXLIB-1C0B3): accept this phase's
+                  // admission and retarget labels too.
+                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)|ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)/.test(
                     execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }
@@ -534,7 +563,10 @@ async function main() {
       })())
     check('E3: this phase authored no SQL and no migration 025',
       !/CREATE TABLE|ALTER TABLE|INSERT INTO|CREATE POLICY|CREATE INDEX/.test(packet + guide) &&
-      readdirSync('supabase/migrations').every((f) => !f.startsWith('025')))
+      // RETARGET (EXLIB-1C0B3 migration 025 draft): the authorized
+      // draft is the only permitted 025.
+      readdirSync('supabase/migrations').filter((f) => f.startsWith('025'))
+        .every((f) => f === '025_exlib_equipment_vocabulary_support.sql'))
     // RETARGET (EXLIB-1C0 promotion, committed-state verification):
     // E4 no longer reads admissions from the (now clean) worktree
     // diff. It inspects each suite's diff over the IMMUTABLE packet

@@ -327,6 +327,10 @@ export type ExerciseCategory = 'compound' | 'isolation' | 'cardio' | 'mobility' 
 export type ExerciseEquipment =
   | 'barbell' | 'dumbbell' | 'cable' | 'machine'
   | 'bodyweight' | 'resistance_band' | 'kettlebell' | 'other'
+  // EXLIB-1C0B3: the four approved equipment-vocabulary additions
+  // (migration 025; decisions 5-7 in
+  // docs/exlib1c0b2-equipment-release-product-decisions.md).
+  | 'weight_plate' | 'weighted_vest' | 'smith_machine' | 'sandbag'
 
 export type ExerciseType =
   | 'strength' | 'bodyweight' | 'machine' | 'cable'

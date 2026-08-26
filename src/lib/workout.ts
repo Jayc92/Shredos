@@ -490,6 +490,18 @@ function buildIncreaseSuggestion(
     }
   }
 
+  // EXLIB-1C0B3 decision 6: Smith Machine is handled EXPLICITLY and
+  // never falls through to the fixed +5 lbs weight branch below --
+  // Smith-machine loading, plate increments, and counterbalancing
+  // vary by machine, so the guidance stays neutral and makes no
+  // claim about machine equivalence.
+  if (equipment === 'smith_machine') {
+    return {
+      action: 'increase',
+      message: `Try the next available increment/setting${suffix}`,
+    }
+  }
+
   if (trackingMode === 'bodyweight') {
     const nextReps = reps + SUGGESTED_REP_INCREASE
     return {

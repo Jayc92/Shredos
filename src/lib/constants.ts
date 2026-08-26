@@ -206,6 +206,12 @@ export const EXERCISE_EQUIPMENT = [
   { value: 'bodyweight',    label: 'Bodyweight' },
   { value: 'resistance_band',label: 'Band' },
   { value: 'kettlebell',    label: 'Kettlebell' },
+  // EXLIB-1C0B3: the four approved additions with Joseph's exact
+  // decision-7 labels; 'Other' stays last as the catch-all.
+  { value: 'weight_plate',  label: 'Weight Plate' },
+  { value: 'weighted_vest', label: 'Weighted Vest' },
+  { value: 'smith_machine', label: 'Smith Machine' },
+  { value: 'sandbag',       label: 'Sandbag' },
   { value: 'other',         label: 'Other' },
 ] as const
 
