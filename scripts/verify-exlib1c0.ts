@@ -501,9 +501,14 @@ async function main() {
               // uncommitted.
               if (f.startsWith('docs/exlib1c0b-') ||
                 f === 'scripts/verify-exlib1c0b.ts') return false
+              // ADMISSION (EXLIB-1C0B2): the equipment-decision
+              // record artifacts are admitted while uncommitted.
+              if (f.startsWith('docs/exlib1c0b2-') ||
+                f === 'scripts/verify-exlib1c0b2.ts') return false
               if (status === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
-                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)/.test(
+                  // ADMISSION (EXLIB-1C0B2): accept the new label.
+                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)|ADMISSION \(EXLIB-1C0B2\)/.test(
                     execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }

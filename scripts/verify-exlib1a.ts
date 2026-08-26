@@ -204,6 +204,9 @@ async function main() {
             // ADMISSION (EXLIB-1C0B): the displacement-audit
             // artifacts are admitted while uncommitted.
             f.startsWith('docs/exlib1c0b-') ||
+            // ADMISSION (EXLIB-1C0B2): the equipment-decision
+            // record artifacts are admitted while uncommitted.
+            f.startsWith('docs/exlib1c0b2-') ||
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the
             // uncommitted hardening draft is admitted.

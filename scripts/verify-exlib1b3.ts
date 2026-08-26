@@ -270,6 +270,9 @@ async function main() {
             // ADMISSION (EXLIB-1C0B): the displacement-audit
             // artifacts are admitted while uncommitted.
             f.startsWith('docs/exlib1c0b-') ||
+            // ADMISSION (EXLIB-1C0B2): the equipment-decision
+            // record artifacts are admitted while uncommitted.
+            f.startsWith('docs/exlib1c0b2-') ||
             // ADMISSION (EXLIB-1B3B migration 024 draft): the phase's
             // mechanical migration-boundary retargets and worktree
             // admissions touch committed harnesses across the
