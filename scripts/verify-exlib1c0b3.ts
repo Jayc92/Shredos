@@ -469,7 +469,21 @@ async function main() {
             return modified.every((f) =>
               diffLineExact(execSync(`git diff -- ${f}`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 16 }), f))
           }
-          if (execSync('git status --porcelain', { encoding: 'utf8' }).trim() !== '') return false
+          // ADMISSION (EXLIB-1C0B3 application record): while the
+          // durable application/deployment/hosted-QA record is being
+          // prepared uncommitted on the promoted main, the worktree
+          // may contain exactly that record (untracked) and this
+          // verifier (modified). Anything else still fails. Once the
+          // record phase commits, the status is empty again and this
+          // admission is inert.
+          const dirt = execSync('git status --porcelain', { encoding: 'utf8' })
+            .split('\n').filter(Boolean).map((l) => l.trim()).sort()
+          const APP_RECORD_DIRT = [
+            '?? docs/exlib1c0b3-application-deployment-hosted-qa-record.md',
+            'M scripts/verify-exlib1c0b3.ts',
+          ].sort()
+          if (dirt.length !== 0 &&
+            JSON.stringify(dirt) !== JSON.stringify(APP_RECORD_DIRT)) return false
           if (execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() !== '') return false
           const adders = execSync(
             `git log --all --format=%H --diff-filter=A -- ${M025_FILE}`,
@@ -495,6 +509,81 @@ async function main() {
     check('G2: no hosted-service contact markers in the migration or live script',
       [m025, live].every((t) =>
         !/ttybyljytiwntvorugcv|supabase\.co\b|vercel\.com|db push/.test(t)))
+  }
+
+  console.log('\nH. Application, deployment, and hosted-QA record (EXLIB-1C0B3 application record)')
+  {
+    // ADMISSION (EXLIB-1C0B3 application record): pins every
+    // authoritative fact of the durable application/deployment/
+    // hosted-QA record. Documentation checks only — this section
+    // performs NO Supabase or Vercel contact; hosted facts are
+    // pinned as recorded statements from ChatGPT's authenticated
+    // session reports, and repository facts are checked mechanically.
+    const APP_RECORD = 'docs/exlib1c0b3-application-deployment-hosted-qa-record.md'
+    const rec = read(APP_RECORD)
+    const flat = rec.replace(/\s+/g, ' ')
+    check('H1: record pins the exact source promotion and migration application — SHAs, tag object, tree, fingerprints, history entry, constraint verification, and the preserved historical DRAFT header',
+      flat.includes('f20ab59b0e4375e6ec7d80c90583585d2c0bf9c0') &&
+      flat.includes('360ccd24ac1529c910fc58744be71b3bf9838af3') &&
+      flat.includes('exlib1c0b3-coordinated-equipment-support-stable') &&
+      flat.includes('f6c20450c6a4f1b919b177bb212d7e2d112d6f0b') &&
+      flat.includes('436ea1b7b43aef4f4b350cedef49ce1f3c8ac880') &&
+      flat.includes(M025_SHA) &&
+      flat.includes('e576d4298e799041befb716186d10d8433a94d3734225596ce8b6966a858d0f1') &&
+      flat.includes('f5fcda9ef95b4743f8e4009d5a1330289e046d20cc524e944a8d2e91c53b06a4') &&
+      flat.includes('29aa42146a132d4ab7be3be110df21095e5c0ee90b2311be9b84fc7803674a3d') &&
+      flat.includes('da5e42379ace7ef199f73a23a230b32a97c52ccc972118837535abdb1a1ed1eb') &&
+      flat.includes('Applied by ChatGPT') &&
+      flat.includes('never by Claude') &&
+      flat.includes('20260826203154_exlib_equipment_vocabulary_support') &&
+      flat.includes('validated, non-deferrable, and containing exactly all 12 accepted values') &&
+      flat.includes('deliberately NOT rewritten') &&
+      m025.includes('STATUS: DRAFT — NOT APPLIED') &&
+      sha256(M025_FILE) === M025_SHA)
+    check('H2: record pins the automatic deployment and hosted QA — Vercel identifiers, deployed SHA, alias, four QA exercises and persisted values, edit-flow notes, bundle guidance, and the complete cleanup counts',
+      flat.includes('prj_wmJg53QOXs4HI4hYhdBwH8VcH8RC') &&
+      flat.includes('dpl_HAHnk2W2YcnZn9tSaieQvm5Y7BAb') &&
+      flat.includes('status READY') &&
+      flat.includes('https://shredos-pi.vercel.app') &&
+      flat.includes('no manual Vercel deployment or configuration operation occurred') &&
+      ['QA EXLIB Weight Plate 2026-08-27', 'QA EXLIB Weighted Vest 2026-08-27',
+        'QA EXLIB Smith Machine 2026-08-27', 'QA EXLIB Sandbag 2026-08-27']
+        .every((n) => flat.includes(n)) &&
+      ['`weight_plate`', '`weighted_vest`', '`smith_machine`', '`sandbag`']
+        .every((v) => flat.includes(v)) &&
+      flat.includes('Hosted QA edit verified') &&
+      flat.includes('next available increment/setting') &&
+      flat.includes('rose from 84 to 88') &&
+      flat.includes('zero workout and routine references') &&
+      flat.includes('exactly four `exercise_name_claim` rows and exactly four QA exercises') &&
+      flat.includes('exercises 84; exercise_name_claims 84; remaining QA exercises 0') &&
+      flat.includes('Tenant rows using the four new values: 0. Catalog rows using the four new values: 0') &&
+      flat.includes('Catalog content remained zero throughout') &&
+      flat.includes('runtime-error query found no errors') &&
+      flat.includes('warning/error log query found no matching logs'))
+    check('H3: record states the evidence layers honestly and the frozen prohibitions — hosted facts are relayed session reports, the ledger is a committed source artifact (mechanically 48/48 pending-null, 26/26 import-ineligible), and catalog/EXLIB-1C loading remain unauthorized',
+      (() => {
+        try {
+          if (!flat.includes('COMMITTED SOURCE ARTIFACT')) return false
+          if (!flat.includes('not by querying any hosted ledger table')) return false
+          if (!flat.includes('Claude performed no Supabase or Vercel contact')) return false
+          if (!flat.includes("ChatGPT's authenticated hosted application, deployment, and QA session reports")) return false
+          if (!flat.includes('Catalog loading remains UNAUTHORIZED')) return false
+          if (!flat.includes('EXLIB-1C loading remains UNAUTHORIZED')) return false
+          if (!flat.includes('48/48 pending-null')) return false
+          if (!flat.includes('`import_eligible: false`')) return false
+          const parseJsonl = (p: string): any[] => read(p).split('\n')
+            .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+          const led = parseJsonl('docs/exlib1b1-review-ledger.jsonl')
+          const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl')
+            .flatMap((r: any) => r.canonical_candidates)
+          return led.length === 48 &&
+            led.every((r: any) => r.status === 'pending' && r.reviewer === null &&
+              r.reviewed_at === null && r.decision_rationale === null) &&
+            cands.length === 26 &&
+            cands.every((c: any) => c.import_eligible === false)
+        } catch { return false }
+      })())
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)
