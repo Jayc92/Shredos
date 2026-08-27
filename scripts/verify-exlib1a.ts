@@ -235,6 +235,9 @@ async function main() {
             // ADMISSION (EXLIB-1C0B3): the implementation record and
             // local-only guard are admitted while uncommitted.
             f.startsWith('docs/exlib1c0b3-') ||
+            // ADMISSION (EXLIB-1C0B4 weight_time product decisions):
+            // the uncommitted decision record is admitted.
+            f === 'docs/exlib1c0b4-weight-time-product-decisions.md' ||
             f.startsWith('scripts/verify-')
         })
       })())

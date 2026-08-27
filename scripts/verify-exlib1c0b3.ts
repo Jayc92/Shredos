@@ -482,8 +482,32 @@ async function main() {
             '?? docs/exlib1c0b3-application-deployment-hosted-qa-record.md',
             'M scripts/verify-exlib1c0b3.ts',
           ].sort()
+          // ADMISSION (EXLIB-1C0B4 weight_time product decisions):
+          // while the EXLIB-1C0B4 decision record and its focused
+          // verifier are being prepared uncommitted (this verifier
+          // gains only this admission, and eleven committed suites
+          // gain only the labeled B4 scope admissions), the worktree
+          // may contain exactly that inventory. Anything else still
+          // fails; the admission is inert once the B4 phase commits.
+          const B4_DECISION_DIRT = [
+            '?? docs/exlib1c0b4-weight-time-product-decisions.md',
+            '?? scripts/verify-exlib1c0b4.ts',
+            'M scripts/verify-exlib1c0b3.ts',
+            'M scripts/verify-exlib1a.ts',
+            'M scripts/verify-exlib1b1.ts',
+            'M scripts/verify-exlib1b3.ts',
+            'M scripts/verify-exlib1c0.ts',
+            'M scripts/verify-exlib1c0a.ts',
+            'M scripts/verify-exlib1c0b.ts',
+            'M scripts/verify-exlib1c0b2.ts',
+            'M scripts/verify-ui5b1b.ts',
+            'M scripts/verify-ui5b2.ts',
+            'M scripts/verify-ui6c.ts',
+            'M scripts/verify-ui7.ts',
+          ].sort()
           if (dirt.length !== 0 &&
-            JSON.stringify(dirt) !== JSON.stringify(APP_RECORD_DIRT)) return false
+            JSON.stringify(dirt) !== JSON.stringify(APP_RECORD_DIRT) &&
+            JSON.stringify(dirt) !== JSON.stringify(B4_DECISION_DIRT)) return false
           if (execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() !== '') return false
           const adders = execSync(
             `git log --all --format=%H --diff-filter=A -- ${M025_FILE}`,

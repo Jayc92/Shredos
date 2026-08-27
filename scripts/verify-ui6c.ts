@@ -249,6 +249,9 @@ async function main() {
             // ADMISSION (EXLIB-1C0B3): the implementation record and
             // local-only guard are admitted while uncommitted.
             f.startsWith('docs/exlib1c0b3-') ||
+            // ADMISSION (EXLIB-1C0B4 weight_time product decisions):
+            // the uncommitted decision record is admitted.
+            f === 'docs/exlib1c0b4-weight-time-product-decisions.md' ||
             // RETARGET (EXLIB-1B2): the approved-for-drafting migration
             // 023 draft is admitted while uncommitted.
             f === 'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql' ||

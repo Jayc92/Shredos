@@ -531,13 +531,17 @@ async function main() {
                 // ADMISSION (EXLIB-1C0B3): the implementation record and
                 // local-only guard are admitted while uncommitted.
                 if (f.startsWith('docs/exlib1c0b3-') ||
+                // ADMISSION (EXLIB-1C0B4 weight_time product decisions):
+                // the uncommitted decision record is admitted.
+                f === 'docs/exlib1c0b4-weight-time-product-decisions.md' ||
+                f === 'scripts/verify-exlib1c0b4.ts' ||
                   f === 'scripts/verify-exlib1c0b3-guard.sh') return false
               if (status === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
                   // ADMISSION (EXLIB-1C0B2): accept the new label.
                   // ADMISSION (EXLIB-1C0B3): accept this phase's
                   // admission and retarget labels too.
-                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)|ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)/.test(
+                  return !/ADMISSION \(EXLIB-1C0A\)|ADMISSION \(EXLIB-1C0B\)|ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)|ADMISSION \(EXLIB-1C0B4 weight_time product decisions\)/.test(
                     execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }
