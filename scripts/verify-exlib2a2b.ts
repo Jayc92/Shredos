@@ -132,7 +132,7 @@ async function main(): Promise<void> {
       recFlat.includes("publication_status = 'published' (which the publication CHECK") &&
       recFlat.includes('FUNCTION publish_catalog_content(p_logical_id, p_content_id)') &&
       recFlat.includes('lock the logical exercise row (SELECT ... FOR UPDATE ON') &&
-      recFlat.includes('validate fail-closed that the replacement carries') &&
+      recFlat.includes('FAIL-CLOSED VALIDATIONS (each rejects with an error)') &&
       recFlat.includes('retire the currently published version (publication_status') &&
       recFlat.includes("publish the replacement ('draft' -> 'published')") &&
       recFlat.includes('no externally') &&
@@ -142,6 +142,36 @@ async function main(): Promise<void> {
       recFlat.includes('version is untouched') &&
       recFlat.includes('The ONLY permitted post-decision mutation is the') &&
       recFlat.includes('publication_status transition (draft -> published ->'))
+    // REVISED (EXLIB-2A/2B security correction): the publication
+    // function's SECURITY DEFINER execution boundary is hardened —
+    // non-client-callable, role-restricted, fixed search_path,
+    // schema-qualified, with explicit fail-closed input validations
+    // — and the general auth.uid() statement is reconciled into two
+    // explicit function classes.
+    check('B1c: publication-function security — REVOKE EXECUTE FROM PUBLIC/anon/authenticated with GRANT only to exlib_catalog_admin, no service-role credential in app code, pinned safe search_path with schema-qualified references, fail-closed rejection of mismatched logical/content ids, non-draft targets, pending/rejected review, and blank evidence, direct client mutation denied with publication only via the restricted function, and the two-class function security model reconciled',
+      recFlat.includes('EXECUTION BOUNDARY (non-client-callable, role-restricted)') &&
+      recFlat.includes('REVOKE EXECUTE ON FUNCTION publish_catalog_content') &&
+      recFlat.includes('FROM PUBLIC') &&
+      recFlat.includes('FROM anon') &&
+      recFlat.includes('FROM authenticated') &&
+      recFlat.includes('GRANT EXECUTE ON FUNCTION publish_catalog_content') &&
+      recFlat.includes('TO exlib_catalog_admin') &&
+      recFlat.includes('No ordinary tenant/application role can call it') &&
+      recFlat.includes('service-role credential is used or exposed in application') &&
+      recFlat.includes('SET search_path = public, pg_temp') &&
+      recFlat.includes('every referenced table/function is schema-qualified') &&
+      recFlat.includes('p_content_id must belong to p_logical_id') &&
+      recFlat.includes("must currently be in 'draft' publication") &&
+      recFlat.includes('pending or rejected review state is rejected') &&
+      recFlat.includes('incomplete or blank review evidence is rejected') &&
+      recFlat.includes('run validations a-d fail-closed') &&
+      recFlat.includes('Direct table mutation on `exercise_catalog_content` is denied to every client role') &&
+      recFlat.includes('publication is possible ONLY through this restricted function') &&
+      recFlat.includes('TENANT-DELIVERY functions') &&
+      recFlat.includes('remain scoped to `auth.uid()` with no user parameter') &&
+      recFlat.includes('ADMINISTRATIVE publication function') &&
+      recFlat.includes('non-client-callable and role-restricted') &&
+      recFlat.includes('no function is both'))
     check('B2: provenance split and honest metadata — METADATA provenance on exercise_catalog with conditional source CHECK (no prose authorship there), content provenance on the content version, enumerated behavior metadata incl. the honest non-strength patterns, relationships table as sole persisted store fed fail-closed from staging arrays, aliases in existing machinery only',
       recFlat.includes('Metadata provenance** lives on `exercise_catalog`') &&
       recFlat.includes('Instructional-content provenance and authorship** live on the specific `exercise_catalog_content` version') &&

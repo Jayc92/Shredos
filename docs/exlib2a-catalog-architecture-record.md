@@ -119,13 +119,44 @@ SQL-shape (pseudocode — NOT a migration):
 
     FUNCTION publish_catalog_content(p_logical_id, p_content_id)
       SECURITY DEFINER
+      SET search_path = public, pg_temp
+      -- safe FIXED search_path pinned on the function itself, and
+      -- every referenced table/function is schema-qualified
+      -- (public.exercise_catalog_logical,
+      -- public.exercise_catalog_content, ...) so no search-path
+      -- hijack is possible even if the pin were lost.
+      --
+      -- EXECUTION BOUNDARY (non-client-callable, role-restricted):
+      --   REVOKE EXECUTE ON FUNCTION publish_catalog_content
+      --     FROM PUBLIC;
+      --   REVOKE EXECUTE ON FUNCTION publish_catalog_content
+      --     FROM anon;
+      --   REVOKE EXECUTE ON FUNCTION publish_catalog_content
+      --     FROM authenticated;
+      --   GRANT EXECUTE ON FUNCTION publish_catalog_content
+      --     TO exlib_catalog_admin;  -- the narrowly named trusted
+      --                              -- administrative/import role
+      -- No ordinary tenant/application role can call it, and no
+      -- service-role credential is used or exposed in application
+      -- code (the standing no-service_role rule is unchanged).
+      --
+      -- FAIL-CLOSED VALIDATIONS (each rejects with an error):
+      --   a. p_content_id must belong to p_logical_id (row lookup
+      --      schema-qualified, both keys must match);
+      --   b. the target must currently be in 'draft' publication
+      --      state (re-publishing a retired or already-published
+      --      row is rejected);
+      --   c. pending or rejected review state is rejected —
+      --      content_status must be IN ('approved','revised');
+      --   d. incomplete or blank review evidence is rejected
+      --      (reviewer/reviewed_at/rationale present and non-blank
+      --      per the review-audit CHECK, re-verified here).
+      --
+      -- ATOMIC SEQUENCE (unchanged from the reviewed lifecycle):
       -- 1. lock the logical exercise row (SELECT ... FOR UPDATE ON
-      --    exercise_catalog_logical) so concurrent promotions
-      --    serialize;
-      -- 2. validate fail-closed that the replacement carries
-      --    complete review evidence (content_status IN
-      --    ('approved','revised') with reviewer/reviewed_at/
-      --    rationale present per the review-audit CHECK);
+      --    public.exercise_catalog_logical) so concurrent
+      --    promotions serialize;
+      -- 2. run validations a-d fail-closed;
       -- 3. retire the currently published version (publication_status
       --    'published' -> 'retired'), if one exists;
       -- 4. publish the replacement ('draft' -> 'published');
@@ -136,6 +167,11 @@ SQL-shape (pseudocode — NOT a migration):
       -- A REJECTED replacement never reaches step 3: it stays an
       -- unpublished draft/rejected row and the existing published
       -- version is untouched.
+
+Direct table mutation on `exercise_catalog_content` is denied to
+every client role (closed RLS with zero client policies plus REVOKE
+ALL, like all catalog tables): publication is possible ONLY through
+this restricted function, called by the trusted administrative role.
 
 NOTE: substitutions/regressions/progressions are deliberately ABSENT
 from this shape — the sole persisted source of truth for
@@ -445,9 +481,16 @@ this milestone:
 
 Security requirements for every addition: RLS enabled with zero
 client policies + REVOKE ALL on new catalog tables; SECURITY DEFINER
-functions scoped to `auth.uid()` with no user parameter; no
-service_role anywhere; every new CHECK named explicitly; freeze
-triggers on approved content.
+functions fall into exactly two classes — TENANT-DELIVERY functions
+(deliver/refresh) remain scoped to `auth.uid()` with no user
+parameter, while the ADMINISTRATIVE publication function
+(`publish_catalog_content`) is non-client-callable and
+role-restricted (REVOKE EXECUTE FROM PUBLIC/anon/authenticated;
+GRANT EXECUTE only to `exlib_catalog_admin`) — no function is both;
+every SECURITY DEFINER function pins a safe fixed
+`search_path = public, pg_temp` and schema-qualifies its
+references; no service_role anywhere in application code; every new
+CHECK named explicitly; freeze triggers on approved content.
 
 ## Explicitly out of scope for this milestone
 
