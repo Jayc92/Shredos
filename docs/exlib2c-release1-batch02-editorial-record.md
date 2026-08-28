@@ -67,6 +67,39 @@ and duplicated/templated sentences within the batch and against all
    text while genuinely specific guidance is not penalized for
    avoiding formulaic wording.
 
+## Codex review corrections (forward correction, 2026-08-28)
+
+4. **Band curl, accessibility** — the alternative anchored a loaded
+   band under chair legs; replaced with a stable seated option: band
+   securely under both planted feet, lighter band or shorter range.
+   Furniture legs are never used as a band anchor.
+5. **Band row, setup/accessibility** — the record mixed a fixed-post
+   anchor with an around-the-feet option while safety guidance only
+   covered the post. Resolved to ONE coherent design: sturdy fixed
+   post/rack anchor only, seated-or-standing positioning relative to
+   that anchor, and a supported seated-chair alternative facing the
+   same fixed anchor.
+6. **Dumbbell bench press, accessibility** — "press lighter
+   dumbbells one rep at a time with a spotter's hand-off" was
+   ambiguous inside a bilateral record; replaced with a light
+   dumbbell floor press (bilateral, floor-limited range, no bench
+   transfer).
+7. **Hammer curl, safety** — the unsupported comparative claim that
+   the neutral grip "usually allows more weight than a standard
+   curl" removed; guidance now begins conservatively and reduces
+   load on swinging or torso movement, with no comparative strength
+   claim.
+8. **Reverse lunge, mistakes/safety** — the knee-past-toes mistake
+   (not inherently an error) replaced with observable control
+   failures (front heel lifts, balance onto the toes); the
+   one-leg-near-a-rail option is now explicitly labeled a temporary
+   balance modification, not the set structure.
+9. **Jump rope, safety** — "shorten future bouts while the tissue
+   adapts" replaced with non-medical load-management wording: stop
+   for sharp discomfort, choose a shorter duration or easier pace
+   next time, rebuild gradually while movement stays controlled and
+   comfortable.
+
 ## Batch 1 lessons verified as carried forward
 
 - Unilateral records (Side plank, Kettlebell row, One-arm dumbbell

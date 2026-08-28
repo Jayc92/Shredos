@@ -330,6 +330,71 @@ async function main(): Promise<void> {
       })())
   }
 
+  console.log('\nE. Content-review corrections (forward correction)')
+  {
+    // REVISED (EXLIB-2C batch 2 content review): the six Codex
+    // corrections are pinned positively and their stale wording is
+    // rejected batch-wide.
+    const byName = new Map(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+    check('E1: no record anchors a resistance band under furniture legs, and Band curl\'s alternative is a stable seated option with the band under both planted feet',
+      (() => {
+        const bc = byName.get('band curl')
+        if (!bc) return false
+        const acc = (bc.accessibility_alternative ?? '').toLowerCase()
+        return batch.every((r) => !/under (the )?chair legs?/i.test(proseOf(r))) &&
+          /stable chair/.test(acc) && /under both planted feet/.test(acc) &&
+          /(lighter band|shorter range)/.test(acc)
+      })())
+    check('E2: Band row uses ONE coherent anchor model — sturdy fixed post/rack in setup, matching anchor-based safety guidance, a same-anchor seated alternative, and no around-the-feet anchoring anywhere in the record',
+      (() => {
+        const br = byName.get('band row')
+        if (!br) return false
+        const setup = br.setup_steps.join(' ').toLowerCase()
+        const text = proseOf(br).toLowerCase()
+        const acc = (br.accessibility_alternative ?? '').toLowerCase()
+        return /fixed post|rack upright/.test(setup) &&
+          !/around your feet|around the feet/.test(text) &&
+          /anchor/.test(br.safety_guidance.toLowerCase()) &&
+          /same fixed anchor/.test(acc) && /seated on a stable chair/.test(acc)
+      })())
+    check('E3: Dumbbell bench press accessibility is an unambiguous bilateral floor press — floor-limited range, no bench transfer, both dumbbells together — with the one-at-a-time hand-off wording rejected batch-wide',
+      (() => {
+        const dp = byName.get('dumbbell bench press')
+        if (!dp) return false
+        const acc = (dp.accessibility_alternative ?? '').toLowerCase()
+        return batch.every((r) => !/(one rep at a time|hand-off)/i.test(proseOf(r))) &&
+          /floor press/.test(acc) && /both dumbbells together/.test(acc) &&
+          /floor limit/.test(acc) && /no bench transfer/.test(acc)
+      })())
+    check('E4: Hammer curl carries no comparative-load claim — begins conservatively and steps down on swinging or torso movement — and no record makes an allows-more-weight comparison',
+      (() => {
+        const hc = byName.get('hammer curl')
+        if (!hc) return false
+        const s = hc.safety_guidance
+        return batch.every((r) => !/(usually allows more weight|allows more weight than|heavier than a standard)/i.test(proseOf(r))) &&
+          /Begin conservatively/.test(s) && /step down a size/.test(s)
+      })())
+    check('E5: Reverse lunge names observable control failures (front heel lifts, balance onto the toes) instead of the knee-past-toes claim — rejected batch-wide — and its one-leg option is explicitly a temporary balance modification',
+      (() => {
+        const rl = byName.get('reverse lunge')
+        if (!rl) return false
+        const mist = rl.common_mistakes.join(' ').toLowerCase()
+        return batch.every((r) => !/knee slides? (far )?past the toes/i.test(proseOf(r))) &&
+          /front heel lifts/.test(mist) && /balance shifts onto the toes/.test(mist) &&
+          /temporary balance modification/.test(rl.safety_guidance.toLowerCase())
+      })())
+    check('E6: Jump rope uses non-medical load management — stop for sharp discomfort, shorter duration or easier pace next time, gradual rebuild — with tissue-adaptation and recovery-physiology wording rejected batch-wide',
+      (() => {
+        const jr = byName.get('jump rope')
+        if (!jr) return false
+        const s = jr.safety_guidance.toLowerCase()
+        return batch.every((r) => !/(tissue adapt|tissue recovery|physiological recovery|while the tissue)/i.test(proseOf(r))) &&
+          /stop the session/.test(s) &&
+          /shorter duration or an easier pace/.test(s) &&
+          /rebuilding gradually/.test(s)
+      })())
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
 }
