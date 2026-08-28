@@ -183,7 +183,7 @@ async function main(): Promise<void> {
     check('D4: seed correspondence is exact — all 15 committed seed exercises (read from the live seed module) appear exactly once each, and no other record claims a seed',
       (() => {
         const seedSrc = read('src/lib/supabase/seed-exercises.ts')
-        const seedNames = [...seedSrc.matchAll(/\{ name: "([^"]+)"/g)].map((m) => m[1])
+        const seedNames = Array.from(seedSrc.matchAll(/\{ name: "([^"]+)"/g), (m) => m[1])
         if (seedNames.length !== 15) return false
         const claimed = inv.filter((r) => r.corresponds_to_seed !== null)
         return claimed.length === 15 &&
@@ -275,7 +275,7 @@ async function main(): Promise<void> {
             adders.add(a[0])
           }
           if (adders.size !== 1) return false
-          const phase = [...adders][0]
+          const phase = Array.from(adders)[0]
           execSync(`git merge-base --is-ancestor ${phase} HEAD`)
           execSync(`git merge-base --is-ancestor ${BASELINE} ${phase}`)
           const range = execSync(`git diff --name-only ${phase}^..${phase}`, { encoding: 'utf8' })
