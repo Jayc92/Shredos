@@ -70,3 +70,81 @@ mechanically.
 - **Copenhagen plank** starts from the shin-supported, bent-knee
   regression with short holds and an immediate lower-out condition,
   reflecting its advanced difficulty and strong inner-thigh load.
+
+## Codex review corrections (forward correction, 2026-08-28)
+
+2. **Chest-supported row — machine contradiction (blocking; setup/
+   execution/breathing/mistakes/safety/equipment setup/aliases/
+   accessibility)**: stable metadata says equipment=machine, but the
+   authored prose described an incline bench and dumbbells. The
+   machine metadata is preserved and the primary prose was rewritten
+   for an actual chest-supported row machine with model-neutral
+   seat, chest-pad, and handle adjustment language. The alias
+   "Incline bench row" was removed — it names the dumbbell exercise,
+   not this machine, so it fails the alias synonymy rule. The
+   absolute claim that the pad "removes lower-back load" was
+   replaced with reduced stabilization demand. A supported
+   incline-bench dumbbell row remains only as the clearly labeled
+   substitution in the accessibility field.
+3. **Turkish get-up — entry, gaze, and bail (setup/execution/
+   mistakes/safety)**: added the safe two-handed roll-to-press
+   entry (lie curled toward the bell, grip with both hands, roll to
+   the back, press up with both hands before releasing the free
+   hand). Gaze is now staged: watch the bell through the floor,
+   bridge, and sweep phases, then shift the gaze forward once
+   stable in half-kneeling with the arm still stacked. The
+   simplistic "reverse to the floor" bail was replaced with a
+   graded response — reverse only while control remains, stop at
+   the nearest stable position to bring the bell down, and never
+   try to catch or chase a falling bell. "Locked out" replaced with
+   straight, stacked-arm language.
+4. **Smith machine calf raise — foot platform (setup/execution/
+   safety/equipment setup)**: "a low step or plate" removed — a
+   loose weight plate is never presented as a foot platform. The
+   record now requires a stable, non-slip calf block rated for the
+   exercise, and the safety stops are explicitly set just below the
+   lowest controlled heel position. The "next available
+   increment/setting" rule and empty-bar hook familiarization are
+   preserved.
+5. **Copenhagen plank — default setup and stop language (setup/
+   mistakes/safety/equipment setup)**: the bent-knee, shin-supported
+   version is now the explicit starting setup, and foot support is
+   labeled a progression. "Placing only the toes on the bench, which
+   overloads the groin" replaced with observable control language;
+   "if the groin pinches" replaced with sharp or increasing
+   inner-thigh/groin discomfort.
+6. **Dip — failing-rep response and assistance (setup/safety/
+   equipment setup/accessibility)**: "step off the bars" removed as
+   the response to a failing bottom-position rep; the set now ends
+   before true failure, with entry and exit via a stable platform.
+   The band-looped-across-bars alternative (a slip hazard) was
+   replaced with an assisted dip machine or the bench dip with feet
+   on the floor. The individualized, controlled depth rule is kept.
+7. **Cable curl — band claim (accessibility)**: the false claim
+   that a band curl follows "the same constant-tension pattern" as
+   a cable removed — bands provide changing resistance. The
+   alternative now states plainly that band resistance changes as
+   the band stretches.
+8. **Superman hold — breathing (breathing cue)**: "breathe steadily
+   and shallowly" replaced with continuous, comfortable breathing;
+   shallow breathing is not prescribed anywhere.
+9. **Face pull — band alternative completed (accessibility)**: the
+   band option now requires inspecting the band for nicks or
+   thinning, securing it to a sturdy fixed anchor at face height,
+   and confirming the anchor holds before pulling toward the face.
+10. **Treadmill run — exit reconciliation (execution/safety)**: the
+    normal exit is to slow the belt to a complete stop before
+    stepping off; the emergency response is to press the safety
+    stop while holding the rails, moving the feet to the side rails
+    only if that can be done under control. The contradictory
+    pairing of "never step off a moving belt" with a broad straddle
+    instruction was removed.
+11. **Thoracic extension on foam roller — wording (execution)**:
+    "between holds" replaced with "between controlled pauses",
+    matching the actual repeated movement while keeping timed-record
+    terminology (no rep units).
+
+Where the batch-specific notes above describe the originally
+authored Turkish get-up bail/gaze wording or treadmill exit wording,
+the corrected content in this commit controls; the notes are
+retained unedited as part of the original editorial log.

@@ -16,7 +16,9 @@
 // scans from BOTH prior batch reviews; a cross-batch boilerplate
 // scan across all 75 records; Batch 1-2 content and design artifacts
 // byte-identical; migration 026 absent; runtime unchanged; ledger
-// and legacy eligibility unchanged; exact lifecycle behavior.
+// and legacy eligibility unchanged; exact lifecycle behavior; and
+// the 2026-08-28 Codex review-correction families (D4 positive pins
+// and D5 corpus-wide negative rejections).
 // Performs NO hosted contact.
 //
 // Fail-closed: any mismatch fails the suite.
@@ -345,6 +347,87 @@ async function main(): Promise<void> {
             return true
           })
         })
+      })())
+    check('D4: ADMISSION (EXLIB-2C batch 3 review 1) — positive correction pins: machine-true Chest-supported row prose (dumbbell substitution only as the labeled accessibility option), Turkish get-up two-handed roll-to-press entry with staged gaze and graded bail on a straight, stacked arm, rated non-slip calf block with explicit stop height and empty-bar familiarization, Copenhagen shin-supported default with foot support as a progression and neutral stop language, pre-failure Dip exit via stable platform with an assisted-machine alternative, modest changing-resistance band-curl claim, continuous comfortable Superman breathing, complete Face pull band inspect/fixed-anchor/confirm model, reconciled treadmill normal and emergency exits, and controlled-pause thoracic wording',
+      (() => {
+        const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+        const csr = by.get('chest-supported row')
+        const csrPrimary = [...csr.setup_steps, ...csr.execution_steps, ...csr.common_mistakes,
+          csr.breathing_cue, csr.safety_guidance, csr.equipment_setup].join(' ')
+        const csrOk = csr.equipment === 'machine' &&
+          /chest pad/i.test(csrPrimary) && /handle/i.test(csrPrimary) && /seat/i.test(csrPrimary) &&
+          !/dumbbell|incline bench/i.test(csrPrimary) &&
+          /differ between machines/i.test(csr.equipment_setup) &&
+          /reduces how much your lower back has to stabilize/i.test(csr.safety_guidance) &&
+          !csr.aliases.some((a: string) => norm(a) === 'incline bench row') &&
+          /^If no chest-supported row machine is available, substitute/i.test(csr.accessibility_alternative ?? '')
+        const tgu = by.get('turkish get-up')
+        const tguSetup = tgu.setup_steps.join(' ')
+        const tguEx = tgu.execution_steps.join(' ')
+        const tguOk = /grip its handle with both hands/i.test(tguSetup) &&
+          /use both hands to press the bell up/i.test(tguSetup) &&
+          /keep watching the bell through the floor, bridge, and sweep phases/i.test(tguEx) &&
+          /Once stable in the half-kneeling position, shift your gaze forward/i.test(tguEx) &&
+          /reverse only while you remain in control/i.test(tgu.safety_guidance) &&
+          /stop at the nearest stable position/i.test(tgu.safety_guidance) &&
+          /never try to catch or chase a falling bell/i.test(tgu.safety_guidance) &&
+          /straight and stacked/i.test(proseOf(tgu))
+        const smith = by.get('smith machine calf raise')
+        const smithOk = /stable, non-slip calf block rated for the exercise/i.test(smith.setup_steps.join(' ')) &&
+          /safety stops just below your lowest controlled heel position/i.test(smith.safety_guidance) &&
+          /empty bar/i.test(smith.safety_guidance) &&
+          proseOf(smith).includes('next available increment/setting')
+        const cph = by.get('copenhagen plank')
+        const cphOk = /Start with the bent-knee version/i.test(cph.setup_steps.join(' ')) &&
+          /is a progression once shin-supported holds are steady/i.test(cph.equipment_setup) &&
+          /sharp or increasing inner-thigh or groin discomfort/i.test(cph.safety_guidance) &&
+          !/pinch/i.test(proseOf(cph))
+        const dip = by.get('dip')
+        const dipOk = /Stand on a stable platform/i.test(dip.setup_steps.join(' ')) &&
+          /stop where the shoulders stay comfortable/i.test(dip.safety_guidance) &&
+          /End the set before true failure/i.test(dip.safety_guidance) &&
+          /lowering your feet back to the platform under control/i.test(dip.safety_guidance) &&
+          /assisted dip machine/i.test(dip.accessibility_alternative ?? '')
+        const ccOk = /band resistance changes as the band stretches/i.test(by.get('cable curl').accessibility_alternative ?? '')
+        const supOk = /continuously and comfortably/i.test(by.get('superman hold').breathing_cue)
+        const fp = by.get('face pull').accessibility_alternative ?? ''
+        const fpOk = /checked for nicks or thinning/i.test(fp) &&
+          /sturdy fixed anchor/i.test(fp) && /confirm it holds/i.test(fp)
+        const tm = by.get('treadmill run')
+        const tmOk = /let the belt come to a stop before you step off/i.test(tm.execution_steps.join(' ')) &&
+          /slow the belt to a complete stop before stepping off/i.test(tm.safety_guidance) &&
+          /press the safety stop while holding the rails/i.test(tm.safety_guidance) &&
+          /only if you can do so under control/i.test(tm.safety_guidance)
+        const thOk = /between controlled pauses/i.test(by.get('thoracic extension on foam roller').execution_steps.join(' '))
+        return csrOk && tguOk && smithOk && cphOk && dipOk && ccOk && supOk && fpOk && tmOk && thOk
+      })())
+    check('D5: ADMISSION (EXLIB-2C batch 3 review 1) — negative rejections across ALL 75 records: no step-off-the-bars failure response, no groin-overload claims, no prescribed shallow breathing, no moving-belt/straddle contradiction, no loose-plate foot platforms, no bands looped across bars, no band constant-tension claims, no stale get-up gaze/bail or locked-out wording, no between-holds wording, no pad-removes-load claims, and no dumbbell-primary prose or removed alias on the machine Chest-supported row',
+      (() => {
+        const all75 = [...prior, ...batch]
+        const BAN = new RegExp(['step off the bars', 'overloads the groin', 'shallowly', 'shallow breath',
+          'never step off a moving belt', 'straddle', 'step or plate', 'looped across', 'between holds',
+          'locked out', 'removes lower-back', 'pad removes', 'reverse to the floor and reset',
+          'taking the eyes off the bell'].join('|'), 'i')
+        for (const r of all75) {
+          const text = proseOf(r)
+          if (BAN.test(text)) return false
+          if (/shallow/i.test(r.breathing_cue)) return false
+          for (const s of text.split(/[.;]/)) {
+            if (/\bband/i.test(s) && /constant[- ]tension/i.test(s)) return false
+          }
+          const acc = r.accessibility_alternative ?? ''
+          if (/band/i.test(acc) && /face height/i.test(acc) &&
+            !(/nicks or thinning|tears or thinning/i.test(acc) && /fixed anchor/i.test(acc) && /confirm/i.test(acc))) return false
+        }
+        const csr = all75.find((r) => norm(r.proposed_canonical_name) === 'chest-supported row')
+        if (!csr || csr.equipment !== 'machine') return false
+        const csrPrimary = [...csr.setup_steps, ...csr.execution_steps, ...csr.common_mistakes,
+          csr.breathing_cue, csr.safety_guidance, csr.equipment_setup].join(' ')
+        if (/dumbbell|incline bench/i.test(csrPrimary)) return false
+        if (csr.aliases.some((a: string) => norm(a) === 'incline bench row')) return false
+        const csrAcc = csr.accessibility_alternative ?? ''
+        if (/dumbbell/i.test(csrAcc) && !/^If no chest-supported row machine is available/i.test(csrAcc)) return false
+        return true
       })())
   }
 
