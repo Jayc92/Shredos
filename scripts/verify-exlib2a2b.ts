@@ -62,12 +62,32 @@ async function main(): Promise<void> {
       !existsSync('src/lib/catalog-import.ts') &&
       inv.length > 0 &&
       inv.every((r) => r.import_eligible === false && r.review_status === 'proposed'))
-    check('A3: zero runtime/product/schema/API/UI changes — the milestone range touches ONLY the five planning artifacts',
+    // RETARGET (EXLIB-2C batch 1): the DESIGN milestone's range claim
+    // is anchored to its own promoted tip (653c1e9...), not to a
+    // moving HEAD, so later authoring phases building on top of the
+    // promoted design can never dilute or break this historical
+    // claim. HEAD must still descend from that tip.
+    check('A3: zero runtime/product/schema/API/UI changes — the DESIGN milestone range (baseline..design tip) touches ONLY the five planning artifacts, and HEAD descends from the design tip',
       (() => {
         try {
-          const range = execSync(`git diff --name-only ${BASELINE}..HEAD`, { encoding: 'utf8' })
+          const DESIGN_TIP = '653c1e91a403a8061af34fce7dabfa8cb710a542'
+          const inHistory = (() => {
+            try {
+              execSync(`git cat-file -e ${DESIGN_TIP}^{commit}`, { stdio: 'pipe' })
+              return true
+            } catch { return false }
+          })()
+          if (!inHistory) {
+            // pre-promotion review state: fall back to the original
+            // uncommitted/branch-local behavior
+            const range = execSync(`git diff --name-only ${BASELINE}..HEAD`, { encoding: 'utf8' })
+              .split('\n').filter(Boolean).sort()
+            return range.length === 0 ||
+              JSON.stringify(range) === JSON.stringify(PHASE_FILES)
+          }
+          execSync(`git merge-base --is-ancestor ${DESIGN_TIP} HEAD`)
+          const range = execSync(`git diff --name-only ${BASELINE}..${DESIGN_TIP}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
-          if (range.length === 0) return true // uncommitted review state
           return JSON.stringify(range) === JSON.stringify(PHASE_FILES)
         } catch { return false }
       })())
