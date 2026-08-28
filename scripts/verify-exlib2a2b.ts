@@ -108,11 +108,40 @@ async function main(): Promise<void> {
       recFlat.includes("content_status IN ('pending','approved','revised','rejected')") &&
       recFlat.includes('exercise_catalog_content_review_audit_chk') &&
       recFlat.includes('blank or missing never means approved; a pending version carries no review evidence; a decided version carries all of it') &&
-      recFlat.includes("is_active = true AND content_status IN ('approved','revised')") &&
       recFlat.includes('corrections create a NEW') &&
-      recFlat.includes('immutable content_version+1 under the SAME logical identity') &&
+      recFlat.includes('content_version+1 under the SAME logical identity') &&
       recFlat.includes('substitutions/regressions/progressions are deliberately ABSENT') &&
       recFlat.includes('never requires copying or re-authoring unchanged prose'))
+    // REVISED (EXLIB-2A/2B publication-lifecycle correction): draft/
+    // review state is distinct from published-active state; a pending
+    // replacement coexists with the published version; promotion is
+    // atomic and locked; rejected replacements are inert; uniqueness
+    // targets published versions only; no default-active trap.
+    check('B1b: publication lifecycle — orthogonal draft/published/retired state born as draft (never auto-published), published-only partial uniqueness (zero or one per logical), pending/rejected structurally unpublishable, coexisting pending replacement, atomic locked promotion (validate -> retire -> publish, no two-published/no-published interval), rejected replacement inert, and publication transitions as the sole post-decision mutation',
+      recFlat.includes('Draft/review state is distinct from published-active state') &&
+      recFlat.includes('exactly zero or one PUBLISHED content version exists per logical exercise') &&
+      recFlat.includes('pending or rejected content is never published or exposed') &&
+      recFlat.includes('currently published version remains visible while its replacement is pending review') &&
+      recFlat.includes("publication_status IN ('draft','published','retired')") &&
+      recFlat.includes("DEFAULT 'draft'") &&
+      recFlat.includes('NEVER auto-publishes (no') &&
+      recFlat.includes("ON (logical_id) WHERE publication_status = 'published'") &&
+      recFlat.includes('exercise_catalog_content_publication_chk') &&
+      recFlat.includes("publication_status <> 'published' OR content_status IN ('approved','revised')") &&
+      recFlat.includes('exposes ONLY rows with') &&
+      recFlat.includes("publication_status = 'published' (which the publication CHECK") &&
+      recFlat.includes('FUNCTION publish_catalog_content(p_logical_id, p_content_id)') &&
+      recFlat.includes('lock the logical exercise row (SELECT ... FOR UPDATE ON') &&
+      recFlat.includes('validate fail-closed that the replacement carries') &&
+      recFlat.includes('retire the currently published version (publication_status') &&
+      recFlat.includes("publish the replacement ('draft' -> 'published')") &&
+      recFlat.includes('no externally') &&
+      recFlat.includes('observable interval ever has two published versions') &&
+      recFlat.includes('published version when one existed before') &&
+      recFlat.includes('A REJECTED replacement never reaches step 3') &&
+      recFlat.includes('version is untouched') &&
+      recFlat.includes('The ONLY permitted post-decision mutation is the') &&
+      recFlat.includes('publication_status transition (draft -> published ->'))
     check('B2: provenance split and honest metadata — METADATA provenance on exercise_catalog with conditional source CHECK (no prose authorship there), content provenance on the content version, enumerated behavior metadata incl. the honest non-strength patterns, relationships table as sole persisted store fed fail-closed from staging arrays, aliases in existing machinery only',
       recFlat.includes('Metadata provenance** lives on `exercise_catalog`') &&
       recFlat.includes('Instructional-content provenance and authorship** live on the specific `exercise_catalog_content` version') &&
@@ -184,7 +213,9 @@ async function main(): Promise<void> {
           schema.allOf[4].then.properties.deferred_reason.pattern === '\\S' &&
           props.import_eligible.const === false &&
           String(schema.$comment).includes('Blank is never approval') &&
-          String(schema.$comment).includes('copied-source attribution')
+          String(schema.$comment).includes('copied-source attribution') &&
+          String(schema.$comment).includes('authoring records NEVER carry publication state') &&
+          String(schema.$comment).includes('nothing in an authoring file can publish content')
       })())
     check('C3: relationship and alias arrays are staging inputs with structural hygiene — uniqueItems, nonblank pattern items, staging-only comments — and prose authorship fields align to the content-version architecture',
       (() => {

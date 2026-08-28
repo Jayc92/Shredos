@@ -33,9 +33,12 @@ the two version streams are independent under one identity. Each
 content version carries its OWN complete review-audit lifecycle,
 mirroring the catalog's fail-closed pattern: blank or missing never
 means approved; a pending version carries no review evidence; a
-decided version carries all of it; and only an approved/revised
-ACTIVE content version may ever be delivered or exposed as reviewed
-content.
+decided version carries all of it. Draft/review state is distinct
+from published-active state: exactly zero or one PUBLISHED content
+version exists per logical exercise, only an approved/revised
+version can ever be published, pending or rejected content is never
+published or exposed, and a currently published version remains
+visible while its replacement is pending review.
 
 SQL-shape (pseudocode — NOT a migration):
 
@@ -64,12 +67,25 @@ SQL-shape (pseudocode — NOT a migration):
       reviewed_by        TEXT,
       reviewed_at        TIMESTAMPTZ,
       review_rationale   TEXT,
-      is_active          BOOLEAN NOT NULL DEFAULT true,
+      -- publication lifecycle is ORTHOGONAL to review state: a new
+      -- version is born a draft and NEVER auto-publishes (no
+      -- default-active trap), so a pending replacement coexists
+      -- with the currently published version.
+      publication_status TEXT NOT NULL DEFAULT 'draft' CHECK
+                         (publication_status IN
+                          ('draft','published','retired')),
       created_at/updated_at ...,
       UNIQUE (logical_id, content_version),
-      -- one active content version per logical identity (partial
-      -- unique index, same pattern as
-      -- exercise_catalog_one_active_logical_idx)
+      -- exactly ZERO or ONE published content version per logical
+      -- identity: the uniqueness constraint targets PUBLISHED
+      -- versions only (partial unique index
+      -- ON (logical_id) WHERE publication_status = 'published').
+      -- Pending or rejected content can NEVER be published,
+      -- structurally:
+      CONSTRAINT exercise_catalog_content_publication_chk CHECK (
+        publication_status <> 'published'
+        OR content_status IN ('approved','revised')
+      ),
       CONSTRAINT exercise_catalog_content_review_audit_chk CHECK (
         (content_status = 'pending'
          AND reviewed_by IS NULL
@@ -87,11 +103,39 @@ SQL-shape (pseudocode — NOT a migration):
     -- policies, REVOKE ALL FROM PUBLIC/anon/authenticated); content
     -- reaches clients only through a SECURITY DEFINER read path
     -- (section 5), and that path exposes ONLY rows with
-    -- is_active = true AND content_status IN ('approved','revised').
-    -- Freeze trigger: a decided content version becomes immutable
-    -- (exlib_freeze_* conventions); corrections create a NEW
-    -- immutable content_version+1 under the SAME logical identity
-    -- (section 5).
+    -- publication_status = 'published' (which the publication CHECK
+    -- above structurally restricts to approved/revised versions).
+    -- Draft/review state (content_status) and published-active
+    -- state (publication_status) are distinct: a currently
+    -- published approved/revised version remains visible while its
+    -- replacement is pending review as a coexisting draft.
+    -- Freeze trigger: a decided content version's authored fields
+    -- and review-audit fields become immutable (exlib_freeze_*
+    -- conventions); corrections create a NEW immutable
+    -- content_version+1 under the SAME logical identity (section
+    -- 5). The ONLY permitted post-decision mutation is the
+    -- publication_status transition (draft -> published ->
+    -- retired), and only through the atomic promotion function:
+
+    FUNCTION publish_catalog_content(p_logical_id, p_content_id)
+      SECURITY DEFINER
+      -- 1. lock the logical exercise row (SELECT ... FOR UPDATE ON
+      --    exercise_catalog_logical) so concurrent promotions
+      --    serialize;
+      -- 2. validate fail-closed that the replacement carries
+      --    complete review evidence (content_status IN
+      --    ('approved','revised') with reviewer/reviewed_at/
+      --    rationale present per the review-audit CHECK);
+      -- 3. retire the currently published version (publication_status
+      --    'published' -> 'retired'), if one exists;
+      -- 4. publish the replacement ('draft' -> 'published');
+      -- all inside ONE transaction under the lock: no externally
+      -- observable interval ever has two published versions (the
+      -- partial unique index also enforces this physically) or no
+      -- published version when one existed before.
+      -- A REJECTED replacement never reaches step 3: it stays an
+      -- unpublished draft/rejected row and the existing published
+      -- version is untouched.
 
 NOTE: substitutions/regressions/progressions are deliberately ABSENT
 from this shape — the sole persisted source of truth for
@@ -237,9 +281,10 @@ identity — the two streams are independent, so a metadata-version
 change never requires copying or re-authoring unchanged prose and a
 prose correction never forges a metadata snapshot — and a refresh
 function updates ONLY catalog-controlled fields on delivered tenant
-rows, never user-owned fields, never historical rows. Only an
-approved/revised ACTIVE content version is ever delivered or exposed
-as reviewed content (section 1's status gate).**
+rows, never user-owned fields, never historical rows. Only the
+PUBLISHED content version (structurally approved/revised, promoted
+atomically per section 1) is ever delivered or exposed as reviewed
+content; a rejected replacement never affects it.**
 
 Repository evidence: delivered tenant rows already carry
 `catalog_id`, `catalog_logical_id`, `import_run_id` (migration 023),
@@ -377,9 +422,12 @@ this milestone:
 
 1. `exercise_catalog_content` — new closed table keyed by
    `exercise_catalog_logical`, carrying per-version prose
-   authorship (authored_by/authored_at) and its own complete
-   fail-closed content review lifecycle; no relationship JSONB
-   (section 1).
+   authorship (authored_by/authored_at), its own complete
+   fail-closed content review lifecycle, and an orthogonal
+   draft/published/retired publication lifecycle (published-only
+   partial uniqueness, atomic locked promotion via
+   publish_catalog_content, no default-active); no relationship
+   JSONB (section 1).
 2. `exercise_catalog` — METADATA provenance discriminator +
    conditional source-field CHECK; prose authorship deliberately
    NOT here (section 2).
