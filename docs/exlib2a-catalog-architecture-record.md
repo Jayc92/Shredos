@@ -19,57 +19,91 @@ rather than inventing a parallel one.
 ## 1. Where versioned ForgeFitOS-authored instructional content lives
 
 **Decision: a companion versioned content table,
-`exercise_catalog_content`, keyed by catalog snapshot row — not new
-columns on `exercise_catalog`.**
+`exercise_catalog_content`, keyed to the STABLE
+`exercise_catalog_logical` identity — not to a versioned
+`exercise_catalog` snapshot and not new columns on it.**
 
-Repository evidence: `exercise_catalog` (migration 023) is a
-versioned identity/tracking-metadata table with freeze triggers
-(`exlib_freeze_catalog_snapshot`) that make approved snapshots
-immutable, and a review-audit CHECK that binds review evidence to the
-whole row. Authored guidance is long-form, iterates on a different
-cadence than tracking metadata, and should be reviewable/correctable
-without forging new tracking-metadata versions. A companion table
-preserves the existing freeze/approval machinery untouched and keeps
-identity/tracking metadata separate from prose, per the preferred
-architectural direction.
+Repository evidence: `exercise_catalog_logical` (migration 023) is
+the stable exercise identity; `exercise_catalog` rows are versioned
+metadata snapshots with freeze triggers. Binding content to the
+LOGICAL identity means a metadata-version change (say, a corrected
+difficulty value) never requires copying or re-authoring unchanged
+prose, and a prose correction never forges a new metadata snapshot —
+the two version streams are independent under one identity. Each
+content version carries its OWN complete review-audit lifecycle,
+mirroring the catalog's fail-closed pattern: blank or missing never
+means approved; a pending version carries no review evidence; a
+decided version carries all of it; and only an approved/revised
+ACTIVE content version may ever be delivered or exposed as reviewed
+content.
 
 SQL-shape (pseudocode — NOT a migration):
 
     CREATE TABLE exercise_catalog_content (
       id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      catalog_id         UUID NOT NULL REFERENCES exercise_catalog(id)
+      logical_id         UUID NOT NULL
+                         REFERENCES exercise_catalog_logical(id)
                          ON DELETE RESTRICT,
       content_version    INTEGER NOT NULL CHECK (content_version > 0),
+      -- prose authorship/provenance binds to THIS content version
+      -- (section 2 distinguishes this from metadata provenance):
+      authored_by        TEXT NOT NULL
+                         CHECK (char_length(btrim(authored_by)) > 0),
+      authored_at        DATE NOT NULL,
       setup_steps        JSONB NOT NULL,      -- array of short strings
       execution_steps    JSONB NOT NULL,
       breathing_cue      TEXT NOT NULL,
       common_mistakes    JSONB NOT NULL,
       safety_guidance    TEXT NOT NULL,       -- technique-framed, never medical advice
       equipment_setup    TEXT,
-      substitutions      JSONB NOT NULL DEFAULT '[]',
-      regressions        JSONB NOT NULL DEFAULT '[]',
-      progressions       JSONB NOT NULL DEFAULT '[]',
       accessibility_alternative TEXT,
+      -- content-version review lifecycle (complete, fail-closed):
+      content_status     TEXT NOT NULL DEFAULT 'pending' CHECK
+                         (content_status IN
+                          ('pending','approved','revised','rejected')),
+      reviewed_by        TEXT,
+      reviewed_at        TIMESTAMPTZ,
+      review_rationale   TEXT,
       is_active          BOOLEAN NOT NULL DEFAULT true,
       created_at/updated_at ...,
-      UNIQUE (catalog_id, content_version)
-      -- one active content row per catalog_id (partial unique index,
-      -- same pattern as exercise_catalog_one_active_logical_idx)
+      UNIQUE (logical_id, content_version),
+      -- one active content version per logical identity (partial
+      -- unique index, same pattern as
+      -- exercise_catalog_one_active_logical_idx)
+      CONSTRAINT exercise_catalog_content_review_audit_chk CHECK (
+        (content_status = 'pending'
+         AND reviewed_by IS NULL
+         AND reviewed_at IS NULL
+         AND review_rationale IS NULL)
+        OR (content_status <> 'pending'
+            AND reviewed_by IS NOT NULL
+            AND char_length(btrim(reviewed_by)) > 0
+            AND reviewed_at IS NOT NULL
+            AND review_rationale IS NOT NULL
+            AND char_length(btrim(review_rationale)) > 0)
+      )
     );
     -- RLS: closed like all catalog tables (ENABLE RLS, zero client
     -- policies, REVOKE ALL FROM PUBLIC/anon/authenticated); content
     -- reaches clients only through a SECURITY DEFINER read path
-    -- (section 5) or delivered tenant columns — decided at
-    -- implementation review.
-    -- Freeze trigger: content rows freeze once their catalog row's
-    -- review_status is approved, matching exlib_freeze_* conventions;
-    -- corrections create content_version+1 (section 5).
+    -- (section 5), and that path exposes ONLY rows with
+    -- is_active = true AND content_status IN ('approved','revised').
+    -- Freeze trigger: a decided content version becomes immutable
+    -- (exlib_freeze_* conventions); corrections create a NEW
+    -- immutable content_version+1 under the SAME logical identity
+    -- (section 5).
 
-Structured steps use constrained JSONB arrays validated by the
-authoring pipeline (docs/exlib2c-authoring-schema.json) BEFORE load
-and by CHECKs on array element type/length at implementation review —
-JSONB here holds ordered prose lists, not behavior-critical metadata
-(section 3 keeps behavior-critical fields relational/enumerated).
+NOTE: substitutions/regressions/progressions are deliberately ABSENT
+from this shape — the sole persisted source of truth for
+exercise-to-exercise relationships is
+`exercise_catalog_relationships` keyed by logical ids (section 4);
+persisting them again as content JSONB would create a second,
+divergable copy. Structured steps use constrained JSONB arrays
+validated by the authoring pipeline
+(docs/exlib2c-authoring-schema.json) BEFORE load and by CHECKs on
+array element type/length at implementation review — JSONB here
+holds ordered prose lists, not behavior-critical metadata (section 3
+keeps behavior-critical fields relational/enumerated).
 
 ## 2. Original-content provenance coexisting with source-derived provenance
 
@@ -82,13 +116,24 @@ for the legacy source-derived manifest era. The new corpus is
 ForgeFitOS-original, so those semantics must become conditional
 without weakening the legacy path.
 
+The two provenance surfaces are distinct and live in different
+places:
+
+- **Metadata provenance** lives on `exercise_catalog` (the versioned
+  metadata snapshot): where the FACTUAL exercise metadata came from —
+  `forgefitos_original` or `external_source_derived`, with source
+  fields conditionally required only for the source-derived path.
+- **Instructional-content provenance and authorship** live on the
+  specific `exercise_catalog_content` version (section 1):
+  `authored_by`/`authored_at` state who wrote THAT version of the
+  ForgeFitOS prose and when. Prose authorship is never placed only on
+  the catalog metadata snapshot.
+
 SQL-shape (pseudocode):
 
     ALTER TABLE exercise_catalog
       ADD COLUMN provenance TEXT NOT NULL DEFAULT 'external_source_derived'
         CHECK (provenance IN ('forgefitos_original','external_source_derived')),
-      ADD COLUMN authored_by TEXT,
-      ADD COLUMN authored_at DATE,
       ALTER COLUMN source_url  DROP NOT NULL,
       ALTER COLUMN source_page DROP NOT NULL,
       ALTER COLUMN retrieved_at DROP NOT NULL,
@@ -99,20 +144,18 @@ SQL-shape (pseudocode):
         OR
         (provenance = 'forgefitos_original'
           AND source_url IS NULL AND source_page IS NULL
-          AND retrieved_at IS NULL
-          AND authored_by IS NOT NULL
-          AND char_length(btrim(authored_by)) > 0
-          AND authored_at IS NOT NULL)
+          AND retrieved_at IS NULL)
       );
 
 The DEFAULT keeps any pre-existing row semantics identical (all zero
 rows today, but the default documents intent); the CHECK makes it
 structurally impossible for source-derived data to masquerade as
 original (and vice versa) — the same fail-closed style as the
-review-audit CHECK. Authoring metadata is recorded honestly:
-`authored_by`/`authored_at` state who wrote the ForgeFitOS prose and
-when; they claim no specialist, legal, or medical approval (that
-lives exclusively in the review fields).
+review-audit CHECK. Prose authorship is recorded honestly on each
+content version (`authored_by NOT NULL`, `authored_at NOT NULL`,
+section 1); neither surface claims specialist, legal, or medical
+approval (that lives exclusively in the respective review-audit
+fields, each with its own fail-closed CHECK).
 
 ## 3. Difficulty, movement pattern, training role, availability
 
@@ -131,7 +174,12 @@ exactly like category/laterality/tracking_mode):
         'grip_forearm','squat','hinge','lunge','leg_extension',
         'leg_curl','calf_raise','hip_extension','hip_abduction',
         'hip_adduction','core_flexion','core_rotation',
-        'core_anti_extension','core_anti_rotation','core_lateral','carry')),
+        'core_anti_extension','core_anti_rotation','core_lateral','carry',
+        -- honest non-strength patterns (review correction): cardio,
+        -- gait, jumping, ground-to-standing, and mobility work must
+        -- never be force-fitted into strength-pattern values.
+        'cyclic_cardio','locomotion','jump','ground_to_standing',
+        'mobility_flow','static_stretch','spinal_articulation')),
       ADD COLUMN training_role TEXT NOT NULL CHECK (training_role IN (
         'compound','isolation','accessory','core','conditioning','mobility')),
       ADD COLUMN difficulty TEXT NOT NULL CHECK (difficulty IN (
@@ -171,16 +219,27 @@ logical ids (stable identity), not snapshot ids:
       -- closed RLS + REVOKE ALL, same as every catalog table
     );
 
-In authoring files (EXLIB-2C), relationships are expressed by
-canonical name and resolved to logical ids at load time,
-failing closed on any unresolved name.
+In authoring files (EXLIB-2C), the substitutions/regressions/
+progressions arrays are STAGING INPUTS ONLY: canonical-name
+references that the deterministic validator resolves fail-closed
+into `exercise_catalog_relationships` rows at load time (any
+unresolved, blank, duplicate-after-normalization, or
+self-referencing name aborts the load). They are never persisted
+redundantly as content JSONB — `exercise_catalog_relationships` is
+the sole persisted source of truth (section 1). Aliases likewise
+stay exclusively in the existing alias machinery.
 
 ## 5. Corrections and new versions propagating to tenant copies
 
-**Decision: catalog corrections mint a new content version (prose)
-or a new catalog version (metadata), and a refresh function updates
-ONLY catalog-controlled fields on delivered tenant rows — never
-user-owned fields, never historical rows.**
+**Decision: catalog corrections mint a new IMMUTABLE content version
+(prose) or a new catalog version (metadata) under the same logical
+identity — the two streams are independent, so a metadata-version
+change never requires copying or re-authoring unchanged prose and a
+prose correction never forges a metadata snapshot — and a refresh
+function updates ONLY catalog-controlled fields on delivered tenant
+rows, never user-owned fields, never historical rows. Only an
+approved/revised ACTIVE content version is ever delivered or exposed
+as reviewed content (section 1's status gate).**
 
 Repository evidence: delivered tenant rows already carry
 `catalog_id`, `catalog_logical_id`, `import_run_id` (migration 023),
@@ -230,16 +289,24 @@ user hiding their copy. No new mechanism required.
 LINKING (provenance backfill), never merging or deleting.**
 
 All 15 seed names have catalog identities in the release-1 inventory
-(mechanically proven in EXLIB-2B). The later reconciliation phase —
-separately proven, per Joseph's direction — backfills
+(mechanically proven in EXLIB-2B), but name coverage and link
+compatibility are distinct facts: **15 of 15 names are covered; only
+14 of 15 are currently link-compatible.** The later reconciliation
+phase — separately proven, per Joseph's direction — backfills
 `catalog_logical_id`/`catalog_id` onto a user's existing seed row
 when (a) normalized names match, (b) tracking_mode matches, and
 (c) equipment matches; anything else is left unlinked and simply
 coexists (the user keeps their row; delivery's claim check skips the
-colliding catalog name for that user). Linked seed rows then receive
-catalog metadata refreshes like any delivered row, but their ids,
-history, notes, and active state never change. Unlinked-but-colliding
-rows are a UI labeling concern, not a data operation.
+colliding catalog name for that user). **Plank fails criterion (b)**:
+the committed seed is `bodyweight` while the proposed catalog entry
+is honestly `timed`; it therefore requires a separately reviewed
+reconciliation or correction, and no automatic link, merge,
+tracking-mode rewrite, or delivery overwrite is authorized. The live
+seed module is not modified in this milestone. Linked seed rows then
+receive catalog metadata refreshes like any delivered row, but their
+ids, history, notes, and active state never change.
+Unlinked-but-colliding rows are a UI labeling concern, not a data
+operation.
 
 ## 9. How future accounts receive the catalog
 
@@ -308,12 +375,21 @@ state; this is achievable because delivery is idempotent.
 All downstream of independent review; no migration is authored in
 this milestone:
 
-1. `exercise_catalog_content` — new closed table (section 1).
-2. `exercise_catalog` — provenance discriminator + conditional
-   source-field CHECK + authored_by/authored_at (section 2).
-3. `exercise_catalog` — movement_pattern / training_role /
+1. `exercise_catalog_content` — new closed table keyed by
+   `exercise_catalog_logical`, carrying per-version prose
+   authorship (authored_by/authored_at) and its own complete
+   fail-closed content review lifecycle; no relationship JSONB
+   (section 1).
+2. `exercise_catalog` — METADATA provenance discriminator +
+   conditional source-field CHECK; prose authorship deliberately
+   NOT here (section 2).
+3. `exercise_catalog` — movement_pattern (35 honest values incl.
+   cyclic_cardio/locomotion/jump/ground_to_standing/mobility_flow/
+   static_stretch/spinal_articulation) / training_role /
    difficulty / availability enumerated columns (section 3).
-4. `exercise_catalog_relationships` — new closed table (section 4).
+4. `exercise_catalog_relationships` — new closed table; the SOLE
+   persisted relationship store, populated fail-closed from
+   authoring-file staging arrays (section 4).
 5. `refresh_catalog_exercises()` — new SECURITY DEFINER function
    (section 5) with delivery-equivalent security and atomicity.
 6. Signup-delivery wiring replacing bare-15 seeding for new accounts

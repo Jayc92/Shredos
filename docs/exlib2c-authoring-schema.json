@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "forgefitos/exlib2c-authoring-schema",
   "title": "ForgeFitOS EXLIB-2C catalog content authoring record",
-  "$comment": "FAIL-CLOSED CONTRACT. Blank is never approval; a missing review is not approval; unsupported vocabulary fails validation; tracking_mode weight_time fails while unsupported unless deferred=true (deferred entries are excluded from every import subset); external-source fields cannot masquerade as ForgeFitOS-original content (provenance=forgefitos_original forbids source_url/source_page/retrieved_at; provenance=external_source_derived requires all three); original instructional prose must not contain copied-source attribution; no record may set import_eligible=true during the EXLIB-2A/2B milestone. Specialist/legal/medical approval is never implied by any default.",
+  "$comment": "FAIL-CLOSED CONTRACT. Blank is never approval; a missing review is not approval; unsupported vocabulary fails validation; tracking_mode weight_time fails while unsupported unless deferred=true (deferred entries are excluded from every import subset); external-source fields cannot masquerade as ForgeFitOS-original content; original instructional prose cannot contain copied-source attribution; no record may set import_eligible=true during this milestone. Rules draft-07 cannot express alone are pinned as MANDATORY deterministic validator rules in x_mandatory_validator_rules \u2014 they are binding contract, not commentary. Specialist/legal/medical approval is never implied by any default.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -30,7 +30,7 @@
     "regressions",
     "progressions",
     "accessibility_alternative",
-    "specialist_review",
+    "content_review",
     "review_status",
     "import_eligible",
     "deferred",
@@ -47,12 +47,14 @@
     "aliases": {
       "type": "array",
       "maxItems": 8,
+      "uniqueItems": true,
       "items": {
         "type": "string",
         "minLength": 2,
-        "maxLength": 100
+        "maxLength": 100,
+        "pattern": "\\S"
       },
-      "$comment": "Search synonyms; normalized-name collision rules apply to aliases exactly as to canonical names."
+      "$comment": "Search synonyms delivered through the EXISTING alias machinery only; normalized-name collision, normalized uniqueness, and self-reference rules are mandatory deterministic validator rules."
     },
     "primary_muscle": {
       "enum": [
@@ -185,8 +187,16 @@
         "core_anti_extension",
         "core_anti_rotation",
         "core_lateral",
-        "carry"
-      ]
+        "carry",
+        "cyclic_cardio",
+        "locomotion",
+        "jump",
+        "ground_to_standing",
+        "mobility_flow",
+        "static_stretch",
+        "spinal_articulation"
+      ],
+      "$comment": "Includes honest non-strength patterns (cyclic_cardio, locomotion, jump, ground_to_standing, mobility_flow, static_stretch, spinal_articulation) so cardio/gait/jumping/get-up/mobility work is never force-fitted into a strength value."
     },
     "training_role": {
       "enum": [
@@ -217,7 +227,7 @@
         "forgefitos_original",
         "external_source_derived"
       ],
-      "$comment": "forgefitos_original: independently authored for ForgeFitOS; source fields FORBIDDEN. external_source_derived: legacy path only, requires source_url/source_page/retrieved_at and remains subject to the L1/L2 gates."
+      "$comment": "METADATA provenance (maps to exercise_catalog.provenance). forgefitos_original: independently authored for ForgeFitOS; source fields FORBIDDEN. external_source_derived: legacy path only, requires source_url/source_page/retrieved_at and remains subject to the L1/L2 gates."
     },
     "source_url": {
       "type": "string"
@@ -232,11 +242,13 @@
     "authored_by": {
       "type": "string",
       "minLength": 3,
-      "$comment": "Real author attribution; whitespace-only fails (validator trims before length check)."
+      "pattern": "\\S",
+      "$comment": "Prose authorship for THIS content version (maps to exercise_catalog_content.authored_by, NOT to the catalog metadata snapshot); whitespace-only fails."
     },
     "authored_at": {
       "type": "string",
-      "format": "date"
+      "format": "date",
+      "$comment": "Maps to exercise_catalog_content.authored_at for this content version."
     },
     "setup_steps": {
       "type": "array",
@@ -245,7 +257,8 @@
       "items": {
         "type": "string",
         "minLength": 10,
-        "maxLength": 240
+        "maxLength": 240,
+        "pattern": "\\S"
       }
     },
     "execution_steps": {
@@ -255,13 +268,15 @@
       "items": {
         "type": "string",
         "minLength": 10,
-        "maxLength": 240
+        "maxLength": 240,
+        "pattern": "\\S"
       }
     },
     "breathing_cue": {
       "type": "string",
       "minLength": 10,
-      "maxLength": 240
+      "maxLength": 240,
+      "pattern": "\\S"
     },
     "common_mistakes": {
       "type": "array",
@@ -270,13 +285,15 @@
       "items": {
         "type": "string",
         "minLength": 10,
-        "maxLength": 240
+        "maxLength": 240,
+        "pattern": "\\S"
       }
     },
     "safety_guidance": {
       "type": "string",
       "minLength": 10,
       "maxLength": 400,
+      "pattern": "\\S",
       "$comment": "Technique-framed caution only; never medical advice, diagnosis, or treatment claims."
     },
     "equipment_setup": {
@@ -286,23 +303,38 @@
     "substitutions": {
       "type": "array",
       "maxItems": 4,
+      "uniqueItems": true,
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100,
+        "pattern": "\\S"
+      },
+      "$comment": "AUTHORING-TIME STAGING INPUT ONLY: canonical-name references resolved fail-closed into exercise_catalog_relationships (logical-id keyed) at load; never persisted as content JSONB. Normalized uniqueness, self-reference rejection, and target resolution are mandatory deterministic validator rules (see x_mandatory_validator_rules)."
     },
     "regressions": {
       "type": "array",
       "maxItems": 3,
+      "uniqueItems": true,
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100,
+        "pattern": "\\S"
+      },
+      "$comment": "AUTHORING-TIME STAGING INPUT ONLY: canonical-name references resolved fail-closed into exercise_catalog_relationships (logical-id keyed) at load; never persisted as content JSONB. Normalized uniqueness, self-reference rejection, and target resolution are mandatory deterministic validator rules (see x_mandatory_validator_rules)."
     },
     "progressions": {
       "type": "array",
       "maxItems": 3,
+      "uniqueItems": true,
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100,
+        "pattern": "\\S"
+      },
+      "$comment": "AUTHORING-TIME STAGING INPUT ONLY: canonical-name references resolved fail-closed into exercise_catalog_relationships (logical-id keyed) at load; never persisted as content JSONB. Normalized uniqueness, self-reference rejection, and target resolution are mandatory deterministic validator rules (see x_mandatory_validator_rules)."
     },
     "accessibility_alternative": {
       "type": [
@@ -311,7 +343,7 @@
       ],
       "maxLength": 240
     },
-    "specialist_review": {
+    "content_review": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -320,7 +352,7 @@
         "reviewed_at",
         "rationale"
       ],
-      "$comment": "Mirrors the exercise_catalog review-audit CHECK: a pending record carries NO audit evidence; a decided record carries ALL of it. Blank or missing NEVER reads as approval.",
+      "$comment": "Structurally bound to THIS content version: it maps 1:1 onto exercise_catalog_content.content_status/reviewed_by/reviewed_at/review_rationale and mirrors that table's fail-closed review-audit CHECK. A pending version carries NO review evidence; a decided version carries ALL of it. Blank or missing NEVER reads as approval, and only an approved/revised active content version may ever be delivered or exposed as reviewed content.",
       "properties": {
         "status": {
           "enum": [
@@ -389,14 +421,16 @@
             "properties": {
               "reviewer": {
                 "type": "string",
-                "minLength": 3
+                "minLength": 3,
+                "pattern": "\\S"
               },
               "reviewed_at": {
                 "type": "string"
               },
               "rationale": {
                 "type": "string",
-                "minLength": 10
+                "minLength": 10,
+                "pattern": "\\S"
               }
             }
           }
@@ -409,7 +443,7 @@
         "in_review",
         "content_final"
       ],
-      "$comment": "Authoring-pipeline status; distinct from specialist_review.status and from any import approval."
+      "$comment": "Authoring-pipeline status; distinct from content_review.status and from any import approval."
     },
     "import_eligible": {
       "const": false,
@@ -484,10 +518,6 @@
         "properties": {
           "deferred": {
             "const": true
-          },
-          "deferred_reason": {
-            "type": "string",
-            "minLength": 10
           }
         }
       }
@@ -509,9 +539,40 @@
               "cardio",
               "timed"
             ]
+          },
+          "deferred_reason": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deferred": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "deferred_reason": {
+            "type": "string",
+            "minLength": 10,
+            "pattern": "\\S"
           }
         }
       }
     }
+  ],
+  "x_mandatory_validator_rules": [
+    "R1: canonical-name and alias uniqueness is NORMALIZED (lowercased, trimmed) across the whole corpus plus the live seed names; draft-07 uniqueItems is byte-level only, so the deterministic validator MUST fail any normalized duplicate.",
+    "R2: no alias may equal its own record's normalized canonical name, and no substitution/regression/progression may reference its own record (self-reference), directly or after normalization.",
+    "R3: every substitutions/regressions/progressions entry MUST resolve to an existing corpus canonical name; unresolved targets fail the batch (staging arrays resolve into exercise_catalog_relationships and are never persisted as content JSONB).",
+    "R4: blank or whitespace-only strings fail everywhere; the schema's pattern \\S enforces most cases, and the validator MUST additionally reject values that are non-blank only by padding after trim.",
+    "R5: any record whose tracking_mode is weight_time MUST be excluded from every proposed import subset until the weight_time implementation ships, regardless of other fields.",
+    "R6: no record in any EXLIB-2C authoring batch may carry import_eligible true; the validator hard-fails the batch if the key is not literal false.",
+    "R7: original instructional prose (setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance, equipment_setup) MUST NOT contain copied-source attribution or source-crediting text; the validator scans for attribution markers and fails closed on hits pending human review.",
+    "R8: provenance cross-check \u2014 a forgefitos_original record carrying any source field, or an external_source_derived record missing one, fails even if a permissive parser accepted it."
   ]
 }

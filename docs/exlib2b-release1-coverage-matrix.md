@@ -1,12 +1,16 @@
 # EXLIB-2B — Release-1 coverage matrix (PLANNING ONLY)
 
-Prepared 2026-08-28 on the EXLIB-2A/2B design milestone. This matrix
-approves nothing: no entry is import-eligible, reviewed, or an import
-payload. It defines the exact proposed shape of the first reviewed
-release of the extensive ForgeFitOS exercise library and reconciles
-mechanically against `docs/exlib2b-release1-inventory.jsonl`
-(the verifier `scripts/verify-exlib2a2b.ts` recomputes every number
-below from the inventory and fails on any drift).
+Prepared 2026-08-28 on the EXLIB-2A/2B design milestone; corrected
+the same day per independent review (honest movement patterns for
+cardio/locomotion/jump/get-up/mobility work; Plank corrected to the
+timed tracking mode; seed link-compatibility distinguished from seed
+name coverage). This matrix approves nothing: no entry is
+import-eligible, reviewed, or an import payload. It defines the exact
+proposed shape of the first reviewed release of the extensive
+ForgeFitOS exercise library and reconciles mechanically against
+`docs/exlib2b-release1-inventory.jsonl` (the verifier
+`scripts/verify-exlib2a2b.ts` recomputes every number below from the
+inventory and the live seed module and fails on any drift).
 
 ## Targets
 
@@ -21,6 +25,12 @@ below from the inventory and fails on any drift).
   difficulty, laterality, or coaching distinction; internal
   normalized-name duplicates are zero by construction and re-proven
   mechanically.
+- No false classification: cardio-machine, locomotion, jumping,
+  ground-to-standing, and mobility movements use honest dedicated
+  movement patterns (cyclic_cardio, locomotion, jump,
+  ground_to_standing, mobility_flow, static_stretch,
+  spinal_articulation) rather than being forced into
+  strength-pattern values.
 
 ## Machine-readable matrix
 
@@ -34,7 +44,8 @@ inventory file:
     "fully_distinct": 60,
     "internal_normalized_duplicates": 0,
     "name_matches_legacy_candidate": 1,
-    "name_matches_manifest_entry": 59
+    "name_matches_manifest_entry": 59,
+    "seed_link_compatible": 14
   },
   "deferred_weight_time_count": 8,
   "release_1_proposed_count": 127,
@@ -69,32 +80,38 @@ inventory file:
       "unilateral": 18
     },
     "movement_pattern": {
-      "calf_raise": 5,
-      "carry": 1,
-      "core_anti_extension": 5,
+      "calf_raise": 4,
+      "core_anti_extension": 4,
       "core_anti_rotation": 2,
-      "core_flexion": 6,
+      "core_flexion": 5,
       "core_lateral": 2,
       "core_rotation": 2,
+      "cyclic_cardio": 3,
       "dip_push": 2,
       "elbow_extension": 4,
       "elbow_flexion": 8,
       "fly_adduction": 5,
       "grip_forearm": 2,
+      "ground_to_standing": 1,
       "hinge": 7,
-      "hip_abduction": 4,
+      "hip_abduction": 3,
       "hip_adduction": 1,
       "hip_extension": 7,
-      "horizontal_pull": 11,
+      "horizontal_pull": 10,
       "horizontal_push": 7,
       "incline_push": 3,
+      "jump": 1,
       "leg_curl": 2,
       "leg_extension": 1,
-      "lunge": 9,
+      "locomotion": 2,
+      "lunge": 4,
+      "mobility_flow": 2,
       "pullover": 2,
       "shoulder_raise": 5,
       "shrug": 2,
-      "squat": 10,
+      "spinal_articulation": 2,
+      "squat": 9,
+      "static_stretch": 1,
       "vertical_pull": 6,
       "vertical_push": 6
     },
@@ -122,9 +139,9 @@ inventory file:
       "upper_back": 10
     },
     "tracking_mode": {
-      "bodyweight": 25,
+      "bodyweight": 24,
       "cardio": 6,
-      "timed": 8,
+      "timed": 9,
       "weight_reps": 88
     },
     "training_role": {
@@ -174,32 +191,38 @@ inventory file:
 ### By movement pattern
 | movement_pattern | count |
 |---|---|
-| calf_raise | 5 |
-| carry | 1 |
-| core_anti_extension | 5 |
+| calf_raise | 4 |
+| core_anti_extension | 4 |
 | core_anti_rotation | 2 |
-| core_flexion | 6 |
+| core_flexion | 5 |
 | core_lateral | 2 |
 | core_rotation | 2 |
+| cyclic_cardio | 3 |
 | dip_push | 2 |
 | elbow_extension | 4 |
 | elbow_flexion | 8 |
 | fly_adduction | 5 |
 | grip_forearm | 2 |
+| ground_to_standing | 1 |
 | hinge | 7 |
-| hip_abduction | 4 |
+| hip_abduction | 3 |
 | hip_adduction | 1 |
 | hip_extension | 7 |
-| horizontal_pull | 11 |
+| horizontal_pull | 10 |
 | horizontal_push | 7 |
 | incline_push | 3 |
+| jump | 1 |
 | leg_curl | 2 |
 | leg_extension | 1 |
-| lunge | 9 |
+| locomotion | 2 |
+| lunge | 4 |
+| mobility_flow | 2 |
 | pullover | 2 |
 | shoulder_raise | 5 |
 | shrug | 2 |
-| squat | 10 |
+| spinal_articulation | 2 |
+| squat | 9 |
+| static_stretch | 1 |
 | vertical_pull | 6 |
 | vertical_push | 6 |
 
@@ -226,12 +249,15 @@ weighted_vest, sandbag).
 ### By tracking mode
 | tracking_mode | count |
 |---|---|
-| bodyweight | 25 |
+| bodyweight | 24 |
 | cardio | 6 |
-| timed | 8 |
+| timed | 9 |
 | weight_reps | 88 |
 
 weight_time appears ONLY in the deferred pool, never in release 1.
+The proposed catalog Plank is `timed` (a hold), which differs
+deliberately from the committed seed Plank's `bodyweight` mode — see
+the seed-compatibility analysis below.
 
 ### By laterality
 | laterality | count |
@@ -271,13 +297,18 @@ the 15 committed seed exercises, the 26 legacy EXLIB candidates, the
 395-entry legacy discovery manifest, and the inventory itself:
 
 - Internal normalized duplicates: **0**.
-- Corresponds to an existing seed: **15** — every one of the
-  15 seed exercises has a catalog identity in release 1, enabling the
-  later controlled, non-destructive seed reconciliation (EXLIB-2A
-  record, section 8). These are identity correspondences, not
-  collisions: delivery skips them per-user via the existing
-  fail-closed name-claim machinery, so existing rows are never
-  touched.
+- Seed name coverage: **15 of 15** — every committed seed
+  exercise has a catalog identity in release 1.
+- Seed link-compatibility: **14 of 15**. Link compatibility
+  requires the LIVE seed row and the proposed catalog entry to agree
+  on normalized name AND tracking_mode AND equipment (the
+  EXLIB-2A reconciliation criteria). Fourteen seeds satisfy all
+  three. **Plank does not**: the seed is `bodyweight` while the
+  proposed catalog entry is honestly `timed`. Plank therefore
+  requires a separately reviewed reconciliation or correction; no
+  automatic link, merge, tracking-mode rewrite, or delivery
+  overwrite is authorized, and the live seed module is not modified
+  in this milestone.
 - Name matches a legacy EXLIB candidate: **1**
   (Plate-weighted plank, itself deferred for weight_time). The 26
   legacy candidates remain import-ineligible and are NOT part of this

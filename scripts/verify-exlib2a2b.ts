@@ -97,29 +97,56 @@ async function main(): Promise<void> {
 
   console.log('\nB. Architecture record consistency')
   {
-    check('B1: the record resolves every mandated area with the chosen designs — companion content table, provenance discriminator with conditional source CHECK, enumerated behavior metadata, logical-id relationships, refresh-only-catalog-fields, stable tenant ids, archive-not-delete, link-not-merge seeds, delivery-at-signup after proof, unchanged claim machinery, three weight_time locks, reused rollback/idempotency machinery',
-      recFlat.includes('DESIGN RECORD ONLY') &&
-      recFlat.includes(BASELINE) &&
-      recFlat.includes('companion versioned content table, `exercise_catalog_content`') &&
+    // REVISED (EXLIB-2A/2B review correction): content binds to the
+    // STABLE logical identity with its own complete fail-closed
+    // review lifecycle; prose authorship lives on the content
+    // version; relationships are never duplicated as content JSONB.
+    check('B1: content architecture — exercise_catalog_content keyed to exercise_catalog_logical (not a snapshot), per-version authored_by/authored_at, complete fail-closed content review lifecycle, approved/revised-active-only exposure, immutable correction versions, and NO relationship JSONB',
+      recFlat.includes('keyed to the STABLE `exercise_catalog_logical` identity') &&
+      recFlat.includes('REFERENCES exercise_catalog_logical(id)') &&
+      recFlat.includes('prose authorship/provenance binds to THIS content version') &&
+      recFlat.includes("content_status IN ('pending','approved','revised','rejected')") &&
+      recFlat.includes('exercise_catalog_content_review_audit_chk') &&
+      recFlat.includes('blank or missing never means approved; a pending version carries no review evidence; a decided version carries all of it') &&
+      recFlat.includes("is_active = true AND content_status IN ('approved','revised')") &&
+      recFlat.includes('corrections create a NEW') &&
+      recFlat.includes('immutable content_version+1 under the SAME logical identity') &&
+      recFlat.includes('substitutions/regressions/progressions are deliberately ABSENT') &&
+      recFlat.includes('never requires copying or re-authoring unchanged prose'))
+    check('B2: provenance split and honest metadata — METADATA provenance on exercise_catalog with conditional source CHECK (no prose authorship there), content provenance on the content version, enumerated behavior metadata incl. the honest non-strength patterns, relationships table as sole persisted store fed fail-closed from staging arrays, aliases in existing machinery only',
+      recFlat.includes('Metadata provenance** lives on `exercise_catalog`') &&
+      recFlat.includes('Instructional-content provenance and authorship** live on the specific `exercise_catalog_content` version') &&
+      recFlat.includes('Prose authorship is never placed only on the catalog metadata snapshot') &&
       recFlat.includes("provenance IN ('forgefitos_original','external_source_derived')") &&
       recFlat.includes('structurally impossible for source-derived data to masquerade as original') &&
       recFlat.includes('constrained enumerated columns on `exercise_catalog`, not a free-form tags bag') &&
-      recFlat.includes('exercise_catalog_relationships') &&
+      ['cyclic_cardio', 'locomotion', 'jump', 'ground_to_standing',
+        'mobility_flow', 'static_stretch', 'spinal_articulation']
+        .every((p) => recFlat.includes(`'${p}'`)) &&
+      recFlat.includes('never be force-fitted into strength-pattern values') &&
+      recFlat.includes('STAGING INPUTS ONLY') &&
+      recFlat.includes('never persisted redundantly as content JSONB') &&
+      recFlat.includes('`exercise_catalog_relationships` is the sole persisted source of truth') &&
+      recFlat.includes('Aliases likewise stay exclusively in the existing alias machinery'))
+    check('B3: unchanged foundations and boundaries — logical-id relationships, refresh-only-catalog-fields, stable tenant ids, archive-not-delete, link-not-merge seeds with the 15-covered/14-compatible Plank distinction, delivery-at-signup after proof, unchanged claim machinery, three weight_time locks, reused rollback machinery, and the record authorizes nothing',
+      recFlat.includes('DESIGN RECORD ONLY') &&
+      recFlat.includes(BASELINE) &&
       recFlat.includes('bind logical ids (stable identity), not snapshot ids') &&
       recFlat.includes('update ONLY catalog-controlled fields') &&
       recFlat.includes('NEVER touch user-owned notes, is_active, or any') &&
-      recFlat.includes('workout/history row; name updates go through the') &&
       recFlat.includes('History is therefore stable by construction') &&
       recFlat.includes('per-user `is_active = false` on the tenant copy') &&
       recFlat.includes('reconcile later by LINKING (provenance backfill), never merging or deleting') &&
+      recFlat.includes('15 of 15 names are covered; only 14 of 15 are currently link-compatible') &&
+      recFlat.includes('**Plank fails criterion (b)**') &&
+      recFlat.includes('no automatic link, merge, tracking-mode rewrite, or delivery overwrite is authorized') &&
+      recFlat.includes('The live seed module is not modified in this milestone') &&
       recFlat.includes('retired for future accounts ONLY after EXLIB-2G/2H prove delivery end-to-end') &&
       recFlat.includes('the existing fail-closed machinery is the contract') &&
       recFlat.includes('three independent locks') &&
       recFlat.includes('`rollback_catalog_delivery` removes a') &&
-      recFlat.includes('no migration is authored in this milestone'))
-    check('B2: the record authorizes nothing — no migration, loading, ledger change, runtime change, or specialist/legal/medical approval claim',
+      recFlat.includes('no migration is authored in this milestone') &&
       recFlat.includes('It authorizes no migration, no catalog loading, no ledger change, and no runtime code change') &&
-      recFlat.includes('they claim no specialist, legal, or medical approval') &&
       recFlat.includes('Migration numbering and application stay downstream of independent review'))
   }
 
@@ -133,20 +160,57 @@ async function main(): Promise<void> {
       props.muscle_targets.items.properties.muscle.enum
         .every((m: string) => (MUSCLE_GROUPS as readonly string[]).includes(m)) &&
       props.primary_muscle.enum.every((m: string) => (MUSCLE_GROUPS as readonly string[]).includes(m)))
-    check('C2: fail-closed rules are structural — pending review carries no evidence, decided review carries all of it; original provenance forbids source fields and source provenance requires them; weight_time forces deferred=true; non-deferred entries are locked to the four supported modes; import_eligible is a const false',
+    // REVISED (EXLIB-2A/2B review correction): content_review is
+    // structurally bound to the content version; deferred flags are
+    // bidirectionally conditional; relationship/alias arrays are
+    // staging inputs with blank rejection and uniqueness; rules
+    // draft-07 cannot express are pinned as mandatory deterministic
+    // validator rules, not comments.
+    check('C2: fail-closed rules are structural — content_review pending carries no evidence and decided carries all of it (bound to the content version); original provenance forbids source fields and source provenance requires them; weight_time forces deferred=true; deferred=false locks the four supported modes AND requires deferred_reason=null; deferred=true requires a nonblank reason; import_eligible is a const false',
       (() => {
-        const sr = props.specialist_review
+        const cr = props.content_review
         const conds = JSON.stringify(schema.allOf)
-        return sr.required.length === 4 &&
-          JSON.stringify(sr.allOf).includes('"pending"') &&
+        return cr.required.length === 4 &&
+          JSON.stringify(cr.allOf).includes('"pending"') &&
+          String(cr.$comment).includes('bound to THIS content version') &&
+          String(cr.$comment).includes('exercise_catalog_content.content_status') &&
           conds.includes('"forgefitos_original"') &&
           conds.includes('"external_source_derived"') &&
           conds.includes('"weight_time"') &&
           JSON.stringify(schema.allOf[3].then.properties.tracking_mode.enum) ===
             JSON.stringify([...TRACKING_MODES]) &&
+          schema.allOf[3].then.properties.deferred_reason.type === 'null' &&
+          schema.allOf[4].then.properties.deferred_reason.minLength >= 10 &&
+          schema.allOf[4].then.properties.deferred_reason.pattern === '\\S' &&
           props.import_eligible.const === false &&
           String(schema.$comment).includes('Blank is never approval') &&
           String(schema.$comment).includes('copied-source attribution')
+      })())
+    check('C3: relationship and alias arrays are staging inputs with structural hygiene — uniqueItems, nonblank pattern items, staging-only comments — and prose authorship fields align to the content-version architecture',
+      (() => {
+        const arrays = [props.substitutions, props.regressions, props.progressions, props.aliases]
+        return arrays.every((a: any) => a.uniqueItems === true &&
+            a.items.pattern === '\\S' && a.items.minLength >= 2) &&
+          [props.substitutions, props.regressions, props.progressions].every((a: any) =>
+            String(a.$comment).includes('STAGING INPUT ONLY') &&
+            String(a.$comment).includes('exercise_catalog_relationships') &&
+            String(a.$comment).includes('never persisted as content JSONB')) &&
+          String(props.aliases.$comment).includes('EXISTING alias machinery only') &&
+          String(props.authored_by.$comment).includes('THIS content version') &&
+          String(props.authored_by.$comment).includes('NOT to the catalog metadata snapshot') &&
+          props.authored_by.pattern === '\\S'
+      })())
+    check('C4: every rule draft-07 cannot express alone is pinned as a MANDATORY deterministic validator rule (normalized uniqueness, self-reference, target resolution, trim-blank, weight_time exclusion, import_eligible literal, attribution scan, provenance cross-check)',
+      (() => {
+        const rules: string[] = schema.x_mandatory_validator_rules
+        return Array.isArray(rules) && rules.length === 8 &&
+          ['R1','R2','R3','R4','R5','R6','R7','R8'].every((id, i) => rules[i].startsWith(`${id}:`)) &&
+          rules.some((r) => r.includes('NORMALIZED')) &&
+          rules.some((r) => r.includes('self-reference')) &&
+          rules.some((r) => r.includes('resolve to an existing corpus canonical name')) &&
+          rules.some((r) => r.includes('excluded from every proposed import subset')) &&
+          rules.some((r) => r.includes('copied-source attribution')) &&
+          String(schema.$comment).includes('binding contract, not commentary')
       })())
   }
 
@@ -180,17 +244,48 @@ async function main(): Promise<void> {
           inv.every((r) => ['corresponds_to_seed', 'name_matches_prior_artifact',
             'deferred_weight_time', 'distinct'].includes(r.collision_classification))
       })())
-    check('D4: seed correspondence is exact — all 15 committed seed exercises (read from the live seed module) appear exactly once each, and no other record claims a seed',
+    // REVISED (EXLIB-2A/2B review correction): name coverage and
+    // link compatibility are distinct, both recomputed from the LIVE
+    // seed module (name + tracking_mode + equipment).
+    check('D4: seed analysis is exact and mechanical — all 15 seed names covered exactly once, but only 14 are link-compatible (name+tracking+equipment agree with the live seed); Plank is the sole incompatible entry (seed bodyweight vs catalog timed), and every inventory compatibility flag matches the recomputation',
       (() => {
         const seedSrc = read('src/lib/supabase/seed-exercises.ts')
-        const seedNames = Array.from(seedSrc.matchAll(/\{ name: "([^"]+)"/g), (m) => m[1])
-        if (seedNames.length !== 15) return false
+        const seedFacts = new Map<string, { equipment: string; tracking: string }>()
+        Array.from(seedSrc.matchAll(
+          /\{ name: "([^"]+)",\s*category: "[^"]*",\s*primary_muscle: "[^"]*",\s*equipment: "([^"]*)",\s*tracking_mode: "([^"]*)"/g))
+          .forEach((m) => seedFacts.set(m[1].trim().toLowerCase(), { equipment: m[2], tracking: m[3] }))
+        if (seedFacts.size !== 15) return false
         const claimed = inv.filter((r) => r.corresponds_to_seed !== null)
-        return claimed.length === 15 &&
-          JSON.stringify(claimed.map((r) => r.corresponds_to_seed).sort()) ===
-            JSON.stringify([...seedNames].sort()) &&
-          claimed.every((r) =>
-            String(r.corresponds_to_seed).trim().toLowerCase() === r.normalized_name)
+        if (claimed.length !== 15) return false
+        if (JSON.stringify(claimed.map((r) => String(r.corresponds_to_seed).trim().toLowerCase()).sort()) !==
+            JSON.stringify(Array.from(seedFacts.keys()).sort())) return false
+        const compatible = claimed.filter((r) => {
+          const sf = seedFacts.get(r.normalized_name)!
+          const isCompat = sf.tracking === r.tracking_mode && sf.equipment === r.equipment
+          if (r.seed_link_compatible !== isCompat) return false
+          return isCompat
+        })
+        const flagsConsistent = claimed.every((r) => {
+          const sf = seedFacts.get(r.normalized_name)!
+          return r.seed_link_compatible === (sf.tracking === r.tracking_mode && sf.equipment === r.equipment)
+        })
+        const nonSeedFlagsNull = inv.filter((r) => r.corresponds_to_seed === null)
+          .every((r) => r.seed_link_compatible === null)
+        const incompatible = claimed.filter((r) => r.seed_link_compatible === false)
+        return flagsConsistent && nonSeedFlagsNull &&
+          compatible.length === 14 &&
+          incompatible.length === 1 &&
+          incompatible[0].normalized_name === 'plank' &&
+          incompatible[0].tracking_mode === 'timed' &&
+          seedFacts.get('plank')!.tracking === 'bodyweight'
+      })())
+    check('D4b: the proposed catalog Plank is timed (an honest hold), its derived legacy type is mobility, and its seed correspondence is preserved as a factual name match only',
+      (() => {
+        const plank = inv.find((r) => r.normalized_name === 'plank')
+        return !!plank && plank.tracking_mode === 'timed' &&
+          plank.exercise_type_derived === 'mobility' &&
+          plank.corresponds_to_seed === 'Plank' &&
+          plank.seed_link_compatible === false && !plank.deferred
       })())
     check('D5: legacy-candidate and manifest name matches are recomputed mechanically and match the inventory flags exactly',
       (() => {
@@ -229,6 +324,7 @@ async function main(): Promise<void> {
           ['difficulty', 'difficulty'], ['availability', 'availability'],
         ]
         const seeds = inv.filter((r) => r.corresponds_to_seed !== null).length
+        const linkCompat = inv.filter((r) => r.seed_link_compatible === true).length
         const candMatches = inv.filter((r) => r.name_matches_legacy_candidate !== null).length
         const manMatches = inv.filter((r) => r.name_matches_manifest_entry === true).length
         const distinct = inv.filter((r) => r.collision_classification === 'distinct').length
@@ -238,6 +334,7 @@ async function main(): Promise<void> {
           mach.total_inventory_records === inv.length &&
           mach.collision_analysis.internal_normalized_duplicates === 0 &&
           mach.collision_analysis.corresponds_to_seed === seeds &&
+          mach.collision_analysis.seed_link_compatible === linkCompat &&
           mach.collision_analysis.name_matches_legacy_candidate === candMatches &&
           mach.collision_analysis.name_matches_manifest_entry === manMatches &&
           mach.collision_analysis.fully_distinct === distinct &&
@@ -247,6 +344,31 @@ async function main(): Promise<void> {
     check('D8: all twelve supported equipment values are represented in release 1, including the four EXLIB-1C0B3 additions',
       (EQUIPMENT_TYPES as readonly string[])
         .every((eq) => release.some((r) => r.equipment === eq)))
+    // REVISED (EXLIB-2A/2B review correction): cardio/locomotion/
+    // jump/get-up/mobility movements carry honest patterns — the
+    // twelve reviewer-named entries are pinned exactly.
+    check('D9: honest movement patterns — the twelve reclassified entries carry their dedicated non-strength patterns, and no cardio-mode or mobility-role entry uses squat/lunge/carry/horizontal_pull/core_anti_extension',
+      (() => {
+        const want: Record<string, string> = {
+          'rowing machine': 'cyclic_cardio',
+          'stationary bike': 'cyclic_cardio',
+          'elliptical trainer': 'cyclic_cardio',
+          'treadmill run': 'locomotion',
+          'stair climber': 'locomotion',
+          'jump rope': 'jump',
+          'turkish get-up': 'ground_to_standing',
+          "world's greatest stretch": 'mobility_flow',
+          '90/90 hip switch': 'mobility_flow',
+          'couch stretch': 'static_stretch',
+          'cat-cow': 'spinal_articulation',
+          'thoracic extension on foam roller': 'spinal_articulation',
+        }
+        const byName = new Map(inv.map((r) => [r.normalized_name, r]))
+        const banned = ['squat', 'lunge', 'carry', 'horizontal_pull', 'core_anti_extension']
+        return Object.entries(want).every(([n, p]) => byName.get(n)?.movement_pattern === p) &&
+          release.filter((r) => r.tracking_mode === 'cardio' || r.training_role === 'mobility')
+            .every((r) => !banned.includes(r.movement_pattern))
+      })())
   }
 
   console.log('\nG. Phase boundary')
