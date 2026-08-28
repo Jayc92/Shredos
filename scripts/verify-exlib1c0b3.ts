@@ -505,9 +505,35 @@ async function main() {
             'M scripts/verify-ui6c.ts',
             'M scripts/verify-ui7.ts',
           ].sort()
+          // ADMISSION (EXLIB-1C0B5 weight_time rpe-warmup decision):
+          // while the EXLIB-1C0B5 decision overlay, the bootstrap
+          // audit, and the B5 verifier are being prepared uncommitted
+          // (this verifier gains only this admission, and eleven
+          // committed suites gain only the labeled B5 scope
+          // admissions), the worktree may contain exactly that
+          // inventory. Anything else still fails; the admission is
+          // inert once the B5 phase commits.
+          const B5_DECISION_DIRT = [
+            '?? docs/bootstrap-audit-2026-08-27.md',
+            '?? docs/exlib1c0b5-weight-time-rpe-warmup-decision.md',
+            '?? scripts/verify-exlib1c0b5.ts',
+            'M scripts/verify-exlib1c0b3.ts',
+            'M scripts/verify-exlib1a.ts',
+            'M scripts/verify-exlib1b1.ts',
+            'M scripts/verify-exlib1b3.ts',
+            'M scripts/verify-exlib1c0.ts',
+            'M scripts/verify-exlib1c0a.ts',
+            'M scripts/verify-exlib1c0b.ts',
+            'M scripts/verify-exlib1c0b2.ts',
+            'M scripts/verify-ui5b1b.ts',
+            'M scripts/verify-ui5b2.ts',
+            'M scripts/verify-ui6c.ts',
+            'M scripts/verify-ui7.ts',
+          ].sort()
           if (dirt.length !== 0 &&
             JSON.stringify(dirt) !== JSON.stringify(APP_RECORD_DIRT) &&
-            JSON.stringify(dirt) !== JSON.stringify(B4_DECISION_DIRT)) return false
+            JSON.stringify(dirt) !== JSON.stringify(B4_DECISION_DIRT) &&
+            JSON.stringify(dirt) !== JSON.stringify(B5_DECISION_DIRT)) return false
           if (execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() !== '') return false
           const adders = execSync(
             `git log --all --format=%H --diff-filter=A -- ${M025_FILE}`,

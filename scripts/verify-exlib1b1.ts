@@ -290,6 +290,11 @@ async function main() {
             // ADMISSION (EXLIB-1C0B4 weight_time product decisions):
             // the uncommitted decision record is admitted.
             f === 'docs/exlib1c0b4-weight-time-product-decisions.md' ||
+            // ADMISSION (EXLIB-1C0B5 weight_time rpe-warmup decision): the
+            // uncommitted decision overlay, bootstrap audit, and B5 verifier
+            // are admitted (exact paths).
+            f === 'docs/exlib1c0b5-weight-time-rpe-warmup-decision.md' ||
+            f === 'docs/bootstrap-audit-2026-08-27.md' ||
             f.startsWith('scripts/verify-')
         })
       })())

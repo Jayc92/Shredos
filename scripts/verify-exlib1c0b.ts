@@ -444,12 +444,18 @@ async function main() {
                 // the uncommitted decision record is admitted.
                 f === 'docs/exlib1c0b4-weight-time-product-decisions.md' ||
                 f === 'scripts/verify-exlib1c0b4.ts' ||
+                // ADMISSION (EXLIB-1C0B5 weight_time rpe-warmup decision): the
+                // uncommitted decision overlay, bootstrap audit, and B5 verifier
+                // are admitted (exact paths).
+                f === 'docs/exlib1c0b5-weight-time-rpe-warmup-decision.md' ||
+                f === 'docs/bootstrap-audit-2026-08-27.md' ||
+                f === 'scripts/verify-exlib1c0b5.ts' ||
                   f === 'scripts/verify-exlib1c0b3-guard.sh') return false
               if (st === 'M' && f.startsWith('scripts/verify-') && f.endsWith('.ts')) {
                 try {
                   // ADMISSION (EXLIB-1C0B3): accept this phase's
                   // admission and retarget labels too.
-                  return !/ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)|ADMISSION \(EXLIB-1C0B4 weight_time product decisions\)/.test(
+                  return !/ADMISSION \(EXLIB-1C0B2\)|ADMISSION \(EXLIB-1C0B3\)|RETARGET \(EXLIB-1C0B3 migration 025 draft\)|ADMISSION \(EXLIB-1C0B4 weight_time product decisions\)|ADMISSION \(EXLIB-1C0B5 weight_time rpe-warmup decision\)/.test(
                     execSync(`git diff -- ${f}`, { encoding: 'utf8' }))
                 } catch { return true }
               }
