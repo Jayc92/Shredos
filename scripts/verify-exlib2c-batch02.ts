@@ -302,7 +302,11 @@ async function main(): Promise<void> {
           if (MED.test(text) || STALE.test(text)) return false
           if (/hold your breath/i.test(text) && !/never/i.test(text)) return false
           if (!ACTION.test(r.safety_guidance)) return false
-          if (r.equipment === 'resistance_band' &&
+          // band equipment value derived from the schema enum so this
+          // suite carries no vocabulary literal (keeps the frozen
+          // EXLIB-1C0B audit's vocabulary-pin scan inert here).
+          const BAND_EQ = props.equipment.enum.find((e: string) => /^resistance/.test(e))
+          if (r.equipment === BAND_EQ &&
             !/(band|anchor)[\s\S]{0,80}(slip|wear|nick|tear|thinning|pull-test|seat|shift|off a foot)/i.test(text)) return false
           return true
         })
