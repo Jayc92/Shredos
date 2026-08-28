@@ -73,7 +73,15 @@ const primaryOf = (r: any): string => [
 ].join(' ')
 
 // Every Batch 1-3 review-correction family, applied corpus-wide.
-const STALE = /(complains|\bpour|waiting to happen|weakest at the bottom|pinches the shoulder joint|the weight is doing the choosing|under (the )?chair legs?|one rep at a time|hand-off|allows more weight|past the toes|while the tissue|step off the bars|overloads the groin|shallowly|shallow breath|never step off a moving belt|straddle|step or plate|looped across|between holds|locked out|removes lower-back|pad removes|reverse to the floor and reset|taking the eyes off the bell)/i
+// REVISED (EXLIB-2C batch 4 review 1): extended with this review's
+// corpus-wide-invalid phrases (absolute anti-pinning claims,
+// bail-at-any-height framing, intentional drop/landing exits,
+// generic-helper anchors, loose loads resting on the thighs,
+// universal Smith stance doctrine). Phrases that are legitimate
+// elsewhere in the frozen corpus (e.g. "just below chest height"
+// on Batch 1's Bench press safety arms, "land softly on the balls
+// of the feet" on Jump rope) are scoped in D6 instead.
+const STALE = /(complains|\bpour|waiting to happen|weakest at the bottom|pinches the shoulder joint|the weight is doing the choosing|under (the )?chair legs?|one rep at a time|hand-off|allows more weight|past the toes|while the tissue|step off the bars|overloads the groin|shallowly|shallow breath|never step off a moving belt|straddle|step or plate|looped across|between holds|locked out|removes lower-back|pad removes|reverse to the floor and reset|taking the eyes off the bell|can never pin you|at any height|land softly with bent knees|steady helper|resting across the thighs|drop to your knees|pitches the torso forward|slightly ahead of the bar|a little forward of the bar)/i
 const MED = /\b(diagnos\w*|treat(s|ed|ment)?\b|rehabilitat\w*|prescri\w*|cure\w*|therap\w*|pain-free|guarantee\w*|tissue adapt|tissue recovery|physiological recovery)/i
 const ACTION = /(stop|end the (set|session)|reduce|lighten|lighter|lower the (weight|hips|knee)|shorten|rest|pause|step down|step off|switch|set the (bar|bell|plate|dumbbell)s? down|strip weight|come off|lower down|shrink|slow the (pace|machine|rhythm)|grab the rails|drop the stack|move (your )?hands|rebuild)/i
 
@@ -382,15 +390,28 @@ async function main(): Promise<void> {
         if ((csr.aliases as string[]).some((a) => norm(a) === 'incline bench row')) return false
         return true
       })())
-    check('D5: ADMISSION (EXLIB-2C batch 4) — first-appearance positive pins: Smith bench/squat safety stops with rotate-to-re-hook bail, weighted-vest snug fit with lightest-setting starts and step-down dismount, bar-hang records with stable non-slip entry and grip-limited set endings, Nordic padded immovable anchor with hands-catch and stop-before-control-is-gone, ab wheel arch-control set ending, bike fixed-drive dismount, and the Bulgarian split squat one-leg switch contract',
+    check('D5: ADMISSION (EXLIB-2C batch 4), REVISED (EXLIB-2C batch 4 review 1) — first-appearance positive pins: Smith bench functional escape clearance tested with the empty bar and conditional re-hooking, Smith squat depth-relative stops with a model-neutral whole-foot stance, weighted-vest snug fit with lightest-setting starts and step-down dismount, bar-hang records with stable non-slip entry and grip-limited set endings, Nordic padded immovable anchor with hands-catch and stop-before-control-is-gone, ab wheel arch-control set ending, bike fixed-drive dismount, and the Bulgarian split squat one-leg switch contract',
       (() => {
         const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+        // REVISED (EXLIB-2C batch 4 review 1): the Smith bench pins now
+        // require the FUNCTIONAL clearance rule (highest stop position
+        // that preserves the intended range while allowing a flatten-
+        // and-slide-clear escape, tested with the empty bar) instead of
+        // the withdrawn universal chest-height doctrine and absolute
+        // anti-pinning claim; the squat pins now require the model-
+        // neutral whole-foot stance instead of feet-forward doctrine.
         const sbp = by.get('smith machine bench press')
-        const sbpOk = /safety stops just below chest height/i.test(sbp.setup_steps.join(' ')) &&
-          /rotate and re-hook the moment a press stalls/i.test(sbp.safety_guidance) &&
-          /can never pin you/i.test(sbp.safety_guidance)
+        const sbpOk = /highest position that still allows your intended bottom range/i.test(sbp.setup_steps.join(' ')) &&
+          /flatten your torso and slide clear/i.test(sbp.setup_steps.join(' ')) &&
+          /test that stop position with the empty bar before loading/i.test(sbp.setup_steps.join(' ')) &&
+          /shorten the range/i.test(sbp.safety_guidance) &&
+          /re-hook only if the hooks are aligned and the bar is under control/i.test(sbp.safety_guidance) &&
+          /lower the bar onto the tested safeties/i.test(sbp.safety_guidance)
         const ssq = by.get('smith machine squat')
         const ssqOk = /safety stops just below your lowest squat depth/i.test(ssq.setup_steps.join(' ')) &&
+          /stance that keeps your whole foot planted/i.test(ssq.setup_steps.join(' ')) &&
+          /rail paths may be vertical or angled/i.test(ssq.equipment_setup) &&
+          /feet under or slightly ahead of you depending on the machine/i.test(ssq.equipment_setup) &&
           /lower with control onto the stops or rotate to re-hook/i.test(ssq.safety_guidance)
         const vpu = by.get('weighted vest pull-up')
         const vpp = by.get('weighted vest push-up')
@@ -415,6 +436,33 @@ async function main(): Promise<void> {
         const bss = by.get('bulgarian split squat')
         const bssOk = /complete every rep on one leg, then switch legs and match the load and reps/i.test(bss.execution_steps.join(' '))
         return sbpOk && ssqOk && vestOk && hangOk && norOk && abwOk && bikeOk && bssOk
+      })())
+    check('D6: ADMISSION (EXLIB-2C batch 4 review 1) — review-correction enforcement: no chest-height stop doctrine in any Smith record, no intentional chin-up drop exit, inspected band in the Hip abduction alternative, Nordic purpose-built or force-tested fixed anchor with no generic-helper equivalence, no unsecured load resting on the thighs, controlled weighted-vest push-up regression with no feet-elevation accessibility anywhere in the corpus, and a controlled dumbbell-fly exit (the corpus-wide bans on absolute anti-pinning claims, bail-at-any-height framing, drop-to-knees, steady-helper anchors, and universal Smith stance doctrine run in D2/D4 via the extended stale-phrase family)',
+      (() => {
+        const all100 = [...prior, ...batch]
+        for (const r of all100) {
+          if (r.equipment === 'smith_machine' && /just below chest (height|level)/i.test(proseOf(r))) return false
+          if (/elevate(d)? the feet/i.test(r.accessibility_alternative ?? '')) return false
+        }
+        const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+        const chin = by.get('chin-up')
+        const chinOk = /pause and get assistance rather than dropping on purpose/i.test(chin.safety_guidance) &&
+          /step back down onto the step/i.test(chin.safety_guidance)
+        const hip = by.get('hip abduction machine')
+        const hipOk = /checked for tears, nicks, or thinning/i.test(hip.accessibility_alternative ?? '')
+        const nor = by.get('nordic hamstring curl')
+        const norOk = /purpose-built Nordic station/i.test(nor.equipment_setup) &&
+          /padded fixed anchor tested with partial force/i.test(nor.equipment_setup)
+        const scr = by.get('seated calf raise')
+        const scrOk = /body weight only/i.test(scr.accessibility_alternative ?? '') &&
+          /press down on the thighs with your hands/i.test(scr.accessibility_alternative ?? '')
+        const vpp = by.get('weighted vest push-up')
+        const vppOk = /lower the knees under control/i.test(vpp.safety_guidance) &&
+          /raised, stable surface/i.test(vpp.accessibility_alternative ?? '') &&
+          /remove the vest/i.test(vpp.accessibility_alternative ?? '')
+        const fly = by.get('dumbbell fly')
+        const flyOk = /rock up to sitting rather than dropping the weights outward/i.test(fly.execution_steps.join(' '))
+        return chinOk && hipOk && norOk && scrOk && vppOk && flyOk
       })())
   }
 

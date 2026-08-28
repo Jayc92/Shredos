@@ -93,3 +93,67 @@ against all 75 Batch 1-3 records.
   knuckle wrapped because the load travels over the body, holds the
   elbow bend constant, and offers the floor version whose range is
   naturally limited.
+
+## Codex review corrections (forward correction, 2026-08-28)
+
+3. **Smith machine bench press — blocking safety correction (setup/
+   safety)**: "safety stops just below chest height" and the
+   absolute claim that the bar "can never pin you" removed. The
+   rule is now functional: set the safeties at the highest position
+   that still allows the intended bottom range while letting the
+   lifter flatten the torso and slide clear beneath the bar; test
+   that stop position with the empty bar before loading; shorten
+   the range if it cannot coexist with escape clearance. The
+   "bail at any height" framing removed — re-hooking is instructed
+   only when the hooks are aligned and the bar is under control,
+   otherwise lower onto the tested safeties. Empty-bar hook
+   familiarization and the "next available increment/setting"
+   wording preserved.
+4. **Smith machine squat — stance doctrine (setup/mistakes/
+   equipment setup)**: the universal feet-slightly-ahead claim and
+   the "directly under the bar pitches the torso forward" mistake
+   removed. Rail paths may be vertical or angled, so the guidance
+   is now model-neutral: establish a stance under an empty bar that
+   keeps the whole foot planted and the body balanced through the
+   machine's actual rail path — feet under or slightly ahead
+   depending on the machine. Tested stop placement, controlled
+   lowering onto stops, hook familiarization, and neutral
+   progression wording preserved.
+5. **Chin-up — exit (safety)**: "land softly with bent knees from a
+   low hang" removed. The exit is to end the set while grip remains
+   secure and step back down onto the stable step; if the step has
+   moved or cannot be reached, pause and get assistance rather than
+   dropping on purpose.
+6. **Hip abduction machine — band inspection (accessibility)**: the
+   mini-band alternative now requires a band checked for tears,
+   nicks, or thinning before placing it above the knees, keeping
+   the seated, stable setup.
+7. **Nordic hamstring curl — anchor consistency (equipment
+   setup)**: the generic "steady helper" option removed as not
+   equivalent to an immovable anchor. The record now prefers a
+   purpose-built Nordic station or a padded fixed anchor tested
+   with partial force; the short-range start, hand catch, and
+   stop-before-control-is-gone rule are unchanged.
+8. **Seated calf raise — loose load (accessibility)**: "a light
+   weight resting across the thighs" removed — a loose load must
+   not rest where it can roll or slide. The alternative is now body
+   weight only or manual hand pressure on the thighs.
+9. **Weighted vest push-up — regression coherence (safety/
+   accessibility)**: "drop to your knees" replaced with lowering
+   the knees under control; the elevate-the-feet suggestion removed
+   from accessibility (feet elevation is a progression, not an
+   accessibility alternative) in favor of removing the vest and
+   using a raised, stable hand surface. Snug fit and conservative
+   loading preserved.
+10. **Dumbbell fly — controlled exit (execution)**: an explicit
+    exit step added — bring the dumbbells together above the torso,
+    lower them toward the thighs, and rock up to sitting rather
+    than dropping the weights outward.
+
+Where the batch-specific notes above describe the originally
+authored Smith machine stop heights or stance doctrine, the
+corrected content in this commit controls; the notes are retained
+unedited as part of the original editorial log. One same-class
+observation outside this correction's scope is flagged for review:
+Batch 1's Bench press (byte-frozen, promoted) also sets safety arms
+"just below chest height" rather than by tested escape clearance.
