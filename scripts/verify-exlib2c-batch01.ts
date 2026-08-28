@@ -73,15 +73,33 @@ async function main(): Promise<void> {
       sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
       sha256('docs/exlib1a-discovery-manifest.jsonl') === '336cd4253f747cdb3ba73ffa2af5a63e255c7c87cc452d4c43ed59a654673dfa' &&
       sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b')
-    check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the phase range beyond the design tip touches ONLY this phase\'s five paths',
+    // RETARGET (EXLIB-2C batch 2): the BATCH 1 milestone's range
+    // claim is anchored to its own promoted tip (064a131...), not to
+    // a moving HEAD, so later authoring batches building on the
+    // promoted Batch 1 can never dilute or break this historical
+    // claim. HEAD must still descend from that tip once it exists.
+    check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 1 range (design tip..batch 1 tip) touches ONLY this phase\'s five paths',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
         if (files.length !== 25 || files.some((f) => f.startsWith('026'))) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
-        const range = execSync(`git diff --name-only ${DESIGN_TIP}..HEAD`, { encoding: 'utf8' })
+        const BATCH1_TIP = '064a131d88d4948a7aaaf9d77c9fa6565a9b000b'
+        const inHistory = (() => {
+          try {
+            execSync(`git cat-file -e ${BATCH1_TIP}^{commit}`, { stdio: 'pipe' })
+            return true
+          } catch { return false }
+        })()
+        if (!inHistory) {
+          const range = execSync(`git diff --name-only ${DESIGN_TIP}..HEAD`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          return range.length === 0 ||
+            JSON.stringify(range) === JSON.stringify(PHASE_ALL)
+        }
+        execSync(`git merge-base --is-ancestor ${BATCH1_TIP} HEAD`)
+        const range = execSync(`git diff --name-only ${DESIGN_TIP}..${BATCH1_TIP}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
-        if (range.length === 0) return true // uncommitted review state
         return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
       })())
     check('A3: ledger remains 48/48 pending-null and all 26 legacy candidates remain import-ineligible',
