@@ -334,16 +334,26 @@ async function main(): Promise<void> {
           })
         return pinned && noBilateralDefault
       })())
-    check('E2: Lateral raise technical wording — no pouring cue anywhere in the batch, neutral wrist and thumb guidance present, control/comfort stop language instead of an absolute above-shoulder impingement claim',
+    // REVISED (EXLIB-2C batch 1 breathing-cue correction): the
+    // Lateral raise breathing cue is pinned as SINGULAR — one
+    // dumbbell, one side — and the stale bilateral sentence (or any
+    // plural weights/sides regression in the cue) fails.
+    check('E2: Lateral raise technical wording — no pouring cue anywhere in the batch, neutral wrist and thumb guidance present, control/comfort stop language instead of an absolute above-shoulder impingement claim, and a SINGULAR one-dumbbell breathing cue (plural weights/sides cue wording rejected)',
       (() => {
         const lr = batch.find((r) => norm(r.proposed_canonical_name) === 'lateral raise')
         if (!lr) return false
         const text = proseOf(lr).toLowerCase()
+        const cue = String(lr.breathing_cue)
         return batch.every((r) => !/pour/i.test(proseOf(r))) &&
           /wrist neutral|neutral wrist/.test(text) &&
           /thumb/.test(text) &&
           /highest (point you can control comfortably|controlled)/.test(text) &&
-          !/pinch(es)? the shoulder joint/.test(text)
+          !/pinch(es)? the shoulder joint/.test(text) &&
+          cue === 'Exhale as you raise the dumbbell; inhale as you lower it back to your side.' &&
+          !/raise the weights/i.test(cue) &&
+          !/lower them/i.test(cue) &&
+          !/your sides/i.test(cue) &&
+          !/\b(weights|dumbbells|them|sides)\b/i.test(cue)
       })())
     check('E3: stale reviewed phrases are absent from every record — complaining/personified body parts, causal injury claims, colorful warnings, unsupported strength-curve and difficulty claims, and the kneeling Pallof regression',
       (() => {

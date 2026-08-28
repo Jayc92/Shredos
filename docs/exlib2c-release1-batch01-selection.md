@@ -351,6 +351,14 @@ duplicated sentence templates. Corrections applied:
    press, Couch stretch, Lat pulldown, Leg extension, Hip adduction
    machine, Reverse wrist curl, and Single-leg calf raise — all
    stop/reduce/range-control guidance preserved.
+8. **Lateral raise breathing cue corrected to singular** (review
+   correction, 2026-08-28): the cue previously retained the
+   bilateral wording "Exhale as you raise the weights; inhale as
+   you lower them back to your sides" from the original draft; it
+   now reads "Exhale as you raise the dumbbell; inhale as you lower
+   it back to your side", consistent with the record's
+   one-arm-at-a-time execution. The verifier pins the singular cue
+   and rejects any plural weights/sides regression.
 
 Deliberate convention, not boilerplate: breathing cues share the
 exhale-on-effort convention required by the style standard but are
