@@ -22,6 +22,9 @@ defines wording only; it approves no content.
 - `laterality: unilateral` entries must state per-side behavior
   explicitly: complete the set on one side, then match the reps or
   duration on the other side.
+- Unilateral entries must present one-side-at-a-time execution as
+  THE default; simultaneous two-arm/two-leg execution must not be
+  offered as an equal default alternative.
 - `laterality: alternating` entries must describe the alternation
   rhythm inside a single set.
 - Bilateral entries must not contain per-side instructions.

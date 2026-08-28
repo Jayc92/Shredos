@@ -308,6 +308,82 @@ async function main(): Promise<void> {
       })())
   }
 
+  console.log('\nE. Content-review corrections (forward correction)')
+  {
+    // REVISED (EXLIB-2C batch 1 content review): the unilateral
+    // contract is pinned positively AND negatively; the lateral-raise
+    // pouring cue and every stale reviewed phrase are rejected;
+    // neutral wrist/thumb guidance is required.
+    check('E1: unilateral contract — Biceps curl and Lateral raise default to one arm at a time with explicit complete-one-side / switch-sides / match-load-and-reps language, and NO unilateral record offers simultaneous two-arm/two-leg execution as an equal default',
+      (() => {
+        const byName = new Map(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+        const pinned = ['biceps curl', 'lateral raise'].every((n) => {
+          const r = byName.get(n)
+          if (!r) return false
+          const ex = r.execution_steps.join(' ').toLowerCase()
+          const setup = r.setup_steps.join(' ').toLowerCase()
+          return /(complete|finish) the (full )?set on one side/.test(ex) &&
+            /switch sides/.test(ex) &&
+            /match(ing)? the load and reps/.test(ex) &&
+            /(one hand|one arm)/.test(setup + ' ' + ex)
+        })
+        const noBilateralDefault = batch.filter((r) => r.laterality === 'unilateral')
+          .every((r) => {
+            const text = (r.setup_steps.join(' ') + ' ' + r.execution_steps.join(' ')).toLowerCase()
+            return !/(dumbbells? in each hand|in each hand|both arms (together|at once)|both dumbbells|or work (one|both) arms?|one arm at a time or both)/.test(text)
+          })
+        return pinned && noBilateralDefault
+      })())
+    check('E2: Lateral raise technical wording — no pouring cue anywhere in the batch, neutral wrist and thumb guidance present, control/comfort stop language instead of an absolute above-shoulder impingement claim',
+      (() => {
+        const lr = batch.find((r) => norm(r.proposed_canonical_name) === 'lateral raise')
+        if (!lr) return false
+        const text = proseOf(lr).toLowerCase()
+        return batch.every((r) => !/pour/i.test(proseOf(r))) &&
+          /wrist neutral|neutral wrist/.test(text) &&
+          /thumb/.test(text) &&
+          /highest (point you can control comfortably|controlled)/.test(text) &&
+          !/pinch(es)? the shoulder joint/.test(text)
+      })())
+    check('E3: stale reviewed phrases are absent from every record — complaining/personified body parts, causal injury claims, colorful warnings, unsupported strength-curve and difficulty claims, and the kneeling Pallof regression',
+      (() => {
+        const STALE = [
+          'if either hip complains',
+          'the weight is doing the choosing',
+          'this is an easy mobility drill',
+          'which strains the shoulders',
+          'long exhales help the hip release',
+          'which cranks the shoulders',
+          'if the front of the knee complains',
+          'inner-thigh muscles strain easily',
+          'overloaded wrist extension quickly leads to sore elbows',
+          'a rolled ankle waiting to happen',
+          'weakest at the bottom',
+          'kneel on both knees closer to the anchor',
+          'pinches the shoulder joint',
+        ]
+        const all = batch.map((r) => proseOf(r).toLowerCase()).join(' \n ')
+        return STALE.every((p) => !all.includes(p))
+      })())
+    check('E4: corrected accessibility — Band Pallof press regression is seated with lighter band/closer anchor and matched sides; Biceps curl regression is a supported seated unilateral option; the style standard pins the unilateral-default rule and the selection record logs corrections 4-7',
+      (() => {
+        const bp = batch.find((r) => norm(r.proposed_canonical_name) === 'band pallof press')
+        const bc = batch.find((r) => norm(r.proposed_canonical_name) === 'biceps curl')
+        const st = styleDoc.replace(/\s+/g, ' ')
+        const sd = selDoc.replace(/\s+/g, ' ')
+        return !!bp && !!bc &&
+          /sit on a stable chair or bench/i.test(bp.accessibility_alternative ?? '') &&
+          /lighter band/i.test(bp.accessibility_alternative ?? '') &&
+          /seated/i.test(bc.accessibility_alternative ?? '') &&
+          /one arm at a time/i.test(bc.accessibility_alternative ?? '') &&
+          st.includes('simultaneous two-arm/two-leg execution must not be offered as an equal default') &&
+          sd.includes('Biceps curl and Lateral raise rewritten to the unilateral') &&
+          sd.includes('Lateral raise technical correction') &&
+          sd.includes('Accessibility corrections') &&
+          sd.includes('Ten-phrase professional wording sweep')
+      })())
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
 }

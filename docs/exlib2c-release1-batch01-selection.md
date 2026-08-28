@@ -326,6 +326,31 @@ duplicated sentence templates. Corrections applied:
    stop/reduce-the-load language for its specific failure mode, per
    the content standard's stop/modify requirement; found by the
    verifier's safety-language check during the editorial pass.
+4. **Biceps curl and Lateral raise rewritten to the unilateral
+   contract** (review correction, 2026-08-28): one-arm-at-a-time is
+   now the default execution, with complete-one-side / switch-sides
+   / match-load-and-reps stated explicitly; simultaneous two-arm
+   execution is no longer offered as an equal default. Stable
+   metadata unchanged.
+5. **Lateral raise technical correction**: the "pouring" cue was
+   removed (it encourages unnecessary internal rotation); guidance
+   is now elbow-led with a neutral wrist and level-or-slightly-up
+   thumb, stopping at the highest controlled, comfortable point;
+   the absolute claim that raising above shoulder height "pinches
+   the shoulder joint" was replaced with control/comfort language.
+6. **Accessibility corrections**: Band Pallof press's kneeling
+   alternative replaced with a seated chair/bench regression
+   (lighter band or closer anchor, same square alignment, matched
+   sides); Biceps curl's unsupported "weakest at the bottom"
+   strength-curve claim replaced with a supported seated unilateral
+   option.
+7. **Ten-phrase professional wording sweep** (review correction):
+   causal injury claims, personified body-part language, and
+   colorful warnings replaced with neutral technique-specific
+   wording across 90/90 hip switch, Biceps curl, Cat-cow, Bench
+   press, Couch stretch, Lat pulldown, Leg extension, Hip adduction
+   machine, Reverse wrist curl, and Single-leg calf raise — all
+   stop/reduce/range-control guidance preserved.
 
 Deliberate convention, not boilerplate: breathing cues share the
 exhale-on-effort convention required by the style standard but are
