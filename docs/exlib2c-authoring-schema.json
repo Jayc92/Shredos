@@ -1,0 +1,517 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "forgefitos/exlib2c-authoring-schema",
+  "title": "ForgeFitOS EXLIB-2C catalog content authoring record",
+  "$comment": "FAIL-CLOSED CONTRACT. Blank is never approval; a missing review is not approval; unsupported vocabulary fails validation; tracking_mode weight_time fails while unsupported unless deferred=true (deferred entries are excluded from every import subset); external-source fields cannot masquerade as ForgeFitOS-original content (provenance=forgefitos_original forbids source_url/source_page/retrieved_at; provenance=external_source_derived requires all three); original instructional prose must not contain copied-source attribution; no record may set import_eligible=true during the EXLIB-2A/2B milestone. Specialist/legal/medical approval is never implied by any default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposed_canonical_name",
+    "aliases",
+    "primary_muscle",
+    "muscle_targets",
+    "equipment",
+    "tracking_mode",
+    "laterality",
+    "movement_pattern",
+    "training_role",
+    "difficulty",
+    "availability",
+    "provenance",
+    "authored_by",
+    "authored_at",
+    "setup_steps",
+    "execution_steps",
+    "breathing_cue",
+    "common_mistakes",
+    "safety_guidance",
+    "equipment_setup",
+    "substitutions",
+    "regressions",
+    "progressions",
+    "accessibility_alternative",
+    "specialist_review",
+    "review_status",
+    "import_eligible",
+    "deferred",
+    "deferred_reason"
+  ],
+  "properties": {
+    "proposed_canonical_name": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 100,
+      "pattern": "^[A-Z0-9][A-Za-z0-9 '()/-]*$",
+      "$comment": "Canonical naming: sentence case, ASCII, no trailing space; uniqueness is enforced by normalized (lower/trim) comparison at validation time, mirroring exercises_user_name_unique_idx and the catalog claim machinery."
+    },
+    "aliases": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100
+      },
+      "$comment": "Search synonyms; normalized-name collision rules apply to aliases exactly as to canonical names."
+    },
+    "primary_muscle": {
+      "enum": [
+        "chest",
+        "lats",
+        "upper_back",
+        "lower_back",
+        "traps",
+        "front_delts",
+        "side_delts",
+        "rear_delts",
+        "biceps",
+        "triceps",
+        "forearms",
+        "quads",
+        "hamstrings",
+        "glutes",
+        "calves",
+        "hip_flexors",
+        "adductors",
+        "abductors",
+        "abs",
+        "obliques",
+        "full_body"
+      ]
+    },
+    "muscle_targets": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "muscle",
+          "role"
+        ],
+        "properties": {
+          "muscle": {
+            "enum": [
+              "chest",
+              "lats",
+              "upper_back",
+              "lower_back",
+              "traps",
+              "front_delts",
+              "side_delts",
+              "rear_delts",
+              "biceps",
+              "triceps",
+              "forearms",
+              "quads",
+              "hamstrings",
+              "glutes",
+              "calves",
+              "hip_flexors",
+              "adductors",
+              "abductors",
+              "abs",
+              "obliques"
+            ]
+          },
+          "role": {
+            "enum": [
+              "secondary",
+              "tertiary"
+            ]
+          }
+        }
+      }
+    },
+    "equipment": {
+      "enum": [
+        "barbell",
+        "dumbbell",
+        "cable",
+        "machine",
+        "bodyweight",
+        "resistance_band",
+        "kettlebell",
+        "other",
+        "weight_plate",
+        "weighted_vest",
+        "smith_machine",
+        "sandbag"
+      ]
+    },
+    "tracking_mode": {
+      "enum": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed",
+        "weight_time"
+      ],
+      "$comment": "weight_time is schema-listed ONLY so deferred entries can declare their future mode; any record with tracking_mode=weight_time MUST have deferred=true and can never be import-eligible until weight_time ships."
+    },
+    "laterality": {
+      "enum": [
+        "bilateral",
+        "unilateral",
+        "alternating"
+      ]
+    },
+    "movement_pattern": {
+      "enum": [
+        "horizontal_push",
+        "incline_push",
+        "vertical_push",
+        "dip_push",
+        "horizontal_pull",
+        "vertical_pull",
+        "pullover",
+        "fly_adduction",
+        "shrug",
+        "shoulder_raise",
+        "elbow_flexion",
+        "elbow_extension",
+        "grip_forearm",
+        "squat",
+        "hinge",
+        "lunge",
+        "leg_extension",
+        "leg_curl",
+        "calf_raise",
+        "hip_extension",
+        "hip_abduction",
+        "hip_adduction",
+        "core_flexion",
+        "core_rotation",
+        "core_anti_extension",
+        "core_anti_rotation",
+        "core_lateral",
+        "carry"
+      ]
+    },
+    "training_role": {
+      "enum": [
+        "compound",
+        "isolation",
+        "accessory",
+        "core",
+        "conditioning",
+        "mobility"
+      ]
+    },
+    "difficulty": {
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "availability": {
+      "enum": [
+        "minimal",
+        "home_gym",
+        "commercial_gym"
+      ]
+    },
+    "provenance": {
+      "enum": [
+        "forgefitos_original",
+        "external_source_derived"
+      ],
+      "$comment": "forgefitos_original: independently authored for ForgeFitOS; source fields FORBIDDEN. external_source_derived: legacy path only, requires source_url/source_page/retrieved_at and remains subject to the L1/L2 gates."
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "source_page": {
+      "type": "string"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "authored_by": {
+      "type": "string",
+      "minLength": 3,
+      "$comment": "Real author attribution; whitespace-only fails (validator trims before length check)."
+    },
+    "authored_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "setup_steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 240
+      }
+    },
+    "execution_steps": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 240
+      }
+    },
+    "breathing_cue": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 240
+    },
+    "common_mistakes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 240
+      }
+    },
+    "safety_guidance": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 400,
+      "$comment": "Technique-framed caution only; never medical advice, diagnosis, or treatment claims."
+    },
+    "equipment_setup": {
+      "type": "string",
+      "maxLength": 240
+    },
+    "substitutions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string"
+      }
+    },
+    "regressions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "progressions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "accessibility_alternative": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 240
+    },
+    "specialist_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reviewer",
+        "reviewed_at",
+        "rationale"
+      ],
+      "$comment": "Mirrors the exercise_catalog review-audit CHECK: a pending record carries NO audit evidence; a decided record carries ALL of it. Blank or missing NEVER reads as approval.",
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "approved",
+            "revised",
+            "rejected"
+          ]
+        },
+        "reviewer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reviewed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "pending"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reviewer": {
+                "type": "null"
+              },
+              "reviewed_at": {
+                "type": "null"
+              },
+              "rationale": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "approved",
+                  "revised",
+                  "rejected"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reviewer": {
+                "type": "string",
+                "minLength": 3
+              },
+              "reviewed_at": {
+                "type": "string"
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 10
+              }
+            }
+          }
+        }
+      ]
+    },
+    "review_status": {
+      "enum": [
+        "proposed",
+        "in_review",
+        "content_final"
+      ],
+      "$comment": "Authoring-pipeline status; distinct from specialist_review.status and from any import approval."
+    },
+    "import_eligible": {
+      "const": false,
+      "$comment": "Locked false for the entire authoring milestone; flipping to true is a later, separately approved EXLIB-2F act on an exact fingerprinted payload."
+    },
+    "deferred": {
+      "type": "boolean"
+    },
+    "deferred_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provenance": {
+            "const": "forgefitos_original"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "source_url"
+              ]
+            },
+            {
+              "required": [
+                "source_page"
+              ]
+            },
+            {
+              "required": [
+                "retrieved_at"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "provenance": {
+            "const": "external_source_derived"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "source_url",
+          "source_page",
+          "retrieved_at"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tracking_mode": {
+            "const": "weight_time"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "deferred": {
+            "const": true
+          },
+          "deferred_reason": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deferred": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tracking_mode": {
+            "enum": [
+              "weight_reps",
+              "bodyweight",
+              "cardio",
+              "timed"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
