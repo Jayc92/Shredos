@@ -68,8 +68,13 @@ async function main(): Promise<void> {
 
   console.log('\nA. Baseline and phase boundary')
   {
+    // RETARGET (EXLIB-2C cross-batch bench-safety correction): the
+    // Batch 1 content fingerprint moved because the pending Bench
+    // press record adopted the functional safety-arm clearance
+    // doctrine (explicitly authorized cross-batch correction). Only
+    // the fingerprint value changed here; nothing else is weakened.
     check('A1: Batch 1 content and promoted design artifacts remain byte-identical, and prior protected EXLIB artifacts hold',
-      sha256('docs/exlib2c-release1-batch01-content.jsonl') === '4f761df53eef0375adce9caa88277d1c7a047ecbdc4c696b0a286f9ebb3ef19b' &&
+      sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
       sha256('docs/exlib2c-release1-batch01-selection.md') === '96a6664c32ac3606739cdf02d3e85dfba2af1b54ae3a08385275d6040512e20c' &&
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
       sha256('docs/exlib2a-catalog-architecture-record.md') === 'de825ddf18260a877651e426c8436709257c9100e3dfcbd994e3b9e2496191d8' &&

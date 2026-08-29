@@ -410,6 +410,22 @@ async function main(): Promise<void> {
           sd.includes('Accessibility corrections') &&
           sd.includes('Ten-phrase professional wording sweep')
       })())
+    check('E5: ADMISSION (EXLIB-2C cross-batch bench-safety correction) — the Bench press uses the functional safety-arm doctrine: highest position preserving the intended bottom range, flattened-torso clearance of chest and neck with a slide-out exit, empty-bar testing before loading, range shortened when clearance is impossible, and a spotter supplementing rather than replacing safeties; the bare chest-height prescription and absolute anti-pinning or any-height claims are rejected',
+      (() => {
+        const bp = batch.find((r) => norm(r.proposed_canonical_name) === 'bench press')
+        if (!bp) return false
+        const text = proseOf(bp)
+        return /safety arms at the highest height that still lets you reach your intended bottom position/i.test(bp.equipment_setup) &&
+          /Test the safety-arm height with an empty bar first/i.test(bp.safety_guidance) &&
+          /torso flattened/i.test(bp.safety_guidance) &&
+          /clear of your chest and neck/i.test(bp.safety_guidance) &&
+          /slide out/i.test(bp.safety_guidance) &&
+          /shorten the range/i.test(bp.safety_guidance) &&
+          /spotter adds to properly set safety arms rather than replacing them/i.test(bp.safety_guidance) &&
+          !/safety arms just below chest height/i.test(text) &&
+          !/can never pin/i.test(text) &&
+          !/at any height/i.test(text)
+      })())
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

@@ -157,3 +157,47 @@ unedited as part of the original editorial log. One same-class
 observation outside this correction's scope is flagged for review:
 Batch 1's Bench press (byte-frozen, promoted) also sets safety arms
 "just below chest height" rather than by tested escape clearance.
+
+## Cross-batch bench-safety correction (forward correction, 2026-08-28, explicitly authorized)
+
+The same-class observation flagged above was explicitly authorized
+for correction, together with one Batch 4 loose-load fix:
+
+11. **Batch 1 Bench press — functional safety-arm doctrine (safety/
+    equipment setup)**: the bare prescription "set safety arms just
+    below chest height" replaced with the same functional principle
+    adopted for the Smith machine bench press, in barbell-specific
+    wording: safety arms at the highest height that still allows the
+    intended bottom position; with the torso flattened, the bar must
+    rest on the arms clear of the chest and neck with a slide-out
+    exit; the exact height is tested with the empty bar before
+    loading; the range is shortened when clearance is impossible at
+    the lifter's depth. "Use safety arms or a spotter" replaced — a
+    spotter adds to properly set safety arms rather than replacing
+    them. No claim is made that any particular height prevents
+    pinning. Only the Smith records retain hook/re-hook guidance,
+    which is equipment-specific. All other Bench press fields,
+    metadata, aliases, and relationships are unchanged.
+12. **Batch 4 Machine hip thrust — secured load (accessibility)**:
+    "adding a light weight across the hips only when steady"
+    replaced — the glute bridge regression now uses body weight
+    only, or a padded weight held securely on the hips with both
+    hands so it cannot roll or slide.
+
+The functional wording was recomposed once during validation so the
+safety guidance keeps the Batch 1 verifier's original-era
+stop/modify vocabulary ("lower the weight to the arms"); the
+doctrine is unchanged.
+
+Fingerprint dependency reconciliation: the Batch 1 content blob's
+new SHA-256 (8168fc19...) is pinned in exactly three places — the
+A1 checks of the Batch 2, Batch 3, and Batch 4 verifiers — each
+updated under the label RETARGET (EXLIB-2C cross-batch bench-safety
+correction). The Batch 4 verifier's phase-range claim admits the
+three additional authorized paths of this single commit; the Batch
+1 verifier gains a positive/negative check (E5) enforcing the
+functional doctrine; the corpus-wide stale-phrase family now
+rejects the bare "safety arms just below chest height" wording.
+No lifecycle, schema, content, originality, boundary, or
+protected-artifact check was weakened. Every record remains
+pending with null review evidence and import_eligible false.

@@ -78,10 +78,13 @@ const primaryOf = (r: any): string => [
 // bail-at-any-height framing, intentional drop/landing exits,
 // generic-helper anchors, loose loads resting on the thighs,
 // universal Smith stance doctrine). Phrases that are legitimate
-// elsewhere in the frozen corpus (e.g. "just below chest height"
-// on Batch 1's Bench press safety arms, "land softly on the balls
-// of the feet" on Jump rope) are scoped in D6 instead.
-const STALE = /(complains|\bpour|waiting to happen|weakest at the bottom|pinches the shoulder joint|the weight is doing the choosing|under (the )?chair legs?|one rep at a time|hand-off|allows more weight|past the toes|while the tissue|step off the bars|overloads the groin|shallowly|shallow breath|never step off a moving belt|straddle|step or plate|looped across|between holds|locked out|removes lower-back|pad removes|reverse to the floor and reset|taking the eyes off the bell|can never pin you|at any height|land softly with bent knees|steady helper|resting across the thighs|drop to your knees|pitches the torso forward|slightly ahead of the bar|a little forward of the bar)/i
+// elsewhere in the corpus (e.g. "land softly on the balls of the
+// feet" on Jump rope, or a cable set "just below chest height")
+// are scoped in D6 instead. REVISED (EXLIB-2C cross-batch
+// bench-safety correction): "safety arms just below chest height"
+// is now corpus-wide invalid — the Batch 1 Bench press adopted the
+// functional clearance doctrine under explicit authorization.
+const STALE = /(complains|\bpour|waiting to happen|weakest at the bottom|pinches the shoulder joint|the weight is doing the choosing|under (the )?chair legs?|one rep at a time|hand-off|allows more weight|past the toes|while the tissue|step off the bars|overloads the groin|shallowly|shallow breath|never step off a moving belt|straddle|step or plate|looped across|between holds|locked out|removes lower-back|pad removes|reverse to the floor and reset|taking the eyes off the bell|can never pin you|at any height|land softly with bent knees|steady helper|resting across the thighs|drop to your knees|pitches the torso forward|slightly ahead of the bar|a little forward of the bar|safety arms just below chest height)/i
 const MED = /\b(diagnos\w*|treat(s|ed|ment)?\b|rehabilitat\w*|prescri\w*|cure\w*|therap\w*|pain-free|guarantee\w*|tissue adapt|tissue recovery|physiological recovery)/i
 const ACTION = /(stop|end the (set|session)|reduce|lighten|lighter|lower the (weight|hips|knee)|shorten|rest|pause|step down|step off|switch|set the (bar|bell|plate|dumbbell)s? down|strip weight|come off|lower down|shrink|slow the (pace|machine|rhythm)|grab the rails|drop the stack|move (your )?hands|rebuild)/i
 
@@ -91,7 +94,11 @@ async function main(): Promise<void> {
   console.log('\nA. Baseline and phase boundary')
   {
     check('A1: Batch 1-3 content and promoted design artifacts remain byte-identical, and prior protected EXLIB artifacts hold',
-      sha256('docs/exlib2c-release1-batch01-content.jsonl') === '4f761df53eef0375adce9caa88277d1c7a047ecbdc4c696b0a286f9ebb3ef19b' &&
+      // RETARGET (EXLIB-2C cross-batch bench-safety correction): Batch 1's
+      // fingerprint moved because the pending Bench press record adopted
+      // the functional safety-arm clearance doctrine in the same
+      // explicitly authorized commit as this phase's corrections.
+      sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
       sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
       sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
@@ -111,7 +118,16 @@ async function main(): Promise<void> {
         const range = execSync(`git diff --name-only ${BATCH3_TIP}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         if (range.length === 0) return true // uncommitted review state
-        return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
+        // RETARGET (EXLIB-2C cross-batch bench-safety correction): the
+        // explicitly authorized cross-batch commit also touches the
+        // Batch 1 content blob and the two dependent fingerprint pins;
+        // no other path may ever join this phase's range.
+        const CROSS_ALL = [...PHASE_ALL,
+          'docs/exlib2c-release1-batch01-content.jsonl',
+          'scripts/verify-exlib2c-batch01.ts',
+          'scripts/verify-exlib2c-batch02.ts'].sort()
+        return JSON.stringify(range) === JSON.stringify(PHASE_ALL) ||
+          JSON.stringify(range) === JSON.stringify(CROSS_ALL)
       })())
     check('A3: ledger remains 48/48 pending-null and all 26 legacy candidates remain import-ineligible',
       (() => {
@@ -462,7 +478,12 @@ async function main(): Promise<void> {
           /remove the vest/i.test(vpp.accessibility_alternative ?? '')
         const fly = by.get('dumbbell fly')
         const flyOk = /rock up to sitting rather than dropping the weights outward/i.test(fly.execution_steps.join(' '))
-        return chinOk && hipOk && norOk && scrOk && vppOk && flyOk
+        // REVISED (EXLIB-2C cross-batch bench-safety correction): the
+        // Machine hip thrust alternative must secure any external load.
+        const mht = by.get('machine hip thrust')
+        const mhtOk = /padded weight held securely on your hips with both hands/i.test(mht.accessibility_alternative ?? '') &&
+          !/light weight across the hips/i.test(mht.accessibility_alternative ?? '')
+        return chinOk && hipOk && norOk && scrOk && vppOk && flyOk && mhtOk
       })())
   }
 
