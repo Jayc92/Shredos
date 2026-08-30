@@ -146,8 +146,9 @@ Transactionality, idempotency, rollback: one per-user transaction
 per attempt; the P2 path locks the candidate row with
 SELECT ... FOR UPDATE and re-verifies every precondition under the
 lock; inserts rely on the exercise_name_claims primary key and the
-UNIQUE (user_id, catalog_logical_id) index for race-freedom. That
-unique index IS the idempotency key: a repeat run finds the existing
+UNIQUE (user_id, catalog_logical_id) index for race-freedom; the
+UNIQUE (user_id, catalog_logical_id) index IS the idempotency key: a
+repeat run finds the existing
 link (or the already-corrected P2 row) and no-ops. Any failure
 aborts the transaction, leaving prior state untouched and the
 attempt retryable. All work is tenant-scoped under existing RLS.
