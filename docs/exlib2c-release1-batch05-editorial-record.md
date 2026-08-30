@@ -102,3 +102,63 @@ Batch 1-4 records.
 - **Cable crunch** kneels because kneeling is the exercise's
   working position — not an accessibility fallback — and its
   alternative is the floor crunch.
+
+## Codex review corrections (forward correction, 2026-08-28)
+
+3. **Good morning — blocking rack-safety correction (safety/
+   equipment setup)**: the arbitrary "safeties near hip height" and
+   the informal "duck out" removed. The doctrine is now functional:
+   safeties just below the bar's lowest intended position in the
+   hinge range, tested at that exact height with an unloaded bar
+   before loading; the stops must catch the bar without forcing the
+   lifter below the planned range (shorten the range if they
+   cannot); a controlled failed rep lowers only until the bar rests
+   securely on both safeties, and the lifter steps out only once
+   the bar is fully supported. No ducking forward from under a
+   loaded or unsupported bar is prescribed.
+4. **Front squat — bail procedure (safety)**: "steer it down onto
+   the safeties" removed — a rolling bar is not manually steered.
+   The set ends when the elbows can no longer stay high; if the bar
+   rolls forward without a controlled recovery, the hands release
+   clear, the bar travels forward onto the tested safeties, and the
+   lifter steps backward away from it. Never catch or wrestle a
+   falling bar. Functional stop placement and unloaded-bar testing
+   preserved.
+5. **Kettlebell swing — blocking grip-loss correction (safety)**:
+   "finish that swing and park the bell early" removed. Two
+   distinct cases now: grip fading noticed before the next rep
+   begins means end the set and park the bell while control is
+   intact; a bell that slips mid-flight is never grabbed, chased,
+   redirected, or parked — move clear and let it land in the
+   pre-cleared space, which stays free of people and objects. The
+   bell is never thrown on purpose.
+6. **Skull crusher — controlled exit (execution/safety)**: the bare
+   chest-then-sit-up exit replaced. Preferred exit is returning the
+   bar to the stable straight-arm position for a partner to take;
+   without a partner, the light bar lowers to the chest under
+   control, rolls to the hip crease, and the lifter sits up with
+   both hands controlling it. A stalled rep is guided to the chest
+   only while control remains, then uses the same hip-supported
+   exit. Never sit upright with a bar resting loose on the chest.
+   The end-before-grinding rule is preserved.
+7. **Sandbag shouldering — release procedure (setup/safety)**:
+   "lean toward the floor and let it go down in front of you"
+   replaced. A slipping bag is not saved: guide or release it into
+   the pre-cleared drop area away from the feet and step clear
+   without twisting; never catch a falling bag. The setup now
+   clears an explicit drop area, and the alternating-shoulders and
+   place-not-throw doctrines are preserved.
+8. **Reverse curl — unsupported claim (execution)**: "the lowering
+   half builds most of the grip strength" removed as a comparative
+   physiological claim; the step now says to lower slowly with
+   straight wrists and the bar under control.
+9. **Weighted vest squat — progression wording (equipment setup)**:
+   "add load in the vest's own small steps" assumed every vest has
+   small increments; replaced with the model-neutral "move to the
+   next available vest setting only after full sets remain
+   controlled."
+
+Where the batch-specific notes above describe the originally
+authored Front squat bail, swing grip-loss response, or skull
+crusher exit, the corrected content in this commit controls; the
+notes are retained unedited as part of the original editorial log.

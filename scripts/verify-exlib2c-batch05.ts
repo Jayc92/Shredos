@@ -400,7 +400,7 @@ async function main(): Promise<void> {
         if ((csr.aliases as string[]).some((a) => norm(a) === 'incline bench row')) return false
         return true
       })())
-    check('D5: ADMISSION (EXLIB-2C batch 5) — first-appearance positive pins: functional rack-press safeties with unloaded-bar clearance tests and spotter-supplements language on both barbell presses, Front squat steer-to-safeties bail, Smith row tested stops with hinged empty-bar hook practice and both-hooks confirmation, padded hand-held Hip thrust bar, over-face Skull crusher no-grind exit, kettlebell no-catch discipline on clean-and-press and swing, sandbag shoulder release-away rule, Pull-up and Inverted row secured-bar and platform exits, Walking lunge mid-runway set-down, and Weighted vest squat re-tighten/remove rules',
+    check('D5: ADMISSION (EXLIB-2C batch 5), REVISED (EXLIB-2C batch 5 review 1) — first-appearance positive pins: functional rack-press safeties with unloaded-bar clearance tests and spotter-supplements language on both barbell presses, Front squat hands-clear release onto tested safeties with a step back, Smith row tested stops with hinged empty-bar hook practice and both-hooks confirmation, padded hand-held Hip thrust bar, over-face Skull crusher no-grind exit, kettlebell no-catch discipline with the pre-rep versus mid-flight grip distinction, sandbag clear-feet release-zone rule, functional Good morning stop doctrine, Pull-up and Inverted row secured-bar and platform exits, Walking lunge mid-runway set-down, and Weighted vest squat re-tighten/remove rules',
       (() => {
         const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
         const cgbp = by.get('close-grip bench press')
@@ -415,9 +415,25 @@ async function main(): Promise<void> {
           /Re-test the safety height with an unloaded bar whenever the bench angle changes/i.test(ibp.safety_guidance) &&
           /spotter supplements the safeties/i.test(ibp.safety_guidance) &&
           /lower to the safeties, flatten, and slide down the bench/i.test(ibp.safety_guidance)
+        // REVISED (EXLIB-2C batch 5 review 1): the withdrawn manual
+        // steer-to-safeties, finish-and-park-after-slipping,
+        // chest-then-sit-up, and lean-and-release-in-front pins are
+        // replaced with the corrected procedures, and the functional
+        // Good morning stop doctrine is pinned.
         const fsq = by.get('front squat')
         const fsqOk = /safeties as high as they can go while clearing your bottom position, tested with an unloaded bar/i.test(fsq.setup_steps.join(' ')) &&
-          /steer it down onto the safeties/i.test(fsq.safety_guidance)
+          /end the set when you can no longer keep them up/i.test(fsq.safety_guidance) &&
+          /release your hands clear/i.test(fsq.safety_guidance) &&
+          /onto the tested safeties/i.test(fsq.safety_guidance) &&
+          /step backward away/i.test(fsq.safety_guidance) &&
+          /never try to catch or wrestle a falling bar/i.test(fsq.safety_guidance)
+        const gm = by.get('good morning')
+        const gmOk = /just below the bar's lowest intended position/i.test(gm.equipment_setup) &&
+          /test that exact height with an unloaded bar before loading/i.test(gm.equipment_setup) &&
+          /without forcing you below the planned range/i.test(gm.safety_guidance) &&
+          /shorten the range if they cannot/i.test(gm.safety_guidance) &&
+          /rests securely on both safeties/i.test(gm.safety_guidance) &&
+          /step out only once it is fully supported/i.test(gm.safety_guidance)
         const smr = by.get('smith machine row')
         const smrOk = /confirm the safety stops sit just below that starting height/i.test(smr.setup_steps.join(' ')) &&
           /Practice the hook rotation with an empty bar from the hinged position/i.test(smr.setup_steps.join(' ')) &&
@@ -428,15 +444,19 @@ async function main(): Promise<void> {
           /Keep both hands on the bar/i.test(ht.setup_steps.join(' ')) &&
           /must be padded and held with both hands so it cannot roll or slide/i.test(ht.safety_guidance)
         const sk = by.get('skull crusher')
-        const skOk = /bring the bar to the chest, then sit up with it/i.test(sk.execution_steps.join(' ')) &&
+        const skOk = /straight-arm position for a partner to take/i.test(sk.execution_steps.join(' ')) &&
+          /roll it to the hip crease/i.test(sk.execution_steps.join(' ')) &&
           /end the set a rep early/i.test(sk.safety_guidance) &&
-          /steer the bar to the chest and sit up with it under control/i.test(sk.safety_guidance)
+          /roll it to the hips before sitting up/i.test(sk.safety_guidance) &&
+          /never sit upright with a bar resting loose on the chest/i.test(sk.safety_guidance)
         const kcp = by.get('kettlebell clean and press')
         const kcpOk = /never try to catch or steer a bell that has gotten away/i.test(kcp.safety_guidance) &&
           /Complete the set on one side, then switch hands and match the load and reps/i.test(kcp.execution_steps.join(' '))
         const ksw = by.get('kettlebell swing')
-        const kswOk = /never grab for a bell mid-flight/i.test(ksw.safety_guidance) &&
-          /park(ing)? the bell/i.test(proseOf(ksw))
+        const kswOk = /before the next rep begins, end the set and park the bell while control is intact/i.test(ksw.safety_guidance) &&
+          /slips mid-flight, move clear and let it land/i.test(ksw.safety_guidance) &&
+          /never grab, chase, or redirect/i.test(ksw.safety_guidance) &&
+          /never throw the bell on purpose/i.test(ksw.safety_guidance)
         const pu = by.get('pull-up')
         const puOk = /end the set while the grip is still secure and the step is within reach/i.test(pu.safety_guidance) &&
           /pause and get help rather than choosing a drop/i.test(pu.safety_guidance) &&
@@ -445,15 +465,36 @@ async function main(): Promise<void> {
         const irOk = /confirm both hooks are seated/i.test(ir.setup_steps.join(' ')) &&
           /Test the bar with a firm downward pull/i.test(ir.safety_guidance)
         const sbs = by.get('sandbag shouldering')
-        const sbsOk = /lean toward the floor and let it go down in front of you rather than twisting/i.test(sbs.safety_guidance) &&
+        const sbsOk = /stop trying to save the shoulder position/i.test(sbs.safety_guidance) &&
+          /cleared drop area away from your feet/i.test(sbs.safety_guidance) &&
+          /step clear without twisting/i.test(sbs.safety_guidance) &&
+          /never catch a falling bag/i.test(sbs.safety_guidance) &&
+          /Clear a drop area around you, away from your feet/i.test(sbs.setup_steps.join(' ')) &&
           /alternating shoulders rep by rep/i.test(sbs.execution_steps.join(' '))
         const wl = by.get('walking lunge')
         const wlOk = /set the dumbbells down mid-runway/i.test(wl.safety_guidance)
         const wvs = by.get('weighted vest squat')
         const wvsOk = /Fasten the vest snug so it cannot shift/i.test(wvs.setup_steps.join(' ')) &&
           /remove the vest and finish the set with body weight/i.test(wvs.safety_guidance)
-        return cgbpOk && ibpOk && fsqOk && smrOk && htOk && skOk && kcpOk &&
+        return cgbpOk && ibpOk && fsqOk && gmOk && smrOk && htOk && skOk && kcpOk &&
           kswOk && puOk && irOk && sbsOk && wlOk && wvsOk
+      })())
+    check('D6: ADMISSION (EXLIB-2C batch 5 review 1) — review-correction enforcement across ALL 125 records: no generic near-hip-height safeties, no duck-out exits, no manual steering of a rolling or over-face bar, no finishing a swing after the grip starts slipping, no sitting up with a bar loose on the chest, no lean-and-release toward the front of the feet, no lowering-builds-most claims, and no assumed small vest increments; plus the corrected Reverse curl neutral lowering and the model-neutral vest progression',
+      (() => {
+        const all125 = [...prior, ...batch]
+        const BAN = new RegExp(['near hip height', 'duck out', 'steer it down onto the safeties',
+          'steer the bar to the chest', 'finish that swing', 'lean toward the floor and let it go',
+          'builds most of the', "vest's own small steps", 'sit up with it'].join('|'), 'i')
+        for (const r of all125) {
+          if (BAN.test(proseOf(r))) return false
+        }
+        const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
+        const rc = by.get('reverse curl')
+        const rcOk = /keeping the wrists straight and the bar under control/i.test(rc.execution_steps.join(' ')) &&
+          !/builds most/i.test(proseOf(rc))
+        const wvs = by.get('weighted vest squat')
+        const wvsOk = /next available vest setting only after full sets remain controlled/i.test(wvs.equipment_setup)
+        return rcOk && wvsOk
       })())
   }
 
