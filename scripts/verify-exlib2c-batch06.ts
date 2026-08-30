@@ -377,19 +377,25 @@ async function main(): Promise<void> {
         if ((csr.aliases as string[]).some((a) => norm(a) === 'incline bench row')) return false
         return true
       })())
-    check('D5: ADMISSION (EXLIB-2C batch 6) — Thruster positive pins: barbell metadata with barbell-true primary prose, stable rack position settled before the first squat, whole-foot balance with knees tracking the toes, leg drive flowing into the press only once balanced, overhead finish stacked and controlled, individual squat depth, continuous per-rep breathing, observable end-of-set criteria, walk-in re-rack exit with both hooks visibly under the bar, overhead-clearance and unloaded-bar habits, and the explicitly labeled easier regression',
+    check('D5: ADMISSION (EXLIB-2C batch 6), REVISED (EXLIB-2C batch 6 review 1) — Thruster positive pins: barbell metadata with barbell-true primary prose, stable rack position settled before the first squat, whole-foot balance with knees tracking the toes, the coordinated near-top transition as hips and knees finish extending, overhead finish stacked and controlled, individual squat depth, continuous per-rep breathing, observable end-of-set criteria, walk-in re-rack exit releasing grip only after both hooks support the bar, overhead-clearance and unloaded-bar habits, and the explicitly labeled easier regression',
       (() => {
         const t = batch[0]
         if (t.equipment !== 'barbell') return false
         const setup = t.setup_steps.join(' ')
         const ex = t.execution_steps.join(' ')
+        // REVISED (EXLIB-2C batch 6 review 1): the withdrawn
+        // squat-then-strict-press transition pin and the bare re-rack
+        // pin are replaced with the corrected coordinated-transition
+        // and hooks-before-release doctrine.
         return /rack position is stable before the first squat/i.test(setup) &&
           /front-rack position/i.test(setup) &&
           !/dumbbell|kettlebell/i.test([setup, ex, t.common_mistakes.join(' '), t.breathing_cue, t.safety_guidance, t.equipment_setup].join(' ')) &&
           /whole foot planted, and the knees tracking with the toes/i.test(ex) &&
-          /leg drive flow into the press only once you are balanced/i.test(ex) &&
+          /bar still supported in the front rack/i.test(ex) &&
+          /Near the top of the drive, as the hips and knees finish extending/i.test(ex) &&
+          /the arms guide and finish it/i.test(ex) &&
           /straight arms overhead, stacked over the mid-foot and under control/i.test(ex) &&
-          /walk in, and re-rack it with both hooks visibly under the bar/i.test(ex) &&
+          /release your grip only after both hooks are supporting the bar/i.test(ex) &&
           /depth is individual/i.test(t.safety_guidance) &&
           /end the set while the rack position, squat balance, and overhead control are all still crisp/i.test(t.safety_guidance) &&
           /Inhale standing tall before each rep/i.test(t.breathing_cue) &&
@@ -399,11 +405,15 @@ async function main(): Promise<void> {
           /^As a regression/i.test(t.accessibility_alternative ?? '') &&
           /goblet squat/i.test(t.accessibility_alternative ?? '')
       })())
-    check('D6: ADMISSION (EXLIB-2C batch 6) — Thruster negative guards: never drop or throw from overhead stated, no jump wording anywhere in the record, no arm-only press doctrine (arms-alone appears only as a listed mistake), no universal-depth claim, no knee-past-toes prohibition, no momentum-makes-it-safe claim, and no silent equipment change (dumbbells confined to the labeled regression)',
+    check('D6: ADMISSION (EXLIB-2C batch 6), REVISED (EXLIB-2C batch 6 review 1) — Thruster negative guards: a controlled bar never casually dropped or thrown, no jump wording anywhere in the record, no arm-only press doctrine (arms-alone appears only as a listed mistake), no universal-depth claim, no knee-past-toes prohibition, no momentum-makes-it-safe claim, and no silent equipment change (dumbbells confined to the labeled regression)',
       (() => {
         const t = batch[0]
         const text = proseOf(t)
-        if (!/never drop or throw the bar down from overhead/i.test(t.safety_guidance)) return false
+        // REVISED (EXLIB-2C batch 6 review 1): the absolute never-drop
+        // doctrine is withdrawn in favor of the routine-vs-unrecoverable
+        // distinction; the controlled-bar clause is pinned here and the
+        // emergency clause in D7.
+        if (!/never casually dropped or thrown/i.test(t.safety_guidance)) return false
         if (/\bjump\w*/i.test(text)) return false
         if (/arms alone/i.test(text) && !/Pressing with the arms alone before the legs have finished driving/i.test(t.common_mistakes.join(' '))) return false
         if (/same depth|everyone should|every trainee/i.test(text)) return false
@@ -412,6 +422,25 @@ async function main(): Promise<void> {
         const primary = [t.setup_steps.join(' '), t.execution_steps.join(' '), t.common_mistakes.join(' '), t.breathing_cue, t.safety_guidance, t.equipment_setup].join(' ')
         if (/dumbbell/i.test(primary)) return false
         if (/dumbbell/i.test(t.accessibility_alternative ?? '') && !/^As a regression/i.test(t.accessibility_alternative ?? '')) return false
+        return true
+      })())
+    check('D7: ADMISSION (EXLIB-2C batch 6 review 1) — corrected transition and exit doctrine: front-rack support through the squat and initial ascent, the transition beginning near the top as hips and knees finish extending with the arms guiding and finishing, the routine exit finishing the current rep and releasing grip only after both hooks support the bar, the emergency no-chase/no-catch release-and-move-clear rule, and a clear lifting area on a flat non-slip surface; the withdrawn squat-then-strict-press wording, the absolute never-drop rule, and the every-drift-recoverable claim are rejected',
+      (() => {
+        const t = batch[0]
+        const ex = t.execution_steps.join(' ')
+        const text = proseOf(t)
+        if (!/bar still supported in the front rack/i.test(ex)) return false
+        if (!/Near the top of the drive, as the hips and knees finish extending/i.test(ex)) return false
+        if (!/the arms guide and finish it/i.test(ex)) return false
+        if (!/finish the current rep/i.test(ex)) return false
+        if (!/release your grip only after both hooks are supporting the bar/i.test(ex)) return false
+        if (!/do not chase, catch, or force the bar back to the rack/i.test(t.safety_guidance)) return false
+        if (!/release it into the cleared area and move clear/i.test(t.safety_guidance)) return false
+        if (!/lifting area clear on a flat, non-slip surface/i.test(t.equipment_setup)) return false
+        if (/only once you are balanced and the torso is upright/i.test(text)) return false
+        if (/(fully upright|torso is upright|legs have finished driving) before (the )?(press|pressing)/i.test(text)) return false
+        if (/never drop or throw the bar down from overhead/i.test(text)) return false
+        if (/If the bar drifts overhead or the elbows will not stay up, lower the bar to the rack position/i.test(text)) return false
         return true
       })())
   }

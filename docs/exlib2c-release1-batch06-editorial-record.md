@@ -46,3 +46,37 @@ assumption appears.
   the bar in the rack position, walk in, and re-rack with both
   hooks visibly under the bar — never dropping or throwing from
   overhead.
+
+## Codex review corrections (forward correction, 2026-08-30)
+
+The "No drafting-pass or line-by-line corrections were required"
+statement above records the initial authoring pass honestly and is
+retained as historical fact; it is superseded by the two Codex
+review corrections below, which now control.
+
+1. **Transition timing (execution/mistakes)**: the authored
+   transition ("letting the leg drive flow into the press only
+   once you are balanced and the torso is upright") read as a
+   front squat followed by a delayed strict press. Corrected to
+   one coordinated thruster: the bar stays supported in the front
+   rack through the squat and initial ascent; near the top of the
+   drive — as the hips and knees finish extending and balance is
+   set — the bar flows from the shoulders into the press, with the
+   arms guiding and finishing it rather than pressing early out of
+   the bottom. No jump, heel lift, rebend/catch, or momentum-alone
+   claim was introduced; the controlled overhead finish and
+   individual-depth doctrine are unchanged. The arms-early mistake
+   was reworded to match ("Pressing with the arms out of the
+   bottom instead of letting the legs start the bar upward").
+2. **Routine exit versus unrecoverable loss (execution/safety/
+   equipment setup)**: the absolute "never drop or throw the bar
+   down from overhead" doctrine — which implied every overhead
+   drift could be lowered to the rack — is replaced with two
+   distinct cases. Routine end-of-set: finish the current rep,
+   return the bar to the front rack, walk it in, and release the
+   grip only after both hooks are supporting the bar; a controlled
+   bar is never casually dropped or thrown. Unrecoverable loss:
+   do not chase, catch, or force the bar back to the rack —
+   release it into the cleared area and move clear per the
+   facility's lifting rules. The equipment setup now requires a
+   clear lifting area on a flat, non-slip surface.
