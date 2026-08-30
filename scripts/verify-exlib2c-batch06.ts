@@ -1,25 +1,29 @@
-// EXLIB-2C Release-1 Batch 5 verifier — authored content (PENDING
+// EXLIB-2C Release-1 Batch 6 verifier — authored content (PENDING
 // REVIEW; loading prohibited).
 //
-// Proves: the exact source baseline and phase inventory; exactly 25
-// Batch 5 records with zero overlap with Batches 1-4; the
-// deterministic cumulative selection (mechanical least-represented
-// weighting) reproduced from the stable inventory; cumulative
-// authored count exactly 125 with the single remaining ordinary
-// entry identified as Thruster; schema validity and stable metadata
-// equality; Plank/weight_time exclusion; R1-R8; aliases and
-// relationships unique, resolved, and non-self-referential across
-// ALL FIVE batches; the pending/null-evidence/import-false/
-// no-publication boundary; laterality, tracking-mode, machine,
-// Smith, bench-safety, load-security, platform, and breathing
-// rules; corpus-wide stale-phrase rejection carrying forward every
-// Batch 1-4 review correction family across all 125 records; a
-// cross-batch boilerplate scan across all 125 records;
-// first-appearance positive pins for this batch's rack-press,
-// Smith-row, hip-thrust, over-face, kettlebell, sandbag, bar-hang,
-// and vest hazards; Batch 1-4 content and design artifacts
-// byte-identical; migration 026 absent; runtime unchanged; ledger
-// and legacy eligibility unchanged; exact lifecycle behavior.
+// Proves: the exact source baseline and phase inventory; exactly
+// ONE Batch 6 record (Thruster) derived — not selected — as the
+// sole remaining ordinary release-1 entry after the promoted
+// 125-record Batch 1-5 corpus; schema validity and stable metadata
+// equality (equipment=barbell per the promoted inventory);
+// cumulative ordinary authored count exactly 126 with zero
+// ordinary entries remaining; Plank still gated for its separate
+// seed reconciliation and never counted as an ordinary remainder;
+// all eight weight_time entries still deferred; the pending/
+// null-evidence/import-false/no-publication boundary; alias and
+// relationship hygiene across ALL SIX batches; R1-R8; the full
+// terminology, safety, rack-press, and load-management rule
+// families; corpus-wide stale-phrase rejection carrying forward
+// every Batch 1-5 review correction family across all 126 records;
+// a cross-batch boilerplate scan across all 126 records; Thruster
+// positive pins (controlled rack-squat-press sequence, individual
+// depth, continuous breathing, observable end-of-set criteria,
+// re-rack exit, labeled regression) and negative guards (no
+// dropping/throwing, no jumping doctrine, no arm-only press, no
+// universal depth, no silent equipment change); Batch 1-5 content
+// and design artifacts byte-identical; migration 026 absent;
+// runtime unchanged; ledger and legacy eligibility unchanged;
+// exact lifecycle behavior.
 // Performs NO hosted contact.
 //
 // Fail-closed: any mismatch fails the suite.
@@ -40,14 +44,14 @@ const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const norm = (s: string): string => s.trim().toLowerCase()
 
-const CONTENT = 'docs/exlib2c-release1-batch05-content.jsonl'
-const SELECTION = 'docs/exlib2c-release1-batch05-selection.md'
-const EDITORIAL = 'docs/exlib2c-release1-batch05-editorial-record.md'
-const VERIFIER = 'scripts/verify-exlib2c-batch05.ts'
-const B4_VERIFIER = 'scripts/verify-exlib2c-batch04.ts'
+const CONTENT = 'docs/exlib2c-release1-batch06-content.jsonl'
+const SELECTION = 'docs/exlib2c-release1-batch06-selection.md'
+const EDITORIAL = 'docs/exlib2c-release1-batch06-editorial-record.md'
+const VERIFIER = 'scripts/verify-exlib2c-batch06.ts'
+const B5_VERIFIER = 'scripts/verify-exlib2c-batch05.ts'
 const PHASE_NEW = [CONTENT, SELECTION, EDITORIAL, VERIFIER].sort()
-const PHASE_ALL = [...PHASE_NEW, B4_VERIFIER].sort()
-const BATCH4_TIP = '71d3f9ae7d4ec02045973cb8d7d8da6082cb5e93'
+const PHASE_ALL = [...PHASE_NEW, B5_VERIFIER].sort()
+const BATCH5_TIP = '4420095e379e94d3e9c133e06c176157a4860d1d'
 
 const [MODE_REPS, MODE_BW, MODE_CARDIO, MODE_TIMED] = TRACKING_MODES
 
@@ -56,7 +60,8 @@ const b1 = parseJsonl('docs/exlib2c-release1-batch01-content.jsonl')
 const b2 = parseJsonl('docs/exlib2c-release1-batch02-content.jsonl')
 const b3 = parseJsonl('docs/exlib2c-release1-batch03-content.jsonl')
 const b4 = parseJsonl('docs/exlib2c-release1-batch04-content.jsonl')
-const prior = [...b1, ...b2, ...b3, ...b4]
+const b5 = parseJsonl('docs/exlib2c-release1-batch05-content.jsonl')
+const prior = [...b1, ...b2, ...b3, ...b4, ...b5]
 const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
 const invByName = new Map(inv.map((r) => [r.proposed_canonical_name, r]))
 const corpusNorm = new Set(inv.map((r) => r.normalized_name))
@@ -95,11 +100,12 @@ async function main(): Promise<void> {
 
   console.log('\nA. Baseline and phase boundary')
   {
-    check('A1: Batch 1-4 content and promoted design artifacts remain byte-identical (Batch 1 at its promoted cross-batch-corrected fingerprint), and prior protected EXLIB artifacts hold',
+    check('A1: Batch 1-5 content and promoted design artifacts remain byte-identical (Batch 1 at its promoted cross-batch-corrected fingerprint), and prior protected EXLIB artifacts hold',
       sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
       sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
       sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
       sha256('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
+      sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
       sha256('docs/exlib2a-catalog-architecture-record.md') === 'de825ddf18260a877651e426c8436709257c9100e3dfcbd994e3b9e2496191d8' &&
       sha256('docs/exlib2b-release1-coverage-matrix.md') === 'c32b7b9e9d3aafab39a9a6d77db09349dd604457274767fe4c880c6bf1fb2fb0' &&
@@ -108,33 +114,15 @@ async function main(): Promise<void> {
       sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
       sha256('docs/exlib1a-discovery-manifest.jsonl') === '336cd4253f747cdb3ba73ffa2af5a63e255c7c87cc452d4c43ed59a654673dfa' &&
       sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b')
-    check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 5 range (batch 4 tip..batch 5 tip) touches ONLY this phase\'s five paths',
+    check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the range beyond the Batch 5 tip touches ONLY this phase\'s five paths',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
         if (files.length !== 25 || files.some((f) => f.startsWith('026'))) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
-        // RETARGET (EXLIB-2C batch 6): the BATCH 5 milestone's range
-        // claim is anchored to its own promoted tip (4420095...), not
-        // to a moving HEAD, so later phases building on the promoted
-        // Batch 5 can never dilute or break this historical claim.
-        // HEAD must still descend from that tip once it exists.
-        const BATCH5_TIP = '4420095e379e94d3e9c133e06c176157a4860d1d'
-        const inHistory = (() => {
-          try {
-            execSync(`git cat-file -e ${BATCH5_TIP}^{commit}`, { stdio: 'pipe' })
-            return true
-          } catch { return false }
-        })()
-        if (!inHistory) {
-          const range = execSync(`git diff --name-only ${BATCH4_TIP}..HEAD`, { encoding: 'utf8' })
-            .split('\n').filter(Boolean).sort()
-          if (range.length === 0) return true // uncommitted review state
-          return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
-        }
-        execSync(`git merge-base --is-ancestor ${BATCH5_TIP} HEAD`)
-        const range = execSync(`git diff --name-only ${BATCH4_TIP}..${BATCH5_TIP}`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${BATCH5_TIP}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
+        if (range.length === 0) return true // uncommitted review state
         return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
       })())
     check('A3: ledger remains 48/48 pending-null and all 26 legacy candidates remain import-ineligible',
@@ -147,7 +135,7 @@ async function main(): Promise<void> {
             r.reviewed_at === null && r.decision_rationale === null) &&
           cands.length === 26 && cands.every((c: any) => c.import_eligible === false)
       })())
-    check('G1: lifecycle-safe phase boundary — exact five-path inventory (four new + the retargeted Batch 4 verifier), nothing staged; strict while uncommitted, adder-anchored once committed',
+    check('G1: lifecycle-safe phase boundary — exact five-path inventory (four new + the retargeted Batch 5 verifier), nothing staged; strict while uncommitted, adder-anchored once committed',
       (() => {
         try {
           const inHead = (() => {
@@ -156,7 +144,7 @@ async function main(): Promise<void> {
           if (!inHead) {
             const entries = execSync('git status --porcelain', { encoding: 'utf8' })
               .split('\n').filter(Boolean).map((l) => l.trim()).sort()
-            const expected = [...PHASE_NEW.map((f) => `?? ${f}`), `M ${B4_VERIFIER}`].sort()
+            const expected = [...PHASE_NEW.map((f) => `?? ${f}`), `M ${B5_VERIFIER}`].sort()
             if (JSON.stringify(entries) !== JSON.stringify(expected)) return false
             return execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim() === ''
           }
@@ -170,7 +158,7 @@ async function main(): Promise<void> {
           if (adders.size !== 1) return false
           const phase = Array.from(adders)[0]
           execSync(`git merge-base --is-ancestor ${phase} HEAD`)
-          execSync(`git merge-base --is-ancestor ${BATCH4_TIP} ${phase}`)
+          execSync(`git merge-base --is-ancestor ${BATCH5_TIP} ${phase}`)
           const range = execSync(`git diff --name-only ${phase}^..${phase}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
           return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
@@ -180,9 +168,9 @@ async function main(): Promise<void> {
 
   console.log('\nB. Batch structure and selection')
   {
-    check('B1: exactly 25 records, every one schema-valid — required/allowed fields, enums, bounds (>=3 setup/execution/mistakes), clean pending review, import_eligible literal false, original provenance, no deferred entries, no publication state',
+    check('B1: exactly ONE record, schema-valid — required/allowed fields, enums, bounds (>=3 setup/execution/mistakes), clean pending review, import_eligible literal false, original provenance, no deferred entries, no publication state',
       (() => {
-        if (batch.length !== 25) return false
+        if (batch.length !== 1) return false
         const nameRe = new RegExp(props.proposed_canonical_name.pattern)
         return batch.every((r) => {
           const keysOk = schema.required.every((k: string) => k in r) &&
@@ -214,48 +202,25 @@ async function main(): Promise<void> {
             flagsOk && provOk && noPub && nameRe.test(r.proposed_canonical_name)
         })
       })())
-    check('B2: the selection is EXACTLY the deterministic cumulative pick — algorithm re-run from Batches 1-4 coverage with mechanical least-represented weights (muscle 0->3; pattern 0->2, 1->1; equipment <=1 ->1; beginner 2; home/minimal 1; alphabetical tie-break) — cumulative authored count is exactly 125 with zero overlap, and the ONE remaining ordinary entry is exactly Thruster',
+    check('B2: Thruster is the DERIVED sole ordinary remainder — 125 unique priors, the non-deferred pool minus priors minus the gated Plank is exactly [Thruster], the batch is exactly Thruster, cumulative ordinary authored is exactly 126 with zero ordinary entries remaining, and the eight weight_time entries stay deferred',
       (() => {
         const priorNames = new Set(prior.map((r) => r.proposed_canonical_name))
-        if (prior.length !== 100) return false
-        if (batch.some((r) => priorNames.has(r.proposed_canonical_name))) return false
+        if (prior.length !== 125 || priorNames.size !== 125) return false
+        if (batch.length !== 1 || batch[0].proposed_canonical_name !== 'Thruster') return false
+        if (priorNames.has('Thruster')) return false
         const release = inv.filter((r) => !r.deferred)
-        const byName = new Map(release.map((r) => [r.proposed_canonical_name, r]))
-        const sel: any[] = Array.from(priorNames).sort().map((n) => byName.get(n))
-        if (sel.some((r) => !r)) return false
-        let pool = release.filter((r) => !priorNames.has(r.proposed_canonical_name) &&
+        if (release.length !== 127) return false
+        const pool = release.filter((r) => !priorNames.has(r.proposed_canonical_name) &&
           r.normalized_name !== 'plank')
-        const picks: string[] = []
-        for (let i = 0; i < 25; i += 1) {
-          const pm = new Map<string, number>()
-          const pat = new Map<string, number>()
-          const eq = new Map<string, number>()
-          for (const r of sel) {
-            pm.set(r.primary_muscle, (pm.get(r.primary_muscle) ?? 0) + 1)
-            pat.set(r.movement_pattern, (pat.get(r.movement_pattern) ?? 0) + 1)
-            eq.set(r.equipment, (eq.get(r.equipment) ?? 0) + 1)
-          }
-          const score = (r: any): number => {
-            let s = 0
-            if ((pm.get(r.primary_muscle) ?? 0) === 0) s += 3
-            const pc = pat.get(r.movement_pattern) ?? 0
-            if (pc === 0) s += 2
-            else if (pc === 1) s += 1
-            if ((eq.get(r.equipment) ?? 0) <= 1) s += 1
-            if (r.difficulty === 'beginner') s += 2
-            if (['minimal', 'home_gym'].includes(r.availability)) s += 1
-            return s
-          }
-          pool = pool.sort((a, b) => score(b) - score(a) ||
-            (a.normalized_name < b.normalized_name ? -1 : 1))
-          picks.push(pool[0].proposed_canonical_name)
-          sel.push(pool[0])
-          pool = pool.slice(1)
-        }
-        return JSON.stringify(picks.sort()) ===
-          JSON.stringify(batch.map((r) => r.proposed_canonical_name).sort()) &&
-          prior.length + batch.length === 125 &&
-          pool.length === 1 && pool[0].proposed_canonical_name === 'Thruster'
+        if (pool.length !== 1 || pool[0].proposed_canonical_name !== 'Thruster') return false
+        const plank = release.filter((r) => r.normalized_name === 'plank')
+        if (plank.length !== 1) return false
+        const deferred = inv.filter((r) => r.deferred)
+        if (deferred.length !== 8 || deferred.some((r) => r.tracking_mode !== 'weight_time')) return false
+        const after = new Set(Array.from(priorNames).concat(['Thruster']))
+        const ordinaryRemaining = release.filter((r) => !after.has(r.proposed_canonical_name) &&
+          r.normalized_name !== 'plank')
+        return prior.length + batch.length === 126 && ordinaryRemaining.length === 0
       })())
     check('B3: every record matches stable inventory metadata exactly; no Plank or weight_time; batch names unique',
       batch.every((r) => {
@@ -267,42 +232,36 @@ async function main(): Promise<void> {
       }) &&
       !batch.some((r) => norm(r.proposed_canonical_name) === 'plank') &&
       batch.every((r) => r.tracking_mode !== 'weight_time') &&
-      new Set(batch.map((r) => norm(r.proposed_canonical_name))).size === 25)
-    check('B4: the selection record documents the mechanical least-represented procedure, exclusions, coverage, cumulative 125, and the single remaining ordinary entry (Thruster); the editorial record lists every correction with exercise and field',
+      new Set(batch.map((r) => norm(r.proposed_canonical_name))).size === 1)
+    check('B4: the completion record documents the derivation (cardinality-one eligible set, no selection discretion), the barbell-metadata note, cumulative 126 with zero ordinary remaining, Plank gated and not counted as an ordinary remainder, and the eight deferred entries; the editorial record documents the line-by-line pass honestly',
       (() => {
         const sFlat = selDoc.replace(/\s+/g, ' ')
         const eFlat = edDoc.replace(/\s+/g, ' ')
         const m = selDoc.match(/```json\n([\s\S]*?)\n```/)
         if (!m) return false
         const mach = JSON.parse(m[1])
-        const b4n = batch.map((r) => r.proposed_canonical_name)
-          .sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1))
-        return mach.batch === 5 && mach.batch_size === 25 &&
-          mach.cumulative_authored === 125 &&
-          mach.remaining_release1_unauthored === 1 &&
-          mach.remaining_ordinary_entry === 'Thruster' &&
+        return mach.batch === 6 && mach.batch_size === 1 &&
+          mach.input_corpus === 125 &&
+          mach.cumulative_ordinary_authored === 126 &&
+          mach.remaining_ordinary_unauthored === 0 &&
+          JSON.stringify(mach.batch6_entries) === JSON.stringify(['Thruster']) &&
+          String(mach.selection_discretion).includes('cardinality one') &&
           mach.plank_gated_separately === true &&
+          mach.plank_not_an_ordinary_remainder === true &&
           mach.deferred_weight_time_excluded === 8 &&
-          JSON.stringify(mach.batch5_entries) === JSON.stringify(b4n) &&
-          mach.selection_weights.new_primary_muscle === 3 &&
-          mach.selection_weights.movement_pattern_uncovered === 2 &&
-          mach.selection_weights.movement_pattern_single_covered === 1 &&
-          mach.selection_weights.equipment_at_most_one === 1 &&
-          mach.selection_weights.beginner_bonus === 2 &&
-          mach.selection_weights.home_or_minimal_bonus === 1 &&
-          String(mach.selection_weights.coverage_basis).includes('least represented defined mechanically') &&
+          String(mach.completes).includes('ordinary authoring only') &&
           sFlat.includes('No entry was hand-picked') &&
-          sFlat.includes('All 100 Batch 1-4 identities') &&
+          sFlat.includes('Thruster by derivation, not selection') &&
+          sFlat.includes('equipment=barbell') &&
           sFlat.includes('Specialist review is a later explicit gate') &&
-          eFlat.includes('Drafting-pass corrections before generation') &&
-          eFlat.includes('line-by-line editorial corrections') &&
-          eFlat.includes('next available increment/setting')
+          eFlat.includes('No drafting-pass or line-by-line corrections were required') &&
+          eFlat.includes('never an arm-only press and never an uncontrolled jump')
       })())
   }
 
   console.log('\nC. Names, aliases, relationships, and R-rules')
   {
-    check('C1: R1-R3 — aliases and relationship arrays nonblank, normalized-unique per record and across ALL FIVE batches, never self-referencing, aliases never colliding with corpus canonical names, and every relationship target resolving to a promoted release-1 canonical name',
+    check('C1: R1-R3 — aliases and relationship arrays nonblank, normalized-unique per record and across ALL SIX batches, never self-referencing, aliases never colliding with corpus canonical names, and every relationship target resolving to a promoted release-1 canonical name',
       (() => {
         const aliasSeen = new Map<string, string>()
         for (const r of prior) for (const a of r.aliases) aliasSeen.set(norm(a), r.proposed_canonical_name)
@@ -326,7 +285,7 @@ async function main(): Promise<void> {
           })
         })
       })())
-    check('C2: R5-R8 — no weight_time record, import_eligible literal false on all 25, zero copied-attribution markers, and original provenance with no source fields',
+    check('C2: R5-R8 — no weight_time record, import_eligible literal false, zero copied-attribution markers, and original provenance with no source fields',
       batch.every((r) => r.tracking_mode !== 'weight_time') &&
       batch.every((r) => r.import_eligible === false) &&
       batch.every((r) => !/(according to|adapted from|source:|courtesy|credit(ed)? to|strengthlog)/i.test(proseOf(r))) &&
@@ -379,7 +338,7 @@ async function main(): Promise<void> {
           return true
         })
       })())
-    check('D3: no exact sentence repeats within Batch 5 OR against any Batch 1-4 record (125-record cross-batch boilerplate scan)',
+    check('D3: no exact sentence repeats within Batch 6 OR against any Batch 1-5 record (126-record cross-batch boilerplate scan)',
       (() => {
         const seen = new Map<string, string>()
         for (const r of prior) {
@@ -396,10 +355,10 @@ async function main(): Promise<void> {
           })
         })
       })())
-    check('D4: corpus-wide negative rejections across ALL 125 records — every Batch 1-4 review-correction family stays enforced (stale phrases, prescribed shallow breathing, band constant-tension claims, incomplete face-height band alternatives, Smith chest-height doctrine, feet-elevation accessibility, machine-metadata contradictions on the corrected Chest-supported row)',
+    check('D4: corpus-wide negative rejections across ALL 126 records — every Batch 1-5 review-correction family stays enforced (stale phrases, prescribed shallow breathing, band constant-tension claims, incomplete face-height band alternatives, Smith chest-height doctrine, feet-elevation accessibility, machine-metadata contradictions on the corrected Chest-supported row)',
       (() => {
-        const all125 = [...prior, ...batch]
-        for (const r of all125) {
+        const all126 = [...prior, ...batch]
+        for (const r of all126) {
           const text = proseOf(r)
           if (STALE.test(text)) return false
           if (/shallow/i.test(r.breathing_cue)) return false
@@ -412,107 +371,48 @@ async function main(): Promise<void> {
           if (r.equipment === 'smith_machine' && /just below chest (height|level)/i.test(text)) return false
           if (/elevate(d)? the feet/i.test(acc)) return false
         }
-        const csr = all125.find((r) => norm(r.proposed_canonical_name) === 'chest-supported row')
+        const csr = all126.find((r) => norm(r.proposed_canonical_name) === 'chest-supported row')
         if (!csr || csr.equipment !== 'machine') return false
         if (/dumbbell|incline bench/i.test(primaryOf(csr))) return false
         if ((csr.aliases as string[]).some((a) => norm(a) === 'incline bench row')) return false
         return true
       })())
-    check('D5: ADMISSION (EXLIB-2C batch 5), REVISED (EXLIB-2C batch 5 review 1) — first-appearance positive pins: functional rack-press safeties with unloaded-bar clearance tests and spotter-supplements language on both barbell presses, Front squat hands-clear release onto tested safeties with a step back, Smith row tested stops with hinged empty-bar hook practice and both-hooks confirmation, padded hand-held Hip thrust bar, over-face Skull crusher no-grind exit, kettlebell no-catch discipline with the pre-rep versus mid-flight grip distinction, sandbag clear-feet release-zone rule, functional Good morning stop doctrine, Pull-up and Inverted row secured-bar and platform exits, Walking lunge mid-runway set-down, and Weighted vest squat re-tighten/remove rules',
+    check('D5: ADMISSION (EXLIB-2C batch 6) — Thruster positive pins: barbell metadata with barbell-true primary prose, stable rack position settled before the first squat, whole-foot balance with knees tracking the toes, leg drive flowing into the press only once balanced, overhead finish stacked and controlled, individual squat depth, continuous per-rep breathing, observable end-of-set criteria, walk-in re-rack exit with both hooks visibly under the bar, overhead-clearance and unloaded-bar habits, and the explicitly labeled easier regression',
       (() => {
-        const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
-        const cgbp = by.get('close-grip bench press')
-        const cgbpOk = /as high as they can go while still clearing your intended touch point/i.test(cgbp.setup_steps.join(' ')) &&
-          /Confirm with an unloaded bar that you can flatten out and slide free/i.test(cgbp.setup_steps.join(' ')) &&
-          /shorten the range rather than lowering them/i.test(cgbp.safety_guidance) &&
-          /spotter is an addition to tested safeties/i.test(cgbp.safety_guidance) &&
-          /lower the bar to the safeties, flatten out, and slide free/i.test(cgbp.safety_guidance)
-        const ibp = by.get('incline barbell press')
-        const ibpOk = /as high as the incline allows while clearing your touch point/i.test(ibp.setup_steps.join(' ')) &&
-          /Check with an unloaded bar/i.test(ibp.setup_steps.join(' ')) &&
-          /Re-test the safety height with an unloaded bar whenever the bench angle changes/i.test(ibp.safety_guidance) &&
-          /spotter supplements the safeties/i.test(ibp.safety_guidance) &&
-          /lower to the safeties, flatten, and slide down the bench/i.test(ibp.safety_guidance)
-        // REVISED (EXLIB-2C batch 5 review 1): the withdrawn manual
-        // steer-to-safeties, finish-and-park-after-slipping,
-        // chest-then-sit-up, and lean-and-release-in-front pins are
-        // replaced with the corrected procedures, and the functional
-        // Good morning stop doctrine is pinned.
-        const fsq = by.get('front squat')
-        const fsqOk = /safeties as high as they can go while clearing your bottom position, tested with an unloaded bar/i.test(fsq.setup_steps.join(' ')) &&
-          /end the set when you can no longer keep them up/i.test(fsq.safety_guidance) &&
-          /release your hands clear/i.test(fsq.safety_guidance) &&
-          /onto the tested safeties/i.test(fsq.safety_guidance) &&
-          /step backward away/i.test(fsq.safety_guidance) &&
-          /never try to catch or wrestle a falling bar/i.test(fsq.safety_guidance)
-        const gm = by.get('good morning')
-        const gmOk = /just below the bar's lowest intended position/i.test(gm.equipment_setup) &&
-          /test that exact height with an unloaded bar before loading/i.test(gm.equipment_setup) &&
-          /without forcing you below the planned range/i.test(gm.safety_guidance) &&
-          /shorten the range if they cannot/i.test(gm.safety_guidance) &&
-          /rests securely on both safeties/i.test(gm.safety_guidance) &&
-          /step out only once it is fully supported/i.test(gm.safety_guidance)
-        const smr = by.get('smith machine row')
-        const smrOk = /confirm the safety stops sit just below that starting height/i.test(smr.setup_steps.join(' ')) &&
-          /Practice the hook rotation with an empty bar from the hinged position/i.test(smr.setup_steps.join(' ')) &&
-          /lower the bar onto the stops or re-hook it fully/i.test(smr.safety_guidance) &&
-          /check both hooks caught/i.test(smr.safety_guidance)
-        const ht = by.get('hip thrust')
-        const htOk = /padded barbell/i.test(ht.setup_steps.join(' ')) &&
-          /Keep both hands on the bar/i.test(ht.setup_steps.join(' ')) &&
-          /must be padded and held with both hands so it cannot roll or slide/i.test(ht.safety_guidance)
-        const sk = by.get('skull crusher')
-        const skOk = /straight-arm position for a partner to take/i.test(sk.execution_steps.join(' ')) &&
-          /roll it to the hip crease/i.test(sk.execution_steps.join(' ')) &&
-          /end the set a rep early/i.test(sk.safety_guidance) &&
-          /roll it to the hips before sitting up/i.test(sk.safety_guidance) &&
-          /never sit upright with a bar resting loose on the chest/i.test(sk.safety_guidance)
-        const kcp = by.get('kettlebell clean and press')
-        const kcpOk = /never try to catch or steer a bell that has gotten away/i.test(kcp.safety_guidance) &&
-          /Complete the set on one side, then switch hands and match the load and reps/i.test(kcp.execution_steps.join(' '))
-        const ksw = by.get('kettlebell swing')
-        const kswOk = /before the next rep begins, end the set and park the bell while control is intact/i.test(ksw.safety_guidance) &&
-          /slips mid-flight, move clear and let it land/i.test(ksw.safety_guidance) &&
-          /never grab, chase, or redirect/i.test(ksw.safety_guidance) &&
-          /never throw the bell on purpose/i.test(ksw.safety_guidance)
-        const pu = by.get('pull-up')
-        const puOk = /end the set while the grip is still secure and the step is within reach/i.test(pu.safety_guidance) &&
-          /pause and get help rather than choosing a drop/i.test(pu.safety_guidance) &&
-          /firm pull-test/i.test(pu.equipment_setup)
-        const ir = by.get('inverted row')
-        const irOk = /confirm both hooks are seated/i.test(ir.setup_steps.join(' ')) &&
-          /Test the bar with a firm downward pull/i.test(ir.safety_guidance)
-        const sbs = by.get('sandbag shouldering')
-        const sbsOk = /stop trying to save the shoulder position/i.test(sbs.safety_guidance) &&
-          /cleared drop area away from your feet/i.test(sbs.safety_guidance) &&
-          /step clear without twisting/i.test(sbs.safety_guidance) &&
-          /never catch a falling bag/i.test(sbs.safety_guidance) &&
-          /Clear a drop area around you, away from your feet/i.test(sbs.setup_steps.join(' ')) &&
-          /alternating shoulders rep by rep/i.test(sbs.execution_steps.join(' '))
-        const wl = by.get('walking lunge')
-        const wlOk = /set the dumbbells down mid-runway/i.test(wl.safety_guidance)
-        const wvs = by.get('weighted vest squat')
-        const wvsOk = /Fasten the vest snug so it cannot shift/i.test(wvs.setup_steps.join(' ')) &&
-          /remove the vest and finish the set with body weight/i.test(wvs.safety_guidance)
-        return cgbpOk && ibpOk && fsqOk && gmOk && smrOk && htOk && skOk && kcpOk &&
-          kswOk && puOk && irOk && sbsOk && wlOk && wvsOk
+        const t = batch[0]
+        if (t.equipment !== 'barbell') return false
+        const setup = t.setup_steps.join(' ')
+        const ex = t.execution_steps.join(' ')
+        return /rack position is stable before the first squat/i.test(setup) &&
+          /front-rack position/i.test(setup) &&
+          !/dumbbell|kettlebell/i.test([setup, ex, t.common_mistakes.join(' '), t.breathing_cue, t.safety_guidance, t.equipment_setup].join(' ')) &&
+          /whole foot planted, and the knees tracking with the toes/i.test(ex) &&
+          /leg drive flow into the press only once you are balanced/i.test(ex) &&
+          /straight arms overhead, stacked over the mid-foot and under control/i.test(ex) &&
+          /walk in, and re-rack it with both hooks visibly under the bar/i.test(ex) &&
+          /depth is individual/i.test(t.safety_guidance) &&
+          /end the set while the rack position, squat balance, and overhead control are all still crisp/i.test(t.safety_guidance) &&
+          /Inhale standing tall before each rep/i.test(t.breathing_cue) &&
+          /breathe again before the next squat/i.test(t.breathing_cue) &&
+          /check the overhead clearance/i.test(t.equipment_setup) &&
+          /unloaded bar/i.test(t.equipment_setup) &&
+          /^As a regression/i.test(t.accessibility_alternative ?? '') &&
+          /goblet squat/i.test(t.accessibility_alternative ?? '')
       })())
-    check('D6: ADMISSION (EXLIB-2C batch 5 review 1) — review-correction enforcement across ALL 125 records: no generic near-hip-height safeties, no duck-out exits, no manual steering of a rolling or over-face bar, no finishing a swing after the grip starts slipping, no sitting up with a bar loose on the chest, no lean-and-release toward the front of the feet, no lowering-builds-most claims, and no assumed small vest increments; plus the corrected Reverse curl neutral lowering and the model-neutral vest progression',
+    check('D6: ADMISSION (EXLIB-2C batch 6) — Thruster negative guards: never drop or throw from overhead stated, no jump wording anywhere in the record, no arm-only press doctrine (arms-alone appears only as a listed mistake), no universal-depth claim, no knee-past-toes prohibition, no momentum-makes-it-safe claim, and no silent equipment change (dumbbells confined to the labeled regression)',
       (() => {
-        const all125 = [...prior, ...batch]
-        const BAN = new RegExp(['near hip height', 'duck out', 'steer it down onto the safeties',
-          'steer the bar to the chest', 'finish that swing', 'lean toward the floor and let it go',
-          'builds most of the', "vest's own small steps", 'sit up with it'].join('|'), 'i')
-        for (const r of all125) {
-          if (BAN.test(proseOf(r))) return false
-        }
-        const by = new Map<string, any>(batch.map((r) => [norm(r.proposed_canonical_name), r]))
-        const rc = by.get('reverse curl')
-        const rcOk = /keeping the wrists straight and the bar under control/i.test(rc.execution_steps.join(' ')) &&
-          !/builds most/i.test(proseOf(rc))
-        const wvs = by.get('weighted vest squat')
-        const wvsOk = /next available vest setting only after full sets remain controlled/i.test(wvs.equipment_setup)
-        return rcOk && wvsOk
+        const t = batch[0]
+        const text = proseOf(t)
+        if (!/never drop or throw the bar down from overhead/i.test(t.safety_guidance)) return false
+        if (/\bjump\w*/i.test(text)) return false
+        if (/arms alone/i.test(text) && !/Pressing with the arms alone before the legs have finished driving/i.test(t.common_mistakes.join(' '))) return false
+        if (/same depth|everyone should|every trainee/i.test(text)) return false
+        if (/past the toes/i.test(text)) return false
+        if (/momentum (alone )?(makes|keeps|carries it safely)/i.test(text)) return false
+        const primary = [t.setup_steps.join(' '), t.execution_steps.join(' '), t.common_mistakes.join(' '), t.breathing_cue, t.safety_guidance, t.equipment_setup].join(' ')
+        if (/dumbbell/i.test(primary)) return false
+        if (/dumbbell/i.test(t.accessibility_alternative ?? '') && !/^As a regression/i.test(t.accessibility_alternative ?? '')) return false
+        return true
       })())
   }
 
