@@ -41,7 +41,7 @@ Tables that reference an exercise id or interpret tracking_mode:
 | exercises | 003 (table), 010 (tracking_mode NOT NULL + CHECK + DEFAULT), 018 (exercise_muscles), 023 (catalog_id, catalog_logical_id, import_run_id + UNIQUE (user_id, catalog_logical_id)) | Per-user rows; non-partial UNIQUE (user_id, lower(name)) from 003 means even an INACTIVE row blocks its name. |
 | exercise_name_claims | 023 | PK (user_id, normalized_name): exactly ONE claim per normalized name per user. Exercise claims mirror the non-partial unique index and SURVIVE DEACTIVATION by design; they release only on rename or row delete (exlib_claim_exercise_name trigger). Alias claims are active-only. |
 | workout_exercises | 003 | FK exercise_id ON DELETE RESTRICT — any workout reference blocks deletion. |
-| workout_sets | 003 + 011 | weight_kg/reps/rpe/completed/is_warmup plus duration_seconds/distance_meters (011). Bodyweight sets store reps; timed sets store duration_seconds. The two are DIFFERENT COLUMNS with different completion semantics. |
+| workout_sets | 003 + 011 | weight_kg/reps/rpe/completed/is_warmup plus duration_seconds/distance_meters (011). Bodyweight sets store reps; timed sets store duration_seconds. The two are DIFFERENT COLUMNS with different completion semantics. workout_sets.workout_exercise_id is NOT NULL and references workout_exercises(id) ON DELETE CASCADE, so zero workout_exercises rows for an exercise structurally implies zero workout_sets rows — set history cannot exist without a parent reference. |
 | routines/routine_exercises | 004 | FK exercise_id ON DELETE RESTRICT — routine references block deletion and encode rep-based intent for a bodyweight row. |
 | exercise_muscles | 018 | Seeded secondary/tertiary rows; part of the pristine seed state, not user customization. |
 | catalog tables + claim triggers | 023 | exercise_catalog/_logical with one-active-per-name and one-active-per-logical unique indexes; fail-closed claim machinery; delivery columns exist but NO delivery function is implemented yet (EXLIB-2A design is planning-only). |
@@ -83,24 +83,53 @@ deterministically; the machine-readable version every implementation
 must satisfy is in docs/exlib2d-plank-reconciliation-matrix.md and is
 reconciled check-by-check by scripts/verify-exlib2d.ts.
 
-- P1 — future users, never seeded: the SEED_EXERCISES Plank entry is
-  corrected to timed ONLY in the coordinated later implementation
-  release (together with Plank catalog delivery/linking), never
-  before, so no partially-reconciled state ever ships. This phase
-  does not touch the seed module.
+- P1 — future users, never seeded: per the promoted architecture
+  (section 9), full-catalog delivery replaces bare-15 seeding at
+  first authenticated use once delivery is proven end-to-end, so
+  future users receive the timed catalog Plank through delivery
+  itself. The SEED_EXERCISES Plank entry (tracking_mode AND anatomy,
+  to the catalog values) is corrected in the SAME atomic release,
+  purely as compatibility/fallback cleanup for any window where the
+  seed function still runs. Prohibited intermediate states: a
+  release that creates an unlinked timed seed row, or one where new
+  users still receive a bodyweight Plank after catalog delivery is
+  active. This phase does not touch the seed module.
 - P2 — pristine, unused seed row: a narrowly proven in-place
-  correction IS permitted. Preconditions, all re-verified inside the
-  transaction under SELECT ... FOR UPDATE: zero workout_exercises
-  rows, zero routine_exercises rows, the row's field tuple
-  byte-matches the seed definition (name='Plank', is_system=true,
+  correction IS permitted. Five preconditions, all re-verified
+  inside the transaction under SELECT ... FOR UPDATE: (1) zero
+  workout_exercises rows referencing the row — which structurally
+  implies zero workout_sets rows, because
+  workout_sets.workout_exercise_id is NOT NULL and references
+  workout_exercises(id), so no set history can exist without a
+  parent reference (proven, not assumed); (2) zero routine_exercises
+  rows; (3) the exercises row's scalar fields exactly equal the seed
+  definition field by field (name='Plank', is_system=true,
   is_active=true, notes IS NULL, equipment='bodyweight',
   tracking_mode='bodyweight', category='isolation',
-  primary_muscle='abs', unilateral=false), and the user's 'plank'
-  claim is held by this exact row with claim_source='exercise'.
-  Action: UPDATE tracking_mode='timed' + derived
-  exercise_type='mobility', then set the catalog link columns
-  through the standard fail-closed machinery. Id and name are
-  unchanged, so the claim never moves and no collision can occur.
+  primary_muscle='abs', unilateral=false); (4) the row's
+  exercise_muscles multiset exactly equals the expected live seed
+  anatomy {(obliques, secondary)} — exact multiset equality
+  including roles, nothing missing, nothing additional; ANY anatomy
+  difference classifies the row as customized and routes it to P5,
+  never P2; and (5) the user's 'plank' claim is held by this exact
+  row with claim_source='exercise'.
+  Action, all in one transaction: a retry FIRST checks
+  UNIQUE (user_id, catalog_logical_id) and no-ops if the logical
+  identity is already linked, BEFORE evaluating the old
+  bodyweight-seed predicate — an already-corrected row is never
+  re-matched or mutated again. Then: UPDATE tracking_mode='timed' +
+  derived exercise_type='mobility'; atomically replace the
+  seed-owned exercise_muscles rows with the exact active approved
+  catalog snapshot — for Plank, {(obliques, secondary),
+  (lower_back, tertiary)}: the expected present difference is that
+  catalog lower_back/tertiary is absent from the live seed anatomy
+  and is added here, so the linked row never disagrees with its
+  catalog snapshot; then set the catalog link columns through the
+  standard fail-closed machinery. Id and name are unchanged, so the
+  claim never moves and no collision can occur. Any anatomy
+  insert/delete/constraint failure rolls back the ENTIRE
+  correction. Anatomy synchronization is permitted ONLY here in P2;
+  P3-P6 rows are user/history-owned and are never synchronized.
   With zero sets and zero references there is no history to
   reinterpret. If ANY precondition fails, this subcase is abandoned
   for that user and the P3-P6 path applies — never a forced fallback
@@ -132,6 +161,28 @@ that user and remains retryable — a deterministic single fallback,
 never an unbounded suffix search. A user who later frees 'plank'
 themselves may rename the delivered row through the EXISTING rename
 path, whose claim trigger already releases and re-claims atomically.
+
+Distinguished-name refresh semantics (this SPECIALIZES — not
+contradicts — the promoted architecture's refresh rule that "name
+updates go through the normalized-name claim check and are SKIPPED
+(not forced) on collision, exactly like delivery"): the catalog
+canonical name remains 'Plank'; 'Plank (timed)' is a deterministic
+delivery-name override caused solely by the tenant's existing
+'plank' claim, and it is re-derivable from the tenant row, its
+logical identity, and live claim state — a delivered row whose
+current name equals the distinguished variant of its logical
+identity's canonical name is in the distinguished state — so no new
+schema field is required. Metadata refresh updates compatible
+catalog-controlled fields and anatomy on the delivered row while
+PRESERVING the distinguished tenant name for as long as canonical
+'plank' remains claimed by another row or alias; it never forces
+'Plank', never fails the whole refresh solely because the canonical
+name collides, and never oscillates between names. Freeing 'plank'
+does not trigger any automatic rename: moving from 'Plank (timed)'
+to 'Plank' remains an explicit user-initiated rename through the
+existing claim machinery. Idempotent retries and refreshes
+recognize the already-delivered logical identity via
+catalog_logical_id regardless of its tenant display name.
 
 Retirement of the legacy row is user-initiated only: archive through
 the existing is_active=false path (name claim intentionally
@@ -165,12 +216,21 @@ timed Plank.
    guarded SQL (or an equivalent server-side function) implementing
    P2 preconditions, the collision-naming rule, and the idempotent
    link — plus its disposable-local-DB proof suite.
-2. Seed module edit flipping the Plank entry to timed, shipped in
-   the SAME release as (1).
+2. Seed module edit aligning the Plank entry's tracking_mode AND
+   anatomy to the catalog values, shipped in the SAME atomic release
+   as (1) as compatibility/fallback cleanup — per the promoted
+   architecture (section 9), full-catalog delivery replaces bare-15
+   seeding for future accounts once proven, so the edit only covers
+   any window where the seed function still runs. No intermediate
+   release may create an unlinked timed seed row or leave new users
+   receiving a bodyweight Plank after delivery is active.
 3. Plank instructional content authoring (separate, after this
    contract is approved), then the standard review lifecycle.
-4. Inventory update marking Plank seed_link_compatible where the P2
-   path applies — an implementation-state change, not made here.
+4. Inventory update marking Plank seed_link_compatible — a GLOBAL
+   promoted-artifact fact, never a per-user outcome: it may become
+   true only in the coordinated implementation state where the
+   committed future seed definition (tracking_mode AND anatomy) and
+   the delivery contract are compatible. Not made here.
 5. API/UI: none required by the contract itself beyond existing
    surfaces; the optional retirement affordance is future product
    work. Tests: population-matrix fixtures P1-P6 against a

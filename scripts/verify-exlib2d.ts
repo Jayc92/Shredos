@@ -152,7 +152,7 @@ async function main(): Promise<void> {
           inv.filter((r) => r.deferred).length === 8 &&
           inv.filter((r) => r.deferred).every((r) => r.tracking_mode === 'weight_time')
       })())
-    check('B3: the machine-readable matrix pins the full contract — canonical timed, all six populations with exactly one deterministic outcome each, no claim-model change, idempotency key, locking, rollback, every guarantee flag true, and the nonauthorization list',
+    check('B3: REVISED (EXLIB-2D review 1) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the FIVE-part P2 predicate with exact seed-anatomy multiset equality and the FK-chain zero-set proof, anatomy synchronization scoped to P2 only with all-or-nothing rollback, link-first retry ordering, distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
       (() => {
         const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
         if (!m) return false
@@ -170,7 +170,26 @@ async function main(): Promise<void> {
           const pop = mach.populations[p]
           if (!pop || typeof pop.outcome !== 'string' || pop.outcome.length < 10) return false
         }
-        if (mach.populations.P2_pristine_unused_seed_row.preconditions.length !== 4) return false
+        const p2 = mach.populations.P2_pristine_unused_seed_row
+        if (p2.preconditions.length !== 5) return false
+        if (!String(p2.preconditions[0]).includes('structurally implies zero workout_sets')) return false
+        if (!String(p2.preconditions[3]).includes('exact multiset equality')) return false
+        if (!String(p2.preconditions[3]).includes('routes it to P5')) return false
+        const sync = p2.anatomy_synchronization
+        if (JSON.stringify(sync.target) !== JSON.stringify([['obliques', 'secondary'], ['lower_back', 'tertiary']])) return false
+        if (!String(sync.rollback).includes('all or nothing')) return false
+        if (JSON.stringify(sync.permitted_populations) !== JSON.stringify(['P2_pristine_unused_seed_row'])) return false
+        if (sync.forbidden_populations.length !== 4) return false
+        if (!String(mach.transaction_and_idempotency.retry_ordering).includes('BEFORE evaluating the old bodyweight-seed predicate')) return false
+        const rs = mach.claims_and_collision_design.refresh_semantics
+        if (!String(rs.specializes).includes('SKIPPED (not forced) on collision')) return false
+        if (rs.never_force_canonical !== true || rs.name_collision_never_fails_whole_refresh !== true) return false
+        if (!String(rs.no_automatic_rename_when_canonical_freed).includes('user-initiated rename')) return false
+        if (!String(rs.idempotent_recognition).includes('catalog_logical_id')) return false
+        if (!String(mach.claims_and_collision_design.model_change_justification).includes('deterministically re-derivable')) return false
+        if (!String(mach.seed_link_compatible_transition).includes('never a per-user outcome')) return false
+        if (!String(mach.future_signup_sequencing).includes('replaces bare-15 seeding')) return false
+        if (!String(mach.future_signup_sequencing).includes('prohibited intermediate states')) return false
         if (mach.claims_and_collision_design.model_change_required !== false) return false
         if (!String(mach.claims_and_collision_design.rule).includes("'Plank (timed)'")) return false
         if (!String(mach.claims_and_collision_design.rule).includes('No unbounded suffix search')) return false
@@ -181,26 +200,45 @@ async function main(): Promise<void> {
         const g = mach.guarantees
         const flags = ['no_silent_history_reinterpretation', 'no_bodyweight_data_rewritten_as_duration',
           'no_automatic_merge_across_tracking_modes', 'no_duplicate_normalized_claim',
-          'no_delivery_bypass_of_claim_machinery', 'no_silent_rename', 'no_auto_delete_or_auto_archive',
+          'no_delivery_bypass_of_claim_machinery', 'no_silent_rename',
+          'no_automatic_rename_when_canonical_freed', 'no_auto_delete_or_auto_archive',
           'stable_ids_preserved', 'tenant_safe_rls_preserved', 'idempotent_and_retry_safe',
-          'rollback_defined', 'future_users_receive_timed_plank_after_coordinated_implementation',
+          'rollback_defined', 'anatomy_synchronized_only_in_P2',
+          'zero_workout_references_structurally_imply_zero_sets',
+          'linked_rows_never_disagree_with_catalog_anatomy',
+          'future_users_receive_timed_plank_after_coordinated_implementation',
           'legacy_retirement_is_user_initiated_only']
         if (!flags.every((f) => g[f] === true)) return false
         const na = (mach.not_authorized_here as string[]).join('|')
         return ['seed module edit', 'Plank content authoring', 'migration 026', 'catalog loading',
           'hosted contact', 'seed_link_compatible'].every((k) => na.includes(k))
       })())
-    check('B4: the reconciliation record pins the repository evidence and the contract — claims survive deactivation, RESTRICT FKs, current-mode display reinterpretation hazard, P2 preconditions re-verified under lock, catalog-controlled distinguished naming with fail-closed skip, coordinated future-seed timing, user-initiated-only retirement, and explicit nonauthorization',
+    check('B4: REVISED (EXLIB-2D review 1) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the five-part P2 predicate with exact anatomy multiset equality and mismatch-to-P5 routing, P2 anatomy synchronization with full rollback, link-first retry ordering, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
       recFlat.includes('SURVIVE DEACTIVATION') &&
       recFlat.includes('ON DELETE RESTRICT') &&
       recFlat.includes('CURRENT tracking_mode at display time') &&
       recFlat.includes('silently reinterprets that history') &&
       recFlat.includes('re-verified inside the transaction under SELECT ... FOR UPDATE') &&
+      recFlat.includes('structurally implies zero workout_sets rows') &&
+      recFlat.includes('exactly equals the expected live seed anatomy {(obliques, secondary)}') &&
+      recFlat.includes('ANY anatomy difference classifies the row as customized and routes it to P5') &&
+      recFlat.includes('atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot') &&
+      recFlat.includes('{(obliques, secondary), (lower_back, tertiary)}') &&
+      recFlat.includes('rolls back the ENTIRE correction') &&
+      recFlat.includes('Anatomy synchronization is permitted ONLY here in P2') &&
+      recFlat.includes('BEFORE evaluating the old bodyweight-seed predicate') &&
+      recFlat.includes('SPECIALIZES — not contradicts') &&
+      recFlat.includes('never fails the whole refresh solely because the canonical name collides') &&
+      recFlat.includes('does not trigger any automatic rename') &&
+      recFlat.includes('GLOBAL promoted-artifact fact, never a per-user outcome') &&
+      recFlat.includes('full-catalog delivery replaces bare-15 seeding') &&
+      !recFlat.includes('byte-match') &&
+      !recFlat.includes('where the P2 path applies') &&
       recFlat.includes("'Plank (timed)'") &&
       recFlat.includes('skipped fail-closed for that user and remains retryable') &&
       recFlat.includes('never an unbounded suffix search') &&
       recFlat.includes('no user row is ever renamed by the system') &&
-      recFlat.includes('corrected to timed ONLY in the coordinated later implementation release') &&
+      recFlat.includes('corrected in the SAME atomic release, purely as compatibility/fallback cleanup') &&
       recFlat.includes('Retirement of the legacy row is user-initiated only') &&
       recFlat.includes('Nothing is ever auto-deleted, auto-archived, or auto-renamed') &&
       recFlat.includes('UNIQUE (user_id, catalog_logical_id) index IS the idempotency key') &&
@@ -220,6 +258,35 @@ async function main(): Promise<void> {
         const range = execSync(`git diff --name-only ${BATCH6_TIP}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return range.every((p) => !/^(src\/|package|supabase\/|next\.config|tsconfig|\.env|public\/)/.test(p))
+      })())
+  }
+
+  console.log('\nC. Review-1 anatomy integrity')
+  {
+    check('C1: ADMISSION (EXLIB-2D review 1) — the seed/catalog anatomy difference is proven mechanically from the live artifacts, and the matrix mirrors it exactly: the live seed Plank anatomy is exactly {(obliques, secondary)}, the promoted catalog Plank anatomy is exactly {(obliques, secondary), (lower_back, tertiary)}, the sole delta is the catalog-only lower_back/tertiary row, and the matrix mismatch/delta/synchronization-target fields equal the parsed values',
+      (() => {
+        const seed = read('src/lib/supabase/seed-exercises.ts')
+        const plankBlock = seed.split('\n').filter((l) => l.includes('"Plank"') ||
+          (seed.split('\n').indexOf(l) === seed.split('\n').findIndex((x) => x.includes('"Plank"')) + 1))
+        const plankIdx = seed.indexOf('{ name: "Plank"')
+        if (plankIdx < 0) return false
+        const plankSrc = seed.slice(plankIdx, seed.indexOf('}', seed.indexOf('muscle_targets', plankIdx)) + 1)
+        const seedTargets = Array.from(plankSrc.matchAll(/\{ muscle: "(\w+)", role: "(\w+)" \}/g))
+          .map((m) => [m[1], m[2]])
+        if (JSON.stringify(seedTargets) !== JSON.stringify([['obliques', 'secondary']])) return false
+        const plank = inv.find((r) => r.normalized_name === 'plank')
+        const catTargets = plank.muscle_targets.map((t: any) => [t.muscle, t.role])
+        if (JSON.stringify(catTargets) !== JSON.stringify([['obliques', 'secondary'], ['lower_back', 'tertiary']])) return false
+        const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
+        if (!m) return false
+        const mach = JSON.parse(m[1])
+        if (JSON.stringify(mach.mismatch.seed.anatomy) !== JSON.stringify(seedTargets)) return false
+        if (JSON.stringify(mach.mismatch.catalog.anatomy) !== JSON.stringify(catTargets)) return false
+        if (JSON.stringify(mach.anatomy_delta.catalog_only) !== JSON.stringify([['lower_back', 'tertiary']])) return false
+        if (JSON.stringify(mach.anatomy_delta.seed_only) !== JSON.stringify([])) return false
+        if (JSON.stringify(mach.populations.P2_pristine_unused_seed_row.anatomy_synchronization.target) !==
+          JSON.stringify(catTargets)) return false
+        return true
       })())
   }
 
