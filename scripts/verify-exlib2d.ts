@@ -152,7 +152,7 @@ async function main(): Promise<void> {
           inv.filter((r) => r.deferred).length === 8 &&
           inv.filter((r) => r.deferred).every((r) => r.tracking_mode === 'weight_time')
       })())
-    check('B3: REVISED (EXLIB-2D review 1) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the FIVE-part P2 predicate with exact seed-anatomy multiset equality and the FK-chain zero-set proof, anatomy synchronization scoped to P2 only with all-or-nothing rollback, link-first retry ordering, distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
+    check('B3: REVISED (EXLIB-2D review 2) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the NINE-part P2 predicate (exercise_type, all-null catalog provenance, zero aliases, exact seed-anatomy multiset, FK-chain zero-set proof, claim equality) with nonpristine-to-P5 routing, anatomy synchronization scoped to P2 only with all-or-nothing rollback, VERIFIED idempotency (locked nine-invariant validation before any no-op, fail-closed inconsistent-link disposition), distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
       (() => {
         const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
         if (!m) return false
@@ -171,16 +171,39 @@ async function main(): Promise<void> {
           if (!pop || typeof pop.outcome !== 'string' || pop.outcome.length < 10) return false
         }
         const p2 = mach.populations.P2_pristine_unused_seed_row
-        if (p2.preconditions.length !== 5) return false
+        if (p2.preconditions.length !== 9) return false
         if (!String(p2.preconditions[0]).includes('structurally implies zero workout_sets')) return false
-        if (!String(p2.preconditions[3]).includes('exact multiset equality')) return false
-        if (!String(p2.preconditions[3]).includes('routes it to P5')) return false
+        if (!String(p2.preconditions[1]).includes('workout_routine_exercises')) return false
+        if (!String(p2.preconditions[2]).includes("exercise_type='bodyweight'")) return false
+        if (!String(p2.preconditions[3]).includes('catalog_id IS NULL')) return false
+        if (!String(p2.preconditions[4]).includes('catalog_logical_id IS NULL')) return false
+        if (!String(p2.preconditions[5]).includes('import_run_id IS NULL')) return false
+        if (!String(p2.preconditions[6]).includes('tenant-authored identity state')) return false
+        if (!String(p2.preconditions[7]).includes('exact multiset equality')) return false
+        if (!String(p2.preconditions[7]).includes('routes it to P5')) return false
+        if (!String(p2.preconditions[8]).includes("claim_source='exercise'")) return false
+        if (!String(p2.nonpristine_routing).includes('never mutated')) return false
+        const vi = mach.transaction_and_idempotency.verified_idempotency
+        if (!String(vi.lookup).includes('BEFORE evaluating the old bodyweight-seed predicate')) return false
+        if (!String(vi.if_present).includes('SELECT ... FOR UPDATE')) return false
+        if (vi.invariants.length !== 9) return false
+        if (!vi.invariants.some((i: string) => i.includes("tracking_mode='timed'"))) return false
+        if (!vi.invariants.some((i: string) => i.includes("exercise_type='mobility'"))) return false
+        if (!vi.invariants.some((i: string) => i.includes('expected authorized run'))) return false
+        if (!vi.invariants.some((i: string) => i.includes('UNIQUE (user_id, catalog_logical_id)'))) return false
+        if (!String(vi.on_valid).includes('fully valid completed state')) return false
+        if (!String(vi.on_invalid).includes('inconsistent prior reconciliation')) return false
+        if (!String(vi.on_invalid).includes('Never silently repair')) return false
+        if (JSON.stringify(vi.applies_to) !== JSON.stringify(['corrected P2 row', 'separately delivered distinguished row'])) return false
+        if (!String(mach.transaction_and_idempotency.idempotency_key).includes('ONLY after full invariant validation')) return false
+        const dep = mach.exercise_id_dependency_inventory
+        if (dep.fk_references.length !== 4 || dep.non_fk_references.length !== 1) return false
+        if (!String(dep.non_fk_references[0].closure).includes('claim-holder equality')) return false
         const sync = p2.anatomy_synchronization
         if (JSON.stringify(sync.target) !== JSON.stringify([['obliques', 'secondary'], ['lower_back', 'tertiary']])) return false
         if (!String(sync.rollback).includes('all or nothing')) return false
         if (JSON.stringify(sync.permitted_populations) !== JSON.stringify(['P2_pristine_unused_seed_row'])) return false
         if (sync.forbidden_populations.length !== 4) return false
-        if (!String(mach.transaction_and_idempotency.retry_ordering).includes('BEFORE evaluating the old bodyweight-seed predicate')) return false
         const rs = mach.claims_and_collision_design.refresh_semantics
         if (!String(rs.specializes).includes('SKIPPED (not forced) on collision')) return false
         if (rs.never_force_canonical !== true || rs.name_collision_never_fails_whole_refresh !== true) return false
@@ -206,6 +229,9 @@ async function main(): Promise<void> {
           'rollback_defined', 'anatomy_synchronized_only_in_P2',
           'zero_workout_references_structurally_imply_zero_sets',
           'linked_rows_never_disagree_with_catalog_anatomy',
+          'alias_presence_is_nonpristine',
+          'existing_link_no_op_only_after_full_validation',
+          'malformed_links_abort_fail_closed',
           'future_users_receive_timed_plank_after_coordinated_implementation',
           'legacy_retirement_is_user_initiated_only']
         if (!flags.every((f) => g[f] === true)) return false
@@ -213,13 +239,27 @@ async function main(): Promise<void> {
         return ['seed module edit', 'Plank content authoring', 'migration 026', 'catalog loading',
           'hosted contact', 'seed_link_compatible'].every((k) => na.includes(k))
       })())
-    check('B4: REVISED (EXLIB-2D review 1) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the five-part P2 predicate with exact anatomy multiset equality and mismatch-to-P5 routing, P2 anatomy synchronization with full rollback, link-first retry ordering, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
+    check('B4: REVISED (EXLIB-2D review 2) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the complete dependency closure with exact table names, the nine-part P2 predicate (exercise_type, null provenance, zero aliases with the tenant-authored rationale, anatomy multiset, claim equality) with nonpristine-to-P5 routing, P2 anatomy synchronization with full rollback, verified idempotency with fail-closed inconsistent-link disposition, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
       recFlat.includes('SURVIVE DEACTIVATION') &&
       recFlat.includes('ON DELETE RESTRICT') &&
       recFlat.includes('CURRENT tracking_mode at display time') &&
       recFlat.includes('silently reinterprets that history') &&
       recFlat.includes('re-verified inside the transaction under SELECT ... FOR UPDATE') &&
       recFlat.includes('structurally implies zero workout_sets rows') &&
+      recFlat.includes('workout_routine_exercises (004, RESTRICT)') &&
+      recFlat.includes('exercise_aliases (023, composite (user_id, id), CASCADE)') &&
+      recFlat.includes('validated by the claim-holder equality precondition rather than a separate count') &&
+      recFlat.includes("exercise_type='bodyweight'") &&
+      recFlat.includes('catalog_id IS NULL; (5) catalog_logical_id IS NULL; (6) import_run_id IS NULL') &&
+      recFlat.includes('zero exercise_aliases rows attached to the candidate exercise, regardless of active state or provenance') &&
+      recFlat.includes('aliases are tenant-authored identity state') &&
+      recFlat.includes('routes the row to P5/customized-or-nonpristine handling; the row is never mutated') &&
+      recFlat.includes('verified as a complete valid reconciliation outcome before any no-op') &&
+      recFlat.includes('Only a fully valid completed state may no-op') &&
+      recFlat.includes('inconsistent prior reconciliation requiring separate investigation') &&
+      recFlat.includes('never silently repairing, relinking, overwriting anatomy, renaming, or treating it as success') &&
+      recFlat.includes('applies identically to a corrected P2 row and to a separately delivered distinguished row') &&
+      !recFlat.includes('no-ops if the logical identity is already linked') &&
       recFlat.includes('exactly equals the expected live seed anatomy {(obliques, secondary)}') &&
       recFlat.includes('ANY anatomy difference classifies the row as customized and routes it to P5') &&
       recFlat.includes('atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot') &&
@@ -286,6 +326,41 @@ async function main(): Promise<void> {
         if (JSON.stringify(mach.anatomy_delta.seed_only) !== JSON.stringify([])) return false
         if (JSON.stringify(mach.populations.P2_pristine_unused_seed_row.anatomy_synchronization.target) !==
           JSON.stringify(catTargets)) return false
+        return true
+      })())
+  }
+
+  console.log('\nD. Review-2 dependency and idempotency integrity')
+  {
+    check('D1: ADMISSION (EXLIB-2D review 2) — the exercises.id dependency inventory is reproduced mechanically from the migrations and matches the matrix exactly (workout_exercises, workout_routine_exercises, exercise_muscles, exercise_aliases as the only FK referencers, exercise_name_claims as the only non-FK reference closed by the claim precondition), and the verified-idempotency contract leaves no unconditional no-op path',
+      (() => {
+        const hits = execSync("grep -rln 'REFERENCES exercises' supabase/migrations/*.sql", { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const tables = new Set<string>()
+        for (const f of hits) {
+          const src = read(f)
+          const lines = src.split('\n')
+          let lastTable = ''
+          for (const l of lines) {
+            const t = l.match(/CREATE TABLE (\w+)/)
+            if (t) lastTable = t[1]
+            if (l.includes('REFERENCES exercises')) tables.add(lastTable)
+          }
+        }
+        const expected = ['exercise_aliases', 'exercise_muscles', 'workout_exercises', 'workout_routine_exercises']
+        if (JSON.stringify(Array.from(tables).sort()) !== JSON.stringify(expected)) return false
+        const claims = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+        if (!claims.includes('CREATE TABLE exercise_name_claims')) return false
+        const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
+        if (!m) return false
+        const mach = JSON.parse(m[1])
+        const fkNames = mach.exercise_id_dependency_inventory.fk_references
+          .map((r: any) => r.table).sort()
+        if (JSON.stringify(fkNames) !== JSON.stringify(expected)) return false
+        if (mach.exercise_id_dependency_inventory.non_fk_references[0].table !== 'exercise_name_claims') return false
+        const flat = matrixDoc.replace(/\s+/g, ' ')
+        if (flat.includes('no-ops if the logical identity is already linked')) return false
+        if (!flat.includes('lock the linked row with SELECT ... FOR UPDATE and validate the complete reconciliation outcome before any no-op')) return false
         return true
       })())
   }

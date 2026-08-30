@@ -42,7 +42,7 @@ Tables that reference an exercise id or interpret tracking_mode:
 | exercise_name_claims | 023 | PK (user_id, normalized_name): exactly ONE claim per normalized name per user. Exercise claims mirror the non-partial unique index and SURVIVE DEACTIVATION by design; they release only on rename or row delete (exlib_claim_exercise_name trigger). Alias claims are active-only. |
 | workout_exercises | 003 | FK exercise_id ON DELETE RESTRICT — any workout reference blocks deletion. |
 | workout_sets | 003 + 011 | weight_kg/reps/rpe/completed/is_warmup plus duration_seconds/distance_meters (011). Bodyweight sets store reps; timed sets store duration_seconds. The two are DIFFERENT COLUMNS with different completion semantics. workout_sets.workout_exercise_id is NOT NULL and references workout_exercises(id) ON DELETE CASCADE, so zero workout_exercises rows for an exercise structurally implies zero workout_sets rows — set history cannot exist without a parent reference. |
-| routines/routine_exercises | 004 | FK exercise_id ON DELETE RESTRICT — routine references block deletion and encode rep-based intent for a bodyweight row. |
+| workout_routines/workout_routine_exercises | 004 | FK exercise_id ON DELETE RESTRICT (the exact table name is workout_routine_exercises) — routine references block deletion and encode rep-based intent for a bodyweight row. |
 | exercise_muscles | 018 | Seeded secondary/tertiary rows; part of the pristine seed state, not user customization. |
 | catalog tables + claim triggers | 023 | exercise_catalog/_logical with one-active-per-name and one-active-per-logical unique indexes; fail-closed claim machinery; delivery columns exist but NO delivery function is implemented yet (EXLIB-2A design is planning-only). |
 | RLS | 003/023 | All per-user; catalog claim functions are SECURITY DEFINER with pinned search_path. Reconciliation work stays inside one tenant's rows. |
@@ -75,6 +75,17 @@ provably no sets and no planned references exist. The API already
 permitting PATCH of tracking_mode does not make it safe for seeded
 history; it only proves the column is mutable.
 
+Direct exercise-id dependency closure: mechanically scanning every
+migration for REFERENCES exercises yields exactly four foreign-key
+referencers — workout_exercises (003, RESTRICT),
+workout_routine_exercises (004, RESTRICT), exercise_muscles (018,
+CASCADE), and exercise_aliases (023, composite (user_id, id),
+CASCADE) — plus one non-FK reference, exercise_name_claims
+.exercise_id, whose state is validated by the claim-holder equality
+precondition rather than a separate count. The P2 predicate covers
+all of them; any future table referencing exercises.id must be added
+to the predicate or explicitly closed before implementation.
+
 ## 4. The chosen reconciliation contract (single recommendation)
 
 Canonical: the catalog Plank stays timed. Existing history is never
@@ -95,29 +106,56 @@ reconciled check-by-check by scripts/verify-exlib2d.ts.
   users still receive a bodyweight Plank after catalog delivery is
   active. This phase does not touch the seed module.
 - P2 — pristine, unused seed row: a narrowly proven in-place
-  correction IS permitted. Five preconditions, all re-verified
+  correction IS permitted. Nine preconditions, all re-verified
   inside the transaction under SELECT ... FOR UPDATE: (1) zero
   workout_exercises rows referencing the row — which structurally
   implies zero workout_sets rows, because
   workout_sets.workout_exercise_id is NOT NULL and references
   workout_exercises(id), so no set history can exist without a
-  parent reference (proven, not assumed); (2) zero routine_exercises
-  rows; (3) the exercises row's scalar fields exactly equal the seed
-  definition field by field (name='Plank', is_system=true,
-  is_active=true, notes IS NULL, equipment='bodyweight',
-  tracking_mode='bodyweight', category='isolation',
-  primary_muscle='abs', unilateral=false); (4) the row's
-  exercise_muscles multiset exactly equals the expected live seed
-  anatomy {(obliques, secondary)} — exact multiset equality
-  including roles, nothing missing, nothing additional; ANY anatomy
+  parent reference (proven, not assumed); (2) zero
+  workout_routine_exercises rows; (3) the exercises row's scalar
+  fields exactly equal the seed definition field by field
+  (name='Plank', is_system=true, is_active=true, notes IS NULL,
+  equipment='bodyweight', tracking_mode='bodyweight',
+  exercise_type='bodyweight' — the live seed's derived value —
+  category='isolation', primary_muscle='abs', unilateral=false);
+  (4) catalog_id IS NULL; (5) catalog_logical_id IS NULL;
+  (6) import_run_id IS NULL — a row carrying any catalog provenance
+  is not an unreconciled seed row and must never be re-matched by
+  this predicate; (7) zero exercise_aliases rows attached to the
+  candidate exercise, regardless of active state or provenance —
+  aliases are tenant-authored identity state, so their presence
+  makes the row nonpristine even when the base row and anatomy
+  still match the seed; (8) the row's exercise_muscles multiset
+  exactly equals the expected live seed anatomy
+  {(obliques, secondary)} — exact multiset equality including
+  roles, nothing missing, nothing additional; ANY anatomy
   difference classifies the row as customized and routes it to P5,
-  never P2; and (5) the user's 'plank' claim is held by this exact
-  row with claim_source='exercise'.
-  Action, all in one transaction: a retry FIRST checks
-  UNIQUE (user_id, catalog_logical_id) and no-ops if the logical
-  identity is already linked, BEFORE evaluating the old
-  bodyweight-seed predicate — an already-corrected row is never
-  re-matched or mutated again. Then: UPDATE tracking_mode='timed' +
+  never P2; and (9) the user's 'plank' claim is held by this exact
+  row with claim_source='exercise'. Failure of ANY precondition
+  routes the row to P5/customized-or-nonpristine handling; the row
+  is never mutated.
+  Action, all in one transaction: the transaction FIRST looks for
+  an existing (user_id, catalog_logical_id) link, BEFORE evaluating
+  the old bodyweight-seed predicate. If a link exists, it is locked
+  with SELECT ... FOR UPDATE and verified as a complete valid
+  reconciliation outcome before any no-op: tracking_mode='timed',
+  exercise_type='mobility', catalog_id at the expected active
+  approved snapshot, catalog_logical_id equal to the expected Plank
+  logical identity, import_run_id equal to the expected authorized
+  run, anatomy multiset exactly equal to the expected catalog
+  snapshot, tenant name either canonical 'Plank' with the correct
+  claim held by this row or the deterministic distinguished
+  'Plank (timed)' with its correct claim, ownership matching the
+  calling tenant, and no duplicate linked identity (structurally
+  backed by the unique index). Only a fully valid completed state
+  may no-op; if ANY invariant differs, the transaction aborts
+  fail-closed and reports an inconsistent prior reconciliation
+  requiring separate investigation — never silently repairing,
+  relinking, overwriting anatomy, renaming, or treating it as
+  success. This verified idempotency applies identically to a
+  corrected P2 row and to a separately delivered distinguished row.
+  If no link exists: UPDATE tracking_mode='timed' +
   derived exercise_type='mobility'; atomically replace the
   seed-owned exercise_muscles rows with the exact active approved
   catalog snapshot — for Plank, {(obliques, secondary),

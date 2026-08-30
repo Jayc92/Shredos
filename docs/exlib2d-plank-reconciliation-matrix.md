@@ -52,6 +52,42 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   ],
   "seed_only": []
  },
+ "exercise_id_dependency_inventory": {
+  "fk_references": [
+   {
+    "table": "workout_exercises",
+    "migration": "003",
+    "on_delete": "RESTRICT",
+    "predicate_role": "must be zero for P2; structurally implies zero workout_sets"
+   },
+   {
+    "table": "workout_routine_exercises",
+    "migration": "004",
+    "on_delete": "RESTRICT",
+    "predicate_role": "must be zero for P2"
+   },
+   {
+    "table": "exercise_muscles",
+    "migration": "018",
+    "on_delete": "CASCADE",
+    "predicate_role": "must exactly equal the expected seed anatomy multiset for P2"
+   },
+   {
+    "table": "exercise_aliases",
+    "migration": "023",
+    "on_delete": "CASCADE (composite user_id,id)",
+    "predicate_role": "must be zero rows for P2 regardless of active state or provenance"
+   }
+  ],
+  "non_fk_references": [
+   {
+    "table": "exercise_name_claims",
+    "column": "exercise_id",
+    "closure": "covered by the claim-holder equality precondition: the user's 'plank' claim must be held by this exact row with claim_source='exercise', so claim state is validated rather than separately counted"
+   }
+  ],
+  "scan_rule": "the set above is the complete result of mechanically scanning every migration for REFERENCES exercises; any future table referencing exercises.id must be added to the P2 predicate or explicitly closed here before implementation"
+ },
  "populations": {
   "P1_future_never_seeded": {
    "outcome": "catalog_delivery_replaces_seeding_seed_edit_is_fallback_cleanup_in_same_atomic_release",
@@ -61,12 +97,17 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
    "outcome": "narrow_proven_in_place_correction_with_anatomy_synchronization_and_catalog_link",
    "preconditions": [
     "zero workout_exercises rows referencing the row - which structurally implies zero workout_sets rows because workout_sets.workout_exercise_id is NOT NULL and references workout_exercises(id) ON DELETE CASCADE, so no set can exist without a parent workout_exercises row",
-    "zero routine_exercises rows referencing the row",
-    "the exercises row's scalar fields exactly equal the seed definition field by field: name='Plank', is_system=true, is_active=true, notes IS NULL, equipment='bodyweight', tracking_mode='bodyweight', category='isolation', primary_muscle='abs', unilateral=false",
+    "zero workout_routine_exercises rows referencing the row",
+    "the exercises row's scalar fields exactly equal the seed definition field by field: name='Plank', is_system=true, is_active=true, notes IS NULL, equipment='bodyweight', tracking_mode='bodyweight', exercise_type='bodyweight' (the live seed's derived value), category='isolation', primary_muscle='abs', unilateral=false",
+    "catalog_id IS NULL",
+    "catalog_logical_id IS NULL",
+    "import_run_id IS NULL",
+    "zero exercise_aliases rows attached to the candidate exercise, regardless of active state or provenance - aliases are tenant-authored identity state, so their presence makes the row nonpristine even when the base row and anatomy still match the seed",
     "the row's exercise_muscles multiset exactly equals the expected live seed anatomy {(obliques, secondary)} - exact multiset equality including roles, nothing missing, nothing additional; ANY difference classifies the row as customized and routes it to P5, never P2",
     "the user's 'plank' name claim is held by this exact row with claim_source='exercise'"
    ],
-   "action": "single transaction: no-op link check FIRST (see retry_ordering); SELECT ... FOR UPDATE on the row; re-verify EVERY precondition under the lock; UPDATE tracking_mode='timed', exercise_type='mobility' (derived); atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot {(obliques, secondary), (lower_back, tertiary)}; then set catalog_id/catalog_logical_id/import_run_id via the standard fail-closed claim machinery; tenant id and name unchanged",
+   "nonpristine_routing": "failure of ANY precondition routes the row to P5/customized-or-nonpristine handling; the row is never mutated",
+   "action": "single transaction: verified-idempotency lookup FIRST (see verified_idempotency); if no link exists, SELECT ... FOR UPDATE on the candidate row; re-verify EVERY precondition under the lock; UPDATE tracking_mode='timed', exercise_type='mobility' (derived); atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot {(obliques, secondary), (lower_back, tertiary)}; then set catalog_id/catalog_logical_id/import_run_id via the standard fail-closed claim machinery; tenant id and name unchanged",
    "anatomy_synchronization": {
     "target": [
      [
@@ -102,7 +143,7 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   },
   "P5_renamed_edited_archived_customized": {
    "outcome": "preserve_user_row_unchanged",
-   "detail": "User intent owns the row, INCLUDING any anatomy customization: an exercise_muscles multiset differing in any way from the expected seed anatomy routes the row here. Claims survive deactivation by design; no anatomy synchronization is ever performed on it."
+   "detail": "User intent owns the row, INCLUDING any anatomy customization or attached alias: an exercise_muscles multiset differing in any way from the expected seed anatomy, or any exercise_aliases row regardless of state, routes the row here. Claims survive deactivation by design; no anatomy synchronization is ever performed on it."
   },
   "P6_existing_plank_name_collision": {
    "outcome": "preserve_all_existing_rows_deliver_under_distinguished_name_or_skip",
@@ -125,10 +166,31 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
  },
  "transaction_and_idempotency": {
   "unit": "one per-user transaction per delivery/correction attempt",
-  "retry_ordering": "a retry FIRST checks UNIQUE (user_id, catalog_logical_id) and no-ops if the logical identity is already linked, BEFORE evaluating the old bodyweight-seed predicate - an already-linked (timed, synchronized) row is never re-matched against the bodyweight predicate and never mutated again",
-  "lock": "SELECT ... FOR UPDATE on the candidate exercises row (P2) plus the existing claim-trigger serialization; delivery inserts rely on exercise_name_claims PK and the exercises UNIQUE (user_id, catalog_logical_id) index for race-freedom",
-  "idempotency_key": "the UNIQUE (user_id, catalog_logical_id) index on exercises IS the idempotency key: a repeat run finds the link (or the P2 row already timed+linked) and no-ops",
-  "rollback": "any precondition, anatomy, or constraint failure aborts the transaction; prior state is untouched; the attempt is retryable"
+  "verified_idempotency": {
+   "lookup": "the transaction FIRST looks for an exercises row with (user_id, catalog_logical_id) = (caller, Plank logical identity), BEFORE evaluating the old bodyweight-seed predicate",
+   "if_absent": "continue to P2 or distinguished-delivery classification",
+   "if_present": "lock the linked row with SELECT ... FOR UPDATE and validate the complete reconciliation outcome before any no-op",
+   "invariants": [
+    "tracking_mode='timed'",
+    "exercise_type='mobility'",
+    "catalog_id points to the expected active approved catalog snapshot version",
+    "catalog_logical_id equals the expected Plank logical identity",
+    "import_run_id equals the expected authorized run",
+    "exercise_muscles multiset exactly equals the expected catalog snapshot {(obliques, secondary), (lower_back, tertiary)}",
+    "tenant name is either canonical 'Plank' with the correct 'plank' claim held by this row, or the deterministic distinguished 'Plank (timed)' with its correct 'plank (timed)' claim held by this row",
+    "user_id ownership matches the calling tenant",
+    "no duplicate linked identity exists - structurally backed by the UNIQUE (user_id, catalog_logical_id) index"
+   ],
+   "on_valid": "only a fully valid completed state may no-op",
+   "on_invalid": "abort fail-closed and report an inconsistent prior reconciliation requiring separate investigation. Never silently repair, relink, overwrite anatomy, rename, or treat it as success",
+   "applies_to": [
+    "corrected P2 row",
+    "separately delivered distinguished row"
+   ]
+  },
+  "lock": "SELECT ... FOR UPDATE on the candidate exercises row (P2) or the linked row (verified idempotency) plus the existing claim-trigger serialization; delivery inserts rely on exercise_name_claims PK and the exercises UNIQUE (user_id, catalog_logical_id) index for race-freedom",
+  "idempotency_key": "the UNIQUE (user_id, catalog_logical_id) index on exercises IS the idempotency key, and a found link no-ops ONLY after full invariant validation",
+  "rollback": "any precondition, anatomy, invariant, or constraint failure aborts the transaction; prior state is untouched; a precondition/constraint failure is retryable while an invariant failure on an existing link is an inconsistent-state report, not a retry loop"
  },
  "seed_link_compatible_transition": "seed_link_compatible is a GLOBAL promoted-inventory artifact fact, never a per-user outcome: it may become true only in the later coordinated implementation state where the committed future seed definition (tracking_mode AND anatomy) and the delivery contract are compatible; no per-user P2 result changes it",
  "future_signup_sequencing": "full-catalog delivery replaces bare-15 seeding at first authenticated use per the promoted architecture section 9, only after delivery is proven; the seed-module Plank edit (tracking_mode AND anatomy to catalog values) is compatibility/fallback cleanup shipped in the SAME atomic release; prohibited intermediate states: an unlinked timed seed row, or new users receiving a bodyweight Plank after catalog delivery is active",
@@ -148,6 +210,9 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   "anatomy_synchronized_only_in_P2": true,
   "zero_workout_references_structurally_imply_zero_sets": true,
   "linked_rows_never_disagree_with_catalog_anatomy": true,
+  "alias_presence_is_nonpristine": true,
+  "existing_link_no_op_only_after_full_validation": true,
+  "malformed_links_abort_fail_closed": true,
   "future_users_receive_timed_plank_after_coordinated_implementation": true,
   "legacy_retirement_is_user_initiated_only": true
  },
