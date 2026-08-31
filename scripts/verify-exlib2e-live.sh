@@ -24,7 +24,14 @@
 #   isolation; client-role denial on correction provenance; and the
 #   13-key JSONB compatibility contract against a second 023-only
 #   database (additive plank_disposition only; identical non-Plank
-#   row effects).
+#   row effects). Review-2 additions prove the parent-then-child
+#   locking contract with autonomous dblink sessions: direct anatomy
+#   UPDATE/DELETE waits behind the delivery lock set, NEW child
+#   inserts are serialized by the FK key-share against the parent
+#   FOR UPDATE, no lock cycle exists, a mid-flight customization is
+#   observed after the block and routed to preserved-legacy, and
+#   existing-link validation aborts over concurrently changed
+#   anatomy instead of validating a stale signature.
 #
 # Run from the repository root:
 #   bash scripts/verify-exlib2e-live.sh
@@ -353,6 +360,116 @@ ST=$(Q postgres "SELECT count(*)||'|'||count(*) FILTER (WHERE name='Copy of plan
 [ "$ST" = "1|1" ]   && ok "raced MALFORMED winner: the delivery transaction fully rolled back; the independently committed malformed row is untouched (no repair, no partial mutation)"   || bad "raced malformed state: $ST"
 Q postgres "DROP TRIGGER test_race_trg ON public.exercises; DROP FUNCTION test_race_inject();" >/dev/null
 ok "race injector removed (test-database-only instrumentation)"
+
+echo
+echo "Review 2: locking contract - the delivery's parent-then-child lock set serializes direct anatomy writes"
+CONN="host=$SOCK dbname=postgres user=postgres"
+ULK=$(mkuser); ELK=$(seed_plank "$ULK"); seed_anat "$ULK" "$ELK"
+# A controlling session takes EXACTLY the delivery's lock set (parent
+# exercises row FOR UPDATE, then the child exercise_muscles rows FOR
+# UPDATE in primary-key order) and probes competing writes from
+# AUTONOMOUS dblink sessions under a short statement_timeout: blocked
+# means the competing write waits until the delivery transaction
+# completes.
+OUT=$(Q postgres "BEGIN;
+SELECT 1 FROM public.exercises WHERE id='$ELK' FOR UPDATE;
+SELECT 1 FROM public.exercise_muscles m WHERE m.user_id='$ULK' AND m.exercise_id='$ELK' ORDER BY m.id FOR UPDATE;
+DO \$p\$
+BEGIN
+  PERFORM dblink_exec('$CONN', 'SET statement_timeout = 400; UPDATE public.exercise_muscles SET role = ''tertiary'' WHERE exercise_id = ''$ELK'' AND muscle = ''obliques''');
+  RAISE EXCEPTION 'PROBE_UPDATE_NOT_BLOCKED';
+EXCEPTION WHEN query_canceled THEN
+  -- the remote statement_timeout propagates as SQLSTATE 57014,
+  -- which WHEN OTHERS deliberately excludes
+  RAISE NOTICE 'PROBE_UPDATE_BLOCKED_OK';
+END
+\$p\$;
+DO \$p\$
+BEGIN
+  PERFORM dblink_exec('$CONN', 'SET statement_timeout = 400; DELETE FROM public.exercise_muscles WHERE exercise_id = ''$ELK''');
+  RAISE EXCEPTION 'PROBE_DELETE_NOT_BLOCKED';
+EXCEPTION WHEN query_canceled THEN
+  -- the remote statement_timeout propagates as SQLSTATE 57014,
+  -- which WHEN OTHERS deliberately excludes
+  RAISE NOTICE 'PROBE_DELETE_BLOCKED_OK';
+END
+\$p\$;
+COMMIT;" 2>&1) || true
+printf '%s' "$OUT" | grep -q "PROBE_UPDATE_BLOCKED_OK" && ok "child-lock probe: a concurrent anatomy UPDATE waits while the delivery lock set is held (cannot race the signature)" || bad "concurrent UPDATE was not blocked: $OUT"
+printf '%s' "$OUT" | grep -q "PROBE_DELETE_BLOCKED_OK" && ok "child-lock probe: a concurrent anatomy DELETE waits while the delivery lock set is held" || bad "concurrent DELETE was not blocked: $OUT"
+Q postgres "SELECT dblink_exec('$CONN', 'UPDATE public.exercise_muscles SET role = ''tertiary'' WHERE exercise_id = ''$ELK'' AND muscle = ''obliques''');" >/dev/null
+[ "$(Q postgres "SELECT role FROM public.exercise_muscles WHERE exercise_id='$ELK' AND muscle='obliques';")" = "tertiary" ] && ok "child-lock probe: after the lock holder commits, the SAME competing write succeeds (blocking was the row lock, not a privilege)" || bad "post-release UPDATE failed"
+Q postgres "UPDATE public.exercise_muscles SET role='secondary' WHERE exercise_id='$ELK' AND muscle='obliques';" >/dev/null
+OUT=$(Q postgres "BEGIN;
+SELECT 1 FROM public.exercises WHERE id='$ELK' FOR UPDATE;
+DO \$p\$
+BEGIN
+  PERFORM dblink_exec('$CONN', 'SET statement_timeout = 400; INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role) VALUES (''$ULK'', ''$ELK'', ''quads'', ''tertiary'')');
+  RAISE EXCEPTION 'PROBE_INSERT_NOT_BLOCKED';
+EXCEPTION WHEN query_canceled THEN
+  -- the remote statement_timeout propagates as SQLSTATE 57014,
+  -- which WHEN OTHERS deliberately excludes
+  RAISE NOTICE 'PROBE_INSERT_BLOCKED_OK';
+END
+\$p\$;
+COMMIT;" 2>&1) || true
+printf '%s' "$OUT" | grep -q "PROBE_INSERT_BLOCKED_OK" && ok "parent-lock probe: a NEW child anatomy INSERT is serialized by the FK key-share against the parent FOR UPDATE alone (proven against PostgreSQL, not documented) - no phantom row can escape the validated signature" || bad "concurrent INSERT was not blocked by the parent lock: $OUT"
+Q postgres "SELECT dblink_exec('$CONN', 'INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role) VALUES (''$ULK'', ''$ELK'', ''quads'', ''tertiary'')');" >/dev/null
+[ "$(Q postgres "SELECT count(*) FROM public.exercise_muscles WHERE exercise_id='$ELK';")" = "2" ] && ok "parent-lock probe: the same INSERT succeeds once the parent lock is released" || bad "post-release INSERT failed"
+Q postgres "DELETE FROM public.exercise_muscles WHERE exercise_id='$ELK' AND muscle='quads';" >/dev/null
+OUT=$(Q postgres "SELECT dblink_connect('c2', '$CONN');
+SELECT dblink_exec('c2', 'BEGIN');
+SELECT dblink_exec('c2', 'UPDATE public.exercise_muscles SET role = role WHERE exercise_id = ''$ELK''');
+BEGIN;
+SELECT 1 FROM public.exercises WHERE id='$ELK' FOR UPDATE NOWAIT;
+ROLLBACK;
+SELECT dblink_exec('c2', 'ROLLBACK');
+SELECT dblink_disconnect('c2');
+SELECT 'TOPOLOGY_OK';" 2>&1) || true
+printf '%s' "$OUT" | grep -q "TOPOLOGY_OK" && ok "no-deadlock topology: a client anatomy write holds NO parent exercises lock (FOR UPDATE NOWAIT succeeds beside it), so delivery's strict parent-then-child order admits no lock cycle" || bad "topology probe failed: $OUT"
+
+echo
+echo "Review 2: a concurrent anatomy customization can never be overwritten as a pristine correction"
+UPB=$(mkuser); EPB=$(seed_plank "$UPB"); seed_anat "$UPB" "$EPB"
+# An autonomous session takes the child row lock FIRST with a pending
+# customization; delivery starts while it is held, blocks at the
+# child locks, and must OBSERVE the committed customization.
+psql -h "$SOCK" -U postgres -d postgres -X -q -c "BEGIN; UPDATE public.exercise_muscles SET role='tertiary' WHERE exercise_id='$EPB'; SELECT pg_sleep(1.5); COMMIT;" >/dev/null 2>&1 &
+BLKPID=$!
+sleep 0.4
+R=$(DLV "$UPB")
+wait "$BLKPID"
+[ "$(J "$R" plank_disposition)" = "precondition_failure_preserved_legacy_plus_distinguished_delivery" ] && ok "mid-flight customization: delivery WAITED on the competing child lock, observed the committed customization, and routed to preserved-legacy (never a pristine correction)" || bad "mid-flight disposition: $R"
+ROW=$(Q postgres "SELECT tracking_mode||'|'||exercise_type||'|'||(catalog_id IS NULL)||'|'||(SELECT string_agg(muscle||':'||role, ',' ORDER BY muscle, role) FROM public.exercise_muscles WHERE exercise_id='$EPB') FROM public.exercises WHERE id='$EPB';")
+[ "$ROW" = "bodyweight|bodyweight|true|obliques:tertiary" ] && ok "mid-flight customization: the legacy row keeps the customization VERBATIM (no overwrite, no partial anatomy replacement, no provenance)" || bad "mid-flight legacy row: $ROW"
+DIST=$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$UPB' AND name='Plank (timed)' AND catalog_logical_id='$LP';")
+CRPB=$(Q postgres "SELECT count(*) FROM public.exercise_catalog_corrections WHERE user_id='$UPB';")
+[ "$DIST|$CRPB" = "1|0" ] && ok "mid-flight customization: distinguished 'Plank (timed)' delivered alongside, with ZERO correction records for that user" || bad "mid-flight dist/corr: $DIST|$CRPB"
+UPD=$(mkuser); EPD=$(seed_plank "$UPD"); seed_anat "$UPD" "$EPD"
+Q postgres "SELECT dblink_exec('$CONN', 'DELETE FROM public.exercise_muscles WHERE exercise_id = ''$EPD''');" >/dev/null
+R=$(DLV "$UPD")
+[ "$(J "$R" plank_disposition)" = "precondition_failure_preserved_legacy_plus_distinguished_delivery" ] && [ "$(Q postgres "SELECT tracking_mode FROM public.exercises WHERE id='$EPD';")" = "bodyweight" ] && ok "autonomously committed anatomy DELETE: delivery observes the emptied anatomy and preserves the legacy row (P5 routing)" || bad "autonomous DELETE case: $R"
+UPI=$(mkuser); EPI=$(seed_plank "$UPI"); seed_anat "$UPI" "$EPI"
+Q postgres "SELECT dblink_exec('$CONN', 'INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role) VALUES (''$UPI'', ''$EPI'', ''quads'', ''tertiary'')');" >/dev/null
+R=$(DLV "$UPI")
+AN=$(Q postgres "SELECT string_agg(muscle||':'||role, ',' ORDER BY muscle, role) FROM public.exercise_muscles WHERE exercise_id='$EPI';")
+[ "$(J "$R" plank_disposition)" = "precondition_failure_preserved_legacy_plus_distinguished_delivery" ] && [ "$AN" = "obliques:secondary,quads:tertiary" ] && ok "autonomously committed anatomy INSERT: the extra row is observed (no phantom escapes the signature) and the legacy anatomy is preserved untouched" || bad "autonomous INSERT case: $R / $AN"
+
+echo
+echo "Review 2: existing-link validation can never return valid over concurrently changed anatomy"
+ULV=$(mkuser)
+DLV "$ULV" >/dev/null
+Q postgres "SELECT dblink_exec('$CONN', 'UPDATE public.exercise_muscles SET role = ''secondary'' WHERE muscle = ''lower_back'' AND exercise_id IN (SELECT id FROM public.exercises WHERE user_id = ''$ULV'' AND catalog_logical_id = ''$LP'')');" >/dev/null
+if OUT=$(DLV "$ULV" 2>&1); then
+  bad "existing-link validated over customized anatomy: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation" && ok "existing-link validation: a concurrently customized anatomy signature is read under the child locks and ABORTS (never already_valid_idempotent)" || bad "existing-link wrong error: $OUT"
+fi
+AN=$(Q postgres "SELECT string_agg(m.muscle||':'||m.role, ',' ORDER BY m.muscle, m.role) FROM public.exercise_muscles m JOIN public.exercises e ON e.id=m.exercise_id WHERE e.user_id='$ULV' AND e.catalog_logical_id='$LP';")
+[ "$AN" = "lower_back:secondary,obliques:secondary" ] && ok "existing-link validation: the customized anatomy is left untouched - no silent repair back to the catalog multiset" || bad "existing-link anatomy mutated: $AN"
+ROW=$(Q postgres "SELECT (tracking_mode='timed')||'|'||is_active FROM public.exercises WHERE user_id='$U2' AND id='$E2';")
+AN2=$(Q postgres "SELECT string_agg(muscle||':'||role, ',' ORDER BY muscle, role) FROM public.exercise_muscles WHERE exercise_id='$E2';")
+[ "$ROW|$AN2" = "true|true|lower_back:tertiary,obliques:secondary" ] && ok "cross-tenant: the P2 user's corrected row and synchronized anatomy are byte-stable across every review-2 concurrency scenario" || bad "cross-tenant drift: $ROW|$AN2"
 
 echo
 echo "Rollback: corrected P2 row excluded; inserted rows keep existing behavior"

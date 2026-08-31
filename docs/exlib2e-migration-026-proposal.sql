@@ -70,7 +70,7 @@ CREATE OR REPLACE FUNCTION exlib_plank_link_valid(
   p_run_id    UUID
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $helper$
@@ -78,6 +78,20 @@ DECLARE
   v_row_anat TEXT;
   v_cat_anat TEXT;
 BEGIN
+  -- EXLIB-2E (review 2) locking contract: the CALLER has already
+  -- locked the parent exercises row FOR UPDATE; lock the child
+  -- anatomy rows here, parent-first then children in deterministic
+  -- primary-key order, BEFORE reading the signature. Direct client
+  -- UPDATE/DELETE of exercise_muscles does not take the parent lock,
+  -- so without this a concurrent customization could race the
+  -- validation; with it, existing child rows are serialized here and
+  -- NEW child inserts are serialized by the FK's key-share lock
+  -- against the caller's parent FOR UPDATE. VOLATILE because row
+  -- locking is not permitted in a STABLE function.
+  PERFORM 1 FROM public.exercise_muscles m
+  WHERE m.user_id = p_uid AND m.exercise_id = p_link.id
+  ORDER BY m.id
+  FOR UPDATE;
   SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
     INTO v_row_anat FROM public.exercise_muscles m
     WHERE m.user_id = p_uid AND m.exercise_id = p_link.id;
@@ -284,6 +298,16 @@ BEGIN
              AND NOT EXISTS (SELECT 1 FROM public.exercise_aliases a
                              WHERE a.user_id = v_uid AND a.exercise_id = v_seed.id)
           THEN
+            -- EXLIB-2E (review 2): lock the seed row's child anatomy
+            -- rows (parent already locked above; children in
+            -- deterministic primary-key order) BEFORE reading the
+            -- signature and before the delete-and-replace, so a
+            -- concurrent customization can never be overwritten as a
+            -- pristine correction.
+            PERFORM 1 FROM public.exercise_muscles m
+            WHERE m.user_id = v_uid AND m.exercise_id = v_seed.id
+            ORDER BY m.id
+            FOR UPDATE;
             SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
               INTO v_row_anat FROM public.exercise_muscles m
               WHERE m.user_id = v_uid AND m.exercise_id = v_seed.id;
@@ -304,7 +328,7 @@ BEGIN
           catalog_id         = v_cat.id,
           catalog_logical_id = v_cat.logical_id,
           import_run_id      = v_run.id
-        WHERE id = v_seed.id;
+        WHERE id = v_seed.id AND user_id = v_uid;
         DELETE FROM public.exercise_muscles
         WHERE user_id = v_uid AND exercise_id = v_seed.id;
         INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role)

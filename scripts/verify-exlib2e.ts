@@ -17,7 +17,10 @@
 // under FOR UPDATE, correction record, inconsistent-link exception,
 // no rename mechanism anywhere); the rollback exclusion predicates;
 // the review record's dependency map and dated consumer scan; and
-// exact two-state lifecycle behavior. Performs NO hosted contact.
+// exact two-state lifecycle behavior; and (review 2) the
+// parent-then-child locking contract that serializes direct child
+// anatomy writes against the validated signature. Performs NO hosted
+// contact.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -242,6 +245,32 @@ async function main(): Promise<void> {
         // the GENERIC (non-Plank) handler keeps its 023 behavior verbatim
         const generic = deliverNew.slice(deliverNew.indexOf('-- Concurrent duplicate delivery: already delivered.'))
         if (!generic.slice(0, 400).includes('v_skipped_existing := v_skipped_existing + 1;')) return false
+        return true
+      })())
+    check('B8: ADMISSION (EXLIB-2E review 2) — the parent-then-child locking contract: the shared helper is VOLATILE (not the unsafe STABLE shape) and locks the child anatomy rows in deterministic primary-key order BEFORE reading the signature; the P2 predicate locks the seed row, then its child rows, then reads; both helper call sites hold the parent lock first; and the P2 UPDATE is tenant-scoped',
+      (() => {
+        const hStart = prop.indexOf('CREATE OR REPLACE FUNCTION exlib_plank_link_valid')
+        const helper = prop.slice(hStart, prop.indexOf('$helper$;', hStart) + '$helper$;'.length)
+        if (hStart < 0 || !helper.includes('\nVOLATILE\n') || helper.includes('\nSTABLE\n')) return false
+        const childLock = 'PERFORM 1 FROM public.exercise_muscles m'
+        const hLock = helper.indexOf(childLock)
+        const hRead = helper.indexOf('INTO v_row_anat FROM public.exercise_muscles m')
+        if (hLock < 0 || hRead < 0 || hLock >= hRead) return false
+        if (!helper.slice(hLock, hRead).includes('ORDER BY m.id\n  FOR UPDATE;')) return false
+        const deliverNew = fnText(prop, 'deliver_catalog_exercises(p_run_key TEXT)')
+        // P2: parent (seed) lock, then the child locks, then the read
+        const seedLock = deliverNew.indexOf('WHERE e.user_id = v_uid AND e.id = v_claim_exercise')
+        const p2Lock = deliverNew.indexOf('PERFORM 1 FROM public.exercise_muscles m', seedLock)
+        const p2Read = deliverNew.indexOf('INTO v_row_anat FROM public.exercise_muscles m', seedLock)
+        if (seedLock < 0 || p2Lock < 0 || p2Read < 0) return false
+        if (!(seedLock < p2Lock && p2Lock < p2Read)) return false
+        if (!deliverNew.slice(p2Lock, p2Read).includes('ORDER BY m.id\n            FOR UPDATE;')) return false
+        // every helper call site holds the parent exercises row lock first
+        for (const m of Array.from(deliverNew.matchAll(/exlib_plank_link_valid\(v_uid, v_linked/g))) {
+          if (!deliverNew.slice(Math.max(0, (m.index ?? 0) - 500), m.index).includes('FOR UPDATE;')) return false
+        }
+        // tenant-scoped P2 correction UPDATE
+        if (!prop.includes('WHERE id = v_seed.id AND user_id = v_uid;')) return false
         return true
       })())
   }

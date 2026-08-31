@@ -124,6 +124,29 @@ ACLs (REVOKE from PUBLIC/anon; EXECUTE granted to authenticated).
   never produce a timed disposition or a tenant row whose mode
   disagrees with its catalog provenance (both malformed variants
   proven to abort with tenant data fully unchanged).
+- Locking contract (review 2): direct client UPDATE/DELETE of
+  exercise_muscles does not take the parent exercises row lock, so
+  locking the parent alone cannot serialize a concurrent anatomy
+  customization. Every anatomy signature is therefore read only
+  after locking, in strict parent-then-child order: the parent
+  exercises row FOR UPDATE first (the existing-link, raced-winner,
+  and P2 seed paths all already did this), then that row's existing
+  exercise_muscles rows FOR UPDATE in deterministic primary-key
+  order — inside the shared helper for both link-validation paths,
+  and inside the P2 predicate before the seed anatomy comparison and
+  the delete-and-replace synchronization. The helper is VOLATILE
+  (row locking is not permitted in a STABLE function) and stays
+  internal, SECURITY DEFINER with a pinned search_path, and
+  EXECUTE-revoked from PUBLIC/anon/authenticated. NEW child anatomy
+  inserts are serialized by the FK's key-share lock against the
+  parent FOR UPDATE — proven against PostgreSQL in the live matrix
+  (the blocked insert's context shows the RI trigger's FOR KEY SHARE
+  wait), not merely documented. A client anatomy write holds no
+  parent lock, so the strict parent-then-child order admits no lock
+  cycle (also proven). The per-user advisory lock is preserved
+  unchanged, and the P2 correction UPDATE is defensively
+  tenant-scoped (id AND user_id) on top of the tenant-scoped
+  transaction.
 - Otherwise: canonical delivery when 'plank' is free; the
   deterministic 'Plank (timed)' fallback when only canonical is
   claimed (disposition distinguishes a failed-predicate preserved
@@ -169,7 +192,7 @@ was changed.
 
 ## 7. Local disposable-DB proof matrix (verify-exlib2e-live.sh)
 
-80 checks, 80/0 on a socket-only disposable cluster (no hosted
+94 checks, 94/0 on a socket-only disposable cluster (no hosted
 contact): fingerprint gates; 001-025 + proposal apply cleanly;
 fresh-user canonical delivery with full provenance and catalog
 anatomy; P2 in-place correction (same row id, name unchanged,
@@ -200,6 +223,29 @@ malformed row stays untouched, and both malformed-snapshot variants
 (bodyweight tracking; timed with the wrong anatomy multiset)
 failing the entire delivery closed with tenant data unchanged.
 
+Review-2 additions (14 checks): a controlling session holding
+EXACTLY the delivery's lock set proves a concurrent anatomy UPDATE
+and DELETE from autonomous dblink sessions WAIT (statement_timeout
+probes) and that the SAME writes succeed once the holder commits —
+the "delivery obtains the child locks first" side of the contract;
+a NEW child anatomy INSERT blocks against the parent FOR UPDATE
+alone (the FK RI trigger's FOR KEY SHARE, proven against
+PostgreSQL); a client anatomy write holds no parent lock (FOR
+UPDATE NOWAIT succeeds beside it), so no lock cycle exists; a
+mid-flight race where an autonomous session takes the child lock
+FIRST with a pending customization shows delivery blocking at the
+child locks, observing the committed customization, and routing to
+preserved-legacy + distinguished delivery with the customization
+kept VERBATIM (no overwrite, no partial anatomy replacement, no
+correction record) — the "customization wins" side; autonomously
+committed anatomy DELETE and INSERT before delivery route to P5
+with the legacy anatomy untouched (no phantom escapes the
+signature); existing-link re-delivery over concurrently customized
+anatomy ABORTS (never already_valid_idempotent) with no silent
+repair; and the P2 user's corrected row and synchronized anatomy
+are byte-stable across every review-2 scenario (no cross-tenant
+mutation).
+
 ## 7a. Codex review 1 — corrections applied (2026-08-31, honest log)
 
 Three blocking findings, all corrected forward-only:
@@ -222,6 +268,38 @@ NOT see (the injected row was part of the aborted subtransaction) —
 itself a useful confirmation of the rollback semantics; the fixture
 was rewritten to commit the competing row from an autonomous dblink
 session, which is what a real client race is.
+
+## 7b. Codex review 2 — corrections applied (2026-08-31, honest log)
+
+One blocking finding, corrected forward-only: locking
+public.exercises does NOT serialize existing exercise_muscles
+UPDATE/DELETE — authenticated tenants hold direct UPDATE/DELETE
+privileges on exercise_muscles and those statements never take the
+parent row lock, so a concurrent anatomy customization could race
+both the P2 pristine predicate and the shared link validation, and
+P2 could have overwritten a real customization after reading a
+stale signature (a P2/P5 boundary violation). Corrected by locking
+each validated exercise's existing child anatomy rows with
+SELECT ... FOR UPDATE in deterministic primary-key order, strictly
+AFTER the parent row lock and strictly BEFORE any signature read,
+in BOTH the shared existing/raced-link validation helper and the
+P2 pristine predicate (before the seed anatomy comparison and the
+delete-and-replace). The helper's volatility was revised from
+STABLE to VOLATILE because PostgreSQL forbids row locking in a
+STABLE function; it remains internal, SECURITY DEFINER with a
+pinned search_path, and EXECUTE-revoked. The assumption that NEW
+child inserts are serialized by the parent FK/row lock was proven
+against PostgreSQL (the probe's error context shows the RI
+trigger's FOR KEY SHARE wait behind the parent FOR UPDATE) instead
+of being documented. The P2 correction UPDATE was tightened to
+scope by id AND user_id — defensively, not as a substitute for the
+child locking. Test-instrumentation note, recorded honestly: the
+first lock probes failed not because blocking was absent (the
+error contexts already showed the competing writes waiting) but
+because plpgsql's WHEN OTHERS deliberately excludes QUERY_CANCELED
+(SQLSTATE 57014), which is exactly what the probes' remote
+statement_timeout propagates as; the handlers were rewritten to
+catch query_canceled explicitly.
 
 ## 8. Implementation dependency map (later, explicitly gated)
 
