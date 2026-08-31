@@ -52,9 +52,11 @@ marked EXLIB-2D additions:
   run INSERTED).
 
 No second public delivery entrypoint exists: the proposal contains
-exactly the two CREATE OR REPLACE statements plus the correction
-table, and CREATE OR REPLACE preserves the existing 023 ACLs
-(REVOKE from PUBLIC/anon; EXECUTE granted to authenticated).
+the two CREATE OR REPLACE delivery/rollback statements, the
+correction table, and ONE internal validation helper
+(exlib_plank_link_valid — client execution revoked, never a
+delivery entrypoint); CREATE OR REPLACE preserves the existing 023
+ACLs (REVOKE from PUBLIC/anon; EXECUTE granted to authenticated).
 
 ## 3. Schema design: exercise_catalog_corrections
 
@@ -83,14 +85,26 @@ table, and CREATE OR REPLACE preserves the existing 023 ACLs
 
 - Verified idempotency first: an existing (user_id,
   catalog_logical_id) link is locked with SELECT ... FOR UPDATE and
-  validated against the full invariant set (timed/mobility, active
-  approved snapshot, recorded authorized run, exact catalog anatomy
-  multiset, canonical-or-distinguished name with the matching claim
-  held by that row); it no-ops ONLY if every invariant passes
-  (already_valid_idempotent), otherwise the entire delivery aborts
-  with the inconsistent-prior-reconciliation exception — no silent
-  repair, relink, anatomy overwrite, or rename (proven: a corrupted
-  link aborts and stays corrupted for separate investigation).
+  validated by the ONE shared validation shape
+  (exlib_plank_link_valid) against the full invariant set:
+  timed/mobility, the active approved snapshot, STRICT run
+  provenance (import_run_id must equal EXACTLY the delivering
+  authorized run's id — a different, revoked, dry-run, unapproved,
+  or unrelated run never validates), the exact catalog anatomy
+  multiset, and the canonical-or-distinguished name with the
+  matching claim held by that row; it no-ops ONLY if every invariant
+  passes (already_valid_idempotent), otherwise the entire delivery
+  aborts with the inconsistent-prior-reconciliation exception — no
+  silent repair, relink, anatomy overwrite, or rename (proven: a
+  corrupted link, a link carrying a different existing run's id, and
+  a link pointing at a dry-run/unsealed run all abort and stay
+  untouched). The raced logical-index path uses the SAME shared
+  shape: when a direct client write (which does not share the
+  advisory lock) wins the (user_id, catalog_logical_id) race, the
+  winning row is locked and fully validated before any no-op — a
+  completely valid winner no-ops, and any malformed winner aborts
+  fail-closed (both proven with autonomously committed competing
+  rows via dblink, simulating the real cross-session race).
 - P2: the nine-part pristine predicate re-verified under FOR UPDATE
   (zero workout_exercises — structurally zero sets; zero
   workout_routine_exercises; exact scalar tuple including
@@ -102,6 +116,14 @@ table, and CREATE OR REPLACE preserves the existing 023 ACLs
   replacement to the exact catalog snapshot, and the correction
   record — all in the delivery transaction. The correction is not
   counted in the existing inserted key (meaning preserved).
+- Catalog snapshot gate: before ANY Plank correction or delivery,
+  the run's active approved Plank snapshot itself must match the
+  promoted contract — timed tracking (deriving the mobility tenant
+  type) and the exact approved anatomy multiset — or the whole
+  delivery fails closed; a bodyweight or malformed snapshot can
+  never produce a timed disposition or a tenant row whose mode
+  disagrees with its catalog provenance (both malformed variants
+  proven to abort with tenant data fully unchanged).
 - Otherwise: canonical delivery when 'plank' is free; the
   deterministic 'Plank (timed)' fallback when only canonical is
   claimed (disposition distinguishes a failed-predicate preserved
@@ -147,7 +169,7 @@ was changed.
 
 ## 7. Local disposable-DB proof matrix (verify-exlib2e-live.sh)
 
-66 checks, 66/0 on a socket-only disposable cluster (no hosted
+80 checks, 80/0 on a socket-only disposable cluster (no hosted
 contact): fingerprint gates; 001-025 + proposal apply cleanly;
 fresh-user canonical delivery with full provenance and catalog
 anatomy; P2 in-place correction (same row id, name unchanged,
@@ -167,8 +189,39 @@ post-rollback re-delivery with exact alias dispositions (no
 duplicates, no silent reactivation); the delete gate on the
 corrected row; four client-role denials on correction provenance;
 cross-tenant isolation; revocation halting future delivery while
-the corrected row is never reinterpreted; and the two-database
-compatibility proof.
+the corrected row is never reinterpreted; the two-database
+compatibility proof; and the review-1 additions — a link carrying a
+DIFFERENT existing run id aborting fail-closed without repair,
+dry-run/unsealed provenance aborting, a raced VALID competing
+winner (autonomously committed via dblink) accepted only after the
+full shared-shape validation, a raced MALFORMED winner aborting the
+delivery transaction completely while the independently committed
+malformed row stays untouched, and both malformed-snapshot variants
+(bodyweight tracking; timed with the wrong anatomy multiset)
+failing the entire delivery closed with tenant data unchanged.
+
+## 7a. Codex review 1 — corrections applied (2026-08-31, honest log)
+
+Three blocking findings, all corrected forward-only:
+1. The verified-idempotency run invariant had been implemented
+   permissively (any existing non-null run id); it now requires
+   import_run_id to equal EXACTLY the delivering authorized run
+   (v_run.id), per the approved contract.
+2. The Plank insert's raced logical-index handler had reported
+   already_valid_idempotent without validating the winning row; the
+   winner is now locked and validated with the same shared shape
+   (exlib_plank_link_valid) as the existing-link path, so the two
+   paths cannot drift; only a fully valid winner no-ops.
+3. A catalog snapshot gate was added: a bodyweight or
+   anatomy-malformed Plank snapshot now fails the whole delivery
+   closed before any Plank work.
+Test-instrumentation note, recorded honestly: the first race
+fixture injected the competing row from a BEFORE trigger inside the
+delivering statement, which the exception handler correctly could
+NOT see (the injected row was part of the aborted subtransaction) —
+itself a useful confirmation of the rollback semantics; the fixture
+was rewritten to commit the competing row from an autonomous dblink
+session, which is what a real client race is.
 
 ## 8. Implementation dependency map (later, explicitly gated)
 

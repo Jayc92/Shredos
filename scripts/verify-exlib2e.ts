@@ -146,10 +146,11 @@ async function main(): Promise<void> {
       prop.includes('ALTER TABLE exercise_catalog_corrections ENABLE ROW LEVEL SECURITY;') &&
       prop.includes('REVOKE ALL ON TABLE exercise_catalog_corrections\n  FROM PUBLIC, anon, authenticated;') &&
       !/CREATE POLICY[\s\S]{0,120}exercise_catalog_corrections/.test(prop))
-    check('B2: exactly the two CREATE OR REPLACE function statements and no second public delivery entrypoint or new grants',
+    check('B2: REVISED (EXLIB-2E review 1) — exactly THREE function statements (the internal shared validation helper plus the two delivery/rollback replacements), the helper client-revoked, and no second public delivery entrypoint or new grants',
       (() => {
         const fns = Array.from(prop.matchAll(/CREATE (OR REPLACE )?FUNCTION (\w+)/g)).map((m) => m[2])
-        if (JSON.stringify(fns) !== JSON.stringify(['deliver_catalog_exercises', 'rollback_catalog_delivery'])) return false
+        if (JSON.stringify(fns) !== JSON.stringify(['exlib_plank_link_valid', 'deliver_catalog_exercises', 'rollback_catalog_delivery'])) return false
+        if (!prop.includes('REVOKE ALL ON FUNCTION exlib_plank_link_valid(UUID, public.exercises, UUID, UUID, TEXT, UUID)\n  FROM PUBLIC, anon, authenticated;')) return false
         if (/GRANT\s/.test(prop)) return false
         return true
       })())
@@ -186,10 +187,19 @@ async function main(): Promise<void> {
         return JSON.stringify(oldKeys) === JSON.stringify(EXPECTED) &&
           JSON.stringify(newKeys) === JSON.stringify([...EXPECTED, 'plank_disposition'])
       })())
-    check('B5: Plank dispatch containment — identity-guarded dispatch, verified idempotency under FOR UPDATE with the inconsistent-reconciliation abort, the nine-part P2 predicate re-verified under lock, the atomic correction with its record, the deterministic single fallback, and NO rename mechanism (the proposal never updates exercises.name)',
+    check('B5: REVISED (EXLIB-2E review 1) — Plank dispatch containment: identity-guarded dispatch, verified idempotency under FOR UPDATE through the ONE shared validation shape with STRICT run provenance (import_run_id = the delivering run) and the inconsistent-reconciliation abort, the raced logical-index winner validated by the SAME shape, the nine-part P2 predicate under lock, the atomic correction with its record, the deterministic single fallback, and NO rename mechanism',
       (() => {
         if (!prop.includes('IF v_plank_logical IS NOT NULL AND v_cat.logical_id = v_plank_logical THEN')) return false
         if (!prop.includes('inconsistent prior Plank reconciliation requires separate investigation')) return false
+        // STRICT run invariant in the shared helper; the withdrawn
+        // permissive any-existing-run predicate must be gone.
+        if (!prop.includes('AND p_link.import_run_id = p_run_id')) return false
+        if (prop.includes('v_linked.import_run_id IS NOT NULL')) return false
+        if (/EXISTS \(SELECT 1 FROM public\.exercise_catalog_import_runs r2/.test(prop)) return false
+        // ONE shared shape: definition + exactly two call sites, and
+        // the dispatch no longer carries its own inline invariant copy.
+        if ((prop.match(/exlib_plank_link_valid\(/g) ?? []).length !== 4) return false
+        if (prop.includes('v_linked.tracking_mode')) return false
         const p2Pins = [
           "v_seed.name = 'Plank'", 'v_seed.is_system = true AND v_seed.is_active = true',
           'v_seed.notes IS NULL', "v_seed.equipment = 'bodyweight'",
@@ -216,6 +226,22 @@ async function main(): Promise<void> {
         if (excl !== 3) return false
         if (!rollbackNew.includes('SET is_active = false')) return false
         if (/DELETE FROM public\.exercises/.test(rollbackNew)) return false
+        return true
+      })())
+    check('B7: ADMISSION (EXLIB-2E review 1) — the catalog snapshot gate fails delivery closed before any Plank work unless the run\'s active approved Plank snapshot is timed with the exact approved anatomy multiset, and the raced-winner branch performs the locked shared-shape validation instead of an unconditional no-op',
+      (() => {
+        if (!prop.includes('malformed Plank catalog snapshot (expected timed tracking and the approved anatomy multiset); delivery fails closed')) return false
+        if (!prop.includes("IS DISTINCT FROM 'timed'")) return false
+        if (!prop.includes("<> 'lower_back:tertiary,obliques:secondary'")) return false
+        const deliverNew = fnText(prop, 'deliver_catalog_exercises(p_run_key TEXT)')
+        const raced = deliverNew.slice(deliverNew.indexOf("ELSIF v_constraint = 'exercises_user_catalog_logical_unique_idx' THEN"))
+        const racedBlock = raced.slice(0, raced.indexOf('ELSE'))
+        if (!racedBlock.includes('FOR UPDATE;')) return false
+        if (!racedBlock.includes('exlib_plank_link_valid(')) return false
+        if (!racedBlock.includes('RAISE EXCEPTION')) return false
+        // the GENERIC (non-Plank) handler keeps its 023 behavior verbatim
+        const generic = deliverNew.slice(deliverNew.indexOf('-- Concurrent duplicate delivery: already delivered.'))
+        if (!generic.slice(0, 400).includes('v_skipped_existing := v_skipped_existing + 1;')) return false
         return true
       })())
   }

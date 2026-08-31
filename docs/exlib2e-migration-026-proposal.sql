@@ -54,7 +54,65 @@ ALTER TABLE exercise_catalog_corrections ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE exercise_catalog_corrections
   FROM PUBLIC, anon, authenticated;
 
--- ── 2. deliver_catalog_exercises: CREATE OR REPLACE (the ONE
+-- ── 2a. Shared verified-idempotency validation (EXLIB-2E review 1) ──
+-- ONE validation shape used by BOTH the existing-link path and the
+-- raced logical-index path, so the two can never drift. STRICT run
+-- provenance: the linked row must carry EXACTLY the delivering
+-- authorized run's id — a different, revoked, dry-run, unapproved,
+-- or unrelated run never validates as idempotent. Internal helper
+-- only (client execution revoked); NOT a delivery entrypoint.
+CREATE OR REPLACE FUNCTION exlib_plank_link_valid(
+  p_uid       UUID,
+  p_link      public.exercises,
+  p_cat_id    UUID,
+  p_logical   UUID,
+  p_canonical TEXT,
+  p_run_id    UUID
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $helper$
+DECLARE
+  v_row_anat TEXT;
+  v_cat_anat TEXT;
+BEGIN
+  SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
+    INTO v_row_anat FROM public.exercise_muscles m
+    WHERE m.user_id = p_uid AND m.exercise_id = p_link.id;
+  SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
+    INTO v_cat_anat FROM public.exercise_catalog_muscles m
+    WHERE m.catalog_id = p_cat_id;
+  RETURN p_link.user_id = p_uid
+    AND p_link.tracking_mode = 'timed'
+    AND p_link.exercise_type = 'mobility'
+    AND p_link.catalog_id = p_cat_id
+    AND p_link.catalog_logical_id = p_logical
+    AND p_link.import_run_id = p_run_id
+    AND v_row_anat = v_cat_anat
+    AND (
+      (lower(p_link.name) = lower(p_canonical)
+       AND EXISTS (SELECT 1 FROM public.exercise_name_claims n
+                   WHERE n.user_id = p_uid
+                     AND n.normalized_name = lower(p_canonical)
+                     AND n.claim_source = 'exercise'
+                     AND n.exercise_id = p_link.id))
+      OR
+      (lower(p_link.name) = lower(p_canonical || ' (timed)')
+       AND EXISTS (SELECT 1 FROM public.exercise_name_claims n
+                   WHERE n.user_id = p_uid
+                     AND n.normalized_name = lower(p_canonical || ' (timed)')
+                     AND n.claim_source = 'exercise'
+                     AND n.exercise_id = p_link.id))
+    );
+END;
+$helper$;
+
+REVOKE ALL ON FUNCTION exlib_plank_link_valid(UUID, public.exercises, UUID, UUID, TEXT, UUID)
+  FROM PUBLIC, anon, authenticated;
+
+-- ── 2b. deliver_catalog_exercises: CREATE OR REPLACE (the ONE
 --      public tenant delivery entrypoint; no second entrypoint) ──
 CREATE OR REPLACE FUNCTION deliver_catalog_exercises(p_run_key TEXT)
 RETURNS JSONB
@@ -95,6 +153,7 @@ DECLARE
   v_cat_anat          TEXT;
   v_claim_source      TEXT;
   v_claim_exercise    UUID;
+  v_snap_mode         TEXT;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'deliver_catalog_exercises: not authenticated';
@@ -128,6 +187,32 @@ BEGIN
     AND lower(c.canonical_name) = 'plank'
   LIMIT 1;
 
+  -- EXLIB-2E (review 1) catalog snapshot gate: before ANY Plank
+  -- correction or delivery, the run's active approved Plank snapshot
+  -- itself must match the promoted contract — timed tracking (which
+  -- derives the mobility tenant type) and the exact approved anatomy
+  -- multiset. A bodyweight or malformed snapshot fails the whole
+  -- delivery closed; it can never produce a timed disposition or a
+  -- tenant row whose mode disagrees with its catalog provenance.
+  IF v_plank_logical IS NOT NULL THEN
+    SELECT c.tracking_mode,
+           COALESCE((SELECT string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role)
+                     FROM public.exercise_catalog_muscles m
+                     WHERE m.catalog_id = c.id), '')
+      INTO v_snap_mode, v_cat_anat
+    FROM public.exercise_catalog c
+    JOIN public.exercise_catalog_run_items ri
+      ON ri.run_id = v_run.id AND ri.catalog_id = c.id
+    WHERE c.logical_id = v_plank_logical
+      AND c.review_status = 'approved'
+      AND c.is_active = true
+    LIMIT 1;
+    IF v_snap_mode IS DISTINCT FROM 'timed'
+       OR v_cat_anat <> 'lower_back:tertiary,obliques:secondary' THEN
+      RAISE EXCEPTION 'deliver_catalog_exercises: malformed Plank catalog snapshot (expected timed tracking and the approved anatomy multiset); delivery fails closed';
+    END IF;
+  END IF;
+
   -- ── Phase 1: the requested run's EXERCISE members ──────────────
   -- Scoped to v_run.id via the frozen membership table (Revision E,
   -- finding 1). Row gates (approved + active) remain as additional
@@ -155,35 +240,10 @@ BEGIN
       WHERE e.user_id = v_uid AND e.catalog_logical_id = v_cat.logical_id
       FOR UPDATE;
       IF FOUND THEN
-        SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
-          INTO v_row_anat FROM public.exercise_muscles m
-          WHERE m.user_id = v_uid AND m.exercise_id = v_linked.id;
-        SELECT COALESCE(string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle, m.role), '')
-          INTO v_cat_anat FROM public.exercise_catalog_muscles m
-          WHERE m.catalog_id = v_cat.id;
-        IF v_linked.tracking_mode = 'timed'
-           AND v_linked.exercise_type = 'mobility'
-           AND v_linked.catalog_id = v_cat.id
-           AND v_linked.import_run_id IS NOT NULL
-           AND EXISTS (SELECT 1 FROM public.exercise_catalog_import_runs r2
-                       WHERE r2.id = v_linked.import_run_id)
-           AND v_row_anat = v_cat_anat
-           AND (
-             (lower(v_linked.name) = lower(v_cat.canonical_name)
-              AND EXISTS (SELECT 1 FROM public.exercise_name_claims n
-                          WHERE n.user_id = v_uid
-                            AND n.normalized_name = lower(v_cat.canonical_name)
-                            AND n.claim_source = 'exercise'
-                            AND n.exercise_id = v_linked.id))
-             OR
-             (lower(v_linked.name) = lower(v_cat.canonical_name || ' (timed)')
-              AND EXISTS (SELECT 1 FROM public.exercise_name_claims n
-                          WHERE n.user_id = v_uid
-                            AND n.normalized_name = lower(v_cat.canonical_name || ' (timed)')
-                            AND n.claim_source = 'exercise'
-                            AND n.exercise_id = v_linked.id))
-           )
-        THEN
+        -- EXLIB-2E (review 1): shared validation shape; strict run
+        -- provenance (import_run_id must equal THIS authorized run).
+        IF exlib_plank_link_valid(v_uid, v_linked, v_cat.id, v_cat.logical_id,
+                                  v_cat.canonical_name, v_run.id) THEN
           v_skipped_existing := v_skipped_existing + 1;
           v_plank_disposition := 'already_valid_idempotent';
           CONTINUE;
@@ -319,9 +379,23 @@ BEGIN
             v_plank_disposition := 'skipped_canonical_and_distinguished_collision';
             CONTINUE;
           ELSIF v_constraint = 'exercises_user_catalog_logical_unique_idx' THEN
-            v_skipped_existing := v_skipped_existing + 1;
-            v_plank_disposition := 'already_valid_idempotent';
-            CONTINUE;
+            -- EXLIB-2E (review 1): a direct write raced the logical
+            -- index (client writes do not share the advisory lock).
+            -- The winning row is locked and FULLY validated with the
+            -- same shared shape as the existing-link path; only a
+            -- completely valid winner may no-op, and any malformed
+            -- winner aborts fail-closed with no repair or partial
+            -- mutation.
+            SELECT e.* INTO v_linked FROM public.exercises e
+            WHERE e.user_id = v_uid AND e.catalog_logical_id = v_cat.logical_id
+            FOR UPDATE;
+            IF FOUND AND exlib_plank_link_valid(v_uid, v_linked, v_cat.id, v_cat.logical_id,
+                                                v_cat.canonical_name, v_run.id) THEN
+              v_skipped_existing := v_skipped_existing + 1;
+              v_plank_disposition := 'already_valid_idempotent';
+              CONTINUE;
+            END IF;
+            RAISE EXCEPTION 'deliver_catalog_exercises: inconsistent prior Plank reconciliation requires separate investigation (no silent repair, relink, anatomy overwrite, or rename)';
           ELSE
             RAISE;
           END IF;

@@ -278,6 +278,83 @@ CNT=$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$U11' AND
 [ "$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$U11' AND catalog_logical_id='$LN';")" = "1" ] && ok "concurrency: exactly ONE non-Plank row" || bad "concurrency NP duplicated"
 
 echo
+echo "Review 1: strict run-provenance invariant (different existing run id)"
+RUN2='exlib2e-proof-run-0002'
+RID2=$(Q postgres "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('$RUN2', false, 'local-product', NOW(), 'local-legal', NOW(), 'local disposable fixture 2') RETURNING id;")
+Q postgres "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$RID2','$SP'), ('$RID2','$SN');" >/dev/null
+Q postgres "SELECT exlib_approve_and_seal_run('$RUN2');" >/dev/null
+UXR=$(mkuser)
+QU postgres "$UXR" "SELECT deliver_catalog_exercises('$RUN2');" >/dev/null
+if OUT=$(DLV "$UXR" 2>&1); then
+  bad "different-run link validated as idempotent: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation"     && ok "strict run invariant: a link carrying a DIFFERENT existing run id aborts fail-closed"     || bad "different-run link failed with the wrong error: $OUT"
+fi
+ROW=$(Q postgres "SELECT (import_run_id='$RID2')||'|'||tracking_mode FROM public.exercises WHERE user_id='$UXR' AND catalog_logical_id='$LP';")
+[ "$ROW" = "true|timed" ] && ok "strict run invariant: the differently-run row was not repaired or relinked" || bad "different-run row mutated: $ROW"
+
+echo
+echo "Review 1: dry-run/unsealed run provenance never validates"
+RID3=$(Q postgres "INSERT INTO exercise_catalog_import_runs (run_key) VALUES ('exlib2e-dryrun-0003') RETURNING id;")
+UXD=$(mkuser)
+DLV "$UXD" >/dev/null
+Q postgres "UPDATE public.exercises SET import_run_id='$RID3' WHERE user_id='$UXD' AND catalog_logical_id='$LP';" >/dev/null
+if OUT=$(DLV "$UXD" 2>&1); then
+  bad "dry-run provenance validated as idempotent: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation"     && ok "strict run invariant: dry-run/unsealed provenance aborts fail-closed"     || bad "dry-run provenance failed with the wrong error: $OUT"
+fi
+[ "$(Q postgres "SELECT (import_run_id='$RID3') FROM public.exercises WHERE user_id='$UXD' AND catalog_logical_id='$LP';")" = "t" ]   && ok "strict run invariant: the dry-run-provenance row was not repaired" || bad "dry-run row mutated"
+
+echo
+echo "Review 1: raced logical-index winner is fully validated (shared shape)"
+Q postgres "CREATE EXTENSION IF NOT EXISTS dblink;" >/dev/null
+Q postgres "CREATE FUNCTION test_race_inject() RETURNS trigger LANGUAGE plpgsql AS \$t\$
+DECLARE
+  v_mode TEXT := current_setting('test.race', true);
+  v_conn TEXT := 'host=' || current_setting('test.sock', true) || ' dbname=postgres user=postgres';
+BEGIN
+  -- Simulates a REAL client race: the competing row is committed by
+  -- an AUTONOMOUS session (dblink) between the dispatch's initial
+  -- existing-link check and the INSERT, exactly like a direct
+  -- authenticated write that does not share the advisory lock.
+  IF v_mode IN ('valid','malformed') AND NEW.name = 'Plank' AND NEW.catalog_logical_id IS NOT NULL THEN
+    PERFORM set_config('test.race', 'done', true);
+    IF v_mode = 'valid' THEN
+      PERFORM dblink_exec(v_conn,
+        format('INSERT INTO public.exercises (id, user_id, name, category, primary_muscle, equipment, exercise_type, tracking_mode, unilateral, is_system, is_active, catalog_id, catalog_logical_id, import_run_id) VALUES (%L, %L, ''Plank (timed)'', ''isolation'', ''abs'', ''bodyweight'', ''mobility'', ''timed'', false, true, true, %L, %L, %L)',
+               'bbbbbbbb-0000-0000-0000-000000000001', NEW.user_id, NEW.catalog_id, NEW.catalog_logical_id, NEW.import_run_id));
+      PERFORM dblink_exec(v_conn,
+        format('INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role) VALUES (%L, %L, ''obliques'', ''secondary''), (%L, %L, ''lower_back'', ''tertiary'')',
+               NEW.user_id, 'bbbbbbbb-0000-0000-0000-000000000001', NEW.user_id, 'bbbbbbbb-0000-0000-0000-000000000001'));
+    ELSE
+      PERFORM dblink_exec(v_conn,
+        format('INSERT INTO public.exercises (user_id, name, category, primary_muscle, equipment, exercise_type, tracking_mode, unilateral, is_system, is_active, catalog_id, catalog_logical_id, import_run_id) VALUES (%L, ''Copy of plank hold'', ''isolation'', ''abs'', ''bodyweight'', ''bodyweight'', ''bodyweight'', false, false, true, %L, %L, %L)',
+               NEW.user_id, NEW.catalog_id, NEW.catalog_logical_id, NEW.import_run_id));
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+\$t\$;" >/dev/null
+Q postgres "CREATE TRIGGER test_race_trg BEFORE INSERT ON public.exercises FOR EACH ROW EXECUTE FUNCTION test_race_inject();" >/dev/null
+UY1=$(mkuser)
+R=$(QU postgres "$UY1" "SET test.race = 'valid'; SET test.sock = '$SOCK'; SELECT deliver_catalog_exercises('$RUN');")
+[ "$(J "$R" plank_disposition)" = "already_valid_idempotent" ] && ok "raced VALID winner: accepted only after full shared-shape validation" || bad "raced valid winner disposition: $R"
+CNT=$(Q postgres "SELECT count(*)||'|'||string_agg(name, ',' ORDER BY name) FROM public.exercises WHERE user_id='$UY1' AND catalog_logical_id='$LP';")
+[ "$CNT" = "1|Plank (timed)" ] && ok "raced VALID winner: exactly the winning distinguished row remains linked" || bad "raced valid rows: $CNT"
+[ "$(J "$R" inserted)" = "1" ] && ok "raced VALID winner: non-Plank delivery unaffected (inserted=1)" || bad "raced valid inserted: $R"
+UY2=$(mkuser)
+if OUT=$(QU postgres "$UY2" "SET test.race = 'malformed'; SET test.sock = '$SOCK'; SELECT deliver_catalog_exercises('$RUN');" 2>&1); then
+  bad "raced MALFORMED winner was accepted: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation"     && ok "raced MALFORMED winner: aborts fail-closed with the inconsistent-reconciliation report"     || bad "raced malformed winner wrong error: $OUT"
+fi
+ST=$(Q postgres "SELECT count(*)||'|'||count(*) FILTER (WHERE name='Copy of plank hold' AND tracking_mode='bodyweight') FROM public.exercises WHERE user_id='$UY2';")
+[ "$ST" = "1|1" ]   && ok "raced MALFORMED winner: the delivery transaction fully rolled back; the independently committed malformed row is untouched (no repair, no partial mutation)"   || bad "raced malformed state: $ST"
+Q postgres "DROP TRIGGER test_race_trg ON public.exercises; DROP FUNCTION test_race_inject();" >/dev/null
+ok "race injector removed (test-database-only instrumentation)"
+
+echo
 echo "Rollback: corrected P2 row excluded; inserted rows keep existing behavior"
 R=$(RBK "$U2")
 [ "$(Q postgres "SELECT is_active FROM public.exercises WHERE id='$E2';")" = "t" ] && ok "rollback(P2 user): corrected preexisting row STAYS ACTIVE" || bad "rollback deactivated the corrected row"
@@ -362,6 +439,45 @@ UD=$(mkuser)
 QU postgres "$UD" "SELECT 1;" >/dev/null 2>&1 || true
 TUP_NEW=$(Q postgres "SELECT name||'|'||category||'|'||primary_muscle||'|'||equipment||'|'||exercise_type||'|'||tracking_mode||'|'||unilateral||'|'||is_active||'|'||is_system FROM public.exercises WHERE user_id='$U11' AND catalog_logical_id='$LN';")
 [ -n "$TUP_OLD" ] && [ "$TUP_OLD" = "$TUP_NEW" ] && ok "compat: non-Plank delivered row tuple IDENTICAL before/after 026 ($TUP_OLD)" || bad "compat tuple drift: old=$TUP_OLD new=$TUP_NEW"
+
+echo
+echo "Review 1: malformed Plank catalog snapshot fails the whole delivery closed"
+Q postgres "UPDATE exercise_catalog SET is_active=false WHERE id='$SP';" >/dev/null
+LB1='11111111-2222-3333-4444-555555555503'
+SB1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee03'
+Q postgres "INSERT INTO exercise_catalog_logical (id) VALUES ('$LB1');" >/dev/null
+Q postgres "INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence) VALUES ('$SB1','$LB1','Plank','isolation','abs','bodyweight','bilateral','bodyweight','https://example.test/badplank','https://example.test/dir','2026-08-31','high');" >/dev/null
+Q postgres "INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES ('$SB1','obliques','secondary');" >/dev/null
+Q postgres "UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer', reviewed_at=NOW(), review_rationale='malformed fixture' WHERE id='$SB1';" >/dev/null
+RUN4='exlib2e-proof-run-0004'
+RID4=$(Q postgres "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('$RUN4', false, 'local-product', NOW(), 'local-legal', NOW(), 'malformed fixture') RETURNING id;")
+Q postgres "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$RID4','$SB1'), ('$RID4','$SN');" >/dev/null
+Q postgres "SELECT exlib_approve_and_seal_run('$RUN4');" >/dev/null
+UZ1=$(mkuser)
+if OUT=$(QU postgres "$UZ1" "SELECT deliver_catalog_exercises('$RUN4');" 2>&1); then
+  bad "bodyweight Plank snapshot was delivered: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "malformed Plank catalog snapshot"     && ok "snapshot gate: a BODYWEIGHT Plank snapshot fails the whole delivery closed"     || bad "bodyweight snapshot wrong error: $OUT"
+fi
+[ "$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$UZ1';")" = "0" ]   && ok "snapshot gate: the entire transaction left tenant data unchanged (no non-Plank rows either)"   || bad "snapshot gate leaked rows"
+Q postgres "UPDATE exercise_catalog SET is_active=false WHERE id='$SB1';" >/dev/null
+LB2='11111111-2222-3333-4444-555555555504'
+SB2='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeee04'
+Q postgres "INSERT INTO exercise_catalog_logical (id) VALUES ('$LB2');" >/dev/null
+Q postgres "INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence) VALUES ('$SB2','$LB2','Plank','isolation','abs','bodyweight','bilateral','timed','https://example.test/badplank2','https://example.test/dir','2026-08-31','high');" >/dev/null
+Q postgres "INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES ('$SB2','obliques','secondary');" >/dev/null
+Q postgres "UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer', reviewed_at=NOW(), review_rationale='malformed anatomy fixture' WHERE id='$SB2';" >/dev/null
+RUN5='exlib2e-proof-run-0005'
+RID5=$(Q postgres "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('$RUN5', false, 'local-product', NOW(), 'local-legal', NOW(), 'malformed anatomy fixture') RETURNING id;")
+Q postgres "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$RID5','$SB2');" >/dev/null
+Q postgres "SELECT exlib_approve_and_seal_run('$RUN5');" >/dev/null
+UZ2=$(mkuser)
+if OUT=$(QU postgres "$UZ2" "SELECT deliver_catalog_exercises('$RUN5');" 2>&1); then
+  bad "wrong-anatomy Plank snapshot was delivered: $OUT"
+else
+  printf '%s' "$OUT" | grep -q "malformed Plank catalog snapshot"     && ok "snapshot gate: a timed snapshot with the WRONG anatomy multiset fails closed"     || bad "wrong-anatomy snapshot wrong error: $OUT"
+fi
+[ "$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$UZ2';")" = "0" ]   && ok "snapshot gate: tenant data unchanged after the anatomy-malformed abort"   || bad "anatomy-gate leaked rows"
 
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"
