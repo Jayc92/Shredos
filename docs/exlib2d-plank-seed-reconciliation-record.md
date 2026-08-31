@@ -44,7 +44,7 @@ Tables that reference an exercise id or interpret tracking_mode:
 | workout_sets | 003 + 011 | weight_kg/reps/rpe/completed/is_warmup plus duration_seconds/distance_meters (011). Bodyweight sets store reps; timed sets store duration_seconds. The two are DIFFERENT COLUMNS with different completion semantics. workout_sets.workout_exercise_id is NOT NULL and references workout_exercises(id) ON DELETE CASCADE, so zero workout_exercises rows for an exercise structurally implies zero workout_sets rows — set history cannot exist without a parent reference. |
 | workout_routines/workout_routine_exercises | 004 | FK exercise_id ON DELETE RESTRICT (the exact table name is workout_routine_exercises) — routine references block deletion and encode rep-based intent for a bodyweight row. |
 | exercise_muscles | 018 | Seeded secondary/tertiary rows; part of the pristine seed state, not user customization. |
-| catalog tables + claim triggers | 023 | exercise_catalog/_logical with one-active-per-name and one-active-per-logical unique indexes; fail-closed claim machinery; delivery columns exist but NO delivery function is implemented yet (EXLIB-2A design is planning-only). |
+| catalog tables + claim triggers + delivery machinery | 023 | exercise_catalog/_logical with one-active-per-name and one-active-per-logical unique indexes; fail-closed claim machinery; AND a complete, already-implemented tenant delivery contract — deliver_catalog_exercises(p_run_key TEXT), rollback_catalog_delivery(p_run_key TEXT), exlib_revoke_run_delivery(p_run_key TEXT), exlib_approve_and_seal_run(p_run_key TEXT), and the exercises_delivered_delete_gate_trigger — detailed in section 3c below. An earlier draft of this record wrongly said no delivery function existed; that statement was false and is withdrawn. |
 | RLS | 003/023 | All per-user; catalog claim functions are SECURITY DEFINER with pinned search_path. Reconciliation work stays inside one tenant's rows. |
 
 Code paths that interpret tracking_mode:
@@ -85,6 +85,62 @@ CASCADE) — plus one non-FK reference, exercise_name_claims
 precondition rather than a separate count. The P2 predicate covers
 all of them; any future table referencing exercises.id must be added
 to the predicate or explicitly closed before implementation.
+
+### 3c. Existing delivery contract (migration 023, mechanically extracted)
+
+Migration 023 ALREADY IMPLEMENTS tenant catalog delivery. Extracted
+from the committed SQL, not assumed:
+
+- deliver_catalog_exercises(p_run_key TEXT) RETURNS JSONB — SECURITY
+  DEFINER with SET search_path = public, pg_temp; scopes every row to
+  the authenticated caller via auth.uid(); serializes the whole call
+  on the per-user advisory lock
+  pg_advisory_xact_lock(hashtextextended(v_uid::text, 8231)); refuses
+  any run that is not sealed, approved, and unrevoked
+  (approved_for_delivery = true AND sealed_at IS NOT NULL AND
+  revoked_at IS NULL raises an exception otherwise); skips identities
+  the tenant already holds via the (user_id, catalog_logical_id)
+  idempotency lookup (skipped_existing); pre-checks the canonical
+  name against exercise_name_claims and skips fail-closed on
+  collision (skipped_collision plus a collision-names array);
+  inserts v_cat.canonical_name with the catalog metadata, derived
+  exercise_type, is_active=true, is_system=true, and full provenance
+  (catalog_id, catalog_logical_id, import_run_id); copies the
+  catalog anatomy from exercise_catalog_muscles; converts a raced
+  unique violation on exercises_user_name_unique_idx or
+  exercise_name_claims_pkey into the same honest collision skip; and
+  delivers aliases in a second phase that resolves its target
+  exercise INDEPENDENTLY through the logical identity (serving both
+  this call's inserts and earlier runs' deliveries), with
+  (user_id, catalog_alias_id) idempotency, an inactive-target block,
+  and separate reported counters. The JSONB report already
+  distinguishes delivered/skipped_existing/skipped_collision and the
+  alias outcomes.
+- rollback_catalog_delivery(p_run_key TEXT) RETURNS JSONB — same
+  authentication and advisory lock; DEACTIVATES (is_active = false,
+  never deletes) this run's delivered exercises and aliases by
+  import_run_id provenance, deactivates dependent aliases with
+  separate reporting, and reports found/newly_deactivated/
+  already_inactive per category.
+- exlib_revoke_run_delivery(p_run_key TEXT) — halts all future
+  delivery of a run; exlib_approve_and_seal_run(p_run_key TEXT) —
+  the delivery gate's other half.
+- exercises_delivered_delete_gate_trigger
+  (exlib_block_delivered_exercise_delete) — physically blocks DELETE
+  of ANY row carrying catalog_id, catalog_logical_id, or
+  import_run_id.
+
+Current limitation relevant to Plank (also mechanically verified):
+the function inserts v_cat.canonical_name ONLY. When canonical
+'plank' is already claimed by the tenant's legacy row, delivery of
+the Plank identity lands in skipped_collision — correct and
+fail-closed, but it never attempts the deterministic 'Plank (timed)'
+distinguished fallback and never performs the guarded P2 in-place
+correction or anatomy synchronization. EXLIB-2D therefore requires a
+NARROWLY REVIEWED EXTENSION of this existing contract — not a new
+delivery system — integrated with the existing run, claims,
+provenance, locking, idempotency, alias, rollback, and reporting
+machinery.
 
 ## 4. The chosen reconciliation contract (single recommendation)
 
@@ -248,12 +304,70 @@ delivered they see both, unambiguously labeled, and choose their own
 migration pace. Future users (post-implementation) simply receive a
 timed Plank.
 
+Integration boundary (single entrypoint, chosen):
+deliver_catalog_exercises(TEXT) remains the ONE public tenant
+delivery entrypoint, with every migration-023 security, run,
+rollback, and reporting semantic preserved. Migration 026 extends
+its internal handling for the Plank logical identity (directly or
+through a narrowly scoped internal helper invoked in the same
+transaction); it must NOT create a second public tenant delivery
+entrypoint with divergent authorization, locking, run validation,
+reporting, or rollback behavior. The P2 correction and the
+distinguished-name delivery both execute inside the same per-user
+delivery transaction and the same advisory-lock domain
+(hashtextextended(uid, 8231)) as ordinary catalog delivery.
+Canonical delivery behavior for every non-Plank identity remains
+byte-unchanged, and the distinguished fallback is keyed to the
+Plank logical identity specifically — it must never generalize into
+an arbitrary renaming scheme. Alias delivery already resolves its
+target through catalog_logical_id independently of the tenant
+display name, so aliases attach to the corrected or distinguished
+row without modification. Delivery reporting is extended to
+distinguish at least: corrected-and-linked pristine seed; delivered
+canonical timed Plank; delivered distinguished timed Plank; already
+valid/idempotent; skipped canonical-and-distinguished collision;
+inconsistent prior reconciliation; and precondition failure routed
+to preserved-legacy plus distinguished delivery.
+
+P2 rollback provenance (chosen, conservative): the P2 conversion is
+a provenance/link correction on a PREEXISTING tenant row, not a
+newly delivered row, and rollback must treat it that way. Because
+delivered inserts also carry is_system=true (mechanically verified
+in the 023 INSERT), no existing column distinguishes a corrected
+preexisting row from a run-inserted row; migration 026 therefore
+records each P2 correction in a dedicated correction record
+(user_id, exercise_id, run_id, corrected_at) written in the same
+transaction, and the generic rollback_catalog_delivery deactivation
+sweep is extended to EXCLUDE correction-recorded rows — it may
+never deactivate (and can already never delete) a preexisting seed
+row as though the run inserted it. P2 is intentionally
+NON-REVERSIBLE after successful commit: reverting the timed mode or
+the synchronized anatomy could recreate the exact semantic risks
+this contract exists to prevent, so no automatic restore path
+exists; run revocation (exlib_revoke_run_delivery) halts future
+delivery but never reinterprets existing P2 data. The corrected
+row's import_run_id keeps it inside refresh and verified-idempotency
+recognition and places it under the existing delivered-row delete
+gate (physical deletion blocked — an intended strengthening), while
+the correction record keeps it outside every rollback deactivation
+query. Newly inserted timed rows (canonical or distinguished) keep
+the EXISTING rollback behavior unchanged. No rollback path deletes
+user history, aliases, routines, workouts, or a preexisting
+exercise id: the committed rollback function only ever sets
+is_active = false, and the delete gate independently blocks
+physical deletion.
+
 ## 5. Implementation dependency map (later work, none authorized)
 
-1. Migration 026 (NOT created here): delivery/correction routine as
-   guarded SQL (or an equivalent server-side function) implementing
-   P2 preconditions, the collision-naming rule, and the idempotent
-   link — plus its disposable-local-DB proof suite.
+1. Migration 026 (NOT created here): a narrowly reviewed EXTENSION
+   of deliver_catalog_exercises(TEXT) (or a same-transaction
+   internal helper) implementing the P2 predicate, anatomy
+   synchronization, verified idempotency, the Plank-specific
+   distinguished fallback, the extended reporting dispositions, the
+   P2 correction record, and the rollback-sweep exclusion — plus its
+   disposable-local-DB proof suite covering malformed links,
+   concurrency, and rollback/revocation against both corrected and
+   inserted rows.
 2. Seed module edit aligning the Plank entry's tracking_mode AND
    anatomy to the catalog values, shipped in the SAME atomic release
    as (1) as compatibility/fallback cleanup — per the promoted

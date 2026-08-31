@@ -152,7 +152,7 @@ async function main(): Promise<void> {
           inv.filter((r) => r.deferred).length === 8 &&
           inv.filter((r) => r.deferred).every((r) => r.tracking_mode === 'weight_time')
       })())
-    check('B3: REVISED (EXLIB-2D review 2) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the NINE-part P2 predicate (exercise_type, all-null catalog provenance, zero aliases, exact seed-anatomy multiset, FK-chain zero-set proof, claim equality) with nonpristine-to-P5 routing, anatomy synchronization scoped to P2 only with all-or-nothing rollback, VERIFIED idempotency (locked nine-invariant validation before any no-op, fail-closed inconsistent-link disposition), distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
+    check('B3: REVISED (EXLIB-2D reviews 2-3) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the NINE-part P2 predicate (exercise_type, all-null catalog provenance, zero aliases, exact seed-anatomy multiset, FK-chain zero-set proof, claim equality) with nonpristine-to-P5 routing, anatomy synchronization scoped to P2 only with all-or-nothing rollback, VERIFIED idempotency (locked nine-invariant validation before any no-op, fail-closed inconsistent-link disposition), distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
       (() => {
         const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
         if (!m) return false
@@ -199,6 +199,25 @@ async function main(): Promise<void> {
         const dep = mach.exercise_id_dependency_inventory
         if (dep.fk_references.length !== 4 || dep.non_fk_references.length !== 1) return false
         if (!String(dep.non_fk_references[0].closure).includes('claim-holder equality')) return false
+        const edc = mach.existing_delivery_contract
+        if (!String(edc.entrypoint).includes('deliver_catalog_exercises(p_run_key TEXT)')) return false
+        if (!String(edc.lock).includes('hashtextextended')) return false
+        if (!String(edc.run_gating).includes('revoked_at IS NULL')) return false
+        if (!String(edc.canonical_name_behavior).includes('v_cat.canonical_name')) return false
+        if (!String(edc.current_plank_limitation).includes('skipped_collision')) return false
+        if (!String(edc.current_plank_limitation).includes('narrowly reviewed extension')) return false
+        const idg = mach.integration_design
+        if (!String(idg.single_public_entrypoint).includes('ONE public tenant delivery entrypoint')) return false
+        if (!String(idg.no_second_entrypoint).includes('divergent')) return false
+        if (!String(idg.non_plank_unchanged).includes('byte-unchanged')) return false
+        if (!String(idg.fallback_scope).includes('never generalize')) return false
+        if (idg.reporting_dispositions.length !== 7) return false
+        const rbp = mach.rollback_provenance
+        if (!String(rbp.discriminator_evidence).includes('is_system=true')) return false
+        if (!String(rbp.mechanism).includes('correction record')) return false
+        if (!String(rbp.mechanism).includes('EXCLUDE correction-recorded rows')) return false
+        if (!String(rbp.p2_reversibility).includes('NON-REVERSIBLE')) return false
+        if (!String(rbp.never_deleted).includes('is_active=false')) return false
         const sync = p2.anatomy_synchronization
         if (JSON.stringify(sync.target) !== JSON.stringify([['obliques', 'secondary'], ['lower_back', 'tertiary']])) return false
         if (!String(sync.rollback).includes('all or nothing')) return false
@@ -232,6 +251,10 @@ async function main(): Promise<void> {
           'alias_presence_is_nonpristine',
           'existing_link_no_op_only_after_full_validation',
           'malformed_links_abort_fail_closed',
+          'single_public_delivery_entrypoint',
+          'p2_rows_excluded_from_generic_rollback_deactivation',
+          'run_revocation_never_reinterprets_existing_data',
+          'rollback_deactivates_only_never_deletes',
           'future_users_receive_timed_plank_after_coordinated_implementation',
           'legacy_retirement_is_user_initiated_only']
         if (!flags.every((f) => g[f] === true)) return false
@@ -239,7 +262,7 @@ async function main(): Promise<void> {
         return ['seed module edit', 'Plank content authoring', 'migration 026', 'catalog loading',
           'hosted contact', 'seed_link_compatible'].every((k) => na.includes(k))
       })())
-    check('B4: REVISED (EXLIB-2D review 2) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the complete dependency closure with exact table names, the nine-part P2 predicate (exercise_type, null provenance, zero aliases with the tenant-authored rationale, anatomy multiset, claim equality) with nonpristine-to-P5 routing, P2 anatomy synchronization with full rollback, verified idempotency with fail-closed inconsistent-link disposition, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
+    check('B4: REVISED (EXLIB-2D reviews 2-3) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the complete dependency closure with exact table names, the nine-part P2 predicate (exercise_type, null provenance, zero aliases with the tenant-authored rationale, anatomy multiset, claim equality) with nonpristine-to-P5 routing, P2 anatomy synchronization with full rollback, verified idempotency with fail-closed inconsistent-link disposition, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
       recFlat.includes('SURVIVE DEACTIVATION') &&
       recFlat.includes('ON DELETE RESTRICT') &&
       recFlat.includes('CURRENT tracking_mode at display time') &&
@@ -260,6 +283,20 @@ async function main(): Promise<void> {
       recFlat.includes('never silently repairing, relinking, overwriting anatomy, renaming, or treating it as success') &&
       recFlat.includes('applies identically to a corrected P2 row and to a separately delivered distinguished row') &&
       !recFlat.includes('no-ops if the logical identity is already linked') &&
+      recFlat.includes('Migration 023 ALREADY IMPLEMENTS tenant catalog delivery') &&
+      recFlat.includes('deliver_catalog_exercises(p_run_key TEXT) RETURNS JSONB') &&
+      recFlat.includes('pg_advisory_xact_lock(hashtextextended(v_uid::text, 8231))') &&
+      recFlat.includes('inserts v_cat.canonical_name') &&
+      recFlat.includes('that statement was false and is withdrawn') &&
+      recFlat.includes('NARROWLY REVIEWED EXTENSION of this existing contract') &&
+      recFlat.includes('remains the ONE public tenant delivery entrypoint') &&
+      recFlat.includes('must NOT create a second public tenant delivery entrypoint') &&
+      recFlat.includes('never generalize into an arbitrary renaming scheme') &&
+      recFlat.includes('no existing column distinguishes a corrected preexisting row from a run-inserted row') &&
+      recFlat.includes('EXCLUDE correction-recorded rows') &&
+      recFlat.includes('intentionally NON-REVERSIBLE after successful commit') &&
+      recFlat.includes('halts future delivery but never reinterprets existing P2 data') &&
+      !recFlat.includes('NO delivery function is implemented yet') &&
       recFlat.includes('exactly equals the expected live seed anatomy {(obliques, secondary)}') &&
       recFlat.includes('ANY anatomy difference classifies the row as customized and routes it to P5') &&
       recFlat.includes('atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot') &&
@@ -361,6 +398,39 @@ async function main(): Promise<void> {
         const flat = matrixDoc.replace(/\s+/g, ' ')
         if (flat.includes('no-ops if the logical identity is already linked')) return false
         if (!flat.includes('lock the linked row with SELECT ... FOR UPDATE and validate the complete reconciliation outcome before any no-op')) return false
+        return true
+      })())
+  }
+
+  console.log('\nE. Review-3 delivery-contract integrity')
+  {
+    check('E1: ADMISSION (EXLIB-2D review 3) — the existing 023 delivery contract is proven mechanically from committed SQL (deliver_catalog_exercises(p_run_key TEXT), auth.uid scoping, per-user advisory lock, sealed/approved/unrevoked run gating, (user_id, catalog_logical_id) idempotency, canonical-name insertion with collision skip, alias phase, rollback_catalog_delivery deactivate-only, revoke/seal functions, delete gate, is_system=true on delivered inserts), and the design preserves one public entrypoint with P2 rows excluded from generic rollback while inserted rows keep existing rollback behavior',
+      (() => {
+        const sql = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+        if (!sql.includes('CREATE OR REPLACE FUNCTION deliver_catalog_exercises(p_run_key TEXT)')) return false
+        if (!sql.includes('PERFORM pg_advisory_xact_lock(hashtextextended(v_uid::text, 8231));')) return false
+        if (!sql.includes('AND approved_for_delivery = true') ||
+          !sql.includes('AND sealed_at IS NOT NULL') ||
+          !sql.includes('AND revoked_at IS NULL')) return false
+        if (!/WHERE e\.user_id = v_uid AND e\.catalog_logical_id = v_cat\.logical_id/.test(sql)) return false
+        if (!/v_uid, v_cat\.canonical_name, v_cat\.category, v_cat\.primary_muscle/.test(sql)) return false
+        if (!sql.includes('v_skipped_collision := v_skipped_collision + 1;')) return false
+        if (!sql.includes('true, true, v_cat.id, v_cat.logical_id, v_run.id')) return false
+        if (!sql.includes('CREATE OR REPLACE FUNCTION rollback_catalog_delivery(p_run_key TEXT)')) return false
+        if (!sql.includes('CREATE OR REPLACE FUNCTION exlib_revoke_run_delivery(p_run_key TEXT)')) return false
+        if (!sql.includes('CREATE OR REPLACE FUNCTION exlib_approve_and_seal_run(p_run_key TEXT)')) return false
+        if (!sql.includes('CREATE TRIGGER exercises_delivered_delete_gate_trigger')) return false
+        const rb = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION rollback_catalog_delivery'))
+        const rbBody = rb.slice(0, rb.indexOf('$$;'))
+        if (!rbBody.includes('SET is_active = false')) return false
+        if (/DELETE FROM public\.exercises/.test(rbBody)) return false
+        if (recFlat.includes('NO delivery function is implemented yet')) return false
+        const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
+        if (!m) return false
+        const mach = JSON.parse(m[1])
+        if (mach.guarantees.single_public_delivery_entrypoint !== true) return false
+        if (mach.guarantees.p2_rows_excluded_from_generic_rollback_deactivation !== true) return false
+        if (!String(mach.rollback_provenance.inserted_rows).includes('EXISTING rollback behavior unchanged')) return false
         return true
       })())
   }

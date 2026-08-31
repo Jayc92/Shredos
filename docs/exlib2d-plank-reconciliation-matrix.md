@@ -214,7 +214,11 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   "existing_link_no_op_only_after_full_validation": true,
   "malformed_links_abort_fail_closed": true,
   "future_users_receive_timed_plank_after_coordinated_implementation": true,
-  "legacy_retirement_is_user_initiated_only": true
+  "legacy_retirement_is_user_initiated_only": true,
+  "single_public_delivery_entrypoint": true,
+  "p2_rows_excluded_from_generic_rollback_deactivation": true,
+  "run_revocation_never_reinterprets_existing_data": true,
+  "rollback_deactivates_only_never_deletes": true
  },
  "not_authorized_here": [
   "seed module edit",
@@ -226,6 +230,48 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   "ledger mutation",
   "hosted contact",
   "marking Plank seed_link_compatible in the inventory"
- ]
+ ],
+ "existing_delivery_contract": {
+  "source": "supabase/migrations/023_exlib_catalog_and_delivery_contract.sql (mechanically extracted)",
+  "entrypoint": "deliver_catalog_exercises(p_run_key TEXT) RETURNS JSONB",
+  "security": "SECURITY DEFINER, SET search_path = public, pg_temp, auth.uid() tenant scoping",
+  "lock": "pg_advisory_xact_lock(hashtextextended(v_uid::text, 8231)) per-user advisory lock",
+  "run_gating": "approved_for_delivery = true AND sealed_at IS NOT NULL AND revoked_at IS NULL, else exception",
+  "idempotency": "(user_id, catalog_logical_id) existing-row skip (skipped_existing)",
+  "canonical_name_behavior": "pre-checks exercise_name_claims and inserts v_cat.canonical_name; collision skips fail-closed (skipped_collision + collision-names array); raced unique violations on exercises_user_name_unique_idx / exercise_name_claims_pkey convert to the same honest skip",
+  "insert_provenance": "is_active=true, is_system=true, catalog_id, catalog_logical_id, import_run_id; anatomy copied from exercise_catalog_muscles",
+  "alias_delivery": "second phase resolves the target exercise independently through the logical identity with (user_id, catalog_alias_id) idempotency and an inactive-target block",
+  "rollback": "rollback_catalog_delivery(p_run_key TEXT) deactivates (is_active=false, never deletes) this run's exercises and aliases by import_run_id, with dependent-alias reporting",
+  "revocation": "exlib_revoke_run_delivery(p_run_key TEXT) halts future delivery; exlib_approve_and_seal_run(p_run_key TEXT) gates it",
+  "delete_gate": "exercises_delivered_delete_gate_trigger blocks physical DELETE of any row with catalog provenance",
+  "current_plank_limitation": "inserts the canonical name ONLY: when canonical 'plank' is claimed the identity lands in skipped_collision - no deterministic 'Plank (timed)' distinguished fallback, no guarded P2 in-place correction or anatomy synchronization; EXLIB-2D requires a narrowly reviewed extension of this contract, not a new delivery system"
+ },
+ "integration_design": {
+  "single_public_entrypoint": "deliver_catalog_exercises(TEXT) is preserved as the ONE public tenant delivery entrypoint; migration 026 extends its internal Plank handling directly or via a narrowly scoped internal helper in the same transaction",
+  "no_second_entrypoint": "no second public tenant delivery entrypoint with divergent authorization, locking, run validation, reporting, or rollback behavior may be created",
+  "shared_boundary": "P2 correction and distinguished delivery execute inside the same per-user delivery transaction and the same advisory-lock domain (hashtextextended(uid, 8231)) as ordinary catalog delivery",
+  "non_plank_unchanged": "canonical delivery behavior for every non-Plank identity remains byte-unchanged",
+  "fallback_scope": "the distinguished fallback is keyed to the Plank logical identity specifically and must never generalize into an arbitrary renaming scheme",
+  "alias_resolution": "alias delivery resolves the linked/delivered Plank row through catalog_logical_id regardless of canonical or distinguished tenant name (existing 023 behavior, unchanged)",
+  "reporting_dispositions": [
+   "corrected_and_linked_pristine_seed",
+   "delivered_canonical_timed_plank",
+   "delivered_distinguished_timed_plank",
+   "already_valid_idempotent",
+   "skipped_canonical_and_distinguished_collision",
+   "inconsistent_prior_reconciliation",
+   "precondition_failure_preserved_legacy_plus_distinguished_delivery"
+  ]
+ },
+ "rollback_provenance": {
+  "p2_nature": "a provenance/link correction on a PREEXISTING tenant row, never a newly delivered row",
+  "discriminator_evidence": "delivered inserts also carry is_system=true (mechanically verified in the 023 INSERT), so no existing column distinguishes a corrected preexisting row from a run-inserted row",
+  "mechanism": "migration 026 records each P2 correction in a dedicated correction record (user_id, exercise_id, run_id, corrected_at) written in the same transaction; the generic rollback_catalog_delivery deactivation sweep is extended to EXCLUDE correction-recorded rows",
+  "p2_reversibility": "intentionally NON-REVERSIBLE after successful commit - reverting timed mode or synchronized anatomy could recreate the semantic risks this contract prevents; no automatic restore path exists",
+  "revocation_semantics": "run revocation halts future delivery but never reinterprets existing P2 data",
+  "import_run_id_interaction": "the corrected row's import_run_id keeps it inside refresh and verified-idempotency recognition and under the existing delivered-row delete gate (physical deletion blocked - intended strengthening), while the correction record keeps it outside every rollback deactivation query",
+  "inserted_rows": "newly inserted timed rows (canonical or distinguished) keep the EXISTING rollback behavior unchanged",
+  "never_deleted": "no rollback path deletes user history, aliases, routines, workouts, or a preexisting exercise id: the committed rollback function only ever sets is_active=false and the delete gate independently blocks physical deletion"
+ }
 }
 ```
