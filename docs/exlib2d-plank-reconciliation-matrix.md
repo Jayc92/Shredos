@@ -189,7 +189,7 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
    ]
   },
   "lock": "SELECT ... FOR UPDATE on the candidate exercises row (P2) or the linked row (verified idempotency) plus the existing claim-trigger serialization; delivery inserts rely on exercise_name_claims PK and the exercises UNIQUE (user_id, catalog_logical_id) index for race-freedom",
-  "idempotency_key": "the UNIQUE (user_id, catalog_logical_id) index on exercises IS the idempotency key, and a found link no-ops ONLY after full invariant validation",
+  "idempotency_key": "the UNIQUE (user_id, catalog_logical_id) index on exercises IS the idempotency key: a repeat run finds the existing link, locks and validates the complete reconciliation state, and no-ops ONLY if every invariant passes; otherwise it fails closed as an inconsistent prior reconciliation",
   "rollback": "any precondition, anatomy, invariant, or constraint failure aborts the transaction; prior state is untouched; a precondition/constraint failure is retryable while an invariant failure on an existing link is an inconsistent-state report, not a retry loop"
  },
  "seed_link_compatible_transition": "seed_link_compatible is a GLOBAL promoted-inventory artifact fact, never a per-user outcome: it may become true only in the later coordinated implementation state where the committed future seed definition (tracking_mode AND anatomy) and the delivery contract are compatible; no per-user P2 result changes it",
@@ -250,7 +250,7 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
   "single_public_entrypoint": "deliver_catalog_exercises(TEXT) is preserved as the ONE public tenant delivery entrypoint; migration 026 extends its internal Plank handling directly or via a narrowly scoped internal helper in the same transaction",
   "no_second_entrypoint": "no second public tenant delivery entrypoint with divergent authorization, locking, run validation, reporting, or rollback behavior may be created",
   "shared_boundary": "P2 correction and distinguished delivery execute inside the same per-user delivery transaction and the same advisory-lock domain (hashtextextended(uid, 8231)) as ordinary catalog delivery",
-  "non_plank_unchanged": "canonical delivery behavior for every non-Plank identity remains byte-unchanged",
+  "non_plank_unchanged": "for every non-Plank identity, authorization, selection, mutation, collision, idempotency, alias, provenance, and rollback semantics remain unchanged",
   "fallback_scope": "the distinguished fallback is keyed to the Plank logical identity specifically and must never generalize into an arbitrary renaming scheme",
   "alias_resolution": "alias delivery resolves the linked/delivered Plank row through catalog_logical_id regardless of canonical or distinguished tenant name (existing 023 behavior, unchanged)",
   "reporting_dispositions": [
@@ -261,7 +261,27 @@ PLANNING ONLY: nothing here is implemented, loaded, approved, or applied.
    "skipped_canonical_and_distinguished_collision",
    "inconsistent_prior_reconciliation",
    "precondition_failure_preserved_legacy_plus_distinguished_delivery"
-  ]
+  ],
+  "report_compatibility": {
+   "existing_jsonb_keys": [
+    "run_key",
+    "eligible",
+    "inserted",
+    "skipped_already_delivered",
+    "skipped_name_collision",
+    "collision_names",
+    "alias_inserted",
+    "alias_added_to_existing",
+    "alias_already_delivered",
+    "alias_skipped_no_exercise",
+    "alias_skipped_inactive_exercise",
+    "alias_skipped_collision",
+    "inserted_catalog_logical_ids"
+   ],
+   "rule": "every existing migration-023 deliver_catalog_exercises JSONB key retains its existing name, type, and meaning; EXLIB-2D reporting extensions are ADDITIVE ONLY; no existing key may be removed, renamed, repurposed, or type-changed",
+   "fallback_isolation": "the Plank-specific fallback must not affect selection or mutation behavior for any other logical identity",
+   "repository_consumers": "mechanically scanned: no application-code caller of deliver_catalog_exercises or rollback_catalog_delivery exists in src/ today; the only repository references are frozen verification suites pinning the migration SQL text; the function is granted to authenticated for future RPC use"
+  }
  },
  "rollback_provenance": {
   "p2_nature": "a provenance/link correction on a PREEXISTING tenant row, never a newly delivered row",

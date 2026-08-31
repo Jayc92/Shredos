@@ -113,9 +113,13 @@ from the committed SQL, not assumed:
   exercise INDEPENDENTLY through the logical identity (serving both
   this call's inserts and earlier runs' deliveries), with
   (user_id, catalog_alias_id) idempotency, an inactive-target block,
-  and separate reported counters. The JSONB report already
-  distinguishes delivered/skipped_existing/skipped_collision and the
-  alias outcomes.
+  and separate reported counters. The JSONB report's existing key
+  set, mechanically extracted, is exactly: run_key, eligible,
+  inserted, skipped_already_delivered, skipped_name_collision,
+  collision_names, alias_inserted, alias_added_to_existing,
+  alias_already_delivered, alias_skipped_no_exercise,
+  alias_skipped_inactive_exercise, alias_skipped_collision,
+  inserted_catalog_logical_ids.
 - rollback_catalog_delivery(p_run_key TEXT) RETURNS JSONB — same
   authentication and advisory lock; DEACTIVATES (is_active = false,
   never deletes) this run's delivered exercises and aliases by
@@ -292,9 +296,11 @@ per attempt; the P2 path locks the candidate row with
 SELECT ... FOR UPDATE and re-verifies every precondition under the
 lock; inserts rely on the exercise_name_claims primary key and the
 UNIQUE (user_id, catalog_logical_id) index for race-freedom; the
-UNIQUE (user_id, catalog_logical_id) index IS the idempotency key: a
-repeat run finds the existing
-link (or the already-corrected P2 row) and no-ops. Any failure
+UNIQUE (user_id, catalog_logical_id) index IS the idempotency key:
+a repeat run finds the existing link (or the already-corrected P2
+row), locks it, and validates the complete reconciliation state,
+and it no-ops ONLY if every invariant passes; otherwise it fails
+closed as an inconsistent prior reconciliation. Any failure
 aborts the transaction, leaving prior state untouched and the
 attempt retryable. All work is tenant-scoped under existing RLS.
 
@@ -316,10 +322,23 @@ reporting, or rollback behavior. The P2 correction and the
 distinguished-name delivery both execute inside the same per-user
 delivery transaction and the same advisory-lock domain
 (hashtextextended(uid, 8231)) as ordinary catalog delivery.
-Canonical delivery behavior for every non-Plank identity remains
-byte-unchanged, and the distinguished fallback is keyed to the
-Plank logical identity specifically — it must never generalize into
-an arbitrary renaming scheme. Alias delivery already resolves its
+For every non-Plank identity, authorization, selection, mutation,
+collision, idempotency, alias, provenance, and rollback semantics
+remain unchanged. Report compatibility is additive-only: every
+existing migration-023 deliver_catalog_exercises JSONB key retains
+its existing name, type, and meaning; the EXLIB-2D reporting
+extensions are additive only; no existing key may be removed,
+renamed, repurposed, or type-changed; and the Plank-specific
+fallback must not affect selection or mutation behavior for any
+other logical identity. Repository consumers were mechanically
+scanned: no application code calls deliver_catalog_exercises or
+rollback_catalog_delivery today — the only repository references
+are frozen verification suites pinning the migration SQL text, and
+the function is granted to authenticated for future RPC use, so the
+additive rule protects future callers rather than fixing existing
+ones. The distinguished fallback is keyed to the Plank logical
+identity specifically — it must never generalize into an arbitrary
+renaming scheme. Alias delivery already resolves its
 target through catalog_logical_id independently of the tenant
 display name, so aliases attach to the corrected or distinguished
 row without modification. Delivery reporting is extended to

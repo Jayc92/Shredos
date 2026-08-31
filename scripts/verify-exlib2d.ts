@@ -152,7 +152,7 @@ async function main(): Promise<void> {
           inv.filter((r) => r.deferred).length === 8 &&
           inv.filter((r) => r.deferred).every((r) => r.tracking_mode === 'weight_time')
       })())
-    check('B3: REVISED (EXLIB-2D reviews 2-3) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the NINE-part P2 predicate (exercise_type, all-null catalog provenance, zero aliases, exact seed-anatomy multiset, FK-chain zero-set proof, claim equality) with nonpristine-to-P5 routing, anatomy synchronization scoped to P2 only with all-or-nothing rollback, VERIFIED idempotency (locked nine-invariant validation before any no-op, fail-closed inconsistent-link disposition), distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
+    check('B3: REVISED (EXLIB-2D reviews 2-4) — the machine-readable matrix pins the full corrected contract: canonical timed, all six populations, the NINE-part P2 predicate (exercise_type, all-null catalog provenance, zero aliases, exact seed-anatomy multiset, FK-chain zero-set proof, claim equality) with nonpristine-to-P5 routing, anatomy synchronization scoped to P2 only with all-or-nothing rollback, VERIFIED idempotency (locked nine-invariant validation before any no-op, fail-closed inconsistent-link disposition), distinguished-name refresh preservation with no automatic rename, the global seed_link_compatible transition rule, future-signup sequencing, every guarantee flag true, and the nonauthorization list',
       (() => {
         const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
         if (!m) return false
@@ -195,7 +195,8 @@ async function main(): Promise<void> {
         if (!String(vi.on_invalid).includes('inconsistent prior reconciliation')) return false
         if (!String(vi.on_invalid).includes('Never silently repair')) return false
         if (JSON.stringify(vi.applies_to) !== JSON.stringify(['corrected P2 row', 'separately delivered distinguished row'])) return false
-        if (!String(mach.transaction_and_idempotency.idempotency_key).includes('ONLY after full invariant validation')) return false
+        if (!String(mach.transaction_and_idempotency.idempotency_key).includes('no-ops ONLY if every invariant passes')) return false
+        if (!String(mach.transaction_and_idempotency.idempotency_key).includes('fails closed as an inconsistent prior reconciliation')) return false
         const dep = mach.exercise_id_dependency_inventory
         if (dep.fk_references.length !== 4 || dep.non_fk_references.length !== 1) return false
         if (!String(dep.non_fk_references[0].closure).includes('claim-holder equality')) return false
@@ -209,7 +210,13 @@ async function main(): Promise<void> {
         const idg = mach.integration_design
         if (!String(idg.single_public_entrypoint).includes('ONE public tenant delivery entrypoint')) return false
         if (!String(idg.no_second_entrypoint).includes('divergent')) return false
-        if (!String(idg.non_plank_unchanged).includes('byte-unchanged')) return false
+        if (!String(idg.non_plank_unchanged).includes('authorization, selection, mutation, collision, idempotency, alias, provenance, and rollback semantics remain unchanged')) return false
+        const rc = idg.report_compatibility
+        if (rc.existing_jsonb_keys.length !== 13) return false
+        if (!String(rc.rule).includes('ADDITIVE ONLY')) return false
+        if (!String(rc.rule).includes('removed, renamed, repurposed, or type-changed')) return false
+        if (!String(rc.fallback_isolation).includes('must not affect selection or mutation behavior')) return false
+        if (!String(rc.repository_consumers).includes('no application-code caller')) return false
         if (!String(idg.fallback_scope).includes('never generalize')) return false
         if (idg.reporting_dispositions.length !== 7) return false
         const rbp = mach.rollback_provenance
@@ -262,7 +269,7 @@ async function main(): Promise<void> {
         return ['seed module edit', 'Plank content authoring', 'migration 026', 'catalog loading',
           'hosted contact', 'seed_link_compatible'].every((k) => na.includes(k))
       })())
-    check('B4: REVISED (EXLIB-2D reviews 2-3) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the complete dependency closure with exact table names, the nine-part P2 predicate (exercise_type, null provenance, zero aliases with the tenant-authored rationale, anatomy multiset, claim equality) with nonpristine-to-P5 routing, P2 anatomy synchronization with full rollback, verified idempotency with fail-closed inconsistent-link disposition, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
+    check('B4: REVISED (EXLIB-2D reviews 2-4) — the reconciliation record pins the evidence and corrected contract: claims survive deactivation, RESTRICT FKs, current-mode reinterpretation hazard, the FK-chain zero-set proof, the complete dependency closure with exact table names, the nine-part P2 predicate (exercise_type, null provenance, zero aliases with the tenant-authored rationale, anatomy multiset, claim equality) with nonpristine-to-P5 routing, P2 anatomy synchronization with full rollback, verified idempotency with fail-closed inconsistent-link disposition, distinguished-name refresh specialization with no automatic rename, global seed_link_compatible transition, delivery-replaces-seeding sequencing, user-initiated-only retirement, and explicit nonauthorization',
       recFlat.includes('SURVIVE DEACTIVATION') &&
       recFlat.includes('ON DELETE RESTRICT') &&
       recFlat.includes('CURRENT tracking_mode at display time') &&
@@ -297,6 +304,11 @@ async function main(): Promise<void> {
       recFlat.includes('intentionally NON-REVERSIBLE after successful commit') &&
       recFlat.includes('halts future delivery but never reinterprets existing P2 data') &&
       !recFlat.includes('NO delivery function is implemented yet') &&
+      recFlat.includes('authorization, selection, mutation, collision, idempotency, alias, provenance, and rollback semantics remain unchanged') &&
+      recFlat.includes('extensions are additive only; no existing key may be removed, renamed, repurposed, or type-changed') &&
+      recFlat.includes('no application code calls deliver_catalog_exercises or rollback_catalog_delivery today') &&
+      recFlat.includes('no-ops ONLY if every invariant passes; otherwise it fails closed as an inconsistent prior reconciliation') &&
+      !recFlat.includes('byte-unchanged, and the distinguished fallback') &&
       recFlat.includes('exactly equals the expected live seed anatomy {(obliques, secondary)}') &&
       recFlat.includes('ANY anatomy difference classifies the row as customized and routes it to P5') &&
       recFlat.includes('atomically replace the seed-owned exercise_muscles rows with the exact active approved catalog snapshot') &&
@@ -431,6 +443,44 @@ async function main(): Promise<void> {
         if (mach.guarantees.single_public_delivery_entrypoint !== true) return false
         if (mach.guarantees.p2_rows_excluded_from_generic_rollback_deactivation !== true) return false
         if (!String(mach.rollback_provenance.inserted_rows).includes('EXISTING rollback behavior unchanged')) return false
+        return true
+      })())
+  }
+
+  console.log('\nF. Review-4 report compatibility and no-op qualification')
+  {
+    check('F1: ADMISSION (EXLIB-2D review 4) — the existing deliver_catalog_exercises JSONB key set is extracted mechanically from the 023 RETURN and matches the matrix exactly; no application-code consumer exists (scan reproduced); and NO sentence in either artifact states a linked-row no-op without the full-validation qualification, under a wording-resistant sentence scan rather than one exact negative phrase',
+      (() => {
+        const sql = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+        const start = sql.indexOf('CREATE OR REPLACE FUNCTION deliver_catalog_exercises')
+        const body = sql.slice(start, sql.indexOf('$$;', start))
+        const ret = body.slice(body.lastIndexOf('RETURN jsonb_build_object'))
+        const keys = Array.from(ret.matchAll(/'(\w+)',/g)).map((m) => m[1])
+        const EXPECTED = ['run_key', 'eligible', 'inserted', 'skipped_already_delivered',
+          'skipped_name_collision', 'collision_names', 'alias_inserted',
+          'alias_added_to_existing', 'alias_already_delivered', 'alias_skipped_no_exercise',
+          'alias_skipped_inactive_exercise', 'alias_skipped_collision', 'inserted_catalog_logical_ids']
+        if (JSON.stringify(keys) !== JSON.stringify(EXPECTED)) return false
+        const m = matrixDoc.match(/```json\n([\s\S]*?)\n```/)
+        if (!m) return false
+        const mach = JSON.parse(m[1])
+        if (JSON.stringify(mach.integration_design.report_compatibility.existing_jsonb_keys) !==
+          JSON.stringify(EXPECTED)) return false
+        for (const k of EXPECTED) {
+          if (!recFlat.includes(k)) return false
+        }
+        const consumers = execSync(
+          "grep -rln 'deliver_catalog_exercises\\|rollback_catalog_delivery' src/ || true",
+          { encoding: 'utf8' }).trim()
+        if (consumers !== '') return false
+        const matFlat = matrixDoc.replace(/\s+/g, ' ')
+        const QUALIFIED = /(only if every invariant passes|fully valid|complete valid|validates the complete)/i
+        for (const text of [recFlat, matFlat]) {
+          for (const sentence of text.split(/[.;]/)) {
+            if (/no-?ops?\b/i.test(sentence) && /(link|idempot)/i.test(sentence) &&
+              !QUALIFIED.test(sentence)) return false
+          }
+        }
         return true
       })())
   }
