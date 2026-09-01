@@ -92,20 +92,44 @@ Two governing truths shape everything below:
   delivery gate that actually binds every caller:
   approved_for_delivery = true AND dry_run = false AND sealed_at IS
   NOT NULL AND revoked_at IS NULL. Hosted staging must therefore
-  keep the run in a posture that predicate REJECTS. The selected
-  staged posture is: catalog rows and run/run-item rows fully
-  loaded, with the run left in its BORN state - unapproved
-  (approved_for_delivery false), unsealed (sealed_at NULL), and
-  dry_run still true. deliver_catalog_exercises provably rejects
-  exactly this posture today: the promoted EXLIB-2F live matrix
-  includes the executable dry-run/unsealed-provenance abort and the
-  revocation fail-closed halt, and the run gate is byte-carried 023
-  text. No new database flag is invented and no migration 027 is
-  proposed; the existing contract already supports a hosted-loaded
-  but non-deliverable run, so hosted loading need not wait for the
-  activation event - but making the run approved/sealed (or
-  unrevoking one) IS the activation event and happens only under
-  the protected gate.
+  keep the run in a posture that predicate REJECTS, and the staged
+  posture must also be PROMOTABLE by the existing controlled
+  operation. Transition precision, from the migration-023 bytes:
+  exlib_approve_and_seal_run() sets ONLY approved_for_delivery =
+  true and sealed_at = NOW() - it does NOT change dry_run and does
+  NOT populate approval evidence - and the
+  exercise_catalog_import_runs freeze trigger raises "dry runs
+  cannot be sealed" whenever NEW.dry_run remains true at the
+  approval/seal transition, requires complete non-blank product +
+  legal approval evidence, rejects an empty membership, and rejects
+  any exercise member that is not approved, active, and fully
+  review-audited. The SELECTED staged posture is therefore: catalog
+  rows and run/run-item rows fully loaded and fully
+  reviewed/audited; the run row with dry_run = false,
+  approved_for_delivery = false, sealed_at = NULL, revoked_at =
+  NULL; and the required product/legal approval evidence populated
+  (all of these are staging/preparation fields, writable while the
+  run is unapproved and unsealed - the trigger freezes them only at
+  and after the seal). This posture is structurally NON-DELIVERABLE
+  (the predicate still requires approved_for_delivery = true and a
+  non-null sealed_at) and is DIRECTLY promotable by one call to
+  exlib_approve_and_seal_run(). If a loader necessarily creates the
+  run dry_run = true first (the column default), the protected
+  preparation transition is: (1) while still unapproved and
+  unsealed, set dry_run = false and populate the required approval
+  evidence; (2) the run remains non-deliverable in that state; (3)
+  then call exlib_approve_and_seal_run(), which atomically sets
+  approved_for_delivery = true and sealed_at; (4) verify the
+  resulting run before enabling the application path. The promoted
+  EXLIB-2F live matrix already executes the predicate's rejection
+  of unapproved/unsealed/dry provenance and the revocation halt,
+  and the run gate is byte-carried 023 text. No new database flag
+  is invented and no migration 027 is proposed; the existing
+  contract supports a hosted-loaded but non-deliverable run, so
+  hosted loading need not wait for the activation event - but the
+  approval/seal transition (or unrevoking a run) IS the activation
+  event, the exact moment authenticated direct RPC becomes
+  deliverable, and it happens only under the protected gate.
 
 No cross-system atomicity between Git, Vercel, and Supabase is
 claimed or relied on anywhere below: every state tolerates the
@@ -118,8 +142,9 @@ The safe order (canonical):
 2. Load package reviewed locally.
 3. Runtime delivery-capable code deployed behind an OFF application
    flag while the seed remains bodyweight.
-4. Catalog/run loaded hosted ONLY in the rejected (unapproved +
-   unsealed + dry_run) posture.
+4. Catalog/run loaded hosted ONLY in the rejected staged posture:
+   dry_run = false, unapproved, unsealed, unrevoked, membership
+   fully loaded and review-audited, approval evidence populated.
 5. Under a separate protected activation gate, make the run
    deliverable (approve + seal) and verify it.
 6. Enable the runtime delivery path.
@@ -147,18 +172,28 @@ States:
   security boundary - which is why S4's database posture, not this
   flag, is what keeps staging non-deliverable.
 - S4 HOSTED-STAGED-NON-DELIVERABLE: the load package is applied
-  hosted, leaving the run unapproved + unsealed + dry_run true. The
-  delivery predicate rejects the run for EVERY caller, including
-  direct authenticated RPC - there is no exposure window. Loading
-  itself changes no tenant data and no user-visible behavior.
-  Reversible trivially (the run was never deliverable).
+  hosted, leaving the run in the selected staged posture - dry_run
+  = false, approved_for_delivery = false, sealed_at NULL,
+  revoked_at NULL, membership fully loaded and fully
+  review-audited, product/legal approval evidence populated (all
+  writable pre-seal; if the loader created the run dry_run = true,
+  the protected preparation transition flips it to false while
+  still unapproved and unsealed). The delivery predicate rejects
+  the run for EVERY caller, including direct authenticated RPC -
+  there is no exposure window and nothing about this posture blocks
+  the later one-call promotion. Loading itself changes no tenant
+  data and no user-visible behavior. Reversible trivially (the run
+  was never deliverable).
 - S5 PROTECTED-ACTIVATION (the activation event): under the separate
-  protected gate, exlib_approve_and_seal_run makes the run
-  deliverable; verification runs immediately (fixture account or
-  operator account) before any broader enablement. From this moment
-  the run is deliverable to authenticated callers by design - this
-  is delivery activation, deliberately performed, never incidental
-  staging.
+  protected gate, one call to exlib_approve_and_seal_run() performs
+  the single atomic transition the trigger permits - it sets ONLY
+  approved_for_delivery = true and sealed_at = NOW() (never
+  dry_run, never evidence; both must already be correct from S4, or
+  the trigger fails the transition closed). The COMMIT of that
+  transition is the exact moment authenticated direct RPC becomes
+  deliverable. Verification runs immediately (fixture account or
+  operator account) before any broader enablement. This is delivery
+  activation, deliberately performed, never incidental staging.
 - S6 DELIVERY-ENABLED: the application flag turns ON only after (i)
   S5 verification passed and (ii) the S3 rollout is fleet-complete
   (enforced by deployment-platform completion, not assumed).

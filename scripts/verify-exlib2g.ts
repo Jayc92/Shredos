@@ -240,8 +240,11 @@ async function main(): Promise<void> {
         if (/sealed[- ]but[- ]inactive/i.test(recFlat.replace('No claim of "sealed-but-inactive" appears anywhere in this design', ''))) return false
         if (!recFlat.includes('An application runtime flag CANNOT protect the database')) return false
         if (!recFlat.includes('approved_for_delivery = true AND dry_run = false AND sealed_at IS NOT NULL AND revoked_at IS NULL')) return false
-        if (!recFlat.includes('unapproved (approved_for_delivery false), unsealed (sealed_at NULL), and dry_run still true')) return false
-        if (!recFlat.includes('deliver_catalog_exercises provably rejects exactly this posture today')) return false
+        // REVISED (EXLIB-2G transition precision): the staged posture is
+        // the promotable one - dry_run false, unapproved, unsealed,
+        // unrevoked, evidence populated, members review-audited.
+        if (!recFlat.includes('dry_run = false, approved_for_delivery = false, sealed_at = NULL, revoked_at = NULL')) return false
+        if (!recFlat.includes('structurally NON-DELIVERABLE (the predicate still requires approved_for_delivery = true and a non-null sealed_at)')) return false
         if (!recFlat.includes('approval/sealing is NEVER staging: it is the protected delivery-activation event itself')) return false
         if (!recFlat.includes('no authenticated direct-RPC exposure window is accepted')) return false
         if (!recFlat.includes('MUST FAIL CLOSED for zero-exercise users')) return false
@@ -258,6 +261,49 @@ async function main(): Promise<void> {
         const buf = readFileSync(CONTENT)
         if (buf.length !== 2729) return false
         return createHash('sha256').update(buf).digest('hex') === 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a'
+      })())
+    check('C4: ADMISSION (EXLIB-2G transition precision) — proven from the migration-023 bytes: exlib_approve_and_seal_run() sets ONLY approved_for_delivery=true and sealed_at=NOW() (it never touches dry_run or approval evidence); the freeze trigger raises the dry-run sealing rejection and demands complete evidence plus fully review-audited members; the selected staged posture (dry_run=false, unapproved, unsealed, unrevoked, evidence populated) is rejected by the delivery predicate yet DIRECTLY promotable, and the approve/seal transition is recorded as the exact moment direct authenticated RPC becomes deliverable; the accepted content record stays byte-identical and the post-S7/rollback rules remain intact',
+      (() => {
+        const m023 = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+        const fnStart = m023.indexOf('CREATE OR REPLACE FUNCTION exlib_approve_and_seal_run')
+        const fnBody = m023.slice(fnStart, m023.indexOf('$$;', fnStart) + 3)
+        // 1-2: the ONLY mutation is the two-field UPDATE; dry_run and evidence untouched
+        if (!fnBody.includes('SET approved_for_delivery = true,\n      sealed_at             = NOW()')) return false
+        if ((fnBody.match(/UPDATE public\.exercise_catalog_import_runs/g) ?? []).length !== 1) return false
+        if (fnBody.includes('dry_run')) return false
+        if (/SET[\s\S]{0,200}(product_approved|legal_approved|approval_rationale)/.test(fnBody)) return false
+        // 3: the trigger's dry-run sealing rejection + evidence + member-audit demands
+        if (!m023.includes("'exercise_catalog_import_runs: dry runs cannot be sealed'")) return false
+        if (!m023.includes('sealing requires complete, non-blank product + legal approval evidence')) return false
+        if (!m023.includes('are not approved, active, and fully review-audited')) return false
+        if (!m023.includes('an empty membership cannot be sealed')) return false
+        // pre-seal writability of staging fields (unsealed regime restricts only the seal/approval/revocation trio)
+        if (!m023.includes('runs are born unsealed, unapproved, and unrevoked')) return false
+        // 4-5: the record's selected posture
+        if (!recFlat.includes('dry_run = false, approved_for_delivery = false, sealed_at = NULL, revoked_at = NULL')) return false
+        if (!recFlat.includes('membership fully loaded and fully review-audited')) return false
+        if (!recFlat.includes('product/legal approval evidence populated')) return false
+        if (!recFlat.includes('writable while the run is unapproved and unsealed')) return false
+        // 6: predicate rejection of the staged posture
+        if (!recFlat.includes('structurally NON-DELIVERABLE (the predicate still requires approved_for_delivery = true and a non-null sealed_at)')) return false
+        // 7: prerequisites recorded verbatim
+        if (!recFlat.includes('requires complete non-blank product + legal approval evidence')) return false
+        if (!recFlat.includes('not approved, active, and fully review-audited')) return false
+        // 8: legality + the exact deliverable moment + the preparation transition + no false claims about the function
+        if (!recFlat.includes('DIRECTLY promotable by one call to exlib_approve_and_seal_run()')) return false
+        if (!recFlat.includes('it does NOT change dry_run and does NOT populate approval evidence')) return false
+        if (!recFlat.includes('the exact moment authenticated direct RPC becomes deliverable')) return false
+        if (!recFlat.includes('(1) while still unapproved and unsealed, set dry_run = false and populate the required approval evidence')) return false
+        if (!recFlat.includes('sets ONLY approved_for_delivery = true and sealed_at = NOW()')) return false
+        // 9: accepted content byte-identical
+        const buf = readFileSync(CONTENT)
+        if (buf.length !== 2729 ||
+          createHash('sha256').update(buf).digest('hex') !== 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a') return false
+        // 10: previously corrected post-S7 + rollback rules intact
+        return recFlat.includes('MUST FAIL CLOSED for zero-exercise users') &&
+          recFlat.includes('CANNOT call seedExercisesIfNeeded while the timed seed definition is live') &&
+          recFlat.includes('AFTER S7 (timed seed live)') &&
+          recFlat.includes('NO instance bare-seeds during the mixed window')
       })())
     check('G1: lifecycle-safe phase boundary — exactly the three new artifacts (design record, content record, this verifier); strict porcelain while uncommitted, adder-anchored single-commit range once committed; no historical verifier needed a retarget this phase (the corpus files the battery reads are all byte-frozen and untouched)',
       (() => {
