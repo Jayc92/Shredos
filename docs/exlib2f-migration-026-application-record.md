@@ -31,9 +31,19 @@ hosted contact in this phase and never applies migrations.
   a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108).
   The candidate file remains byte-identical after application; any
   byte change would void the reviewed/applied status.
-- Hosted migrations now applied: 001-026 (023 applied 2026-08-24 as
-  20260824135804, 024 applied 2026-08-24 as 20260824174252, 026
-  applied as above).
+- Repository vs hosted history, precisely distinguished: the
+  REPOSITORY schema/migration sequence effective on hosted ShredOS
+  is now 001-026 (all twenty-six numbered repository migrations are
+  in effect). Supabase's hosted migration-history TABLE is a
+  different object with its own entry names and contains exactly
+  these five entries, verbatim:
+  - 20260813034632_phase5b2_nutrition_day_status
+  - 20260824135804_exlib_catalog_and_delivery_contract_revision_h
+  - 20260824174252_exlib_post_application_hardening
+  - 20260826203154_exlib_equipment_vocabulary_support
+  - 20260901032229_exlib_plank_seed_reconciliation_026
+  20260826203154_exlib_equipment_vocabulary_support is the hosted
+  entry corresponding to repository migration 025.
 
 ## 2. Operator-confirmed hosted proof (post-application)
 

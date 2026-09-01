@@ -113,6 +113,23 @@ async function main(): Promise<void> {
       recFlat.includes('exercises count remains 84') &&
       recFlat.includes('counts all remain ZERO') &&
       recFlat.includes('no delivery, no correction, and no data mutation'))
+    check('A6: ADMISSION (Codex evidence-precision) — the record distinguishes the REPOSITORY migration sequence (001-026 effective on hosted) from Supabase\'s hosted migration-history TABLE, pins exactly the five hosted history entries verbatim, and identifies 20260826203154_exlib_equipment_vocabulary_support as the hosted entry corresponding to repository migration 025',
+      (() => {
+        const ENTRIES = [
+          '20260813034632_phase5b2_nutrition_day_status',
+          '20260824135804_exlib_catalog_and_delivery_contract_revision_h',
+          '20260824174252_exlib_post_application_hardening',
+          '20260826203154_exlib_equipment_vocabulary_support',
+          '20260901032229_exlib_plank_seed_reconciliation_026']
+        if (!ENTRIES.every((e) => rec.includes(e))) return false
+        // exactly five: no other 2026xxxxxxxxxx_ history-entry token appears
+        const tokens = Array.from(new Set(Array.from(rec.matchAll(/20\d{12}_[a-z0-9_]+/g)).map((m) => m[0])))
+        if (tokens.length !== 5 || !tokens.every((t) => ENTRIES.includes(t))) return false
+        return recFlat.includes('REPOSITORY schema/migration sequence effective on hosted ShredOS is now 001-026') &&
+          recFlat.includes('hosted migration-history TABLE is a different object') &&
+          recFlat.includes('contains exactly these five entries, verbatim') &&
+          recFlat.includes('20260826203154_exlib_equipment_vocabulary_support is the hosted entry corresponding to repository migration 025')
+      })())
   }
 
   console.log('\nB. Boundaries and lifecycle')
