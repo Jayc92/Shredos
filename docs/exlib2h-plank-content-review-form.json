@@ -1,0 +1,40 @@
+{
+  "form": "exlib2h-plank-content-review-form",
+  "form_version": 1,
+  "prepared_at": "2026-09-01",
+  "packet": "docs/exlib2h-plank-content-review-packet.md",
+  "content_artifact": "docs/exlib2g-plank-content.jsonl",
+  "content_fingerprint": {
+    "bytes": 2729,
+    "sha256": "a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a",
+    "note": "Any byte change to the content artifact voids this form and the packet."
+  },
+  "canonical_name": "Plank",
+  "source_commit": "b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a",
+  "source_tag_object": "435816da3cd019cd5965eab52c0ad52b2227c889",
+  "decision": null,
+  "reviewer": null,
+  "reviewer_role_or_credential": null,
+  "reviewed_at": null,
+  "evidence": null,
+  "rationale": null,
+  "needs_human_judgment_confirmations": {
+    "aliases_are_true_synonyms": null,
+    "difficulty_and_availability_defensible": null,
+    "instruction_coaching_quality": null,
+    "easier_alternatives_appropriate": null,
+    "safety_adequacy": null,
+    "dead_bug_substitution_reasonable": null,
+    "ab_wheel_rollout_progression_reasonable": null
+  },
+  "legal_decisions": [
+    "approved",
+    "revised",
+    "rejected"
+  ],
+  "decision_requirements": "A decision requires reviewer (named human specialist, never AI, >= 3 non-blank chars), reviewer_role_or_credential (operator-validated), reviewed_at (date-time), and rationale (>= 10 non-blank chars) together; optional evidence never substitutes for them.",
+  "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Only an authorized human reviewer may fill the decision, identity, role/credential, timestamp, evidence, and rationale fields. Even a filled form changes nothing: applying any decision to the content artifact is a separate, separately reviewed milestone with its own fingerprint gates.",
+  "import_eligible_effect": "none - import_eligible stays false; flipping it is a later, separately approved act on an exact fingerprinted payload (validator rule R6)",
+  "publication_effect": "none - publication is a separate database-side lifecycle; pending or rejected content can never be published structurally",
+  "loading_effect": "none - catalog loading remains blocked until an authorized review decision is recorded AND separately reviewed"
+}
