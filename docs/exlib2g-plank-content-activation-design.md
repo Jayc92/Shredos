@@ -126,10 +126,17 @@ Two governing truths shape everything below:
   and the run gate is byte-carried 023 text. No new database flag
   is invented and no migration 027 is proposed; the existing
   contract supports a hosted-loaded but non-deliverable run, so
-  hosted loading need not wait for the activation event - but the
-  approval/seal transition (or unrevoking a run) IS the activation
-  event, the exact moment authenticated direct RPC becomes
-  deliverable, and it happens only under the protected gate.
+  hosted loading need not wait for the activation event. The precise
+  activation rule: the approval/seal transition of an ELIGIBLE
+  UNSEALED run is the activation event - the exact moment
+  authenticated direct RPC becomes deliverable - and it happens only
+  under the protected gate. Revocation is PERMANENT: migration 023
+  makes revoked_at one-way and never clearable, a revoked run can
+  NEVER be reactivated or unrevoked (exlib_revoke_run_delivery is
+  idempotent for an already-revoked run and reports the original
+  revocation), and any later delivery decision requires a NEW run.
+  The adjective "unrevoked" anywhere in this design means only the
+  predicate state revoked_at IS NULL, never a transition.
 
 No cross-system atomicity between Git, Vercel, and Supabase is
 claimed or relied on anywhere below: every state tolerates the

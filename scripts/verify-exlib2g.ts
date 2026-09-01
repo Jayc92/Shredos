@@ -235,7 +235,7 @@ async function main(): Promise<void> {
       recFlat.includes('NOT repository-generated') &&
       recFlat.includes('never downloaded into or fingerprinted by this repository') &&
       recFlat.includes('no hosted contact, no catalog snapshot/run/approval/seal/load/publication/delivery'))
-    check('C3: ADMISSION (EXLIB-2G activation review) — the corrected design enforces: no sealed-but-inactive claim; runtime flags do not protect the authenticated RPC; the pre-activation hosted posture is rejected by the delivery predicate; approving/sealing/unrevoking IS the protected activation event; no direct-RPC exposure window is accepted; post-S7 delivery failure fails closed with no timed fallback seeding; pre-S7 and post-S7 rollback are distinct regimes; post-S7 rollback restores the bodyweight seed plus seed_link_compatible=false fleet-wide BEFORE legacy seeding returns; mixed-fleet rollback is analyzed; and the accepted Plank content record is byte-identical',
+    check('C3: ADMISSION (EXLIB-2G activation review) — the corrected design enforces: no sealed-but-inactive claim; runtime flags do not protect the authenticated RPC; the pre-activation hosted posture is rejected by the delivery predicate; approving/sealing an ELIGIBLE UNSEALED run is the protected activation event (revocation is permanent - a revoked run is never reactivated; a new decision requires a NEW run); no direct-RPC exposure window is accepted; post-S7 delivery failure fails closed with no timed fallback seeding; pre-S7 and post-S7 rollback are distinct regimes; post-S7 rollback restores the bodyweight seed plus seed_link_compatible=false fleet-wide BEFORE legacy seeding returns; mixed-fleet rollback is analyzed; and the accepted Plank content record is byte-identical',
       (() => {
         if (/sealed[- ]but[- ]inactive/i.test(recFlat.replace('No claim of "sealed-but-inactive" appears anywhere in this design', ''))) return false
         if (!recFlat.includes('An application runtime flag CANNOT protect the database')) return false
@@ -295,6 +295,28 @@ async function main(): Promise<void> {
         if (!recFlat.includes('the exact moment authenticated direct RPC becomes deliverable')) return false
         if (!recFlat.includes('(1) while still unapproved and unsealed, set dry_run = false and populate the required approval evidence')) return false
         if (!recFlat.includes('sets ONLY approved_for_delivery = true and sealed_at = NOW()')) return false
+        // REVISED (EXLIB-2G lifecycle wording): revocation permanence,
+        // proven from the 023 bytes plus a design-wide verb scan.
+        if (!m023.includes("'exercise_catalog_import_runs: revocation is one-way and permanent'")) return false
+        if (!m023.includes('-- revoked_at is ONE-WAY: NULL -> non-null on a sealed run, never')) return false
+        const rvStart = m023.indexOf('CREATE OR REPLACE FUNCTION exlib_revoke_run_delivery')
+        const rvBody = m023.slice(rvStart, m023.indexOf('$$;', rvStart) + 3)
+        // idempotent for an already-revoked run: reports, never re-updates
+        if (!rvBody.includes("'already_revoked', true")) return false
+        if (!rvBody.includes('IF v_run.revoked_at IS NOT NULL THEN')) return false
+        if ((rvBody.match(/UPDATE public\.exercise_catalog_import_runs/g) ?? []).length !== 1) return false
+        if (!rvBody.includes('SET revoked_at = NOW()')) return false
+        // the design never claims a run can be unrevoked or reactivated:
+        // no unrevoke-verb form and no reactivation claim outside the
+        // explicit prohibition sentences; the adjective "unrevoked" is
+        // valid only as the predicate state revoked_at IS NULL.
+        if (/unrevok(?:ing|e\b)/.test(rec)) return false
+        if (/\breactivat/i.test(recFlat.replace(/can NEVER be reactivated or unrevoked/g, ''))) return false
+        if (!recFlat.includes('the approval/seal transition of an ELIGIBLE UNSEALED run is the activation event')) return false
+        if (!recFlat.includes('Revocation is PERMANENT: migration 023 makes revoked_at one-way and never clearable')) return false
+        if (!recFlat.includes('idempotent for an already-revoked run and reports the original revocation')) return false
+        if (!recFlat.includes('any later delivery decision requires a NEW run')) return false
+        if (!recFlat.includes('means only the predicate state revoked_at IS NULL, never a transition')) return false
         // 9: accepted content byte-identical
         const buf = readFileSync(CONTENT)
         if (buf.length !== 2729 ||
