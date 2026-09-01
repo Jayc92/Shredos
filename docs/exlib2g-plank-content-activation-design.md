@@ -58,13 +58,19 @@ B. Catalog snapshot/loading package prepared and reviewed separately
    (local artifacts only; nothing hosted).
 C. Runtime delivery activation designed and reviewed (design below;
    implementation is NOT this milestone).
-D. Hosted catalog loading/sealing occurs under a separate protected
-   gate while delivery remains inactive (no user-visible change; the
-   delivery runtime is still absent, so sealed data sits inert
-   behind the SECURITY DEFINER run gate).
-E. Final coordinated activation changes runtime behavior, the future
-   seed definition, and seed_link_compatible under ONE reviewed
-   release plan that prevents new users from entering the prohibited
+D. Hosted catalog loading may occur only in a database state the
+   delivery function REJECTS (loaded but unapproved and unsealed -
+   the run's born posture under migration 023). A sealed, approved,
+   unrevoked run is deliverable to ANY authenticated caller of
+   deliver_catalog_exercises regardless of application flags, so
+   approval/sealing is NEVER staging: it is the protected
+   delivery-activation event itself.
+E. Final coordinated activation: under the protected gate, make the
+   run deliverable (approve + seal) and verify it, enable the
+   runtime delivery path, and only after delivery-first behavior is
+   proven fleet-wide may the future seed become timed and
+   seed_link_compatible become true - one reviewed release plan
+   that prevents new users from entering the prohibited
    intermediate state (state machine below).
 F. Delivery to users remains a separate explicit operator gate
    unless the final approved activation design proves it must be
@@ -72,105 +78,163 @@ F. Delivery to users remains a separate explicit operator gate
 
 ## 4. Coordinated-activation state machine (fail-closed design)
 
+CORRECTED after Codex activation review (forward correction; the
+original machine wrongly treated a sealed run as product-inactive).
+Two governing truths shape everything below:
+
+- An application runtime flag CANNOT protect the database: a
+  sealed/approved/unrevoked run is deliverable to any authenticated
+  caller who invokes deliver_catalog_exercises directly over RPC,
+  whatever the application is doing. No claim of
+  "sealed-but-inactive" appears anywhere in this design, and no
+  authenticated direct-RPC exposure window is accepted.
+- The existing migration-023/026 authorization predicate is the only
+  delivery gate that actually binds every caller:
+  approved_for_delivery = true AND dry_run = false AND sealed_at IS
+  NOT NULL AND revoked_at IS NULL. Hosted staging must therefore
+  keep the run in a posture that predicate REJECTS. The selected
+  staged posture is: catalog rows and run/run-item rows fully
+  loaded, with the run left in its BORN state - unapproved
+  (approved_for_delivery false), unsealed (sealed_at NULL), and
+  dry_run still true. deliver_catalog_exercises provably rejects
+  exactly this posture today: the promoted EXLIB-2F live matrix
+  includes the executable dry-run/unsealed-provenance abort and the
+  revocation fail-closed halt, and the run gate is byte-carried 023
+  text. No new database flag is invented and no migration 027 is
+  proposed; the existing contract already supports a hosted-loaded
+  but non-deliverable run, so hosted loading need not wait for the
+  activation event - but making the run approved/sealed (or
+  unrevoking one) IS the activation event and happens only under
+  the protected gate.
+
 No cross-system atomicity between Git, Vercel, and Supabase is
 claimed or relied on anywhere below: every state tolerates the
 others lagging, and every transition is safe under rolling
 deployment with old clients still running.
 
+The safe order (canonical):
+
+1. Content reviewed locally.
+2. Load package reviewed locally.
+3. Runtime delivery-capable code deployed behind an OFF application
+   flag while the seed remains bodyweight.
+4. Catalog/run loaded hosted ONLY in the rejected (unapproved +
+   unsealed + dry_run) posture.
+5. Under a separate protected activation gate, make the run
+   deliverable (approve + seal) and verify it.
+6. Enable the runtime delivery path.
+7. Only after delivery-first behavior is proven fleet-wide may the
+   future seed become timed and seed_link_compatible become true
+   (the seed-flip event, formerly S4c).
+
+States:
+
 - S0 CURRENT: old bodyweight seed live; hosted catalog rows zero;
-  delivery runtime absent. Every client (old or new) bare-seeds the
-  bodyweight Plank, which stays P2-correctable forever. Safe
-  indefinitely.
+  delivery runtime absent. Every client bare-seeds the bodyweight
+  Plank, which stays P2-correctable forever. Safe indefinitely.
 - S1 CONTENT-READY (this milestone): S0 plus one local Plank content
   record, pending/evidence-null/import-ineligible/unpublished. No
   behavioral change anywhere. Safe indefinitely.
-- S2 CATALOG-PREPARED: S1 plus a reviewed load package existing
-  LOCALLY (fingerprinted payload, load procedure, rollback
-  procedure). No hosted mutation. Safe indefinitely.
-- S3 HOSTED-STAGED: catalog snapshot/run loaded and sealed on hosted
-  under its own protected gate — but NO user delivery path exists
-  (the runtime never calls deliver_catalog_exercises; clients cannot
-  call it usefully because a sealed-but-unactivated run is inert
-  product-side, and the seed path still bare-seeds bodyweight
-  Planks, which remain P2-correctable). Old and new clients behave
-  identically to S0. Reversible by exlib_revoke_run_delivery, which
-  never reinterprets or touches tenant rows. NOTE (fail-closed
-  honesty): sealing makes the run technically deliverable to any
-  authenticated caller of deliver_catalog_exercises; S3 therefore
-  REQUIRES the activation-design review to either accept that
-  exposure window explicitly or place S3 after the runtime deploy
-  completes with the flag still OFF (S4a below covers the safe
-  ordering).
-- S4 RUNTIME-ACTIVATION (the delicate one, ordered fail-closed):
-  - S4a deploy the delivery-capable runtime BEHIND an off flag (or
-    equivalent server-side gate): new server code prefers delivery
-    for zero-exercise users but the gate keeps it on the bare-seed
-    path; old and new server instances both bare-seed. No behavior
-    change. The FUTURE SEED DEFINITION IS STILL BODYWEIGHT — so any
-    instance, old or new, that seeds during rollout creates only
-    P2-correctable rows. This is what makes rolling deployment safe:
-    the prohibited "unlinked timed seed row" cannot exist because no
-    code anywhere writes a timed seed row yet.
-  - S4b flip the server-side gate ON only after (i) S3 is sealed and
-    verified and (ii) the rollout of S4a is complete (no old server
-    instances remain that would bare-seed AFTER delivery starts for
-    other instances — enforced by deployment-platform completion,
-    not assumed). From this moment zero-exercise users receive the
-    catalog through deliver_catalog_exercises; existing bodyweight
-    seed rows are corrected by P2 the first time delivery runs for
-    that user. Old CLIENTS (browsers) are safe throughout: seeding
-    and delivery are SERVER-side (page/API calls
-    seedExercisesIfNeeded today); a stale browser simply invokes
-    whatever the current server does.
-  - S4c ONLY NOW edit the seed module (tracking_mode timed + the
-    exact approved anatomy) as fallback cleanup for any residual
-    path where the seed function still runs, and flip
-    seed_link_compatible=true in the inventory in the same commit.
-    Because delivery already precedes seeding for zero-exercise
-    users, a timed seed row can only be created for a user who
-    ALREADY holds the delivered/linked Plank (the seed function's
-    zero-count guard makes even this practically unreachable), so
-    the prohibited unlinked-timed state cannot arise. The flip is
-    truthful: committed future seed definition and delivery contract
-    are compatible because delivery, not seeding, defines the Plank
-    for every new account.
-  - INVALID ORDERINGS (explicitly rejected): seed edit before S4b
-    (recreates the prohibited state — the original EXLIB-2G
-    mistake); gate-on before rollout completion (mixed fleets could
-    bare-seed and deliver for different users, which is safe for
-    Plank via P2 but pointlessly racy); any plan requiring all
-    clients to change instantaneously (invalid by definition here —
-    both paths are server-side and both tolerate stale browsers).
-- S5 ROLLBACK STATES:
-  - Runtime deploy fails mid-rollout (S4a): every instance still
-    bare-seeds bodyweight; nothing to undo.
-  - Gate-on then delivery FAILS (S4b): the delivery function is
-    atomic per user (advisory lock + single transaction) — a failed
-    delivery leaves that user with zero exercises for that request;
-    the gate can be flipped OFF, restoring bare-seed behavior for
-    subsequent requests. Users already delivered keep linked rows
-    (valid state; P2/verified-idempotency semantics remain correct).
-  - Catalog must be revoked (any time): exlib_revoke_run_delivery
-    halts future delivery fail-closed; delivered rows and corrected
-    rows are never reinterpreted (promoted 026 proof); with the gate
-    OFF the system degrades exactly to S0 behavior for new users.
-  - Seed edit must be rolled back (after S4c): revert the seed
-    commit; because delivery precedes seeding, no user depends on
-    the timed seed definition; seed_link_compatible reverts in the
-    same commit (it is a global artifact fact, so it must always
-    move with the seed definition).
-- S6 FUTURE-SEED STATE (steady state): timed seed definition +
-  seed_link_compatible=true are truthful; bare-15 seeding is a
-  vestigial fallback that can be retired under later product work.
+- S2 LOAD-PACKAGE-READY: S1 plus a reviewed load package existing
+  LOCALLY (fingerprinted payload, load procedure targeting the
+  rejected posture only, rollback procedure). No hosted mutation.
+- S3 RUNTIME-DEPLOYED-GATE-OFF: the delivery-capable runtime is
+  deployed behind an OFF application flag while the SEED DEFINITION
+  REMAINS BODYWEIGHT. Old and new server instances both bare-seed
+  bodyweight rows (P2-correctable); rolling deployment is safe
+  because no code anywhere writes a timed seed row. The flag
+  protects only the application's own call path - it is NOT a
+  security boundary - which is why S4's database posture, not this
+  flag, is what keeps staging non-deliverable.
+- S4 HOSTED-STAGED-NON-DELIVERABLE: the load package is applied
+  hosted, leaving the run unapproved + unsealed + dry_run true. The
+  delivery predicate rejects the run for EVERY caller, including
+  direct authenticated RPC - there is no exposure window. Loading
+  itself changes no tenant data and no user-visible behavior.
+  Reversible trivially (the run was never deliverable).
+- S5 PROTECTED-ACTIVATION (the activation event): under the separate
+  protected gate, exlib_approve_and_seal_run makes the run
+  deliverable; verification runs immediately (fixture account or
+  operator account) before any broader enablement. From this moment
+  the run is deliverable to authenticated callers by design - this
+  is delivery activation, deliberately performed, never incidental
+  staging.
+- S6 DELIVERY-ENABLED: the application flag turns ON only after (i)
+  S5 verification passed and (ii) the S3 rollout is fleet-complete
+  (enforced by deployment-platform completion, not assumed).
+  Zero-exercise users now receive the catalog through
+  deliver_catalog_exercises; existing bodyweight seed rows are
+  P2-corrected on each user's first delivery. The seed definition
+  is STILL bodyweight, so any residual seeding path remains
+  P2-correctable.
+- S7 FUTURE-SEED (the seed-flip event, formerly S4c): only after
+  delivery-first behavior is proven fleet-wide, edit the seed module
+  (tracking_mode timed + the exact approved anatomy) and flip
+  seed_link_compatible=true in the SAME commit. The flip is
+  truthful: delivery, not seeding, defines the Plank for every new
+  account.
+- POST-S7 FAIL-CLOSED RULE (binding on the future runtime
+  implementation): once the seed definition is timed, a failed or
+  unavailable delivery MUST FAIL CLOSED for zero-exercise users - a
+  temporary inability to initialize exercises is safer than
+  creating an unlinked timed Plank that migration 026 can never
+  P2-link. The runtime activation implementation must PROVE that
+  delivery failure, a rejected run, a revoked run, a timeout, or a
+  malformed response CANNOT call seedExercisesIfNeeded while the
+  timed seed definition is live. Turning the application flag OFF
+  after S7 does NOT restore S0 and is not a rollback: with the
+  timed seed live, the legacy path is forbidden. Emergency catalog
+  revocation after S7 may therefore cause fail-closed
+  initialization for new users until the seed rollback completes -
+  accepted by design.
+
+Rollback (two distinct regimes):
+
+- BEFORE S7 (seed still bodyweight): turning the application flag
+  OFF safely returns to the existing bodyweight bare-seed path at
+  any point in S3-S6; bodyweight rows remain P2-correctable, and
+  exlib_revoke_run_delivery halts a deliverable run fail-closed
+  without reinterpreting tenant rows. Nothing about this regime can
+  create a timed row.
+- AFTER S7 (timed seed live): legacy seeding MUST NOT be re-enabled
+  while the timed seed definition is live, in any instance, ever.
+  Ordered rollback: (1) revert the seed definition to bodyweight
+  AND move seed_link_compatible back to false in the same reviewed
+  repository state; (2) deploy that revert across the ENTIRE server
+  fleet and verify fleet completion plus the restored old seed
+  fingerprint; (3) only then may delivery be disabled and
+  bodyweight legacy seeding re-enabled. If immediate catalog
+  revocation is required for safety, revoke FIRST - initialization
+  then fails closed for new users until steps (1)-(2) complete;
+  that outage is the accepted safe behavior.
+- MIXED-FLEET ANALYSIS (rollback): during the post-S7 revert
+  deployment the fleet mixes timed-definition instances (fail
+  closed, never seed) with reverted bodyweight-definition instances
+  (delivery-first, flag still ON, so they do not bare-seed either).
+  Because the flag stays ON until fleet completion is verified, NO
+  instance bare-seeds during the mixed window, so old and new
+  instances cannot disagree in a way that permits timed fallback
+  seeding; after verified completion the flag turns OFF and every
+  instance bare-seeds bodyweight only.
 
 Old-client analysis (explicit): browsers never write seed rows
-directly — both seeding and delivery are server-side effects of
+directly - both seeding and delivery are server-side effects of
 authenticated page/API requests. A client rendered by old UI code
-against a new server sees the new server behavior; a mixed SERVER
-fleet is the only real hazard, and S4a/S4b remove it by keeping the
-seed definition bodyweight until the fleet is uniform and gated ON.
-A plan that is safe only if every client changes instantaneously is
-invalid; this plan requires no client change at all.
+against a new server sees the new server behavior; the only real
+hazards are mixed SERVER fleets (handled above in both directions)
+and direct authenticated RPC (handled by the database posture, never
+by flags). A plan that is safe only if every client changes
+instantaneously is invalid; this plan requires no client change at
+all.
+
+INVALID ORDERINGS (explicitly rejected): seed edit before S6-proven
+delivery-first behavior (recreates the prohibited unlinked-timed
+state - the original EXLIB-2G mistake); approving/sealing a run as
+"staging" before the protected gate (it is the activation event);
+gate-ON before fleet-uniform rollout; re-enabling legacy seeding
+after S7 before the fleet-wide seed revert completes; any reliance
+on an application flag to keep a deliverable run from authenticated
+callers.
 
 ## 5. The authored Plank content record (Part 3 of this milestone)
 

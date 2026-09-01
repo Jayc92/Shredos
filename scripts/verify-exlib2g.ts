@@ -124,8 +124,11 @@ async function main(): Promise<void> {
       recFlat.includes('INTENTIONALLY recognizes only the OLD pristine bodyweight seed shape') &&
       recFlat.includes('unlinked timed seed rows') &&
       recFlat.includes('seed_link_compatible cannot truthfully become true in that state') &&
+      // REVISED (EXLIB-2G activation review): D/E now carry the
+      // corrected non-deliverable-staging and activation-event wording.
       ['A. Plank instructional content', 'B. Catalog snapshot/loading package',
-        'C. Runtime delivery activation designed', 'D. Hosted catalog loading/sealing',
+        'C. Runtime delivery activation designed',
+        'D. Hosted catalog loading may occur only in a database state the delivery function REJECTS',
         'E. Final coordinated activation', 'F. Delivery to users remains a separate explicit operator gate']
         .every((s) => recFlat.includes(s)))
   }
@@ -218,20 +221,44 @@ async function main(): Promise<void> {
 
   console.log('\nC. Activation design and evidence posture')
   {
-    check('C1: the activation state machine is complete — S0-S6 states, staged rollout with an off-flag deploy, rolling-deployment and old-client analysis, explicitly rejected invalid orderings, fail-closed sealing honesty, rollback states for runtime/delivery/catalog/seed failure, and NO claim of cross-system atomicity',
-      ['S0 CURRENT', 'S1 CONTENT-READY', 'S2 CATALOG-PREPARED', 'S3 HOSTED-STAGED',
-        'S4 RUNTIME-ACTIVATION', 'S4a', 'S4b', 'S4c', 'S5 ROLLBACK STATES', 'S6 FUTURE-SEED STATE',
-        'INVALID ORDERINGS', 'rolling deployment', 'Old-client analysis',
+    check('C1: REVISED (EXLIB-2G activation review) — the corrected state machine is complete: canonical 7-step order, states S0-S7 with the protected activation event and post-S7 fail-closed rule, staged rollout behind an OFF flag with the seed still bodyweight, rolling-deployment and old-client analysis, two-regime rollback with mixed-fleet analysis, explicitly rejected invalid orderings, and NO claim of cross-system atomicity',
+      ['S0 CURRENT', 'S1 CONTENT-READY', 'S2 LOAD-PACKAGE-READY', 'S3 RUNTIME-DEPLOYED-GATE-OFF',
+        'S4 HOSTED-STAGED-NON-DELIVERABLE', 'S5 PROTECTED-ACTIVATION', 'S6 DELIVERY-ENABLED',
+        'S7 FUTURE-SEED', 'POST-S7 FAIL-CLOSED RULE', 'The safe order (canonical):',
+        'INVALID ORDERINGS', 'rolling deployment', 'Old-client analysis', 'MIXED-FLEET ANALYSIS',
         'No cross-system atomicity between Git, Vercel, and Supabase is', 'exlib_revoke_run_delivery']
         .every((s) => rec.includes(s)) &&
       recFlat.includes('safe only if every client changes instantaneously is invalid') &&
-      recFlat.includes('deploy the delivery-capable runtime BEHIND an off flag') &&
-      recFlat.includes('ONLY NOW edit the seed module'))
+      recFlat.includes('the seed-flip event, formerly S4c'))
     check('C2: the operator backup timestamp 2026-09-01 13:09:47 UTC is recorded ONLY as operator recovery evidence — explicitly not repository-generated and never downloaded into the repository — and the record states no hosted contact occurred in this milestone',
       rec.includes('2026-09-01 13:09:47 UTC') &&
       recFlat.includes('NOT repository-generated') &&
       recFlat.includes('never downloaded into or fingerprinted by this repository') &&
       recFlat.includes('no hosted contact, no catalog snapshot/run/approval/seal/load/publication/delivery'))
+    check('C3: ADMISSION (EXLIB-2G activation review) — the corrected design enforces: no sealed-but-inactive claim; runtime flags do not protect the authenticated RPC; the pre-activation hosted posture is rejected by the delivery predicate; approving/sealing/unrevoking IS the protected activation event; no direct-RPC exposure window is accepted; post-S7 delivery failure fails closed with no timed fallback seeding; pre-S7 and post-S7 rollback are distinct regimes; post-S7 rollback restores the bodyweight seed plus seed_link_compatible=false fleet-wide BEFORE legacy seeding returns; mixed-fleet rollback is analyzed; and the accepted Plank content record is byte-identical',
+      (() => {
+        if (/sealed[- ]but[- ]inactive/i.test(recFlat.replace('No claim of "sealed-but-inactive" appears anywhere in this design', ''))) return false
+        if (!recFlat.includes('An application runtime flag CANNOT protect the database')) return false
+        if (!recFlat.includes('approved_for_delivery = true AND dry_run = false AND sealed_at IS NOT NULL AND revoked_at IS NULL')) return false
+        if (!recFlat.includes('unapproved (approved_for_delivery false), unsealed (sealed_at NULL), and dry_run still true')) return false
+        if (!recFlat.includes('deliver_catalog_exercises provably rejects exactly this posture today')) return false
+        if (!recFlat.includes('approval/sealing is NEVER staging: it is the protected delivery-activation event itself')) return false
+        if (!recFlat.includes('no authenticated direct-RPC exposure window is accepted')) return false
+        if (!recFlat.includes('MUST FAIL CLOSED for zero-exercise users')) return false
+        if (!recFlat.includes('CANNOT call seedExercisesIfNeeded while the timed seed definition is live')) return false
+        if (!recFlat.includes('temporary inability to initialize exercises is safer than creating an unlinked timed Plank')) return false
+        if (!recFlat.includes('Turning the application flag OFF after S7 does NOT restore S0')) return false
+        if (!recFlat.includes('BEFORE S7 (seed still bodyweight)')) return false
+        if (!recFlat.includes('AFTER S7 (timed seed live)')) return false
+        if (!recFlat.includes('revert the seed definition to bodyweight AND move seed_link_compatible back to false in the same reviewed repository state')) return false
+        if (!recFlat.includes('deploy that revert across the ENTIRE server fleet and verify fleet completion plus the restored old seed fingerprint')) return false
+        if (!recFlat.includes('only then may delivery be disabled and bodyweight legacy seeding re-enabled')) return false
+        if (!recFlat.includes('revoke FIRST - initialization then fails closed for new users until steps (1)-(2) complete')) return false
+        if (!recFlat.includes('NO instance bare-seeds during the mixed window')) return false
+        const buf = readFileSync(CONTENT)
+        if (buf.length !== 2729) return false
+        return createHash('sha256').update(buf).digest('hex') === 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a'
+      })())
     check('G1: lifecycle-safe phase boundary — exactly the three new artifacts (design record, content record, this verifier); strict porcelain while uncommitted, adder-anchored single-commit range once committed; no historical verifier needed a retarget this phase (the corpus files the battery reads are all byte-frozen and untouched)',
       (() => {
         try {
