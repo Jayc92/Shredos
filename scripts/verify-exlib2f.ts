@@ -228,10 +228,13 @@ async function main(): Promise<void> {
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         return !existsSync('scripts/exlib1c-import.ts') && !existsSync('src/lib/catalog-import.ts')
       })())
-    check('C2: prepared but NOT claimed as applied — the candidate header and the apply-prep record both carry the NOT-APPLIED posture, no application record exists for 026, and the record states hosted application remains Joseph/ChatGPT-only',
+    check('C2: REVISED (RETARGET (EXLIB-2F application record)) — the apply-prep PHASE\'s prepared-not-applied posture is anchored to its own tip: the byte-frozen candidate header and apply-prep record carry the NOT-APPLIED-at-prep-time statements, and the apply-prep tip\'s tree provably contains no application record; the live applied-state posture is owned by scripts/verify-exlib2f-application.ts since the authorized hosted application (20260901032229)',
       (() => {
         if (!cand.slice(0, 2200).includes('NOT APPLIED')) return false
-        if (readdirSync('docs').some((f) => f.includes('exlib2f') && f.includes('application-record'))) return false
+        // ANCHOR: at the apply-prep tip no application record existed.
+        const docsAtTip = execSync('git ls-tree bc8a5e20343aa1f83832627f78891632ee61f897 docs/ --name-only', { encoding: 'utf8' })
+          .split('\n').filter(Boolean)
+        if (docsAtTip.some((f) => f.includes('exlib2f') && f.includes('application-record'))) return false
         return recFlat.includes('NOT APPLIED') &&
           recFlat.includes('Joseph/ChatGPT') &&
           recFlat.includes('applies NOTHING') &&
