@@ -111,7 +111,12 @@ async function main(): Promise<void> {
     check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 5 range (batch 4 tip..batch 5 tip) touches ONLY this phase\'s five paths',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-        if (files.length !== 25 || files.some((f) => f.startsWith('026'))) return false
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate joins the boundary (PREPARED, NOT
+        // APPLIED; executable SQL byte-identical to the promoted
+        // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+        if (files.length !== 26 || files.filter((f) => f.startsWith('026')).length !== 1 ||
+          !files.includes('026_exlib_plank_seed_reconciliation.sql')) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
         // RETARGET (EXLIB-2C batch 6): the BATCH 5 milestone's range

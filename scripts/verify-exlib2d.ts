@@ -69,7 +69,12 @@ async function main(): Promise<void> {
     check('A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the EXLIB-2D range (batch 6 tip..approved 2D tip) touches ONLY this phase\'s four paths',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-        if (files.length !== 25 || files.some((f) => f.startsWith('026'))) return false
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate joins the boundary (PREPARED, NOT
+        // APPLIED; executable SQL byte-identical to the promoted
+        // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+        if (files.length !== 26 || files.filter((f) => f.startsWith('026')).length !== 1 ||
+          !files.includes('026_exlib_plank_seed_reconciliation.sql')) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
         // RETARGET (EXLIB-2E): the EXLIB-2D milestone's range claim is
@@ -401,8 +406,14 @@ async function main(): Promise<void> {
   {
     check('D1: ADMISSION (EXLIB-2D review 2) — the exercises.id dependency inventory is reproduced mechanically from the migrations and matches the matrix exactly (workout_exercises, workout_routine_exercises, exercise_muscles, exercise_aliases as the only FK referencers, exercise_name_claims as the only non-FK reference closed by the claim precondition), and the verified-idempotency contract leaves no unconditional no-op path',
       (() => {
+        // RETARGET (EXLIB-2F): the dependency inventory this design
+        // analyzed is the pre-026 migration set; the EXLIB-2F apply-prep
+        // candidate 026 intentionally ADDS exercise_catalog_corrections
+        // as a fifth RESTRICT FK referencer per the approved design, so
+        // the mechanical reproduction stays scoped to 001-025.
         const hits = execSync("grep -rln 'REFERENCES exercises' supabase/migrations/*.sql", { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
+          .filter((f) => !f.includes('026_exlib_plank_seed_reconciliation'))
         const tables = new Set<string>()
         for (const f of hits) {
           const src = read(f)

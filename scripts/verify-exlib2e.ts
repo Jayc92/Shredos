@@ -46,6 +46,12 @@ const D_VERIFIER = 'scripts/verify-exlib2d.ts'
 const PHASE_NEW = [PROPOSAL, RECORD, LIVE, VERIFIER].sort()
 const PHASE_ALL = [...PHASE_NEW, D_VERIFIER].sort()
 const EXLIB2D_TIP = '99991d7b07386c089bebf3c15a7ae98c10cde39b'
+// RETARGET (EXLIB-2F): the promoted EXLIB-2E tip — this suite's
+// historical proposal-only claims are anchored here, where they were
+// last live-true, because EXLIB-2F later prepared the reviewed 026
+// apply-prep candidate in supabase/migrations/ (the live 026
+// boundary is owned by scripts/verify-exlib2f.ts).
+const EXLIB2E_TIP = '7fed0eed6f18c1752e15d3ba76b6e0c7adeaacf3'
 
 const prop = read(PROPOSAL)
 const recFlat = read(RECORD).replace(/\s+/g, ' ')
@@ -81,17 +87,25 @@ async function main(): Promise<void> {
       sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b')
     check('A2: NOT-APPLIED boundary — migrations still exactly 001-025 with NO 026 in supabase/migrations/, the proposal present in docs/ instead, zero weight_time in src, no importer artifacts, seed module byte-identical to promoted main, and the range beyond the approved EXLIB-2D tip touches ONLY this phase\'s five paths',
       (() => {
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
+        // RETARGET (EXLIB-2F): anchored to the promoted EXLIB-2E tip —
+        // at 7fed0ee the migrations were exactly 001-025 with NO 026 and
+        // the proposal lived in docs/; the claim is proven against that
+        // exact commit's tree, never weakened to the current worktree.
+        const files = execSync(`git ls-tree ${EXLIB2E_TIP} supabase/migrations/ --name-only`,
+          { encoding: 'utf8' }).split('\n').filter((p) => p.endsWith('.sql'))
+          .map((p) => p.split('/').pop() as string).sort()
         if (files.length !== 25 || files.some((f) => f.startsWith('026'))) return false
+        try { execSync(`git cat-file -e ${EXLIB2E_TIP}:docs/exlib2e-migration-026-proposal.sql`, { stdio: 'pipe' }) } catch { return false }
         if (!existsSync(PROPOSAL)) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
         const seedNow = readFileSync('src/lib/supabase/seed-exercises.ts')
         const seedMain = execSync('git show cdba699ab68ba9cee2fd9331962b8b2060099862:src/lib/supabase/seed-exercises.ts', { encoding: 'buffer' as any }) as unknown as Buffer
         if (!seedNow.equals(seedMain)) return false
-        const range = execSync(`git diff --name-only ${EXLIB2D_TIP}..HEAD`, { encoding: 'utf8' })
+        // RETARGET (EXLIB-2F): the phase range is anchored tip-to-tip
+        // (approved EXLIB-2D tip .. promoted EXLIB-2E tip), fixed forever.
+        const range = execSync(`git diff --name-only ${EXLIB2D_TIP}..${EXLIB2E_TIP}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
-        if (range.length === 0) return true // uncommitted review state
         return JSON.stringify(range) === JSON.stringify(PHASE_ALL)
       })())
     check('A3: ledger remains 48/48 pending-null, all 26 legacy candidates import-ineligible, and all 126 authored records pending/evidence-null/import-false/unpublished',

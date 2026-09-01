@@ -139,7 +139,12 @@ async function main() {
       // exactly-25 with 024 and 025 both pinned.
       readdirSync('supabase/migrations').filter((f) => f.startsWith('025')).length === 1 &&
       readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql') &&
-      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 25)
+      // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+      // reviewed 026 candidate joins the boundary (PREPARED, NOT
+      // APPLIED; executable SQL byte-identical to the promoted
+      // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+      readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 26 &&
+      readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql'))
     check('C2: migration 022 fingerprint intact',
       (() => {
         const m022 = readFileSync('supabase/migrations/022_ui5b2_workout_reuse.sql')

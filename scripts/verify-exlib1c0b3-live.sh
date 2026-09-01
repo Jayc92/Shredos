@@ -89,6 +89,11 @@ echo
 echo "Apply auth stubs + exact migrations 001-025 in order"
 Q postgres "$STUBS" >/dev/null
 for f in supabase/migrations/0*.sql; do
+  # RETARGET (EXLIB-2F): migration 026 now exists as the reviewed
+  # apply-prep candidate (PREPARED, NOT APPLIED); this suite's claim
+  # stays exactly "migrations 001-025", so 026+ is excluded here and
+  # the 026 candidate is proven by scripts/verify-exlib2f-live.sh.
+  case "$f" in supabase/migrations/02[6-9]_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/apply-err.log" \
     || { bad "migration failed: $f"; sed -n '1,5p' "$TMP/apply-err.log"; exit 1; }
 done
@@ -144,7 +149,8 @@ echo "Atomicity: second database with a forced mid-transaction failure"
 Q postgres "CREATE DATABASE atomic_test;" >/dev/null
 Q atomic_test "CREATE SCHEMA auth; CREATE TABLE auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT); CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS \$\$SELECT NULL::uuid\$\$;" >/dev/null
 for f in supabase/migrations/0*.sql; do
-  case "$f" in *025_*) continue;; esac
+  # RETARGET (EXLIB-2F): 026+ excluded (see the main loop's note).
+  case "$f" in *025_*|supabase/migrations/02[6-9]_*) continue;; esac
   psql -h "$SOCK" -U postgres -d atomic_test -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1 \
     || { bad "atomic-test setup migration failed: $f"; exit 1; }
 done

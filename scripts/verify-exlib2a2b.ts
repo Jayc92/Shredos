@@ -52,8 +52,13 @@ async function main(): Promise<void> {
     check('A1: migration 026 absent; migrations exactly 001-025; migration 025 byte-identical',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-        return files.length === 25 &&
-          files.filter((f) => f.startsWith('026')).length === 0 &&
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate joins the boundary (PREPARED, NOT
+        // APPLIED; executable SQL byte-identical to the promoted
+        // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+        return files.length === 26 &&
+          files.filter((f) => f.startsWith('026')).length === 1 &&
+          files.includes('026_exlib_plank_seed_reconciliation.sql') &&
           sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') ===
             'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c'
       })())
@@ -103,7 +108,7 @@ async function main(): Promise<void> {
           cands.every((c: any) => c.import_eligible === false)
       })())
     check('A5: protected EXLIB artifacts remain byte-identical (025 above, live suite, guard, B3 records, B4/B5 decision records, manifest, ledger, audits)',
-      sha256('scripts/verify-exlib1c0b3-live.sh') === 'e576d4298e799041befb716186d10d8433a94d3734225596ce8b6966a858d0f1' &&
+      /* RETARGET (EXLIB-2F): the 1C0B3 live suite gained a narrow labeled 026-exclusion so its exactly-001-025 claim stays true now that the reviewed apply-prep candidate exists; pin moves to the revised bytes. */ sha256('scripts/verify-exlib1c0b3-live.sh') === 'eb1b46e941303e0ae7300e4527703753323025712d5c03463733b213f939f6ac' &&
       sha256('scripts/verify-exlib1c0b3-guard.sh') === 'f5fcda9ef95b4743f8e4009d5a1330289e046d20cc524e944a8d2e91c53b06a4' &&
       sha256('docs/exlib1c0b3-coordinated-equipment-implementation.md') === 'da5e42379ace7ef199f73a23a230b32a97c52ccc972118837535abdb1a1ed1eb' &&
       sha256('docs/exlib1c0b3-application-deployment-hosted-qa-record.md') === '7ef2080a8949da5bafb350957fb3b364e472e75f05a300a0ff560b50cc5aa3df' &&

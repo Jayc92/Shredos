@@ -144,11 +144,16 @@ async function main(): Promise<void> {
           const m = f.match(/^(\d{3})_/)
           return m ? parseInt(m[1], 10) : NaN
         })
-        const expected = Array.from({ length: 25 }, (_, i) => i + 1)
-        return files.length === 25 &&
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate extends the exact numeric sequence to
+        // 001-026 (PREPARED, NOT APPLIED); no gap, no duplicate, no 027+.
+        const expected = Array.from({ length: 26 }, (_, i) => i + 1)
+        return files.length === 26 &&
           !prefixes.some((n) => Number.isNaN(n)) &&
           JSON.stringify(prefixes) === JSON.stringify(expected) &&
-          files.filter((f) => f.startsWith('026')).length === 0 &&
+          files.filter((f) => f.startsWith('026')).length === 1 &&
+          files[25] === '026_exlib_plank_seed_reconciliation.sql' &&
+          files.filter((f) => f.startsWith('027')).length === 0 &&
           files[24] === '025_exlib_equipment_vocabulary_support.sql' &&
           sha256(M025_FILE) === M025_SHA
       })())
@@ -168,7 +173,7 @@ async function main(): Promise<void> {
         }
       })())
     check('C3: prior protected artifacts remain byte-identical — live suite, guard, implementation record, application record, manifest, ledger',
-      sha256('scripts/verify-exlib1c0b3-live.sh') === 'e576d4298e799041befb716186d10d8433a94d3734225596ce8b6966a858d0f1' &&
+      /* RETARGET (EXLIB-2F): the 1C0B3 live suite gained a narrow labeled 026-exclusion so its exactly-001-025 claim stays true now that the reviewed apply-prep candidate exists; pin moves to the revised bytes. */ sha256('scripts/verify-exlib1c0b3-live.sh') === 'eb1b46e941303e0ae7300e4527703753323025712d5c03463733b213f939f6ac' &&
       sha256('scripts/verify-exlib1c0b3-guard.sh') === 'f5fcda9ef95b4743f8e4009d5a1330289e046d20cc524e944a8d2e91c53b06a4' &&
       sha256('docs/exlib1c0b3-coordinated-equipment-implementation.md') === 'da5e42379ace7ef199f73a23a230b32a97c52ccc972118837535abdb1a1ed1eb' &&
       sha256('docs/exlib1c0b3-application-deployment-hosted-qa-record.md') === '7ef2080a8949da5bafb350957fb3b364e472e75f05a300a0ff560b50cc5aa3df' &&

@@ -1,40 +1,31 @@
 #!/bin/bash
 # ============================================================
-# ForgeFitOS - EXLIB-2E migration-026 PROPOSAL live proof matrix.
+# ForgeFitOS - EXLIB-2F migration-026 APPLY-PREP live proof matrix.
 #
-# Applies migrations 001-025 PLUS the PROPOSED (draft, NOT applied
-# anywhere real) migration-026 SQL from docs/ against a DISPOSABLE
+# Applies the ACTUAL migration candidate
+# supabase/migrations/026_exlib_plank_seed_reconciliation.sql as part
+# of the ordinary numbered sequence 001-026 - exactly once, never
+# additionally sourcing the docs proposal - against a DISPOSABLE
 # LOCAL PostgreSQL cluster (unix-socket only, no TCP, torn down on
 # exit). This script NEVER contacts Supabase, Vercel, or any remote
-# service, and the proposal file living in docs/ (not
-# supabase/migrations/) is itself part of the not-applied boundary.
+# service; the candidate stays NOT APPLIED to any persistent or
+# hosted database.
 #
-# Proves, executably, the approved EXLIB-2D contract:
-#   P1 fresh-user canonical delivery; P2 pristine in-place correction
-#   with anatomy synchronization and the structural correction
-#   record; verified idempotency (valid retry no-ops, malformed link
-#   aborts); P3/P4/P5x/P6 legacy preservation with distinguished
-#   fallback; both-names collision fail-closed skip; concurrency
-#   under the per-user advisory lock; rollback excluding corrected
-#   rows while inserted canonical/distinguished rows keep existing
-#   deactivate-only behavior; post-rollback alias dispositions
-#   (deterministic skip, no duplicates, no silent reactivation);
-#   revocation halting future delivery without reinterpreting
-#   corrected data; the delete gate on corrected rows; cross-tenant
-#   isolation; client-role denial on correction provenance; and the
-#   13-key JSONB compatibility contract against a second 023-only
-#   database (additive plank_disposition only; identical non-Plank
-#   row effects). Review-2 additions prove the parent-then-child
-#   locking contract with autonomous dblink sessions: direct anatomy
-#   UPDATE/DELETE waits behind the delivery lock set, NEW child
-#   inserts are serialized by the FK key-share against the parent
-#   FOR UPDATE, no lock cycle exists, a mid-flight customization is
-#   observed after the block and routed to preserved-legacy, and
-#   existing-link validation aborts over concurrently changed
-#   anatomy instead of validating a stale signature.
+# Reproduces the complete promoted EXLIB-2E proof matrix (94
+# behavior checks, including the review-1 strict-run/raced-winner/
+# snapshot-gate cases and the review-2 locking and concurrency
+# proofs) against the migration file instead of the docs proposal,
+# and finishes with a two-database equivalence proof:
+#   Database A: migrations 001-025 + the reviewed docs proposal.
+#   Database B: migrations 001-026 only.
+# comparing normalized schema (correction-table columns,
+# constraints, indexes, RLS and ACLs; all three function
+# definitions and ACLs) and behavior (delivery report keys,
+# dispositions, and rollback) - no semantic difference may be
+# attributable to apply-prep.
 #
 # Run from the repository root:
-#   bash scripts/verify-exlib2e-live.sh
+#   bash scripts/verify-exlib2f-live.sh
 # ============================================================
 set -euo pipefail
 export LC_ALL=C LANG=C
@@ -72,20 +63,19 @@ for spec in "$MIG023:$SHA023" "$MIG024:$SHA024" "$MIG025:$SHA025"; do
   [ "$GOT" = "$WANT" ] || { bad "fingerprint gate: $F"; exit 1; }
   ok "fingerprint gate: $F"
 done
+CANDIDATE="supabase/migrations/026_exlib_plank_seed_reconciliation.sql"
 PROPSHA=$(shasum -a 256 "$PROPOSAL" | awk '{print $1}')
 PROPBYTES=$(wc -c < "$PROPOSAL" | tr -d ' ')
-ok "proposal under test: $PROPOSAL ($PROPBYTES bytes, sha256 $PROPSHA)"
-# RETARGET (EXLIB-2F): the reviewed apply-prep candidate
-# supabase/migrations/026_exlib_plank_seed_reconciliation.sql now
-# exists (PREPARED, NOT APPLIED). This suite still proves the DOCS
-# proposal against exactly migrations 001-025 and never applies the
-# candidate; the gate now requires the candidate to be exactly one
-# file whose executable SQL (after its leading status header) is
-# byte-identical to the reviewed docs proposal, so the two can never
-# drift apart silently.
+[ "$PROPBYTES/$PROPSHA" = "32500/a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108" ] \
+  || { bad "reviewed docs proposal drifted from its promoted fingerprint"; exit 1; }
+ok "reviewed docs proposal unchanged: $PROPOSAL ($PROPBYTES bytes, sha256 $PROPSHA)"
+CANDSHA=$(shasum -a 256 "$CANDIDATE" | awk '{print $1}')
+CANDBYTES=$(wc -c < "$CANDIDATE" | tr -d ' ')
+ok "candidate under test: $CANDIDATE ($CANDBYTES bytes, sha256 $CANDSHA)"
 CAND_COUNT=$(ls supabase/migrations/ | grep -c '^026' || true)
-[ "$CAND_COUNT" = "1" ] || { bad "expected exactly one 026 apply-prep candidate, found $CAND_COUNT"; exit 1; }
-python3 - <<'PYEQ' && ok "exactly one 026 apply-prep candidate; its executable SQL is byte-identical to the docs proposal (this suite applies ONLY the docs proposal)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
+N027=$(ls supabase/migrations/ | grep -c '^027' || true)
+[ "$CAND_COUNT/$N027" = "1/0" ] || { bad "expected exactly one 026 candidate and no 027, found $CAND_COUNT/$N027"; exit 1; }
+python3 - <<'PYEQ' && ok "exactly one 026 candidate, no 027; its executable SQL is byte-identical to the reviewed docs proposal (only the leading status header differs)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
 def body(p):
     ls = open(p, encoding='utf-8').read().splitlines(keepends=True)
     i = 0
@@ -112,21 +102,17 @@ CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE
   AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;"
 
 echo
-echo "Apply auth stubs + exact migrations 001-025, then the PROPOSAL"
+echo "Apply auth stubs + the exact numbered migrations 001-026 (the candidate applies ONCE, from supabase/migrations; the docs proposal is never sourced)"
 Q postgres "$STUBS" >/dev/null
+APPLIED=0
 for f in supabase/migrations/0*.sql; do
-  # RETARGET (EXLIB-2F): 026+ excluded — this suite applies exactly
-  # 001-025 and then the DOCS proposal (never both 026 sources).
-  case "$f" in supabase/migrations/02[6-9]_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/apply-err.log" \
     || { bad "migration failed: $f"; sed -n '1,5p' "$TMP/apply-err.log"; exit 1; }
+  APPLIED=$((APPLIED+1))
 done
-ok "exact migrations 001-025 applied cleanly in order"
-if psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/prop-err.log"; then
-  ok "PROPOSED migration 026 applies cleanly on top of 025"
-else
-  bad "proposal failed to apply:"; sed -n '1,8p' "$TMP/prop-err.log"; exit 1
-fi
+[ "$APPLIED" = "26" ] || { bad "expected to apply exactly 26 migrations, applied $APPLIED"; exit 1; }
+ok "exact migrations 001-026 applied cleanly in order (26 files; candidate applied exactly once)"
+ok "migration 026 candidate applies cleanly on top of 025 from supabase/migrations"
 
 # ── Catalog fixtures: one sealed approved run with Plank (timed) +
 #    one non-Plank identity + one Plank alias ─────────────────────
@@ -557,7 +543,7 @@ CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE
   AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;"
 Q compat_test "$COMPAT_STUBS" >/dev/null
 for f in supabase/migrations/0*.sql; do
-  # RETARGET (EXLIB-2F): 026+ excluded (see the main loop's note).
+  # pre-026 baseline: 026 deliberately excluded from this database
   case "$f" in supabase/migrations/02[6-9]_*) continue;; esac
   psql -h "$SOCK" -U postgres -d compat_test -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1 \
     || { bad "compat db migration failed: $f"; exit 1; }
@@ -617,6 +603,100 @@ else
   printf '%s' "$OUT" | grep -q "malformed Plank catalog snapshot"     && ok "snapshot gate: a timed snapshot with the WRONG anatomy multiset fails closed"     || bad "wrong-anatomy snapshot wrong error: $OUT"
 fi
 [ "$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$UZ2';")" = "0" ]   && ok "snapshot gate: tenant data unchanged after the anatomy-malformed abort"   || bad "anatomy-gate leaked rows"
+
+echo
+echo "Two-database equivalence: A = 001-025 + reviewed docs proposal; B = 001-026 only"
+EQ_STUBS="
+CREATE SCHEMA auth;
+CREATE TABLE auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT);
+CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE
+  AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;"
+for db in eqa eqb; do
+  Q postgres "CREATE DATABASE $db;" >/dev/null
+  Q "$db" "$EQ_STUBS" >/dev/null
+  for f in supabase/migrations/0*.sql; do
+    if [ "$db" = "eqa" ]; then case "$f" in supabase/migrations/02[6-9]_*) continue;; esac; fi
+    psql -h "$SOCK" -U postgres -d "$db" -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1 \
+      || { bad "equivalence db $db migration failed: $f"; exit 1; }
+  done
+done
+psql -h "$SOCK" -U postgres -d eqa -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>&1 \
+  || { bad "equivalence db eqa: docs proposal failed to apply"; exit 1; }
+ok "equivalence databases built: eqa (001-025 + docs proposal), eqb (001-026 only)"
+
+SCHEMA_SQL="
+SELECT 'col|'||column_name||'|'||data_type||'|'||is_nullable||'|'||COALESCE(column_default,'-')
+  FROM information_schema.columns WHERE table_schema='public' AND table_name='exercise_catalog_corrections' ORDER BY ordinal_position;
+SELECT 'con|'||conname||'|'||contype::text||'|'||pg_get_constraintdef(oid)
+  FROM pg_constraint WHERE conrelid='public.exercise_catalog_corrections'::regclass ORDER BY conname;
+SELECT 'idx|'||indexname||'|'||indexdef FROM pg_indexes
+  WHERE schemaname='public' AND tablename='exercise_catalog_corrections' ORDER BY indexname;
+SELECT 'rls|'||relrowsecurity||'|'||relforcerowsecurity||'|'||COALESCE(relacl::text,'-')
+  FROM pg_class WHERE oid='public.exercise_catalog_corrections'::regclass;
+SELECT 'pol|'||count(*) FROM pg_policies WHERE schemaname='public' AND tablename='exercise_catalog_corrections';
+SELECT 'fn|'||md5(pg_get_functiondef(oid))||'|'||proname||'|'||provolatile::text||'|'||prosecdef||'|'||COALESCE(proacl::text,'-')||'|'||COALESCE(array_to_string(proconfig,';'),'-')
+  FROM pg_proc WHERE proname IN ('exlib_plank_link_valid','deliver_catalog_exercises','rollback_catalog_delivery')
+  AND pronamespace='public'::regnamespace ORDER BY proname;"
+Q eqa "$SCHEMA_SQL" > "$TMP/eq-a.txt" 2>&1 || { bad "schema dump failed (eqa):"; tail -3 "$TMP/eq-a.txt"; exit 1; }
+Q eqb "$SCHEMA_SQL" > "$TMP/eq-b.txt" 2>&1 || { bad "schema dump failed (eqb):"; tail -3 "$TMP/eq-b.txt"; exit 1; }
+if diff -q "$TMP/eq-a.txt" "$TMP/eq-b.txt" >/dev/null; then
+  ok "normalized schema IDENTICAL: correction-table columns/constraints/indexes/RLS/ACLs + all three function definitions (md5), volatility, security, ACLs, and search_path config"
+else
+  bad "schema divergence between proposal-applied and candidate-applied databases:"; diff "$TMP/eq-a.txt" "$TMP/eq-b.txt" | head -10
+fi
+grep -q "^fn|" "$TMP/eq-a.txt" && [ "$(grep -c '^fn|' "$TMP/eq-a.txt")" = "3" ] \
+  && ok "equivalence dumps are non-vacuous: exactly three functions captured per database" \
+  || bad "equivalence dump vacuous: $(grep -c '^fn|' "$TMP/eq-a.txt") functions"
+
+# identical behavior fixtures in both, then compare user-id-free outputs
+EQ_FIX="
+INSERT INTO exercise_catalog_logical (id) VALUES ('$LP'), ('$LN');
+INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence) VALUES
+  ('$SP','$LP','Plank','isolation','abs','bodyweight','bilateral','timed','https://example.test/plank','https://example.test/dir','2026-08-30','high'),
+  ('$SN','$LN','Test Row NP','compound','lats','barbell','bilateral','weight_reps','https://example.test/np','https://example.test/dir','2026-08-30','high');
+INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES
+  ('$SP','obliques','secondary'), ('$SP','lower_back','tertiary'), ('$SN','triceps','secondary');
+INSERT INTO exercise_catalog_aliases (id, logical_id, alias) VALUES ('$AP','$LP','Front plank test');
+UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer', reviewed_at=NOW(), review_rationale='local disposable fixture' WHERE id IN ('$SP','$SN');
+INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('eq-run-1', false, 'local-product', NOW(), 'local-legal', NOW(), 'local disposable fixture');
+INSERT INTO exercise_catalog_run_items (run_id, catalog_id) SELECT id, unnest(ARRAY['$SP'::uuid,'$SN'::uuid]) FROM exercise_catalog_import_runs WHERE run_key='eq-run-1';
+INSERT INTO exercise_catalog_run_items (run_id, catalog_alias_id) SELECT id, '$AP' FROM exercise_catalog_import_runs WHERE run_key='eq-run-1';
+SELECT exlib_approve_and_seal_run('eq-run-1');"
+for db in eqa eqb; do
+  Q "$db" "$EQ_FIX" >/dev/null
+done
+eqrun() { # $1 db  -> canonical delivery + P2 correction + retry + rollback behavior dump
+  local db="$1"
+  local U1 U2 E2 R
+  U1=$(Q "$db" "INSERT INTO auth.users DEFAULT VALUES RETURNING id;")
+  R=$(QU "$db" "$U1" "SELECT deliver_catalog_exercises('eq-run-1');")
+  python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('keys|'+','.join(sorted(d.keys()))); print('fresh|'+str(d['plank_disposition'])+'|'+str(d['inserted'])+'|'+str(d['alias_inserted'])+'|'+str(d['eligible']))" "$R"
+  Q "$db" "SELECT 'freshrow|'||tracking_mode||'|'||exercise_type||'|'||name||'|'||is_system||'|'||(import_run_id IS NOT NULL) FROM public.exercises WHERE user_id='$U1' AND catalog_logical_id='$LP';"
+  U2=$(Q "$db" "INSERT INTO auth.users DEFAULT VALUES RETURNING id;")
+  E2=$(Q "$db" "INSERT INTO public.exercises (user_id, name, category, primary_muscle, equipment, exercise_type, tracking_mode, unilateral, is_system, is_active) VALUES ('$U2','Plank','isolation','abs','bodyweight','bodyweight','bodyweight',false,true,true) RETURNING id;")
+  Q "$db" "INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role) VALUES ('$U2','$E2','obliques','secondary');" >/dev/null
+  R=$(QU "$db" "$U2" "SELECT deliver_catalog_exercises('eq-run-1');")
+  python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('p2|'+str(d['plank_disposition'])+'|'+str(d['inserted']))" "$R"
+  Q "$db" "SELECT 'p2row|'||tracking_mode||'|'||exercise_type||'|'||name||'|'||(id='$E2')||'|'||(SELECT string_agg(muscle||':'||role, ',' ORDER BY muscle, role) FROM public.exercise_muscles WHERE exercise_id='$E2') FROM public.exercises WHERE user_id='$U2' AND catalog_logical_id='$LP';"
+  Q "$db" "SELECT 'p2corr|'||count(*) FROM public.exercise_catalog_corrections WHERE user_id='$U2' AND exercise_id='$E2';"
+  R=$(QU "$db" "$U2" "SELECT deliver_catalog_exercises('eq-run-1');")
+  python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('retry|'+str(d['plank_disposition'])+'|'+str(d['skipped_already_delivered']))" "$R"
+  R=$(QU "$db" "$U2" "SELECT rollback_catalog_delivery('eq-run-1');")
+  python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('rbk|'+str(d['found'])+'|'+str(d['newly_deactivated'])+'|'+str(d['alias_found']))" "$R"
+  Q "$db" "SELECT 'postrbk|'||is_active||'|'||tracking_mode FROM public.exercises WHERE id='$E2';"
+  Q "$db" "SELECT 'postrbknp|'||count(*) FILTER (WHERE is_active) FROM public.exercises WHERE user_id='$U2' AND catalog_logical_id='$LN';"
+}
+eqrun eqa > "$TMP/eq-beh-a.txt" 2>&1 || { bad "behavior run failed (eqa):"; tail -3 "$TMP/eq-beh-a.txt"; exit 1; }
+eqrun eqb > "$TMP/eq-beh-b.txt" 2>&1 || { bad "behavior run failed (eqb):"; tail -3 "$TMP/eq-beh-b.txt"; exit 1; }
+if diff -q "$TMP/eq-beh-a.txt" "$TMP/eq-beh-b.txt" >/dev/null; then
+  ok "behavior IDENTICAL: report keys, canonical delivery, P2 correction + record, verified-idempotency retry, rollback report and exclusion, tuple for tuple"
+else
+  bad "behavior divergence between proposal-applied and candidate-applied databases:"; diff "$TMP/eq-beh-a.txt" "$TMP/eq-beh-b.txt" | head -12
+fi
+grep -q "^p2|corrected_and_linked_pristine_seed" "$TMP/eq-beh-a.txt" \
+  && grep -q "^rbk|" "$TMP/eq-beh-a.txt" \
+  && ok "behavior dumps are non-vacuous: P2 correction and rollback actually exercised in both databases" \
+  || bad "behavior dump vacuous or P2 route missing"
 
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"

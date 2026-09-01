@@ -62,7 +62,12 @@ async function main() {
         // equipment-vocabulary draft is the only permitted 025
         // (DRAFT, not applied); exactly-24 becomes exactly-25 with
         // 024 and 025 both pinned.
-        return files.length === 25 &&
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate joins the boundary (PREPARED, NOT
+        // APPLIED; executable SQL byte-identical to the promoted
+        // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+        return files.length === 26 &&
+          files.includes('026_exlib_plank_seed_reconciliation.sql') &&
           files.filter((f) => f.startsWith('023')).length === 1 &&
           files.filter((f) => f === '024_exlib_post_application_hardening.sql').length === 1 &&
           files.filter((f) => f === '025_exlib_equipment_vocabulary_support.sql').length === 1 &&

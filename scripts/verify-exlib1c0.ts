@@ -98,7 +98,12 @@ async function main() {
         // (DRAFT, not applied; 3,587 bytes, sha256
         // fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c);
         // exactly-24 becomes exactly-25 with 024 and 025 pinned.
-        return files.length === 25 &&
+        // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
+        // reviewed 026 candidate joins the boundary (PREPARED, NOT
+        // APPLIED; executable SQL byte-identical to the promoted
+        // proposal); exactly-25 becomes exactly-26 with 026 pinned.
+        return files.length === 26 &&
+          files.includes('026_exlib_plank_seed_reconciliation.sql') &&
           files.filter((f) => f.startsWith('025')).length === 1 &&
           files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           m023.length === 92806 &&
