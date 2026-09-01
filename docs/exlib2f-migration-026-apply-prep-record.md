@@ -96,6 +96,23 @@ of every hit:
   so its "exactly 001-025" claim stays true. verify-exlib1b3-live.sh
   and verify-exlib1b2-live-concurrency.sh apply fixed files and
   needed no change.
+- Byte-pins of legitimately revised artifacts (found in the
+  validation waves after the primary sweep): verify-exlib1c0b4.ts
+  C3, verify-exlib1c0b5.ts D2, and verify-exlib2a2b.ts A5 pin the
+  1C0B3 live suite's exact bytes; since that suite gained its narrow
+  labeled 026-exclusion, the pins move to the revised bytes under
+  the same EXLIB-2F label. verify-exlib1c0b.ts C1's mechanical
+  vocabulary census admits the candidate as a SIXTH
+  vocabulary-bearing migration (it carries migration 023's delivery
+  semantics verbatim) while the byte-frozen audit still names the
+  four that existed at audit time.
+- One HEAD-anchored range claim found only in the committed state
+  (git ranges exclude the worktree, so the pre-commit sweep could
+  not surface it): verify-exlib2d.ts B6 ("the phase range never
+  touches src/, supabase/, package files, or config") is anchored
+  tip-to-tip to the EXLIB-2D range it was always about
+  (cdba699..99991d7), corrected with a plain forward commit per
+  protocol.
 - Unrelated hits left untouched: frozen LINE-EXACT historical diff
   expectations embedded in the 1C0B-era G-checks (they pin immutable
   commit ranges and were deliberately excluded from the mechanical

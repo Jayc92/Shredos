@@ -367,7 +367,12 @@ async function main(): Promise<void> {
       })())
     check('B6: zero runtime/product/schema/API/UI/dependency/configuration changes — the phase range never touches src/, supabase/, package files, or config',
       (() => {
-        const range = execSync(`git diff --name-only ${BATCH6_TIP}..HEAD`, { encoding: 'utf8' })
+        // RETARGET (EXLIB-2F): "the phase range" is the EXLIB-2D range,
+        // anchored tip-to-tip (batch-6 tip .. approved 2D tip) - the
+        // claim was always about THIS design phase, and later authorized
+        // phases (EXLIB-2F prepared the reviewed migration-026 candidate
+        // under supabase/migrations/) do not weaken it.
+        const range = execSync('git diff --name-only ' + BATCH6_TIP + '..99991d7b07386c089bebf3c15a7ae98c10cde39b', { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return range.every((p) => !/^(src\/|package|supabase\/|next\.config|tsconfig|\.env|public\/)/.test(p))
       })())
