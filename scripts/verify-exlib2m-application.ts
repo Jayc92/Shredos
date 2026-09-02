@@ -13,7 +13,11 @@
 // search_path on all six, three RLS-enabled zero-policy tables with
 // no client DML); the data-state facts are recorded WITH attribution
 // (zero rows in all three tables; zero logical/snapshot/run/item
-// counts; exercises 84; no lifecycle mutation); the product boundary
+// counts; exercises 84; no lifecycle mutation); the hosted-advisor
+// evidence is pinned precisely (both classes run by ChatGPT
+// post-application; no ERROR or application-blocking finding; the
+// expected INFO notices named; broader project notices explicitly
+// unadjudicated; never claimed globally clean); the product boundary
 // holds; the prepared-not-applied retarget is labeled and anchored
 // to the apply-prep tip; and the phase inventory is exact.
 //
@@ -159,6 +163,30 @@ async function main(): Promise<void> {
           recFlat.includes('exercises remains exactly 84') &&
           recFlat.includes('Nothing was loaded, reviewed, admitted, published, sealed, delivered, revoked, or otherwise lifecycle-mutated') &&
           recFlat.includes("recorded on ChatGPT's operator-path authority")
+      })())
+  }
+
+  console.log('\nB6. Hosted-advisor evidence (evidence-precision correction)')
+  {
+    check('B6: the hosted-advisor evidence is pinned precisely and with attribution — BOTH advisor classes run by ChatGPT (never Claude) immediately after application; NEITHER returned an ERROR or migration-blocking finding and neither result is claimed globally clean; SECURITY\'s RLS-enabled-with-no-policy INFO notices name exactly the three new tables and are stated as intentional deny-by-default; PERFORMANCE\'s expected unused-index INFO notices name the three new empty-structure indexes; broader project notices are explicitly NOT fixed, NOT introduced by 027, and NOT adjudicated here; and the stale advisors-remain-an-operator-action dependency claim is GONE',
+      recFlat.includes('Hosted advisors (run by ChatGPT, never Claude; evidence-precision correction') &&
+      recFlat.includes('BOTH hosted advisor classes — the Supabase SECURITY advisor and the Supabase PERFORMANCE advisor — were run by ChatGPT immediately after applying migration 027') &&
+      recFlat.includes('NEITHER advisor returned an ERROR or migration-blocking finding') &&
+      recFlat.includes('neither advisor result is claimed to be globally clean') &&
+      recFlat.includes('SECURITY reported RLS-enabled-with-no-policy INFO notices for the three new tables (exercise_catalog_content, exercise_catalog_content_expected_relationships, exercise_catalog_relationships)') &&
+      recFlat.includes('That posture is INTENTIONAL deny-by-default: RLS is enabled, zero policies exist, and client DML privileges are revoked') &&
+      recFlat.includes('PERFORMANCE reported expected unused-index INFO notices') &&
+      rec.includes('exercise_catalog_content_logical_idx') &&
+      rec.includes('exercise_catalog_content_expected_relationships_target_idx') &&
+      rec.includes('exercise_catalog_relationships_to_idx') &&
+      recFlat.includes('The advisor output also contained broader project notices outside this evidence milestone. Those are NOT claimed to be fixed, NOT introduced by migration 027, and NOT adjudicated here') &&
+      recFlat.includes('Hosted advisors: ALREADY RUN by ChatGPT immediately after this application') &&
+      !recFlat.includes('remains an operator action') &&
+      (() => {
+        // the three named indexes really exist in the applied SQL
+        return ['exercise_catalog_content_logical_idx',
+          'exercise_catalog_content_expected_relationships_target_idx',
+          'exercise_catalog_relationships_to_idx'].every((i) => cand.includes(`CREATE INDEX ${i}`))
       })())
   }
 

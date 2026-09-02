@@ -94,6 +94,31 @@ Data state (ChatGPT-confirmed; unchanged by the migration):
   created schema and lifecycle authorities only, exactly as its
   header states.
 
+Hosted advisors (run by ChatGPT, never Claude; evidence-precision
+correction — an earlier revision of this record wrongly deferred
+this to a later operator action):
+- BOTH hosted advisor classes — the Supabase SECURITY advisor and
+  the Supabase PERFORMANCE advisor — were run by ChatGPT immediately
+  after applying migration 027.
+- NEITHER advisor returned an ERROR or migration-blocking finding.
+  This is stated precisely; neither advisor result is claimed to be
+  globally clean.
+- SECURITY reported RLS-enabled-with-no-policy INFO notices for the
+  three new tables (exercise_catalog_content,
+  exercise_catalog_content_expected_relationships,
+  exercise_catalog_relationships). That posture is INTENTIONAL
+  deny-by-default: RLS is enabled, zero policies exist, and client
+  DML privileges are revoked — exactly the reviewed design.
+- PERFORMANCE reported expected unused-index INFO notices on the
+  new, empty catalog structures, including
+  exercise_catalog_content_logical_idx,
+  exercise_catalog_content_expected_relationships_target_idx, and
+  exercise_catalog_relationships_to_idx — expected for freshly
+  created indexes on zero-row tables.
+- The advisor output also contained broader project notices outside
+  this evidence milestone. Those are NOT claimed to be fixed, NOT
+  introduced by migration 027, and NOT adjudicated here.
+
 ## 3. What the application did NOT do
 
 No catalog identity, snapshot, anatomy row, alias, content version,
@@ -144,5 +169,10 @@ milestone.
 4. The seed module edit and the inventory seed_link_compatible flip
    remain facts of the later coordinated delivery-activation
    release.
-5. Hosted advisors re-run after application remains an operator
-   action (recorded as a limitation in the EXLIB-2L/2M reviews).
+5. Hosted advisors: ALREADY RUN by ChatGPT immediately after this
+   application (see the advisor evidence in section 2) — no ERROR or
+   application-blocking finding; the broader project notices outside
+   this milestone remain unadjudicated and belong to their own future
+   operator decisions. (The local EXLIB-2L/2M reviews' statements
+   that advisors could not run in those LOCAL-ONLY phases remain
+   byte-frozen history, true as written of their own phases.)
