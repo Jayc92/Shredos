@@ -1,11 +1,19 @@
 -- ============================================================
 -- EXLIB-2L PROPOSAL: catalog-content and relationship schema
 -- (DRAFT - NOT APPLIED - NOT A MIGRATION)
--- CORRECTED REVISION B: applies the four blocking Codex round-1
--- findings (review-before-admission lifecycle order; complete
--- SHA-256 admission manifest computed from database state;
--- relationship completeness provable at admission and publication;
--- safe application over nonempty migration-023 catalogs).
+-- CORRECTED REVISION C: applies the two blocking Codex round-2
+-- findings on top of the accepted round-1 corrections:
+--   round-2 finding 1 - the identity-wide live relationship table is
+--     now a PROTECTED PROJECTION of the currently published version's
+--     expected set, swapped ATOMICALLY inside publication, so a
+--     reviewed future version can be staged and admitted without
+--     changing anything visible for the currently published version
+--     (no mutation window, structural/transactional, not procedural);
+--   round-2 finding 2 - FOUR real operational authorities exist as
+--     separate NOLOGIN roles with narrow SECURITY DEFINER functions:
+--     loading/authoring, human-review application, eligibility
+--     admission, and publication; no operational role can perform
+--     another authority's act or touch tables directly.
 --
 -- STATUS: IMPLEMENTATION PROPOSAL ONLY. This file lives in docs/,
 -- NOT in supabase/migrations/, because it has NOT been approved for
@@ -18,44 +26,121 @@
 -- (docs/exlib2a-catalog-architecture-record.md sections 1-4):
 --   1. provenance discriminator on exercise_catalog with
 --      fail-closed conditional source requirements, the four
---      discovery-metadata columns, and the verbatim-carried snapshot
---      freeze trigger extended to keep the new columns immutable;
+--      discovery-metadata columns (NULLABLE for legitimate nonempty
+--      023 catalogs; required for originals and at workflow entry),
+--      and the verbatim-carried snapshot freeze trigger extended to
+--      keep the new columns immutable;
 --   2. exercise_catalog_content - the versioned, logical-identity-
 --      keyed content model with its own review-audit lifecycle, an
 --      orthogonal draft/published/retired publication lifecycle, the
 --      zero-or-one-published invariant, decided-version immutability,
---      and fingerprint-bound import admission;
+--      and fingerprint-bound one-time import admission;
 --   3. exercise_catalog_relationships - logical-identity-keyed,
---      self-reference-free, deterministic-unique, fail-closed - plus
---      a per-content-version EXPECTED relationship set that makes
---      completeness provable;
---   4. role-restricted admission and publication functions.
+--      self-reference-free, deterministic-unique - now a PROTECTED
+--      PROJECTION owned by the publication transition, derived from
+--      the per-version EXPECTED relationship set that is the
+--      reviewed, admitted source of truth;
+--   4. four role-restricted lifecycle functions (load identity,
+--      load snapshot, load content draft; apply review; admit;
+--      publish).
 --
--- THE ENFORCED LIFECYCLE ORDER (Codex round-1 finding 1) mirrors the
--- promoted ForgeFitOS lifecycle actually executed in EXLIB-2I then
--- EXLIB-2J:
---   1. a content version is BORN pending, draft, and NOT admitted;
---      pending prose and the version's expected relationship set may
---      be edited before review;
---   2. the HUMAN-REVIEW transition freezes the reviewed payload
---      (prose, authorship, and the expected relationship set);
---   3. a LATER, SEPARATELY AUTHORIZED admission act admits that
---      exact approved payload: only an approved, draft, unpublished,
---      currently-unadmitted version may receive its ONE-TIME
---      admission; the admission travels alone, cannot precede
---      approval, cannot accompany review/payload/publication
---      changes, cannot target pending/revised/rejected/published/
---      retired content, and is one-way for that immutable version;
---   4. PUBLICATION remains a still-later, separate transition.
---   Any content correction requires a NEW content version, new human
---   review, and new admission.
+-- THE ENFORCED LIFECYCLE ORDER (accepted round-1 correction,
+-- preserved): born pending/draft/UNADMITTED -> pending prose and the
+-- version-owned expected relationship set editable -> the
+-- human-review transition freezes the reviewed payload (prose,
+-- authorship, expected set) -> a later, separately authorized
+-- ONE-TIME admission of the approved, draft, unadmitted version
+-- (travels alone; one-way; never pending/revised/rejected/published/
+-- retired) -> publication still later and separate. Corrections
+-- require a NEW version, new review, new admission.
 --
--- ADMISSION MANIFEST (Codex round-1 finding 2): admission and
--- publication are bound to a versioned, canonical, deterministic
--- manifest (leading literal 'EXLIB-ADMISSION-MANIFEST v1') computed
--- FROM DATABASE STATE - never accepted as a caller-supplied hash -
--- and hashed with SHA-256 (not MD5). The manifest binds every
--- load-relevant surface of the admitted payload:
+-- THE PUBLICATION PROJECTION (round-2 finding 1, design shape B):
+--   - exercise_catalog_content_expected_relationships (version-owned,
+--     review-frozen) is the reviewed/admitted SOURCE OF TRUTH for a
+--     version's relationship set;
+--   - exercise_catalog_relationships is the PUBLIC LIVE SURFACE:
+--     consumers resolve it as before (the promoted identity-keyed
+--     target model is preserved verbatim in shape), and it always
+--     equals the CURRENTLY PUBLISHED version's expected set;
+--   - admission binds the version-owned expected set WITHOUT touching
+--     the live surface, so version 2 can be reviewed AND admitted
+--     with set B while version 1 stays published with set A and stays
+--     manifest-fresh - no window in which version 1 is published with
+--     version 2's relationships, and nothing about version 1 changes
+--     until the atomic switch;
+--   - publish_catalog_content, under the logical-identity lock and in
+--     ONE transaction, retires the prior published version, DELETEs
+--     the identity's projection rows, re-INSERTs the new version's
+--     expected set, and marks the new version published; a failure
+--     anywhere rolls the whole transaction back, leaving the prior
+--     version and its set intact;
+--   - the projection is TRIGGER-PROTECTED: INSERT/DELETE on
+--     exercise_catalog_relationships succeed only while
+--     publish_catalog_content holds its transaction-local sentinel
+--     (set_config('exlib.relationship_projection_identity', ...,
+--     is_local => true)) for that identity; UPDATE is never allowed.
+--     Direct mutation outside the protected publication path fails
+--     closed for EVERY role - including the table owner - because
+--     BEFORE triggers fire regardless of privilege;
+--   - the content freeze trigger's publication branch STILL verifies
+--     live == expected and manifest freshness at the moment a row
+--     becomes published, so even a break-glass actor who manually
+--     sets the sentinel cannot mark a version published against the
+--     wrong relationship set;
+--   - a published version can therefore never remain published while
+--     its effective relationship set is stale: the effective set can
+--     only change in the same transaction that retires it.
+--
+-- FOUR DISTINCT OPERATIONAL AUTHORITIES (round-2 finding 2), each a
+-- NOLOGIN role holding EXECUTE on exactly its own narrow SECURITY
+-- DEFINER function(s) and NO table privileges:
+--   1. exlib_catalog_loader - load_catalog_identity,
+--      load_catalog_snapshot (snapshot + anatomy + aliases where the
+--      separately authorized load package supplies them),
+--      load_catalog_content_draft (pending draft + its version-owned
+--      expected relationships). Creation only; every write lands as
+--      born-pending/born-active/unadmitted state enforced by the
+--      triggers; the loader can approve, admit, publish, retire, or
+--      alter nothing.
+--   2. exlib_catalog_reviewer - apply_content_review: exactly one
+--      legal pending -> approved|revised|rejected transition per
+--      call, with a complete non-blank reviewer/timestamp/rationale
+--      tuple; it can touch payload, expected relationships,
+--      admission, publication, snapshots, anatomy, aliases, and
+--      delivery state in no way. Post-decision transitions
+--      (approved -> revised|rejected) are deliberately NOT an
+--      operational authority in this proposal.
+--   3. exlib_catalog_admission - admit_catalog_content: admits only
+--      an already-approved immutable draft, COMPUTES the normalized
+--      SHA-256 manifest from database state, records the separately
+--      supplied source-artifact SHA-256, and never loads, reviews,
+--      publishes, or touches the live relationship surface.
+--   4. exlib_catalog_admin - publish_catalog_content: publishes only
+--      an approved, admitted, fingerprint-fresh draft, atomically
+--      switches the effective relationship set, retires the prior
+--      published version, and never loads, reviews, or admits.
+-- No role is granted another role's function; ordinary
+-- anon/authenticated clients hold none of the four. Snapshot REVIEW
+-- (exercise_catalog.review_status) remains the promoted 023 delivery
+-- lifecycle, outside these four content authorities. HONEST
+-- BREAK-GLASS NOTE: the database superuser / table owner can always
+-- mutate rows directly; that power is NOT an operational authority,
+-- it is disclosed break-glass capability, and every freeze trigger
+-- and structural CHECK in this proposal still binds it (triggers
+-- fire for the owner too; only ALTER TABLE ... DISABLE TRIGGER
+-- could bypass them, which no operational role can execute).
+--
+-- ADMISSION MANIFEST (accepted round-1 correction, revised to v2 for
+-- round-2 finding 1): admission and publication are bound to a
+-- versioned, canonical, deterministic manifest (leading literal
+-- 'EXLIB-ADMISSION-MANIFEST v2') computed FROM DATABASE STATE -
+-- never accepted as a caller-supplied hash - and hashed with SHA-256
+-- (not MD5). v2 removes v1's live-relationship section and binds the
+-- VERSION-OWNED expected relationship set as the version's
+-- relationship truth, because the live surface is now a projection
+-- that belongs to whichever version is published (binding it would
+-- couple one version's manifest to another version's publication
+-- state - exactly the round-2 finding-1 defect). The manifest binds:
 --     logical identity; the single ACTIVE catalog snapshot's
 --     canonical classification, tracking metadata, provenance,
 --     discovery metadata, and source fields (uniqueness of the
@@ -63,9 +148,8 @@
 --     exercise_catalog_one_active_logical_idx); anatomy rows of that
 --     snapshot; alias rows of the identity; the authored
 --     instructional content; authorship; the review-bound content
---     version with its complete review evidence; the version's
---     EXPECTED relationship set; and the identity's LIVE relationship
---     set.
+--     version with its complete review evidence; and the version's
+--     EXPECTED relationship set.
 --   Determinism: every variable text field is hex-encoded from UTF8
 --   bytes (unambiguous under any content, both clusters run UTF8);
 --   JSONB fields serialize through jsonb's own canonical form (key
@@ -77,97 +161,89 @@
 --   "C" byte order (never locale/collation order). DateStyle,
 --   locale, JSON key ordering, row ordering, and relationship
 --   ordering therefore cannot change the hash. The manifest
---   functions are
---   STABLE (they read database state; an IMMUTABLE marking would be
---   untruthful).
+--   functions are STABLE (they read database state; an IMMUTABLE
+--   marking would be untruthful).
 --   Two fingerprints are stored DISTINCTLY on the admitted row:
 --   admitted_fingerprint (the database-normalized manifest SHA-256,
---   COMPUTED by the admission path and re-verified by the freeze
---   trigger) and admitted_source_sha256 (the exact repository source
---   artifact SHA-256, recorded as provenance evidence and
---   format-validated; the database cannot see repository bytes, so
---   its truthfulness is proven by the repository-side verifiers that
---   document the artifact-to-database mapping).
---   HONEST CORRECTION NOTE: revision A's exlib_content_fingerprint
---   was MD5 over selected instructional fields ONLY. It did NOT
---   cover the complete EXLIB-2J admitted artifact (2,928 bytes,
---   SHA-256 d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c32
---   6c679d752); no such claim is made or preserved. It is REPLACED,
---   not renamed.
+--   COMPUTED by the admission path and INDEPENDENTLY RECOMPUTED by
+--   the freeze trigger) and admitted_source_sha256 (the exact
+--   repository source artifact SHA-256, recorded as provenance
+--   evidence and format-validated; the database cannot see
+--   repository bytes, so its truthfulness is proven by the
+--   repository-side verifiers that document the artifact-to-database
+--   mapping).
+--   HONEST CORRECTION NOTE (preserved): revision A's
+--   exlib_content_fingerprint was MD5 over selected instructional
+--   fields ONLY. It did NOT cover the complete EXLIB-2J admitted
+--   artifact (2,928 bytes, SHA-256 d82078490efa9ef13e128e7b7b742fbd
+--   a8ea9e74e32382252d96c326c679d752); no such claim is made or
+--   preserved. It was REPLACED, not renamed.
 --
--- RELATIONSHIP COMPLETENESS (Codex round-1 finding 3): each content
--- version owns an EXPECTED relationship set
--- (exercise_catalog_content_expected_relationships), authored while
--- the version is pending and frozen by the review transition.
--- Admission requires the identity's LIVE relationship set to equal
--- the version's expected set EXACTLY (no missing, no unexpected, no
--- self-links, targets must exist, deterministic uniqueness by
--- primary key), and binds both sets into the manifest. Publication
--- re-proves exact set equality AND recomputes the manifest, so a
--- relationship removed, added, or changed after admission fails
--- publication closed. The Plank model therefore publishes ONLY with
--- exactly substitution -> Dead bug and progression -> Ab wheel
--- rollout present, while those target identities need no approved,
--- admitted, loaded, or published content of their own. Expected sets
--- are owned per content version, so one version's relationships
--- cannot silently alter another version's publication meaning: a
--- live-set change that satisfies a newer version makes every other
--- admitted version's manifest stale, failing ITS publication closed
--- rather than altering it.
+-- RELATIONSHIP COMPLETENESS (accepted round-1 correction, preserved
+-- and strengthened): each content version owns an EXPECTED
+-- relationship set, authored while pending and frozen by the review
+-- transition (rows immutable, PK-deterministic, RESTRICT FKs to real
+-- logical identities, self-expectation refused). The published live
+-- surface ALWAYS equals the published version's expected set - now
+-- by construction (projection) plus the trigger's publication-time
+-- equality verification, not merely by function-path checks. The
+-- Plank model therefore publishes with EXACTLY substitution ->
+-- "Dead bug"-model target and progression -> "Ab wheel
+-- rollout"-model target, while those target identities need no
+-- snapshot, no content, no admission, and no publication of their
+-- own. Expected sets are version-owned, so versions' relationship
+-- rows can never collide or overwrite one another, and staging or
+-- admitting one version changes NOTHING visible for another.
 --
--- NONEMPTY-CATALOG COMPATIBILITY (Codex round-1 finding 4): the four
--- discovery-metadata columns are added NULLABLE with NULL-permitting
--- vocabulary CHECKs, so this proposal applies safely to a legitimate
--- NONEMPTY 001-026 database without fabricating metadata and without
--- data loss. Fail-closed completeness is enforced where it matters:
---   - forgefitos_original snapshots MUST carry all four discovery
---     fields (exercise_catalog_discovery_metadata_chk) and MUST NOT
---     carry any source/import-confidence field
---     (exercise_catalog_provenance_sources_chk);
---   - external_source_derived snapshots keep their exact 023 meaning:
---     all four source fields remain REQUIRED for them, and legacy
---     rows' discovery metadata stays NULL rather than invented;
---   - ANY row entering the new content/admission/publication
---     workflow must present complete discovery metadata: the
---     admission manifest fails closed on a NULL discovery field, so
---     a legacy external snapshot cannot be admitted or published
---     against until a complete NEW snapshot version exists.
---   "Hosted currently has zero rows" is treated as evidence for the
---   hosted instance only, NOT as generic migration compatibility.
+-- NONEMPTY-CATALOG COMPATIBILITY (accepted round-1 correction,
+-- preserved): the four discovery-metadata columns are NULLABLE with
+-- NULL-permitting vocabulary CHECKs, so this proposal applies safely
+-- to a legitimate NONEMPTY 001-026 database without fabricating
+-- metadata and without data loss. forgefitos_original snapshots MUST
+-- carry all four discovery fields
+-- (exercise_catalog_discovery_metadata_chk) and MUST NOT carry any
+-- source/import-confidence field
+-- (exercise_catalog_provenance_sources_chk); external snapshots keep
+-- their exact 023 meaning with all four source fields REQUIRED;
+-- legacy rows' discovery metadata stays NULL rather than invented,
+-- and the admission manifest fails closed on a NULL discovery field,
+-- so no incomplete row can enter the new workflow. "Hosted currently
+-- has zero rows" is treated as evidence for the hosted instance
+-- only, NOT as generic migration compatibility.
 --
 -- DISCLOSED DEVIATIONS AND EXTENSIONS vs PROMOTED EXLIB-2A (all need
 -- reviewer adjudication; nothing is applied by this file):
---   1. PRESERVED NARROWING (adjudicated by Codex round 1: keep):
---      only content_status = 'approved' may publish; pending,
---      revised, and rejected are never publishable; 'revised'
---      remains terminal (migration 023: "re-approval impossible")
---      and requires a new version and new approval. 2A's pseudocode
---      said IN ('approved','revised').
+--   1. PRESERVED NARROWING (adjudicated round 1: keep): only
+--      content_status = 'approved' may publish; pending, revised,
+--      and rejected are never publishable; 'revised' remains
+--      terminal (migration 023: "re-approval impossible") and
+--      requires a new version and new approval.
 --   2. EXTENSION: the publication CHECK additionally requires
 --      import_admitted for published rows (published implies
 --      approved AND admitted) - structural, not function-only.
 --   3. EXTENSION: exercise_catalog_content_expected_relationships
---      and the admission-manifest model (finding-3/finding-2
---      mandates); 2A's pseudocode had no completeness ownership and
---      an instructional-fields-only fingerprint sketch.
---   4. EXTENSION: a dedicated admission authority
---      (exlib_catalog_admission role + admit_catalog_content
---      function), distinct from 2A's exlib_catalog_admin publication
---      authority. Loading, human-review application, eligibility
---      admission, and publication are four distinct authorities;
---      ordinary anon/authenticated clients hold none of them.
---   5. COMPATIBILITY DEVIATION: the four discovery-metadata columns
---      are NULLABLE (2A's sketch listed them as required snapshot
---      fields); required-ness is enforced for forgefitos_original
---      rows and at workflow entry instead, per finding 4.
+--      and the admission-manifest model; 2A had no completeness
+--      ownership and an instructional-fields-only fingerprint
+--      sketch.
+--   4. EXTENSION (round 2): exercise_catalog_relationships is a
+--      trigger-protected projection owned by the publication
+--      transition. Its shape, keying, and consumer-facing meaning
+--      are 2A-verbatim; only its WRITE PATH narrows.
+--   5. EXTENSION (round 2): four operational authorities as NOLOGIN
+--      roles + narrow SECURITY DEFINER functions (2A named only the
+--      publication boundary role exlib_catalog_admin, preserved
+--      verbatim for publication).
+--   6. COMPATIBILITY DEVIATION: the four discovery-metadata columns
+--      are NULLABLE (round-1 finding 4); required-ness is enforced
+--      for forgefitos_original rows and at workflow entry instead.
 --
 -- Applying this schema loads NOTHING: it creates no catalog row, no
 -- content row, no relationship, no expected relationship, no run, no
--- membership, no approval, no admission, no seal, no publication,
--- and no delivery. Migrations 001-026 are not modified; every
--- 023-026 function, trigger, ACL, and behavior is preserved (the one
--- CREATE OR REPLACE below carries the 023 trigger body verbatim
--- except the marked immutable-list splice).
+-- membership, no approval, no review decision, no admission, no
+-- seal, no publication, and no delivery. Migrations 001-026 are not
+-- modified; every 023-026 function, trigger, ACL, and behavior is
+-- preserved (the one CREATE OR REPLACE below carries the 023 trigger
+-- body verbatim except the marked immutable-list splice).
 -- ============================================================
 
 -- Following migrations 023/024/025 (023: "ONE explicit top-level
@@ -207,15 +283,15 @@ ALTER TABLE exercise_catalog
       AND source_url IS NULL AND source_page IS NULL
       AND retrieved_at IS NULL AND import_confidence IS NULL)
   );
--- NULLABLE by design (Codex round-1 finding 4): a legitimate
--- nonempty 023 catalog cannot truthfully supply these values for its
--- existing external rows, and inventing placeholders is forbidden.
--- The bare IN (...) vocabulary CHECKs permit NULL by SQL CHECK
--- semantics (a NULL predicate does not violate a CHECK); that is
--- deliberate and relied upon here. Completeness is enforced
--- fail-closed where required: forgefitos_original rows must carry
--- all four (constraint below), and the admission manifest refuses
--- any snapshot missing one, so no incomplete row can enter the new
+-- NULLABLE by design (round-1 finding 4): a legitimate nonempty 023
+-- catalog cannot truthfully supply these values for its existing
+-- external rows, and inventing placeholders is forbidden. The bare
+-- IN (...) vocabulary CHECKs permit NULL by SQL CHECK semantics (a
+-- NULL predicate does not violate a CHECK); that is deliberate and
+-- relied upon here. Completeness is enforced fail-closed where
+-- required: forgefitos_original rows must carry all four (constraint
+-- below), and the admission manifest refuses any snapshot missing
+-- one, so no incomplete row can enter the new
 -- content/admission/publication workflow.
 ALTER TABLE exercise_catalog
   ADD COLUMN movement_pattern TEXT CHECK (movement_pattern IN (
@@ -354,8 +430,7 @@ BEGIN
 END;
 $$;
 
--- ── 2. exercise_catalog_content (2A section 1 model, corrected
---       lifecycle order per Codex round-1 finding 1) ──────────────
+-- ── 2. exercise_catalog_content ──────────────────────────────────
 CREATE TABLE exercise_catalog_content (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   logical_id         UUID NOT NULL
@@ -386,9 +461,9 @@ CREATE TABLE exercise_catalog_content (
   publication_status TEXT NOT NULL DEFAULT 'draft' CHECK
                      (publication_status IN
                       ('draft','published','retired')),
-  -- Import admission (EXLIB-2J contract, corrected order): admission
-  -- is a LATER, SEPARATELY AUTHORIZED one-time act on an ALREADY
-  -- APPROVED immutable version. Two fingerprints are stored
+  -- Import admission (EXLIB-2J contract, round-1 corrected order):
+  -- admission is a LATER, SEPARATELY AUTHORIZED one-time act on an
+  -- ALREADY APPROVED immutable version. Two fingerprints are stored
   -- DISTINCTLY: admitted_fingerprint is the database-normalized
   -- admission-manifest SHA-256 (computed from database state, never
   -- caller-supplied); admitted_source_sha256 is the exact repository
@@ -454,17 +529,19 @@ CREATE TRIGGER exercise_catalog_content_updated_at
   BEFORE UPDATE ON exercise_catalog_content
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ── 2b. Per-version EXPECTED relationship set (finding 3) ────────
+-- ── 2b. Per-version EXPECTED relationship set (round-1 finding 3;
+--        the reviewed, admitted SOURCE OF TRUTH) ──────────────────
 -- The authored artifact declares the version's required
 -- relationships (Plank: substitutions ["Dead bug"], progressions
 -- ["Ab wheel rollout"], regressions []). The loader writes them here
 -- while the version is pending; the review transition freezes them
 -- with the rest of the reviewed payload. Deterministic uniqueness by
 -- primary key; targets are real logical identities (RESTRICT FKs);
--- self-links are refused by the freeze trigger below. Multiplicities
--- are structurally 0-or-1 per (relation, target) in BOTH the
--- expected and the live table, so exact set equality is exact
--- multiset equality.
+-- self-links are refused by the freeze trigger below. Version-owned
+-- rows can never collide with another version's rows (content_id is
+-- part of the key), and multiplicities are structurally 0-or-1 per
+-- (relation, target) in BOTH the expected and the projected live
+-- table, so exact set equality is exact multiset equality.
 CREATE TABLE exercise_catalog_content_expected_relationships (
   content_id    UUID NOT NULL
                 REFERENCES exercise_catalog_content(id) ON DELETE RESTRICT,
@@ -527,7 +604,7 @@ ALTER TABLE exercise_catalog_content_expected_relationships
 REVOKE ALL ON TABLE exercise_catalog_content_expected_relationships
   FROM PUBLIC, anon, authenticated;
 
--- ── 2c. Admission manifest (finding 2) ───────────────────────────
+-- ── 2c. Admission manifest (round-1 finding 2; v2 format) ────────
 -- Canonical hex encoding of one text value: 'S' + lowercase hex of
 -- the UTF8 bytes, or 'N' for NULL. Unambiguous for any content (no
 -- delimiter can be injected through a value) and deterministic on a
@@ -548,14 +625,18 @@ REVOKE ALL ON FUNCTION exlib_manifest_hex(TEXT) FROM PUBLIC, anon, authenticated
 -- STATE for one content version. Fails closed (RAISE) when the
 -- bound state is incomplete: no or duplicate active snapshot
 -- (uniqueness also guaranteed by 023's partial unique index), or
--- NULL discovery metadata on the bound snapshot. Binds: identity;
+-- NULL discovery metadata on the bound snapshot. v2 binds: identity;
 -- the active snapshot's classification, tracking, provenance,
 -- discovery metadata, and sources; that snapshot's anatomy; the
 -- identity's aliases; the authored payload and authorship; the
--- review-bound version and its complete evidence; the version's
--- EXPECTED relationship set; and the identity's LIVE relationship
--- set. Rows aggregate under explicit ORDER BY; dates are day
--- offsets; timestamps are numeric epochs; JSONB is jsonb-canonical.
+-- review-bound version and its complete evidence; and the version's
+-- OWN expected relationship set (v1's live-surface section is
+-- removed: the live surface is a projection owned by whichever
+-- version is published, and binding it would couple this version's
+-- manifest to another version's publication state). Rows aggregate
+-- under explicit ORDER BY pinned to COLLATE "C" byte order; dates
+-- are day offsets; timestamps are numeric epochs; JSONB is
+-- jsonb-canonical.
 CREATE OR REPLACE FUNCTION exlib_content_admission_manifest(p_content_id UUID)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -593,7 +674,7 @@ BEGIN
   END IF;
 
   v_txt :=
-    'EXLIB-ADMISSION-MANIFEST v1' || chr(10) ||
+    'EXLIB-ADMISSION-MANIFEST v2' || chr(10) ||
     'identity ' || v_c.logical_id::text || chr(10) ||
     'snapshot ' || v_s.catalog_version::text
       || ' ' || public.exlib_manifest_hex(v_s.canonical_name)
@@ -643,17 +724,11 @@ BEGIN
       || ' ' || public.exlib_manifest_hex(v_c.review_rationale)
       || chr(10) ||
     COALESCE((SELECT string_agg(
-        'expected ' || public.exlib_manifest_hex(e.relation)
-                    || ' ' || e.to_logical_id::text,
+        'relationship ' || public.exlib_manifest_hex(e.relation)
+                        || ' ' || e.to_logical_id::text,
         chr(10) ORDER BY e.relation COLLATE "C", e.to_logical_id)
       FROM public.exercise_catalog_content_expected_relationships e
-      WHERE e.content_id = v_c.id), 'expected NONE') || chr(10) ||
-    COALESCE((SELECT string_agg(
-        'relation ' || public.exlib_manifest_hex(r.relation)
-                    || ' ' || r.to_logical_id::text,
-        chr(10) ORDER BY r.relation COLLATE "C", r.to_logical_id)
-      FROM public.exercise_catalog_relationships r
-      WHERE r.from_logical_id = v_c.logical_id), 'relation NONE');
+      WHERE e.content_id = v_c.id), 'relationship NONE');
   RETURN v_txt;
 END;
 $$;
@@ -671,19 +746,22 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION exlib_content_admission_fingerprint(UUID) FROM PUBLIC, anon, authenticated;
 
--- ── 2d. Content-version lifecycle trigger (finding-1 order) ──────
+-- ── 2d. Content-version lifecycle trigger ────────────────────────
 -- Versions are born pending drafts, UNADMITTED, with no review
 -- evidence. While PENDING: prose may be edited; admission fields may
 -- NOT change (admission cannot precede approval). The REVIEW
 -- transition freezes the reviewed payload and carries evidence only.
 -- The ADMISSION transition is a narrow standalone one-time act on an
 -- approved, draft, unadmitted version: only the four admission
--- fields change, the recorded manifest fingerprint must equal the
--- recomputed database-state fingerprint, and the live relationship
--- set must equal the version's expected set exactly. Admission is
--- one-way. Publication transitions travel alone and remain one-way.
--- Decided versions are otherwise immutable: corrections require a
--- NEW content version, new review, and new admission.
+-- fields change and the recorded manifest fingerprint must equal the
+-- recomputed database-state fingerprint. Admission is one-way.
+-- Publication transitions travel alone and remain one-way, and a
+-- draft -> published transition additionally verifies (structurally,
+-- for every caller including break-glass) that the projected live
+-- relationship set equals the version's expected set exactly and
+-- that the admission manifest is still fresh. Decided versions are
+-- otherwise immutable: corrections require a NEW content version,
+-- new review, and new admission.
 CREATE OR REPLACE FUNCTION exlib_freeze_content_version()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -746,12 +824,14 @@ BEGIN
       RAISE EXCEPTION
         'exercise_catalog_content: a publication transition must travel alone';
     END IF;
-    -- STRUCTURAL publication gate (finding 3): relationship
-    -- completeness and manifest freshness are enforced HERE, in the
-    -- trigger, not only in publish_catalog_content - a direct
-    -- owner-level write cannot bypass them either. The bound
-    -- surfaces are unchanged in this branch (the transition travels
-    -- alone), so recomputing from stored state is exact.
+    -- STRUCTURAL publication gate: projected-set equality and
+    -- manifest freshness are enforced HERE, in the trigger, not only
+    -- in publish_catalog_content - a direct owner-level write (even
+    -- one that manually sets the projection sentinel) cannot mark a
+    -- version published against the wrong relationship set or a
+    -- stale admission. The bound surfaces are unchanged in this
+    -- branch (the transition travels alone), so recomputing from
+    -- stored state is exact.
     IF NEW.publication_status = 'published' THEN
       IF EXISTS (
           SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
@@ -762,7 +842,7 @@ BEGIN
                 AND r.relation = e.relation
                 AND r.to_logical_id = e.to_logical_id)) THEN
         RAISE EXCEPTION
-          'exercise_catalog_content: a required relationship is missing at publication; the version''s expected relationship set must exist exactly';
+          'exercise_catalog_content: a required relationship is missing at publication; the version''s expected relationship set must be projected exactly';
       END IF;
       IF EXISTS (
           SELECT 1 FROM public.exercise_catalog_relationships r
@@ -773,7 +853,7 @@ BEGIN
                 AND e.relation = r.relation
                 AND e.to_logical_id = r.to_logical_id)) THEN
         RAISE EXCEPTION
-          'exercise_catalog_content: an unexpected relationship is present at publication; the live set must equal the expected set exactly';
+          'exercise_catalog_content: an unexpected relationship is present at publication; the projected live set must equal the expected set exactly';
       END IF;
       IF OLD.admitted_fingerprint IS DISTINCT FROM
          public.exlib_content_admission_fingerprint(OLD.id) THEN
@@ -822,10 +902,10 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- the one-time admission transition (finding 1): approved, draft,
-  -- currently unadmitted; travels alone; fingerprint recomputed from
-  -- database state; live relationship set must equal the expected
-  -- set exactly; one-way forever after
+  -- the one-time admission transition: approved, draft, currently
+  -- unadmitted; travels alone; fingerprint recomputed from database
+  -- state; one-way forever after. It does NOT touch or read the live
+  -- relationship surface (which belongs to the published version).
   IF NEW.import_admitted IS DISTINCT FROM OLD.import_admitted THEN
     IF OLD.import_admitted THEN
       RAISE EXCEPTION
@@ -875,25 +955,6 @@ BEGIN
       RAISE EXCEPTION
         'exercise_catalog_content: admitted_fingerprint must equal the recomputed admission-manifest fingerprint; arbitrary hashes are rejected';
     END IF;
-    IF EXISTS (
-        SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-        WHERE e.content_id = NEW.id
-          AND NOT EXISTS (
-            SELECT 1 FROM public.exercise_catalog_relationships r
-            WHERE r.from_logical_id = NEW.logical_id
-              AND r.relation = e.relation
-              AND r.to_logical_id = e.to_logical_id))
-       OR EXISTS (
-        SELECT 1 FROM public.exercise_catalog_relationships r
-        WHERE r.from_logical_id = NEW.logical_id
-          AND NOT EXISTS (
-            SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-            WHERE e.content_id = NEW.id
-              AND e.relation = r.relation
-              AND e.to_logical_id = r.to_logical_id)) THEN
-      RAISE EXCEPTION
-        'exercise_catalog_content: admission requires the live relationship set to equal the version''s expected relationship set exactly';
-    END IF;
     RETURN NEW;
   END IF;
 
@@ -939,7 +1000,13 @@ ALTER TABLE exercise_catalog_content ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE exercise_catalog_content
   FROM PUBLIC, anon, authenticated;
 
--- ── 3. exercise_catalog_relationships (2A section 4, verbatim) ───
+-- ── 3. exercise_catalog_relationships: the PROTECTED PROJECTION ──
+-- 2A section 4 shape, keying, and consumer meaning are verbatim; the
+-- WRITE PATH narrows (round-2 finding 1): rows exist ONLY as the
+-- atomic projection of the currently published version's expected
+-- set, written inside publish_catalog_content under its
+-- transaction-local sentinel. Everything else - including direct
+-- owner-level writes - fails closed at the trigger below.
 CREATE TABLE exercise_catalog_relationships (
   from_logical_id UUID NOT NULL
                   REFERENCES exercise_catalog_logical(id) ON DELETE RESTRICT,
@@ -954,37 +1021,285 @@ CREATE TABLE exercise_catalog_relationships (
 CREATE INDEX exercise_catalog_relationships_to_idx
   ON exercise_catalog_relationships (to_logical_id);
 
+CREATE OR REPLACE FUNCTION exlib_protect_relationship_projection()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    RAISE EXCEPTION
+      'exercise_catalog_relationships: projection rows are immutable; the projection is replaced atomically inside publish_catalog_content';
+  END IF;
+  IF current_setting('exlib.relationship_projection_identity', true)
+     IS DISTINCT FROM COALESCE(NEW.from_logical_id, OLD.from_logical_id)::text THEN
+    RAISE EXCEPTION
+      'exercise_catalog_relationships: this table is a protected projection of the PUBLISHED version''s expected relationship set; it changes only atomically inside publish_catalog_content';
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+REVOKE ALL ON FUNCTION exlib_protect_relationship_projection() FROM PUBLIC, anon, authenticated;
+
+CREATE TRIGGER exercise_catalog_relationships_projection_trigger
+  BEFORE INSERT OR UPDATE OR DELETE ON exercise_catalog_relationships
+  FOR EACH ROW EXECUTE FUNCTION exlib_protect_relationship_projection();
+
 ALTER TABLE exercise_catalog_relationships ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE exercise_catalog_relationships
   FROM PUBLIC, anon, authenticated;
 
--- ── 4. Distinct authorities: admission and publication ───────────
--- Four authorities stay distinct: LOADING (content/snapshot/
--- relationship insertion) and HUMAN-REVIEW APPLICATION remain
--- owner-role reviewed-program acts with no client grant of any kind;
--- ELIGIBILITY ADMISSION belongs exclusively to exlib_catalog_admission
--- through admit_catalog_content; PUBLICATION belongs exclusively to
--- exlib_catalog_admin (the promoted 2A execution boundary) through
--- publish_catalog_content. Neither role holds the other's function,
--- and neither holds any table privilege. Ordinary anon/authenticated
--- clients hold none of the four.
+-- ── 4. Four distinct operational authorities ─────────────────────
 DO $do$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_admin') THEN
-    CREATE ROLE exlib_catalog_admin NOLOGIN;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_loader') THEN
+    CREATE ROLE exlib_catalog_loader NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_reviewer') THEN
+    CREATE ROLE exlib_catalog_reviewer NOLOGIN;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_admission') THEN
     CREATE ROLE exlib_catalog_admission NOLOGIN;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_admin') THEN
+    CREATE ROLE exlib_catalog_admin NOLOGIN;
+  END IF;
 END
 $do$;
 
--- The one-time admission act (finding 1 + finding 2): validates the
--- lifecycle position, then COMPUTES the manifest fingerprint from
--- database state (the caller supplies no hash for it) and records it
--- together with the exact repository source artifact SHA-256
--- (format-validated provenance evidence). The freeze trigger
--- re-validates everything, including recomputing the fingerprint.
+-- 4a. LOADING/AUTHORING authority. Creation only; the freeze
+-- triggers guarantee everything lands born-pending / born-active /
+-- unadmitted, so the loader structurally cannot approve, admit,
+-- publish, retire, or alter a decided version. Invocation of these
+-- functions is itself gated procedurally by a separately authorized,
+-- reviewed load package; the functions enforce schema truthfulness.
+CREATE OR REPLACE FUNCTION load_catalog_identity(p_id UUID DEFAULT NULL)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO public.exercise_catalog_logical (id)
+  VALUES (COALESCE(p_id, gen_random_uuid()))
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION load_catalog_snapshot(
+  p_logical_id UUID,
+  p_canonical_name TEXT, p_category TEXT, p_primary_muscle TEXT,
+  p_equipment TEXT, p_laterality TEXT, p_tracking_mode TEXT,
+  p_provenance TEXT,
+  p_movement_pattern TEXT, p_training_role TEXT,
+  p_difficulty TEXT, p_availability TEXT,
+  p_source_url TEXT, p_source_page TEXT,
+  p_retrieved_at DATE, p_import_confidence TEXT,
+  p_anatomy JSONB, p_aliases JSONB
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_snapshot_id UUID;
+  v_rec         JSONB;
+  v_alias       TEXT;
+  v_anatomy_n   INTEGER := 0;
+  v_alias_n     INTEGER := 0;
+BEGIN
+  PERFORM 1 FROM public.exercise_catalog_logical l
+  WHERE l.id = p_logical_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'load_catalog_snapshot: unknown logical identity';
+  END IF;
+  IF p_anatomy IS NULL OR jsonb_typeof(p_anatomy) <> 'array'
+     OR p_aliases IS NULL OR jsonb_typeof(p_aliases) <> 'array' THEN
+    RAISE EXCEPTION 'load_catalog_snapshot: p_anatomy and p_aliases must be JSON arrays (possibly empty)';
+  END IF;
+  -- the snapshot lands born-pending/born-active; every vocabulary,
+  -- provenance, and discovery rule is enforced by the table's own
+  -- CHECKs and the carried freeze trigger
+  INSERT INTO public.exercise_catalog
+    (logical_id, canonical_name, category, primary_muscle, equipment,
+     laterality, tracking_mode, provenance, movement_pattern,
+     training_role, difficulty, availability, source_url, source_page,
+     retrieved_at, import_confidence)
+  VALUES
+    (p_logical_id, p_canonical_name, p_category, p_primary_muscle,
+     p_equipment, p_laterality, p_tracking_mode, p_provenance,
+     p_movement_pattern, p_training_role, p_difficulty, p_availability,
+     p_source_url, p_source_page, p_retrieved_at, p_import_confidence)
+  RETURNING id INTO v_snapshot_id;
+  FOR v_rec IN SELECT value FROM jsonb_array_elements(p_anatomy) LOOP
+    IF jsonb_typeof(v_rec) <> 'object'
+       OR NOT (v_rec ? 'muscle') OR NOT (v_rec ? 'role') THEN
+      RAISE EXCEPTION 'load_catalog_snapshot: each anatomy entry must be an object with muscle and role';
+    END IF;
+    INSERT INTO public.exercise_catalog_muscles (catalog_id, muscle, role)
+    VALUES (v_snapshot_id, v_rec->>'muscle', v_rec->>'role');
+    v_anatomy_n := v_anatomy_n + 1;
+  END LOOP;
+  FOR v_alias IN SELECT value #>> '{}' FROM jsonb_array_elements(p_aliases) LOOP
+    INSERT INTO public.exercise_catalog_aliases (logical_id, alias)
+    VALUES (p_logical_id, v_alias);
+    v_alias_n := v_alias_n + 1;
+  END LOOP;
+  RETURN jsonb_build_object(
+    'logical_id', p_logical_id,
+    'snapshot_id', v_snapshot_id,
+    'anatomy_rows', v_anatomy_n,
+    'alias_rows', v_alias_n
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION load_catalog_content_draft(
+  p_logical_id UUID,
+  p_content_id UUID,
+  p_content_version INTEGER,
+  p_authored_by TEXT, p_authored_at DATE,
+  p_setup_steps JSONB, p_execution_steps JSONB,
+  p_breathing_cue TEXT, p_common_mistakes JSONB,
+  p_safety_guidance TEXT,
+  p_equipment_setup TEXT, p_accessibility_alternative TEXT,
+  p_expected_relationships JSONB
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_id  UUID;
+  v_rec JSONB;
+  v_n   INTEGER := 0;
+BEGIN
+  PERFORM 1 FROM public.exercise_catalog_logical l
+  WHERE l.id = p_logical_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'load_catalog_content_draft: unknown logical identity';
+  END IF;
+  IF p_expected_relationships IS NULL
+     OR jsonb_typeof(p_expected_relationships) <> 'array' THEN
+    RAISE EXCEPTION 'load_catalog_content_draft: p_expected_relationships must be a JSON array (possibly empty)';
+  END IF;
+  -- the version lands born-pending/draft/unadmitted (trigger-enforced)
+  INSERT INTO public.exercise_catalog_content
+    (id, logical_id, content_version, authored_by, authored_at,
+     setup_steps, execution_steps, breathing_cue, common_mistakes,
+     safety_guidance, equipment_setup, accessibility_alternative)
+  VALUES
+    (COALESCE(p_content_id, gen_random_uuid()), p_logical_id,
+     p_content_version, p_authored_by, p_authored_at, p_setup_steps,
+     p_execution_steps, p_breathing_cue, p_common_mistakes,
+     p_safety_guidance, p_equipment_setup, p_accessibility_alternative)
+  RETURNING id INTO v_id;
+  FOR v_rec IN SELECT value FROM jsonb_array_elements(p_expected_relationships) LOOP
+    IF jsonb_typeof(v_rec) <> 'object'
+       OR NOT (v_rec ? 'relation') OR NOT (v_rec ? 'to_logical_id') THEN
+      RAISE EXCEPTION 'load_catalog_content_draft: each expected relationship must be an object with relation and to_logical_id';
+    END IF;
+    INSERT INTO public.exercise_catalog_content_expected_relationships
+      (content_id, relation, to_logical_id)
+    VALUES (v_id, v_rec->>'relation', (v_rec->>'to_logical_id')::uuid);
+    v_n := v_n + 1;
+  END LOOP;
+  RETURN jsonb_build_object(
+    'logical_id', p_logical_id,
+    'content_id', v_id,
+    'content_version', p_content_version,
+    'expected_relationships', v_n
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION load_catalog_identity(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION load_catalog_identity(UUID) FROM anon;
+REVOKE EXECUTE ON FUNCTION load_catalog_identity(UUID) FROM authenticated;
+GRANT EXECUTE ON FUNCTION load_catalog_identity(UUID) TO exlib_catalog_loader;
+REVOKE EXECUTE ON FUNCTION load_catalog_snapshot(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, JSONB, JSONB) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION load_catalog_snapshot(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, JSONB, JSONB) FROM anon;
+REVOKE EXECUTE ON FUNCTION load_catalog_snapshot(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, JSONB, JSONB) FROM authenticated;
+GRANT EXECUTE ON FUNCTION load_catalog_snapshot(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, JSONB, JSONB) TO exlib_catalog_loader;
+REVOKE EXECUTE ON FUNCTION load_catalog_content_draft(UUID, UUID, INTEGER, TEXT, DATE, JSONB, JSONB, TEXT, JSONB, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION load_catalog_content_draft(UUID, UUID, INTEGER, TEXT, DATE, JSONB, JSONB, TEXT, JSONB, TEXT, TEXT, TEXT, JSONB) FROM anon;
+REVOKE EXECUTE ON FUNCTION load_catalog_content_draft(UUID, UUID, INTEGER, TEXT, DATE, JSONB, JSONB, TEXT, JSONB, TEXT, TEXT, TEXT, JSONB) FROM authenticated;
+GRANT EXECUTE ON FUNCTION load_catalog_content_draft(UUID, UUID, INTEGER, TEXT, DATE, JSONB, JSONB, TEXT, JSONB, TEXT, TEXT, TEXT, JSONB) TO exlib_catalog_loader;
+
+-- 4b. HUMAN-REVIEW APPLICATION authority: exactly one legal
+-- pending -> approved|revised|rejected transition per call, with a
+-- complete non-blank audit tuple. It updates ONLY the four review
+-- fields; the freeze trigger re-validates the transition, the frozen
+-- payload, and the untouched admission/publication axes.
+-- Post-decision transitions (approved -> revised|rejected) are
+-- deliberately NOT an operational authority in this proposal.
+CREATE OR REPLACE FUNCTION apply_content_review(
+  p_logical_id UUID,
+  p_content_id UUID,
+  p_decision TEXT,
+  p_reviewer TEXT,
+  p_reviewed_at TIMESTAMPTZ,
+  p_rationale TEXT
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_target public.exercise_catalog_content%ROWTYPE;
+BEGIN
+  PERFORM 1 FROM public.exercise_catalog_logical l
+  WHERE l.id = p_logical_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'apply_content_review: unknown logical identity';
+  END IF;
+  SELECT c.* INTO v_target
+  FROM public.exercise_catalog_content c
+  WHERE c.id = p_content_id AND c.logical_id = p_logical_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'apply_content_review: content row not found under that logical identity';
+  END IF;
+  IF v_target.content_status <> 'pending' THEN
+    RAISE EXCEPTION 'apply_content_review: only a pending version can receive its review decision through this authority; the decision is one-time and corrections require a new content version';
+  END IF;
+  IF p_decision IS NULL OR p_decision NOT IN ('approved','revised','rejected') THEN
+    RAISE EXCEPTION 'apply_content_review: decision must be approved, revised, or rejected';
+  END IF;
+  IF p_reviewer IS NULL OR char_length(btrim(p_reviewer)) = 0
+     OR p_reviewed_at IS NULL
+     OR p_rationale IS NULL OR char_length(btrim(p_rationale)) = 0 THEN
+    RAISE EXCEPTION 'apply_content_review: a complete, non-blank reviewer/timestamp/rationale tuple is required';
+  END IF;
+  UPDATE public.exercise_catalog_content
+  SET content_status   = p_decision,
+      reviewed_by      = p_reviewer,
+      reviewed_at      = p_reviewed_at,
+      review_rationale = p_rationale
+  WHERE id = p_content_id;
+  RETURN jsonb_build_object(
+    'logical_id', p_logical_id,
+    'content_id', p_content_id,
+    'decision',   p_decision
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION apply_content_review(UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION apply_content_review(UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION apply_content_review(UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION apply_content_review(UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, TEXT) TO exlib_catalog_reviewer;
+
+-- 4c. ELIGIBILITY-ADMISSION authority (accepted round-1 correction;
+-- round-2: no longer reads or requires the live surface). Validates
+-- the lifecycle position, COMPUTES the manifest fingerprint from
+-- database state (the caller supplies no hash for it), records the
+-- format-validated source-artifact SHA-256. The freeze trigger
+-- re-validates everything including recomputing the fingerprint.
 CREATE OR REPLACE FUNCTION admit_catalog_content(
   p_logical_id UUID,
   p_content_id UUID,
@@ -1037,27 +1352,6 @@ BEGIN
     RAISE EXCEPTION 'admit_catalog_content: p_source_artifact_sha256 must be a 64-character lowercase hex SHA-256 of the exact reviewed repository artifact';
   END IF;
 
-  IF EXISTS (
-      SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-      WHERE e.content_id = p_content_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.exercise_catalog_relationships r
-          WHERE r.from_logical_id = p_logical_id
-            AND r.relation = e.relation
-            AND r.to_logical_id = e.to_logical_id)) THEN
-    RAISE EXCEPTION 'admit_catalog_content: an expected relationship is missing from the live set; admission requires the complete expected relationship set';
-  END IF;
-  IF EXISTS (
-      SELECT 1 FROM public.exercise_catalog_relationships r
-      WHERE r.from_logical_id = p_logical_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-          WHERE e.content_id = p_content_id
-            AND e.relation = r.relation
-            AND e.to_logical_id = r.to_logical_id)) THEN
-    RAISE EXCEPTION 'admit_catalog_content: an unexpected live relationship is present; admission requires exact set equality with the expected set';
-  END IF;
-
   -- computed from database state; also raises on incomplete bound
   -- state (no/duplicate active snapshot, NULL discovery metadata)
   v_fingerprint := public.exlib_content_admission_fingerprint(p_content_id);
@@ -1084,11 +1378,15 @@ REVOKE EXECUTE ON FUNCTION admit_catalog_content(UUID, UUID, TEXT) FROM anon;
 REVOKE EXECUTE ON FUNCTION admit_catalog_content(UUID, UUID, TEXT) FROM authenticated;
 GRANT EXECUTE ON FUNCTION admit_catalog_content(UUID, UUID, TEXT) TO exlib_catalog_admission;
 
--- Publication (2A section 1 lifecycle; finding-2/finding-3
--- revalidation): only an approved, admitted, fingerprint-fresh draft
--- whose live relationship set still equals its expected set exactly
--- may publish; the previously published version retires first under
--- the logical row lock.
+-- 4d. PUBLICATION authority (round-2 finding 1): publishes only an
+-- approved, admitted, fingerprint-fresh draft, and ATOMICALLY - in
+-- one transaction under the logical-identity lock - retires the
+-- prior published version, replaces the protected projection with
+-- the new version's expected set, and marks the new version
+-- published. A failure anywhere rolls the whole transaction back,
+-- leaving the prior version and its projection intact. No externally
+-- observable state can pair a published version with another
+-- version's relationship set.
 CREATE OR REPLACE FUNCTION publish_catalog_content(
   p_logical_id UUID,
   p_content_id UUID
@@ -1098,9 +1396,10 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  v_target   public.exercise_catalog_content%ROWTYPE;
-  v_current  UUID;
-  v_computed TEXT;
+  v_target    public.exercise_catalog_content%ROWTYPE;
+  v_current   UUID;
+  v_computed  TEXT;
+  v_projected INTEGER;
 BEGIN
   -- 1. serialize promotions per logical identity
   PERFORM 1 FROM public.exercise_catalog_logical l
@@ -1142,38 +1441,14 @@ BEGIN
     RAISE EXCEPTION 'publish_catalog_content: content is not import-admitted; eligibility is a separate, explicitly approved act';
   END IF;
 
-  -- 2f. relationship completeness (finding 3): the live set must
-  -- STILL equal the version's expected set exactly - a required
-  -- relationship missing or an unexpected one present fails closed
-  IF EXISTS (
-      SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-      WHERE e.content_id = p_content_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.exercise_catalog_relationships r
-          WHERE r.from_logical_id = p_logical_id
-            AND r.relation = e.relation
-            AND r.to_logical_id = e.to_logical_id)) THEN
-    RAISE EXCEPTION 'publish_catalog_content: a required relationship is missing at publication; the version''s expected relationship set must exist exactly';
-  END IF;
-  IF EXISTS (
-      SELECT 1 FROM public.exercise_catalog_relationships r
-      WHERE r.from_logical_id = p_logical_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.exercise_catalog_content_expected_relationships e
-          WHERE e.content_id = p_content_id
-            AND e.relation = r.relation
-            AND e.to_logical_id = r.to_logical_id)) THEN
-    RAISE EXCEPTION 'publish_catalog_content: an unexpected relationship is present at publication; the live set must equal the expected set exactly';
-  END IF;
-
-  -- 2g. the COMPLETE normalized manifest fingerprint must still
-  -- match the admission (finding 2): any bound snapshot, anatomy,
-  -- alias, content, authorship, review-evidence, or relationship
+  -- 2f. the COMPLETE normalized manifest fingerprint must still
+  -- match the admission: any bound snapshot, anatomy, alias,
+  -- content, authorship, review-evidence, or expected-relationship
   -- change - or a now-missing/incomplete bound surface, which makes
   -- the manifest computation itself RAISE - fails closed
   v_computed := public.exlib_content_admission_fingerprint(p_content_id);
   IF v_target.admitted_fingerprint IS DISTINCT FROM v_computed THEN
-    RAISE EXCEPTION 'publish_catalog_content: import admission is STALE - a bound surface (snapshot, anatomy, alias, content, authorship, review evidence, or relationship) changed after admission; a new version, new review, and new admission are required';
+    RAISE EXCEPTION 'publish_catalog_content: import admission is STALE - a bound surface (snapshot, anatomy, alias, content, authorship, review evidence, or expected relationship) changed after admission; a new version, new review, and new admission are required';
   END IF;
 
   -- 3. retire the currently published version, if one exists
@@ -1188,16 +1463,34 @@ BEGIN
     WHERE id = v_current;
   END IF;
 
-  -- 4. publish the replacement
+  -- 4. ATOMIC PROJECTION SWAP under the identity lock: the protected
+  -- live surface becomes exactly the new version's expected set. The
+  -- transaction-local sentinel authorizes the projection trigger for
+  -- THIS identity only, and is cleared immediately after.
+  PERFORM set_config('exlib.relationship_projection_identity',
+                     p_logical_id::text, true);
+  DELETE FROM public.exercise_catalog_relationships
+  WHERE from_logical_id = p_logical_id;
+  INSERT INTO public.exercise_catalog_relationships
+    (from_logical_id, to_logical_id, relation)
+  SELECT p_logical_id, e.to_logical_id, e.relation
+  FROM public.exercise_catalog_content_expected_relationships e
+  WHERE e.content_id = p_content_id;
+  GET DIAGNOSTICS v_projected = ROW_COUNT;
+  PERFORM set_config('exlib.relationship_projection_identity', '', true);
+
+  -- 5. publish the replacement (the freeze trigger structurally
+  -- re-verifies projection equality and manifest freshness here)
   UPDATE public.exercise_catalog_content
   SET publication_status = 'published'
   WHERE id = p_content_id;
 
   RETURN jsonb_build_object(
-    'logical_id',      p_logical_id,
-    'published',       p_content_id,
-    'retired',         v_current,
-    'content_version', v_target.content_version
+    'logical_id',              p_logical_id,
+    'published',               p_content_id,
+    'retired',                 v_current,
+    'content_version',         v_target.content_version,
+    'projected_relationships', v_projected
   );
 END;
 $$;
@@ -1214,9 +1507,16 @@ COMMIT;
 -- relationship, or original-provenance snapshot row exists):
 --   DROP FUNCTION publish_catalog_content(UUID, UUID);
 --   DROP FUNCTION admit_catalog_content(UUID, UUID, TEXT);
+--   DROP FUNCTION apply_content_review(UUID, UUID, TEXT, TEXT, TIMESTAMPTZ, TEXT);
+--   DROP FUNCTION load_catalog_content_draft(UUID, UUID, INTEGER, TEXT, DATE, JSONB, JSONB, TEXT, JSONB, TEXT, TEXT, TEXT, JSONB);
+--   DROP FUNCTION load_catalog_snapshot(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, JSONB, JSONB);
+--   DROP FUNCTION load_catalog_identity(UUID);
 --   DROP FUNCTION exlib_content_admission_fingerprint(UUID);
 --   DROP FUNCTION exlib_content_admission_manifest(UUID);
 --   DROP FUNCTION exlib_manifest_hex(TEXT);
+--   DROP TRIGGER exercise_catalog_relationships_projection_trigger
+--     ON exercise_catalog_relationships;
+--   DROP FUNCTION exlib_protect_relationship_projection();
 --   DROP TABLE exercise_catalog_relationships;
 --   DROP TRIGGER exercise_catalog_content_expected_relationships_freeze_trigger
 --     ON exercise_catalog_content_expected_relationships;
@@ -1232,8 +1532,8 @@ COMMIT;
 --     DROP COLUMN training_role, DROP COLUMN difficulty,
 --     DROP COLUMN availability;
 --   (restore the 023 NOT NULLs and freeze trigger from the 023 bytes;
---    the two NOLOGIN roles may be dropped only if nothing else on the
---    cluster has adopted them)
+--    the four NOLOGIN roles may be dropped only if nothing else on
+--    the cluster has adopted them)
 -- Once ANY dependent row exists, rollback is a reviewed data
 -- operation, not a schema drop. Applying this proposal twice fails
 -- closed (duplicate objects), matching the repository's
@@ -1243,16 +1543,17 @@ COMMIT;
 -- The proposal is therefore NOT idempotent by design (no IF NOT
 -- EXISTS shortcuts on the schema objects): a duplicate application is
 -- an operator error that must surface loudly, not be silently
--- absorbed. The one exception is the pair of roles, which are guarded
--- by pg_roles existence checks because a cluster may legitimately
--- already define them. Existing external-import rows - INCLUDING a
--- legitimate nonempty 023 catalog - remain valid without rewriting
--- their meaning: provenance defaults to external_source_derived,
--- their complete source fields already satisfy the conditional
--- CHECK, their discovery metadata stays NULL rather than fabricated,
--- and unchanged 023-026 behavior (claims, snapshots, anatomy seal,
--- runs, seal/approval, delivery, rollback) never reads the new
--- columns. Migration 026 behavior is untouched: no 026 object is
--- modified, and deliver/rollback read explicit columns or adapt via
--- %ROWTYPE. Applying this schema performs NO load, approval,
--- admission, seal, publication, or delivery.
+-- absorbed. The one exception is the set of four roles, which are
+-- guarded by pg_roles existence checks because a cluster may
+-- legitimately already define them. Existing external-import rows -
+-- INCLUDING a legitimate nonempty 023 catalog - remain valid without
+-- rewriting their meaning: provenance defaults to
+-- external_source_derived, their complete source fields already
+-- satisfy the conditional CHECK, their discovery metadata stays NULL
+-- rather than fabricated, and unchanged 023-026 behavior (claims,
+-- snapshots, anatomy seal, runs, seal/approval, delivery, rollback)
+-- never reads the new columns. Migration 026 behavior is untouched:
+-- no 026 object is modified, and deliver/rollback read explicit
+-- columns or adapt via %ROWTYPE. Applying this schema performs NO
+-- load, review decision, approval, admission, seal, publication, or
+-- delivery.

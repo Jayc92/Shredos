@@ -1,6 +1,6 @@
 # EXLIB-2L — implementation review record (proposal hardening)
 
-Recorded 2026-09-02 (UTC); CORRECTED REVISION B. This is Claude's
+Recorded 2026-09-02 (UTC); CORRECTED REVISION C. This is Claude's
 OWN implementation review of
 docs/exlib2l-catalog-content-schema-proposal.sql — a self-review
 performed before submission for Codex re-review. It is NOT a
@@ -13,12 +13,16 @@ live check ran on DISPOSABLE local PostgreSQL 16.15 clusters
 
 ## 1. What was reviewed, against what
 
-The corrected proposal (final bytes: 63,231 B, SHA-256
-e42e08f259eda16173db06048b0e930056e0e7631895fa8382768cf68999b0de)
+The corrected proposal (final bytes: 78,468 B, SHA-256
+9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553)
 was checked line-by-line against:
 
-- the four blocking Codex round-1 findings (the corrective
-  instruction of 2026-09-02);
+- the two blocking Codex round-2 findings (the corrective
+  instruction of 2026-09-02), with round 2's confirmation that the
+  four round-1 findings are corrected and its acceptance of the five
+  residual judgment items as documented;
+- the four Codex round-1 findings and their accepted corrections
+  (which must not regress);
 - the promoted EXLIB-2A architecture record (pseudocode,
   vocabularies, RLS/ACL posture, publication lifecycle, freeze
   conventions);
@@ -33,169 +37,148 @@ was checked line-by-line against:
 - the EXLIB-2L instruction's schema requirements and prohibited
   list.
 
-## 2. The four Codex round-1 findings and their corrections
+## 2. The two Codex round-2 findings and their corrections
 
-1. REVERSED REVIEW/ADMISSION ORDER (finding 1): revision A required
-   admission while pending and froze admission fields at the review
-   decision — the reverse of the promoted EXLIB-2I -> EXLIB-2J
-   lifecycle. CORRECTED: versions are born pending/draft/UNADMITTED
-   (trigger-enforced at INSERT); pending prose is editable; the
-   review transition freezes the reviewed payload including the
-   version's expected relationship set; ONLY an approved, draft,
-   unpublished, currently-unadmitted version may receive its
-   one-time admission; the admission transition travels alone,
-   cannot precede approval (trigger + structural
-   admission-order CHECK + function), cannot accompany review or
-   publication changes, cannot target pending/revised/rejected/
-   published/retired content, and is one-way; corrections require a
-   new version, new review, new admission. A DEDICATED admission
-   authority was added (NOLOGIN role exlib_catalog_admission +
-   admit_catalog_content) so admission no longer rides on table
-   owner access; loading, review application, admission, and
-   publication are four distinct authorities and ordinary clients
-   hold none (all live-proven, including both cross-denials).
-2. INCOMPLETE MD5 FINGERPRINT (finding 2): revision A's
-   exlib_content_fingerprint was MD5 over selected instructional
-   fields only — it did NOT cover the complete EXLIB-2J artifact,
-   and that is stated plainly rather than papered over. REPLACED by
-   the versioned canonical admission manifest
-   ('EXLIB-ADMISSION-MANIFEST v1', SHA-256, computed FROM DATABASE
-   STATE) binding identity, the single active snapshot's
-   classification/tracking/provenance/discovery/source fields,
-   anatomy, aliases, authored content, authorship, the review-bound
-   version with its evidence, the expected relationship set, and
-   the live relationship set. Two digests are stored distinctly
-   (computed manifest fingerprint; recorded source artifact
-   SHA-256, format-validated). The freeze trigger independently
-   recomputes the fingerprint at the admission transition, so an
-   arbitrary caller hash cannot land even through direct owner
-   writes. Determinism: hex-encoded UTF8 text fields, jsonb
-   canonical form, day-offset dates, numeric-epoch timestamps, and
-   COLLATE "C" row ordering — DateStyle, TimeZone, JSON key order,
-   row order, and relationship order are all live-proven unable to
-   change the hash. The manifest functions are STABLE (truthful,
-   unlike revision A's IMMUTABLE marking on a session-dependent
-   expression, which was itself a corrected revision-A defect).
-3. UNPROVABLE RELATIONSHIP COMPLETENESS (finding 3): revision A's
-   publication check only rejected conditions the FKs already made
-   impossible, so an omitted required relationship was invisible.
-   CORRECTED with the per-version EXPECTED relationship set
-   (authored while pending, frozen at review, immutable rows,
-   PK-deterministic, RESTRICT FKs, no self-expectation): admission
-   and publication both require the live set to equal the expected
-   set EXACTLY, with precise missing/unexpected errors, and the
-   manifest binds both sets. The Plank model publishes only with
-   exactly its substitution and progression present; either missing,
-   extras, and swapped types each fail closed; target identities
-   need no content of their own; version isolation is live-proven
-   (a live-set move to a newer version's expectations fails the
-   older version's publication closed rather than silently altering
-   it).
-4. NONEMPTY-023 INCOMPATIBILITY (finding 4): revision A's NOT NULL
-   metadata additions succeeded only because the catalogs held zero
-   rows. CORRECTED: the four discovery columns are NULLABLE with
-   NULL-permitting vocabulary CHECKs; forgefitos_original rows must
-   carry all four (new exercise_catalog_discovery_metadata_chk) and
-   no source fields; external rows keep sources REQUIRED and their
-   exact 023 meaning; the admission manifest refuses NULL discovery
-   metadata, so legacy rows cannot enter the new workflow without a
-   complete new snapshot version; nothing is backfilled or invented.
-   The live suite now seeds a legitimate NONEMPTY 023 catalog
-   (complete sources, anatomy, alias, approved SEALED run) BEFORE
-   applying the proposal and proves byte-identical legacy rows,
-   defaulted provenance, NULL (not fabricated) metadata, still-
-   required sources, the workflow gate, and unchanged 026 delivery
-   AND rollback on the historical rows after application.
+1. PUBLISHED-VERSION MUTATION WINDOW (round-2 finding 1): revision
+   B's identity-wide live relationship table required moving the
+   live rows from set A to set B before version 2 could be admitted,
+   silently changing still-published version 1's observable
+   relationship meaning and leaving it published-but-stale until a
+   later publication attempt. CORRECTED with design shape B
+   (expected/staged relationships + atomic publication projection):
+   the version-owned expected set is the reviewed/admitted source of
+   truth; admission binds it through the v2 manifest and never
+   touches the live surface; exercise_catalog_relationships is now a
+   TRIGGER-PROTECTED PROJECTION that always equals the currently
+   published version's expected set and changes ONLY inside
+   publish_catalog_content's single transaction (retire prior ->
+   delete projection -> insert new expected set -> publish) under
+   the logical-identity lock and a transaction-local sentinel.
+   Direct INSERT/UPDATE/DELETE fails closed for every caller
+   including the table owner; the content freeze trigger
+   additionally re-verifies projected-set equality and manifest
+   freshness at the moment any row becomes published, so even
+   sentinel-abusing break-glass writes cannot pair a published
+   version with a wrong set. The invariant is structural and
+   transactional — live-proven end to end: version 1 published with
+   set A stays published, observably unchanged, AND manifest-fresh
+   while version 2 is staged, reviewed, and admitted with set B; a
+   failed version-2 publication leaves version 1/A byte-exact; a
+   successful one atomically retires version 1 and activates exactly
+   B. The manifest format was bumped to
+   'EXLIB-ADMISSION-MANIFEST v2' for this change (v1's live-surface
+   section removed; the version-owned expected set is the bound
+   relationship truth), exercising the versioned-manifest
+   discipline.
+2. TWO AUTHORITIES CLAIMED AS FOUR (round-2 finding 2): revision B
+   created only admission and publication roles while loading and
+   review application remained owner-side. CORRECTED: four NOLOGIN
+   roles now exist, each holding EXECUTE on exactly its own narrow
+   SECURITY DEFINER function(s) and no table privileges:
+   exlib_catalog_loader (load_catalog_identity,
+   load_catalog_snapshot with anatomy/aliases,
+   load_catalog_content_draft with the version-owned expected set),
+   exlib_catalog_reviewer (apply_content_review: exactly one legal
+   pending decision with a complete non-blank tuple),
+   exlib_catalog_admission (admit_catalog_content), and
+   exlib_catalog_admin (publish_catalog_content). All functions pin
+   search_path, validate lifecycle state themselves, and are
+   re-validated by the freeze triggers; the GRANT matrix is
+   live-proven exact; ALL TWELVE authority cross-denials are
+   live-proven (not only admission-vs-publication), plus
+   anon/authenticated denials on all four acts, plus direct-table
+   mutation denials for the operational roles. Direct owner-level
+   mutation is identified honestly as database-superuser break-glass
+   power outside the ordinary operational path, still bound by every
+   trigger and CHECK. Post-decision review transitions
+   (approved -> revised/rejected) are deliberately NOT an
+   operational authority in this proposal.
 
-PRESERVED DECISION (adjudicated): only content_status = 'approved'
-may publish; pending, revised, and rejected never publish; revised
-remains terminal.
+NO REGRESSION of the accepted round-1 corrections (each re-proven in
+the final run): approval before admission; one-time one-way
+admission; the complete database-computed SHA-256 manifest with
+trigger recomputation; the separate recorded repository SHA-256
+(format-validated); deterministic serialization across
+locale/session/order differences (hex-encoded UTF8, jsonb canonical
+form, day-offset dates, numeric-epoch timestamps, COLLATE "C" row
+ordering); safe nonempty migration-023 compatibility with
+byte-identical legacy rows and no fabricated metadata; approved-only
+publication with terminal revised/rejected; provenance-conditional
+source fields; no hosted action or data creation.
 
 ## 3. Defects found by THIS review round, and their forward fixes
 
-1. FUNCTION-ONLY PUBLICATION GATE (correctness, found by the
-   corrected live suite's own smuggle probe): the first revision-B
-   draft enforced relationship completeness and manifest freshness
-   only inside publish_catalog_content. The travel-alone probe
-   (whose smuggled admitted_at accidentally equaled the stored
-   CURRENT_DATE value and therefore "traveled alone") published a
-   version through a DIRECT owner-level UPDATE, bypassing both
-   gates. FIX: the freeze trigger's publication branch now enforces
-   exact expected/live set equality AND recomputes the manifest
-   fingerprint structurally for every draft -> published transition,
-   so direct owner-level publishes cannot bypass completeness or
-   staleness either. Two dedicated live checks now prove the
-   trigger-level gate (J5b, K1b), and the probe uses an
-   unambiguously different date.
-2. COLLATION-DEPENDENT MANIFEST ORDERING (determinism): the first
-   manifest draft ordered rows with bare text ORDER BY, which is
-   collation-dependent (glibc/ICU order underscores and spaces
-   differently than byte order), so the same rows could hash
-   differently across clusters. FIX: every text ORDER BY in the
-   manifest is pinned to COLLATE "C" byte order, with a live check
-   asserting the pin exists in the function body.
+The revision-C schema passed its live matrix on the first complete
+run; one defect was found and fixed in the HARNESS while authoring
+it (disclosed for completeness): the manifest reorder-invariance
+probe initially computed a manifest for a version under an identity
+with no catalog snapshot, which the manifest correctly refuses
+(exactly-one-active-snapshot rule) — the probe was restaged onto a
+loader-created identity with a complete snapshot. This was a fixture
+staging error, not a proposal defect; the manifest behaved exactly
+as designed.
 
-Carried from revision A (already fixed there, still true): the
-verbatim-carry proof of the one replaced 023 function,
-exlib_freeze_catalog_snapshot — outside the marked 8-line/518-byte
-"EXLIB-2L splice" block, the carried body is byte-identical to the
-023 bytes (4,607 B exact match, measured from the CREATE OR REPLACE
-line through the closing $$; delimiter); the
+Carried from earlier revisions (already fixed there, still true and
+still verified): the verbatim-carry proof of the one replaced 023
+function, exlib_freeze_catalog_snapshot — outside the marked
+8-line/518-byte "EXLIB-2L splice" block, the carried body is
+byte-identical to the 023 bytes (4,607 B exact match, measured from
+the CREATE OR REPLACE line through the closing $$; delimiter); the
 exercise_catalog_provenance_sources_chk naming (the EXLIB-1C0B1
-near-name hazard); and the single-transaction wrapper.
+near-name hazard); the single-transaction wrapper; the structural
+(trigger-level) publication gate; and the COLLATE "C" manifest
+ordering.
 
 ## 4. Live verification (scripts/verify-exlib2l-live.sh)
 
-Final result: 111 passed, 0 failed, on a fresh disposable cluster
+Final result: 135 passed, 0 failed, on a fresh disposable cluster
 with TWO databases (nonempty legacy + empty). Coverage, mapped to
-the corrective instruction's 17 required proofs:
+the round-2 corrective instruction's 15 required proofs:
 
-1. Pending draft authoring (F2, F6).
-2. Human approval BEFORE eligibility (G6, then H5).
-3. One-time admission of an already-approved immutable draft (H5,
-   H6).
-4. Admission cannot precede approval — function AND direct-write
-   paths (F7, F8).
-5. Admission cannot accompany review or publication (G10, H9).
-6. Admission cannot target revised/rejected/published/retired
-   content (H10, H11, J11; published/retired versions already carry
-   their one-way admission, so re-admission is refused as such).
-7. Complete SHA-256 binding across metadata, anatomy, aliases,
-   content, authorship, review evidence, and the exact relationship
-   multiset (I1-I6: versioned manifest, ten mechanical
-   artifact-to-database mapping probes, 64-hex SHA-256 shape,
-   DateStyle/TimeZone invariance, jsonb key-order canonicalization,
-   COLLATE "C" row ordering; H4: arbitrary hashes rejected by
-   recomputation; J8: committed reverse-order re-insertion
-   reproduces the exact fingerprint).
-8. Any bound change or omission fails publication closed (K1 alias
-   drift; K1b direct-write staleness; K2 review flip; K3 deactivated
-   snapshot = MISSING bound surface, the manifest itself raises).
-9. The Plank model cannot publish with either required relationship
-   missing (J2, J3).
-10. Extra or wrong relationships fail publication (J4, J5, J5b).
-11. Target identities need no target-content approval, admission,
-    publication, or even snapshots (J10).
-12. Distinct loading, review, admission, and publication
-    authorities (M1; H12/H13 cross-denials; admission role holds
-    admit only, publication role holds publish only).
-13. No ordinary client access (M2-M9: read/load/review/admit/
-    publish/expected-write/fingerprint-oracle all denied for anon
-    and authenticated).
-14. Safe application over BOTH empty and nonempty legitimate
-    001-026 states (D1, D2; C1-C3 seed the nonempty state first).
-15. Existing 023-026 delivery/rollback behavior unchanged on
-    historical external rows AFTER application (E8-E11, C2).
-16. Schema application creates no content, relationship, run,
-    membership, approval, admission, seal, publication, or delivery
-    state (D5, on the empty database).
-17. A second application fails and rolls back wholly (D3, D4).
+1. Version 1 published with relationship set A (L1, after the full
+   loader -> reviewer -> admission -> publication pipeline).
+2. Version 2 reviewed with set B while version 1/A remains effective
+   (L2-L3).
+3. Version 2 admitted while version 1/A remains effective — live set
+   unchanged, version 1 still published, version 1's manifest STILL
+   FRESH (L4-L5: the round-2 window is gone).
+4. Failed version-2 publication preserves version 1/A exactly
+   (L6-L7: transaction rollback, not cleanup).
+5. Successful version-2 publication atomically produces version 2/B
+   and retires version 1 (L8-L9).
+6. No published row can be paired with another version's
+   relationship set (J12: even a direct owner break-glass publish
+   with an unprojected set is refused by the trigger's structural
+   completeness gate; J2/J7/J8: the projection cannot drift; L10:
+   versions' expected rows coexist without collision).
+7. Loader cannot review, admit, or publish (M2-M4).
+8. Reviewer cannot load, admit, or publish (M5-M7).
+9. Admission role cannot load, review, or publish (M8-M10).
+10. Publication role cannot load, review, or admit (M11-M13).
+11. anon/authenticated cannot perform any of the four acts (M14 x8)
+    nor read any new table nor compute fingerprints (M19-M20).
+12. Direct non-function lifecycle mutations through operational
+    roles fail (M15-M18: no table privileges at all).
+13. Empty and legitimate nonempty 001-026 databases still pass
+    (D1-D2 with the C-section legacy fixture seeded first; E1-E2
+    byte-identical legacy rows, nothing fabricated).
+14. Existing 023-026 delivery and rollback remain unchanged (C2 seal
+    pre-application; E8-E11 delivery and rollback on the historical
+    rows post-application).
+15. A second schema application fails and rolls back wholly (D3-D4;
+    D5 proves schema application alone creates no lifecycle state).
 
-Plus finding-4 specifics (E1 byte-identical legacy rows; E2 nothing
-fabricated; E3 sources still required; E4 originals forbid sources;
-E5 originals require discovery metadata; E7 legacy NULLs immutable
-in place; K4 the legacy workflow gate) and the advisor-equivalent
-block (N1-N4, including "no md5 anywhere in the new functions").
+Plus the preserved round-1 matrices: lifecycle birth/order rules
+(F4-F13), reviewer-authority validation and payload/expected
+freezing (G1-G9), one-time computed admission with two digests
+(H1-H9), the v2 manifest's mechanical artifact-to-database mapping,
+SHA-256 shape, DateStyle/TimeZone/JSON-key/row-order invariance and
+the absence of any live-surface binding (I1-I8), the Plank model
+publishing with exactly its substitution and progression onto bare
+target identities (J4-J6), staleness fail-closed through function
+AND trigger paths including the missing-bound-surface case (K1-K4),
+the legacy workflow gate (K5), RLS/ACL/search_path posture
+(M21-M23), and the advisor-equivalent block (N1-N4).
 
 ## 5. Advisors: honest limitation statement
 
@@ -215,27 +198,30 @@ application.
 
 ## 6. Residual review items for Codex
 
-1. The manifest binds the snapshot's classification but NOT the
+1. The projection sentinel is a transaction-local GUC
+   ('exlib.relationship_projection_identity'); a break-glass
+   superuser can set it manually, but the content freeze trigger's
+   publication-time equality and freshness checks still hold (J12
+   proves the closing gate). Confirm this two-layer posture is
+   acceptable, or whether the sentinel should be hardened further
+   (e.g., a nonce checked between function and trigger).
+2. The manifest binds the snapshot's classification but NOT the
    snapshot's own review_status/review evidence (023's snapshot
-   review axis is delivery's gate, and the finding's bound-surface
-   list does not include it); the deactivation case is still fail-
-   closed because the manifest requires exactly one ACTIVE snapshot.
-   Confirm this boundary is the intended one.
-2. admitted_source_sha256 is a RECORDED provenance fact
-   (format-validated 64-hex): the database cannot read repository
-   bytes, so its truthfulness is established by the repository-side
-   verifiers and the operator's admission procedure, not by the
-   database. Disclosed plainly; confirm acceptability.
-3. The two NOLOGIN roles are created idempotently
-   (pg_roles-guarded) because roles are cluster-scoped; the guard is
-   live-proven by the second database's clean application. Confirm
-   the desired posture for the hosted cluster.
-4. exercise_catalog_content.reviewed_at is TIMESTAMPTZ (matching
-   023's snapshot review evidence) while the authored artifact
-   records an ISO-8601 string with offset; no conversion happens in
-   this milestone.
-5. Expected relationship sets are keyed by content version and
-   frozen at review; if a future milestone needs to amend an
-   expected set after approval, that is deliberately impossible
-   without a new content version — confirm this is the intended
-   rigidity.
+   review axis is delivery's gate); the deactivation case is still
+   fail-closed via the exactly-one-active rule. Accepted round 2 as
+   documented; restated for the new revision.
+3. admitted_source_sha256 remains a RECORDED provenance fact
+   (format-validated 64-hex). Accepted round 2 as documented.
+4. The four NOLOGIN roles are created idempotently
+   (pg_roles-guarded); the guard is live-proven by the second
+   database's clean application. Confirm the desired posture for the
+   hosted cluster.
+5. Post-decision review transitions (approved -> revised|rejected)
+   have NO operational authority in this proposal (the trigger
+   permits them with fresh evidence, reachable only via break-glass)
+   — a future milestone can add a dedicated authority if the product
+   needs it operationally. Confirm this boundary.
+6. apply_content_review takes the reviewer-supplied timestamp as a
+   parameter (matching EXLIB-2I's exact human timestamp practice)
+   rather than stamping NOW(); confirm this is the intended
+   evidence model.

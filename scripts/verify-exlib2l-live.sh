@@ -1,10 +1,10 @@
 #!/bin/bash
 # ============================================================
 # ForgeFitOS - EXLIB-2L catalog-content and relationship schema
-# PROPOSAL live proof matrix (CORRECTED REVISION B: covers the four
-# Codex round-1 findings - review-before-admission lifecycle order,
-# complete SHA-256 admission manifest, relationship completeness,
-# and nonempty-catalog compatibility).
+# PROPOSAL live proof matrix (CORRECTED REVISION C: round-2 findings -
+# the protected publication projection that closes the
+# published-version mutation window, and the four real operational
+# authorities - on top of the accepted round-1 corrections).
 #
 # Applies migrations 001-026 exactly as committed to TWO databases on
 # a DISPOSABLE LOCAL PostgreSQL cluster (unix-socket only, no TCP,
@@ -15,8 +15,8 @@
 # EXACTLY ONCE to each. This script NEVER contacts Supabase, Vercel,
 # or any remote service; the proposal stays NOT APPLIED to any
 # persistent or hosted database, and nothing here loads catalog
-# content, approves, admits, seals, publishes, or delivers anything
-# in the product.
+# content, reviews, admits, seals, publishes, or delivers anything in
+# the product.
 #
 # The fixtures below are LOCAL, DISPOSABLE PROOF FIXTURES invented
 # for this cluster. They are NOT the Plank content record, NOT a load
@@ -119,7 +119,7 @@ for TARGET in postgres emptycase; do
 done
 
 echo
-echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (finding 4)"
+echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (round-1 finding 4)"
 GL1='11111111-2222-3333-4444-555555555001'
 GL2='11111111-2222-3333-4444-555555555002'
 GS1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee001'
@@ -149,16 +149,16 @@ PRE_COUNT=$(Q "SELECT count(*) FROM exercise_catalog")
 ok "C3: pre-proposal legacy state captured for byte-comparison ($PRE_COUNT rows, digest ${PRE_HASH:0:12}...)"
 
 echo
-echo "=== D. The proposal applies EXACTLY ONCE over BOTH the nonempty and the empty database (proofs 14, 16, 17)"
+echo "=== D. The proposal applies EXACTLY ONCE over BOTH the nonempty and the empty database (proofs 13, 15-17)"
 psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/prop.log" \
   && ok "D1: the proposal applies CLEANLY over the NONEMPTY legitimate 001-026 state (no fabrication needed, no data loss)" \
   || { bad "D1: proposal failed over nonempty state" "$(sed -n '1,5p' "$TMP/prop.log")"; exit 1; }
 psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/prop2.log" \
-  && ok "D2: the proposal applies CLEANLY over the EMPTY 001-026 state (the pg_roles guard makes the second cluster-wide role creation a no-op)" \
+  && ok "D2: the proposal applies CLEANLY over the EMPTY 001-026 state (the pg_roles guards make the second cluster-wide role creations no-ops)" \
   || { bad "D2: proposal failed over empty state" "$(sed -n '1,5p' "$TMP/prop2.log")"; exit 1; }
 psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>&1 \
   && bad "D3: a SECOND application succeeded - apply-exactly-once is not enforced" \
-  || ok "D3: a second application fails closed (apply-exactly-once; proof 17)"
+  || ok "D3: a second application fails closed (apply-exactly-once; proof 15)"
 [ "$(QE "SELECT count(*)::text FROM information_schema.columns WHERE table_name='exercise_catalog' AND column_name='provenance'")" = "1" ] \
   && [ "$(QE "SELECT count(*)::text FROM pg_class WHERE relname IN ('exercise_catalog_content','exercise_catalog_relationships','exercise_catalog_content_expected_relationships')")" = "3" ] \
   && ok "D4: the failed second application rolled back WHOLLY - schema intact, nothing half-applied or partially mutated" \
@@ -169,15 +169,16 @@ EMPTYSTATE=$(QE "SELECT (SELECT count(*) FROM exercise_catalog)::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_relationships)::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_import_runs)::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_run_items)::text || '/' ||
+    (SELECT count(*) FROM exercise_catalog_content WHERE content_status<>'pending')::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_content WHERE import_admitted)::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_content WHERE publication_status='published')::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_import_runs WHERE sealed_at IS NOT NULL)::text")
-[ "$EMPTYSTATE" = "0/0/0/0/0/0/0/0/0" ] \
-  && ok "D5: schema application alone creates NO content, relationship, expected-relationship, run, membership, admission, publication, or seal state (proof 16)" \
+[ "$EMPTYSTATE" = "0/0/0/0/0/0/0/0/0/0" ] \
+  && ok "D5: schema application alone creates NO content, relationship, expected-relationship, run, membership, review decision, admission, publication, or seal state (proof 16)" \
   || bad "D5: unexpected state after empty application" "$EMPTYSTATE"
 
 echo
-echo "=== E. Legacy external rows keep their EXACT meaning (finding 4, proofs 14-15)"
+echo "=== E. Legacy external rows keep their EXACT meaning; 023-026 delivery unchanged (round-1 finding 4; proofs 13-14)"
 POST_HASH=$(Q "SELECT md5(string_agg($LEGACY_COLS, '|' ORDER BY id)) FROM exercise_catalog")
 POST_COUNT=$(Q "SELECT count(*) FROM exercise_catalog")
 [ "$PRE_HASH/$PRE_COUNT" = "$POST_HASH/$POST_COUNT" ] \
@@ -193,17 +194,17 @@ expect_err "E3: external source fields REMAIN REQUIRED - a new external row miss
    VALUES ('$GL1','Legacy Bad External','compound','lats','barbell','bilateral','weight_reps',
      'external_source_derived','https://example.test/dir','2026-08-30','high');" \
   "exercise_catalog_provenance_sources_chk"
-expect_err "E4: forgefitos_original rows FORBID source/import-confidence fields (no fabricated source facts, ever)" \
-  "INSERT INTO exercise_catalog (logical_id, canonical_name, category, primary_muscle, equipment,
-     laterality, tracking_mode, provenance, source_url, movement_pattern, training_role, difficulty, availability)
-   VALUES ('$GL1','Original Bad Sources','isolation','abs','bodyweight','bilateral','timed',
-     'forgefitos_original','https://example.test/fake','core_flexion','core','beginner','minimal');" \
+expect_err "E4: forgefitos_original rows FORBID source/import-confidence fields - even through the LOADER authority (its writes obey every CHECK)" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_snapshot('$GL1','Original Bad Sources','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_flexion','core','beginner','minimal',
+     'https://example.test/fake', NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);" \
   "exercise_catalog_provenance_sources_chk"
 expect_err "E5: forgefitos_original rows REQUIRE complete discovery metadata (structural CHECK, not workflow-only)" \
-  "INSERT INTO exercise_catalog (logical_id, canonical_name, category, primary_muscle, equipment,
-     laterality, tracking_mode, provenance, movement_pattern, training_role, difficulty)
-   VALUES ('$GL1','Original Missing Meta','isolation','abs','bodyweight','bilateral','timed',
-     'forgefitos_original','core_flexion','core','beginner');" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_snapshot('$GL1','Original Missing Meta','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_flexion','core','beginner',NULL,
+     NULL, NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);" \
   "exercise_catalog_discovery_metadata_chk"
 expect_err "E6: an unknown provenance value is rejected by the vocabulary CHECK" \
   "INSERT INTO exercise_catalog (logical_id, canonical_name, category, primary_muscle, equipment,
@@ -218,7 +219,7 @@ expect_err "E7: the carried freeze trigger keeps legacy NULL metadata immutable 
 U1=$(Q "INSERT INTO auth.users DEFAULT VALUES RETURNING id;")
 DLV_OUT=$(QU "$U1" "SELECT deliver_catalog_exercises('$RUN');" 2>&1)
 if [ $? -eq 0 ]; then
-  ok "E8: unchanged migration-026 DELIVERY works on the HISTORICAL external rows after the proposal (proof 15)"
+  ok "E8: unchanged migration-026 DELIVERY works on the HISTORICAL external rows after the proposal (proof 14)"
 else
   bad "E8: delivery failed on legacy rows post-proposal" "$(printf '%s' "$DLV_OUT" | head -2 | tr '\n' ' ')"
 fi
@@ -226,7 +227,7 @@ expect_eq "E9: delivery created the two tenant exercises for the legacy run's sn
   "SELECT count(*)::text FROM exercises WHERE user_id='$U1'" "2"
 RBK_OUT=$(QU "$U1" "SELECT rollback_catalog_delivery('$RUN');" 2>&1)
 if [ $? -eq 0 ]; then
-  ok "E10: unchanged migration-026 ROLLBACK works on the historical delivery after the proposal (proof 15)"
+  ok "E10: unchanged migration-026 ROLLBACK works on the historical delivery after the proposal (proof 14)"
 else
   bad "E10: rollback failed on legacy delivery post-proposal" "$(printf '%s' "$RBK_OUT" | head -2 | tr '\n' ' ')"
 fi
@@ -234,104 +235,112 @@ expect_eq "E11: rollback left the user with zero ACTIVE delivered exercises" \
   "SELECT count(*)::text FROM exercises WHERE user_id='$U1' AND is_active" "0"
 
 echo
-echo "=== F. Corrected lifecycle: born pending/draft/UNADMITTED; approval BEFORE admission (finding 1; proofs 1-2, 4)"
+echo "=== F. The LOADER authority stages the Plank model; lifecycle birth rules hold (finding 2; lifecycle proofs)"
 WP='11111111-2222-3333-4444-555555555101'
 WD='11111111-2222-3333-4444-555555555102'
 WA='11111111-2222-3333-4444-555555555103'
 WX='11111111-2222-3333-4444-555555555104'
-SWP='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee101'
 CV1='cccccccc-0000-0000-0000-000000000101'
-Q "INSERT INTO exercise_catalog_logical (id) VALUES ('$WP'),('$WD'),('$WA'),('$WX');" >/dev/null
-expect_ok "F1: an ORIGINAL-provenance snapshot with complete discovery metadata and NO source facts is accepted, with anatomy authored while pending and an alias" \
-  "INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment,
-     laterality, tracking_mode, provenance, movement_pattern, training_role, difficulty, availability)
-   VALUES ('$SWP','$WP','Proof Plank Model','isolation','abs','bodyweight','bilateral','timed',
-     'forgefitos_original','core_anti_extension','core','beginner','minimal');
-   INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES
-     ('$SWP','obliques','secondary'), ('$SWP','lower_back','tertiary');
-   INSERT INTO exercise_catalog_aliases (logical_id, alias) VALUES ('$WP','Proof plank model alias');
-   UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer',
-     reviewed_at=NOW(), review_rationale='local disposable fixture' WHERE id='$SWP';"
-mkcontent() { # $1=id $2=logical $3=version -> creates a pending draft
-  Q "INSERT INTO exercise_catalog_content (id, logical_id, content_version, authored_by, authored_at,
-       setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance)
-     VALUES ('$1','$2',$3,'local-proof-author','2026-09-01',
-       '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
-       '[\"mistake one\"]'::jsonb,'stop if form breaks down');" >/dev/null 2>&1 \
-    || bad "fixture: content insert failed ($1)"
-}
-mkcontent "$CV1" "$WP" 1
-expect_eq "F2: the version is BORN pending, draft, and NOT admitted with no admission fields (proof 1)" \
+expect_ok "F1: the loader authority creates the Plank-model identity, its two relationship-target identities, and a spare - bare logical identities, no snapshots, no content" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_identity('$WP');
+   SELECT load_catalog_identity('$WD');
+   SELECT load_catalog_identity('$WA');
+   SELECT load_catalog_identity('$WX');"
+expect_ok "F2: the loader authority creates the ORIGINAL-provenance snapshot with complete discovery metadata, NO source facts, anatomy authored while pending, and an alias - in one authorized call" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_snapshot('$WP','Proof Plank Model','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_anti_extension','core','beginner','minimal',
+     NULL, NULL, NULL, NULL,
+     '[{\"muscle\":\"obliques\",\"role\":\"secondary\"},{\"muscle\":\"lower_back\",\"role\":\"tertiary\"}]'::jsonb,
+     '[\"Proof plank model alias\"]'::jsonb);"
+expect_ok "F3: the loader authority creates the content draft WITH its version-owned expected relationship set (substitution + progression, the Plank shape) in one call" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_content_draft('$WP','$CV1',1,'local-proof-author','2026-09-01',
+     '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+     '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WD\"},{\"relation\":\"progression\",\"to_logical_id\":\"$WA\"}]'::jsonb);"
+expect_eq "F4: the version is BORN pending, draft, and NOT admitted with no admission fields, and its expected set has exactly 2 rows" \
   "SELECT content_status||'/'||publication_status||'/'||import_admitted::text||'/'||
-     coalesce(admitted_fingerprint,'-')||'/'||coalesce(admitted_source_sha256,'-')||'/'||coalesce(admitted_at::text,'-')
-   FROM exercise_catalog_content WHERE id='$CV1'" "pending/draft/false/-/-/-"
-expect_err "F3: a version cannot be BORN admitted (admission is a later, separately authorized act)" \
+     coalesce(admitted_fingerprint,'-')||'/'||coalesce(admitted_source_sha256,'-')||'/'||coalesce(admitted_at::text,'-')||'/'||
+     (SELECT count(*)::text FROM exercise_catalog_content_expected_relationships WHERE content_id='$CV1')
+   FROM exercise_catalog_content WHERE id='$CV1'" "pending/draft/false/-/-/-/2"
+expect_err "F5: the loader CANNOT author a self-expectation - the whole draft creation rolls back" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_content_draft('$WD','cccccccc-0000-0000-0000-000000000199',1,'a','2026-09-01',
+     '[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WD\"}]'::jsonb);" \
+  "cannot expect a relationship to its own identity"
+expect_err "F6: the loader cannot expect a relationship to a MISSING identity (FK; no dangling expectation)" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_content_draft('$WD','cccccccc-0000-0000-0000-000000000199',1,'a','2026-09-01',
+     '[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"99999999-9999-9999-9999-999999999999\"}]'::jsonb);" \
+  "violates foreign key constraint"
+expect_err "F7: a version cannot be BORN admitted (owner break-glass INSERT obeys the freeze trigger too)" \
   "INSERT INTO exercise_catalog_content (logical_id, content_version, authored_by, authored_at,
      setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance, import_admitted,
      admitted_fingerprint, admitted_source_sha256, admitted_at)
    VALUES ('$WD',1,'a','2026-09-01','[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c', true,
      repeat('a',64), repeat('b',64), '2026-09-01');" \
   "versions are born unadmitted"
-expect_err "F4: a version cannot be BORN approved" \
+expect_err "F8: a version cannot be BORN approved" \
   "INSERT INTO exercise_catalog_content (logical_id, content_version, authored_by, authored_at,
      setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance,
      content_status, reviewed_by, reviewed_at, review_rationale)
    VALUES ('$WD',1,'a','2026-09-01','[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c',
      'approved','r',NOW(),'rationale text');" \
   "versions are born pending"
-expect_err "F5: a version cannot be BORN published" \
+expect_err "F9: a version cannot be BORN published" \
   "INSERT INTO exercise_catalog_content (logical_id, content_version, authored_by, authored_at,
      setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance, publication_status)
    VALUES ('$WD',1,'a','2026-09-01','[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c','published');" \
   "born drafts and never auto-publish"
-expect_ok "F6: PENDING prose is editable before review (pre-review authoring; proof 1)" \
+expect_ok "F10: PENDING prose is editable before review (pre-review authoring)" \
   "UPDATE exercise_catalog_content SET breathing_cue='exhale on the effort' WHERE id='$CV1';"
-expect_err "F7: admission CANNOT PRECEDE approval - the dedicated admission function refuses a pending version (proof 4)" \
+expect_err "F11: admission CANNOT PRECEDE approval - the admission authority refuses a pending version" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1', repeat('a',64));" \
   "admission cannot precede human approval"
-expect_err "F8: admission cannot precede approval even through a direct owner-level write (trigger-enforced, not function-only; proof 4)" \
+expect_err "F12: admission cannot precede approval even through a direct owner-level write (trigger-enforced, not function-only)" \
   "UPDATE exercise_catalog_content SET import_admitted=true, admitted_fingerprint=repeat('a',64),
      admitted_source_sha256=repeat('b',64), admitted_at='2026-09-01' WHERE id='$CV1';" \
   "admission cannot precede human approval"
-expect_err "F9: admission fields cannot drift outside the admission transition (a fingerprint without the flag is refused)" \
+expect_err "F13: admission fields cannot drift outside the admission transition" \
   "UPDATE exercise_catalog_content SET admitted_fingerprint=repeat('a',64) WHERE id='$CV1';" \
   "admission fields change only through the one-time admission transition"
 
 echo
-echo "=== G. The version's EXPECTED relationship set: authored while pending, frozen by review (finding 3)"
-expect_ok "G1: the expected relationship set is authored while the version is PENDING - the Plank model expects exactly one substitution and one progression" \
-  "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CV1','substitution','$WD'), ('$CV1','progression','$WA');"
-expect_err "G2: a version cannot EXPECT a relationship to its own identity (self-links refused at authoring)" \
-  "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CV1','substitution','$WP');" \
-  "cannot expect a relationship to its own identity"
-expect_err "G3: an expected relationship to a MISSING identity is refused (FK; no dangling expectation)" \
-  "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CV1','substitution','99999999-9999-9999-9999-999999999999');" \
-  "violates foreign key constraint"
-expect_err "G4: expected rows are immutable (UPDATE is never allowed; delete and re-insert while pending)" \
-  "UPDATE exercise_catalog_content_expected_relationships SET relation='regression'
-   WHERE content_id='$CV1' AND to_logical_id='$WD';" \
-  "rows are immutable"
-expect_err "G5: duplicate expectations are impossible (deterministic uniqueness by primary key)" \
-  "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CV1','substitution','$WD');" \
-  "_pkey"
-expect_ok "G6: the human review APPROVES the version with complete fresh evidence (proof 2: approval strictly before eligibility)" \
-  "UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='local disposable fixture rationale' WHERE id='$CV1';"
-expect_err "G7: the review FREEZES the reviewed payload - post-approval prose edits are refused" \
+echo "=== G. The REVIEWER authority: one legal pending decision; the review freezes the payload (finding 2)"
+expect_err "G1: the reviewer authority refuses a blank rationale" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WP','$CV1','approved','Local Proof Reviewer',NOW(),'   ');" \
+  "complete, non-blank reviewer/timestamp/rationale tuple"
+expect_err "G2: the reviewer authority refuses an invalid decision" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WP','$CV1','pending','Local Proof Reviewer',NOW(),'rationale text');" \
+  "decision must be approved, revised, or rejected"
+expect_ok "G3: the human review APPROVES the version with complete fresh evidence through the reviewer authority (approval strictly before eligibility)" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WP','$CV1','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale');"
+expect_err "G4: the review decision is one-time through this authority - a second decision on a decided version is refused" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WP','$CV1','rejected','Second Reviewer',NOW(),'attempted re-decision');" \
+  "only a pending version can receive its review decision"
+expect_err "G5: the review FREEZES the reviewed payload - post-approval prose edits are refused (owner break-glass obeys the trigger)" \
   "UPDATE exercise_catalog_content SET breathing_cue='changed after approval' WHERE id='$CV1';" \
   "decided content version is immutable"
-expect_err "G8: the review freezes the EXPECTED relationship set too - post-approval additions are refused" \
+expect_err "G6: the review freezes the EXPECTED relationship set too - post-approval additions are refused" \
   "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
    VALUES ('$CV1','regression','$WX');" \
   "expected relationships freeze with the reviewed payload"
-expect_err "G9: post-approval expected deletions are refused as well" \
+expect_err "G7: post-approval expected deletions are refused as well" \
   "DELETE FROM exercise_catalog_content_expected_relationships WHERE content_id='$CV1';" \
   "expected relationships freeze with the reviewed payload"
-expect_err "G10: a review transition cannot smuggle admission changes (proof 5: admission cannot accompany review)" \
+expect_err "G8: expected rows are immutable (UPDATE is never allowed)" \
+  "UPDATE exercise_catalog_content_expected_relationships SET relation='regression'
+   WHERE content_id='$CV1' AND to_logical_id='$WD';" \
+  "rows are immutable"
+expect_err "G9: a review transition cannot smuggle admission changes (owner break-glass combined statement)" \
   "UPDATE exercise_catalog_content SET content_status='rejected', reviewed_by='Another Reviewer',
      reviewed_at=NOW(), review_rationale='combined transition attempt', import_admitted=true,
      admitted_fingerprint=repeat('a',64), admitted_source_sha256=repeat('b',64), admitted_at='2026-09-01'
@@ -339,72 +348,58 @@ expect_err "G10: a review transition cannot smuggle admission changes (proof 5: 
   "payload and admission changes are forbidden in the same statement"
 
 echo
-echo "=== H. Admission: one-time, role-restricted, computed from database state (findings 1-2; proofs 3, 5-7, 12)"
-Q "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','$WD','substitution'), ('$WP','$WA','progression');" >/dev/null
-expect_err "H1: admission REQUIRES the live relationship set to equal the expected set - a missing expected relationship blocks admission" \
-  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP' AND relation='progression';
-   SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1', repeat('a',64));" \
-  "an expected relationship is missing from the live set"
-expect_err "H2: an UNEXPECTED live relationship blocks admission as well (exact set equality both directions)" \
-  "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','$WX','regression');
-   SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1', repeat('a',64));" \
-  "an unexpected live relationship is present"
-expect_err "H3: the source-artifact digest must be a 64-char lowercase hex SHA-256 (MD5-shaped and malformed digests are refused)" \
+echo "=== H. The ADMISSION authority: one-time, computed from database state (findings 1-2 accepted round 1)"
+expect_err "H1: the source-artifact digest must be a 64-char lowercase hex SHA-256 (MD5-shaped and malformed digests are refused)" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1', 'd41d8cd98f00b204e9800998ecf8427e');" \
   "must be a 64-character lowercase hex SHA-256"
 SRC_SHA=$(printf 'local disposable proof artifact - not the Plank record' | shasum -a 256 | awk '{print $1}')
 MAN_FP=$(Q "SELECT exlib_content_admission_fingerprint('$CV1')")
-expect_err "H4: a caller-invented manifest hash CANNOT land even through a direct owner-level write - the trigger recomputes from database state" \
+expect_err "H2: a caller-invented manifest hash CANNOT land even through a direct owner-level write - the trigger recomputes from database state" \
   "UPDATE exercise_catalog_content SET import_admitted=true,
      admitted_fingerprint=repeat('0',64), admitted_source_sha256='$SRC_SHA', admitted_at='2026-09-01'
    WHERE id='$CV1';" \
   "must equal the recomputed admission-manifest fingerprint"
 ADMIT_OUT=$(QQ "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');")
 if [ $? -eq 0 ]; then
-  ok "H5: the dedicated admission authority admits the ALREADY-APPROVED immutable draft - one-time, later, separate (proofs 2-3)"
+  ok "H3: the dedicated admission authority admits the ALREADY-APPROVED immutable draft - one-time, later, separate"
 else
-  bad "H5: admission failed" "$(printf '%s' "$ADMIT_OUT" | head -2 | tr '\n' ' ')"
+  bad "H3: admission failed" "$(printf '%s' "$ADMIT_OUT" | head -2 | tr '\n' ' ')"
 fi
-expect_eq "H6: the recorded admission stores BOTH digests distinctly - the COMPUTED database-normalized manifest SHA-256 and the recorded source artifact SHA-256" \
+expect_eq "H4: the recorded admission stores BOTH digests distinctly - the COMPUTED database-normalized manifest SHA-256 and the recorded source artifact SHA-256" \
   "SELECT (admitted_fingerprint = '$MAN_FP')::text || '/' || (admitted_source_sha256 = '$SRC_SHA')::text ||
      '/' || (admitted_fingerprint ~ '^[0-9a-f]{64}\$')::text || '/' || (admitted_fingerprint <> admitted_source_sha256)::text
    FROM exercise_catalog_content WHERE id='$CV1'" "true/true/true/true"
-expect_err "H7: admission is ONE-WAY - re-admission of an admitted version is refused" \
+expect_err "H5: admission is ONE-WAY - re-admission of an admitted version is refused" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
   "already admitted"
-expect_err "H8: admission cannot be revoked (un-admitting an immutable version is refused)" \
+expect_err "H6: admission cannot be revoked (un-admitting an immutable version is refused)" \
   "UPDATE exercise_catalog_content SET import_admitted=false, admitted_fingerprint=NULL,
      admitted_source_sha256=NULL, admitted_at=NULL WHERE id='$CV1';" \
   "admission is one-way for an immutable version"
-expect_err "H9: a publication transition cannot smuggle admission changes (proof 5: admission cannot accompany publication)" \
+expect_err "H7: a publication transition cannot smuggle admission changes" \
   "UPDATE exercise_catalog_content SET publication_status='published', admitted_at='1999-01-01' WHERE id='$CV1';" \
   "a publication transition must travel alone"
 WR='cccccccc-0000-0000-0000-000000000102'
-mkcontent "$WR" "$WD" 1
-expect_err "H10: REVISED content cannot be admitted (proof 6)" \
-  "UPDATE exercise_catalog_content SET content_status='revised', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='sent back for revision' WHERE id='$WR';
+Q "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_content_draft('$WD','$WR',1,'local-proof-author','2026-09-01',
+     '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+     '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,'[]'::jsonb);" >/dev/null
+expect_err "H8: REVISED content cannot be admitted" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WD','$WR','revised','Local Proof Reviewer',NOW(),'sent back for revision');
    SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WD','$WR', repeat('a',64));" \
   "only approved content may be admitted"
-expect_err "H11: REJECTED content cannot be admitted (proof 6)" \
-  "UPDATE exercise_catalog_content SET content_status='rejected', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='rejected for cause' WHERE id='$WR';
+expect_err "H9: REJECTED content cannot be admitted" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WD','$WR','rejected','Local Proof Reviewer',NOW(),'rejected for cause');
    SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WD','$WR', repeat('a',64));" \
   "only approved content may be admitted"
-expect_err "H12: the admission authority CANNOT publish (distinct authorities; proof 12)" \
-  "SET ROLE exlib_catalog_admission; SELECT publish_catalog_content('$WP','$CV1');" \
-  "permission denied for function publish_catalog_content"
-expect_err "H13: the publication authority CANNOT admit (distinct authorities; proof 12)" \
-  "SET ROLE exlib_catalog_admin; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
-  "permission denied for function admit_catalog_content"
 
 echo
-echo "=== I. The admission manifest: complete, canonical, SHA-256, session-independent (finding 2; proof 7)"
+echo "=== I. The v2 admission manifest: complete, canonical, SHA-256, session-independent"
 MANIFEST=$(Q "SELECT exlib_content_admission_manifest('$CV1')")
 hexof() { Q "SELECT encode(convert_to('$1','UTF8'),'hex')"; }
-case "$MANIFEST" in "EXLIB-ADMISSION-MANIFEST v1"*) ok "I1: the manifest is VERSIONED (leading literal 'EXLIB-ADMISSION-MANIFEST v1')";; *) bad "I1: manifest version header missing";; esac
+case "$MANIFEST" in "EXLIB-ADMISSION-MANIFEST v2"*) ok "I1: the manifest is VERSIONED and bumped for the round-2 format change (leading literal 'EXLIB-ADMISSION-MANIFEST v2')";; *) bad "I1: manifest version header missing or stale";; esac
 MAPPED=1
 for probe in "identity $WP:logical identity" \
              "$(hexof 'Proof Plank Model'):canonical classification (snapshot name)" \
@@ -414,239 +409,330 @@ for probe in "identity $WP:logical identity" \
              "$(hexof 'exhale on the effort'):authored instructional content (edited pre-review prose)" \
              "$(hexof 'local-proof-author'):authorship" \
              "$(hexof 'Local Proof Reviewer'):review-bound evidence" \
-             "expected S$(hexof progression) $WA:expected relationship set" \
-             "relation S$(hexof substitution) $WD:live relationship set"; do
+             "relationship S$(hexof progression) $WA:version-owned relationship set (progression)" \
+             "relationship S$(hexof substitution) $WD:version-owned relationship set (substitution)"; do
   NEEDLE="${probe%%:*}"; LABEL="${probe#*:}"
   case "$MANIFEST" in *"$NEEDLE"*) : ;; *) MAPPED=0; bad "I2: manifest is missing its $LABEL binding" "$NEEDLE";; esac
 done
-[ "$MAPPED" = "1" ] && ok "I2: the artifact-to-database mapping is MECHANICALLY PROVEN - the manifest contains the identity, classification, discovery metadata, anatomy, alias, content, authorship, review evidence, expected set, and live set bindings"
-expect_eq "I3: the fingerprint is SHA-256, not MD5 - 64 lowercase hex characters" \
+[ "$MAPPED" = "1" ] && ok "I2: the artifact-to-database mapping is MECHANICALLY PROVEN - the manifest contains the identity, classification, discovery metadata, anatomy, alias, content, authorship, review evidence, and version-owned relationship-set bindings"
+case "$MANIFEST" in *"relation S"*" NONE"*|*$'\n'"relation "*) bad "I3: manifest still carries the v1 live-surface section";; *) ok "I3: the manifest does NOT bind the live projection surface - a version's manifest can never be coupled to another version's publication state (round-2 finding 1)";; esac
+expect_eq "I4: the fingerprint is SHA-256, not MD5 - 64 lowercase hex characters" \
   "SELECT (char_length(exlib_content_admission_fingerprint('$CV1')) = 64)::text ||
      '/' || (exlib_content_admission_fingerprint('$CV1') ~ '^[0-9a-f]{64}\$')::text" "true/true"
 FP_A=$(Q "SET datestyle='ISO,MDY'; SET timezone='UTC'; SELECT exlib_content_admission_fingerprint('$CV1')")
 FP_B=$(Q "SET datestyle='German,DMY'; SET timezone='America/New_York'; SELECT exlib_content_admission_fingerprint('$CV1')")
 [ "$FP_A" = "$FP_B" ] && [ "$FP_A" = "$MAN_FP" ] \
-  && ok "I4: DateStyle and TimeZone cannot change the hash (dates are day offsets; timestamps are numeric epochs)" \
-  || bad "I4: fingerprint is session-dependent" "A=$FP_A B=$FP_B"
-expect_eq "I5: JSON key ordering cannot change the hash - jsonb canonicalizes key order before serialization" \
+  && ok "I5: DateStyle and TimeZone cannot change the hash (dates are day offsets; timestamps are numeric epochs)" \
+  || bad "I5: fingerprint is session-dependent" "A=$FP_A B=$FP_B"
+expect_eq "I6: JSON key ordering cannot change the hash - jsonb canonicalizes key order before serialization" \
   "SELECT ('{\"b\":1,\"a\":2}'::jsonb::text = '{\"a\":2,\"b\":1}'::jsonb::text)::text" "true"
-expect_eq "I6: manifest row ordering is pinned to COLLATE \"C\" byte order - locale cannot reorder rows" \
+expect_eq "I7: manifest row ordering is pinned to COLLATE \"C\" byte order - locale cannot reorder rows" \
   "SELECT count(*)::text FROM pg_proc
    WHERE proname='exlib_content_admission_manifest'
      AND prosrc LIKE '%COLLATE \"C\"%'" "1"
+WREO='11111111-2222-3333-4444-555555555106'
+CVREO='cccccccc-0000-0000-0000-000000000103'
+Q "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_identity('$WREO');
+   SELECT load_catalog_snapshot('$WREO','Proof Reorder Model','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_lateral','core','beginner','minimal',
+     NULL, NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);
+   SELECT load_catalog_content_draft('$WREO','$CVREO',1,'local-proof-author','2026-09-01',
+     '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+     '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WD\"},{\"relation\":\"progression\",\"to_logical_id\":\"$WA\"}]'::jsonb);" >/dev/null
+FP_R1=$(Q "SELECT exlib_content_admission_fingerprint('$CVREO')" 2>/dev/null || true)
+Q "DELETE FROM exercise_catalog_content_expected_relationships WHERE content_id='$CVREO';" >/dev/null
+Q "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
+   VALUES ('$CVREO','progression','$WA');" >/dev/null
+Q "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
+   VALUES ('$CVREO','substitution','$WD');" >/dev/null
+FP_R2=$(Q "SELECT exlib_content_admission_fingerprint('$CVREO')" 2>/dev/null || true)
+{ [ -n "$FP_R1" ] && [ "$FP_R1" = "$FP_R2" ]; } \
+  && ok "I8: committed deletion and REVERSE-ORDER re-insertion of the pending expected set reproduces the exact manifest bytes - insertion order and row timestamps are not bound (deterministic normalization)" \
+  || bad "I8: manifest depends on expected-row order or timestamps" "$FP_R1 vs $FP_R2"
 
 echo
-echo "=== J. Relationship completeness at publication (finding 3; proofs 8-11)"
-Q "UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='approved but never admitted' WHERE id='$WR';" >/dev/null
-expect_err "J1: publication BEFORE admission is refused on an approved-but-unadmitted version (the lifecycle stays approve -> admit -> publish)" \
-  "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WD','$WR');" \
+echo "=== J. The PROTECTED PROJECTION: publication atomically owns the live surface (round-2 finding 1)"
+expect_eq "J1: the live surface is EMPTY before any publication - nothing can pre-seed it" \
+  "SELECT count(*)::text FROM exercise_catalog_relationships" "0"
+expect_err "J2: a direct INSERT into the live surface is refused for the OWNER itself (protected projection; sentinel unset)" \
+  "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
+   VALUES ('$WP','$WD','substitution');" \
+  "protected projection"
+expect_err "J3: publication BEFORE admission is refused on an approved-but-unadmitted version (approve -> admit -> publish holds)" \
+  "$(cat <<SQL
+SET ROLE exlib_catalog_loader;
+SELECT load_catalog_content_draft('$WA','cccccccc-0000-0000-0000-000000000104',1,'a','2026-09-01',
+  '["s"]'::jsonb,'["e"]'::jsonb,'cue','["m"]'::jsonb,'guard',NULL,NULL,'[]'::jsonb);
+RESET ROLE;
+SET ROLE exlib_catalog_reviewer;
+SELECT apply_content_review('$WA','cccccccc-0000-0000-0000-000000000104','approved','Local Proof Reviewer',NOW(),'approved but never admitted');
+RESET ROLE;
+SET ROLE exlib_catalog_admin;
+SELECT publish_catalog_content('$WA','cccccccc-0000-0000-0000-000000000104');
+SQL
+)" \
   "not import-admitted"
-expect_err "J2: the PLANK MODEL cannot publish with its required PROGRESSION missing (proof 9)" \
-  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP' AND relation='progression';
-   SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');" \
-  "a required relationship is missing at publication"
-expect_err "J3: the Plank model cannot publish with its required SUBSTITUTION missing either (proof 9)" \
-  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP' AND relation='substitution';
-   SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');" \
-  "a required relationship is missing at publication"
-expect_err "J4: an EXTRA relationship fails publication (proof 10)" \
-  "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-     VALUES ('$WP','$WX','substitution');
-   SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');" \
-  "an unexpected relationship is present at publication"
-expect_err "J5: WRONG relationship types fail publication (swapped substitution/progression = missing + unexpected; proof 10)" \
-  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP';
-   INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-     VALUES ('$WP','$WD','progression'), ('$WP','$WA','substitution');
-   SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');" \
-  "a required relationship is missing at publication"
-expect_err "J5b: even a DIRECT OWNER-LEVEL publish cannot bypass completeness - the trigger enforces the exact expected set structurally, not function-only" \
-  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP';
-   UPDATE exercise_catalog_content SET publication_status='published' WHERE id='$CV1';" \
-  "a required relationship is missing at publication"
-expect_err "J6: a live self-link remains structurally impossible" \
-  "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','$WP','substitution');" "_check"
-expect_err "J7: a live relationship to a missing identity remains structurally impossible" \
-  "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','99999999-9999-9999-9999-999999999999','substitution');" \
-  "violates foreign key constraint"
-Q "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP';" >/dev/null
-Q "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','$WA','progression');" >/dev/null
-Q "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WP','$WD','substitution');" >/dev/null
-FP_RESTORED=$(Q "SELECT exlib_content_admission_fingerprint('$CV1')")
-[ "$FP_RESTORED" = "$MAN_FP" ] \
-  && ok "J8: committed deletion and REVERSE-ORDER re-insertion of the exact relationship SET reproduces the exact manifest fingerprint - insertion order and row timestamps are not bound (deterministic normalization)" \
-  || bad "J8: fingerprint depends on row order or timestamps" "$FP_RESTORED vs $MAN_FP"
 PUB_OUT=$(QQ "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');")
 if [ $? -eq 0 ]; then
-  ok "J9: AUTHORIZED publication succeeds ONLY once every prerequisite holds - approved, admitted, fingerprint-fresh, complete exact relationship set"
+  ok "J4: AUTHORIZED publication succeeds with every prerequisite - and ATOMICALLY projects the version's expected set onto the live surface"
 else
-  bad "J9: publication failed with all prerequisites satisfied" "$(printf '%s' "$PUB_OUT" | head -2 | tr '\n' ' ')"
+  bad "J4: publication failed with all prerequisites satisfied" "$(printf '%s' "$PUB_OUT" | head -2 | tr '\n' ' ')"
 fi
-expect_eq "J10: exactly ONE published version exists for the identity, and the target identities still have ZERO content, ZERO admission, ZERO publication of their own (proof 11)" \
-  "SELECT (SELECT count(*) FROM exercise_catalog_content WHERE logical_id='$WP' AND publication_status='published')::text
-     || '/' || (SELECT count(*) FROM exercise_catalog_content WHERE logical_id IN ('$WA','$WX') )::text
-     || '/' || (SELECT count(*) FROM exercise_catalog_content WHERE logical_id='$WD' AND (import_admitted OR publication_status='published'))::text
-     || '/' || (SELECT count(*) FROM exercise_catalog WHERE logical_id IN ('$WD','$WA','$WX'))::text" "1/0/0/0"
-expect_err "J11: a PUBLISHED version cannot be newly admitted (it already carries its one-way admission; proof 6)" \
+expect_eq "J5: the PLANK MODEL published with EXACTLY its substitution and progression - the projection equals the version-owned expected set, row for row" \
+  "SELECT (SELECT count(*) FROM exercise_catalog_relationships WHERE from_logical_id='$WP')::text || '/' ||
+     (SELECT count(*) FROM exercise_catalog_relationships
+      WHERE from_logical_id='$WP' AND relation='substitution' AND to_logical_id='$WD')::text || '/' ||
+     (SELECT count(*) FROM exercise_catalog_relationships
+      WHERE from_logical_id='$WP' AND relation='progression' AND to_logical_id='$WA')::text" "2/1/1"
+expect_eq "J6: the relationship TARGETS remain bare logical identities - zero snapshots, zero content, zero admission, zero publication of their own" \
+  "SELECT (SELECT count(*) FROM exercise_catalog WHERE logical_id IN ('$WD','$WA'))::text || '/' ||
+     (SELECT count(*) FROM exercise_catalog_content WHERE logical_id IN ('$WD','$WA')
+        AND (import_admitted OR publication_status='published'))::text" "0/0"
+expect_err "J7: a direct DELETE from the live surface is refused (the published projection cannot drift)" \
+  "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WP';" \
+  "protected projection"
+expect_err "J8: live projection rows are immutable (UPDATE is never allowed)" \
+  "UPDATE exercise_catalog_relationships SET relation='regression' WHERE from_logical_id='$WP';" \
+  "projection rows are immutable"
+expect_err "J9: republishing an already-published version is rejected" \
+  "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WP','$CV1');" \
+  "only a draft can be published"
+expect_err "J10: a PUBLISHED version cannot be newly admitted (it already carries its one-way admission)" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
   "already admitted"
-expect_err "J12: a published approved row cannot be flipped to revised in place (the preserved narrowing closes the hole)" \
+expect_err "J11: a published approved row cannot be flipped to revised in place (the preserved narrowing closes the hole)" \
   "UPDATE exercise_catalog_content SET content_status='revised', reviewed_by='Another Reviewer',
      reviewed_at=NOW(), review_rationale='attempted in-place un-approval' WHERE id='$CV1';" \
   "exercise_catalog_content_publication_chk"
+WB='11111111-2222-3333-4444-555555555105'
+CB1='cccccccc-0000-0000-0000-000000000105'
+Q "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_identity('$WB');
+   SELECT load_catalog_snapshot('$WB','Proof Breakglass Model','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_flexion','core','beginner','minimal',
+     NULL, NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);
+   SELECT load_catalog_content_draft('$WB','$CB1',1,'local-proof-author','2026-09-01',
+     '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+     '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WD\"}]'::jsonb);" >/dev/null
+Q "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WB','$CB1','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale');" >/dev/null
+Q "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WB','$CB1','$SRC_SHA');" >/dev/null
+expect_err "J12: even a direct OWNER break-glass publish (bypassing the function, projection never written) is refused by the trigger's structural completeness gate - no published row can be paired with a missing or foreign relationship set" \
+  "UPDATE exercise_catalog_content SET publication_status='published' WHERE id='$CB1';" \
+  "a required relationship is missing at publication"
 
 echo
-echo "=== K. Staleness: ANY bound change after admission fails publication closed (finding 2; proof 8)"
+echo "=== K. Staleness: ANY bound change after admission fails publication closed (accepted round 1)"
 WS1='11111111-2222-3333-4444-555555555201'
 WS2='11111111-2222-3333-4444-555555555202'
-SS1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee201'
-SS2='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee202'
 CS1='cccccccc-0000-0000-0000-000000000201'
 CS2='cccccccc-0000-0000-0000-000000000202'
-mkstale() { # $1=logical $2=snapshot $3=content $4=name
-  Q "INSERT INTO exercise_catalog_logical (id) VALUES ('$1');
-     INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment,
-       laterality, tracking_mode, provenance, movement_pattern, training_role, difficulty, availability)
-     VALUES ('$2','$1','$4','isolation','abs','bodyweight','bilateral','timed',
-       'forgefitos_original','core_flexion','core','beginner','minimal');
-     UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer',
-       reviewed_at=NOW(), review_rationale='local disposable fixture' WHERE id='$2';" >/dev/null
-  mkcontent "$3" "$1" 1
-  Q "UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-       reviewed_at=NOW(), review_rationale='local disposable fixture rationale' WHERE id='$3';" >/dev/null
-  Q "SELECT admit_catalog_content('$1','$3','$SRC_SHA');" >/dev/null
+mkstale() { # $1=logical $2=content $3=name -> loader/reviewer/admission pipeline, empty expected set
+  Q "SET ROLE exlib_catalog_loader;
+     SELECT load_catalog_identity('$1');
+     SELECT load_catalog_snapshot('$1','$3','isolation','abs','bodyweight',
+       'bilateral','timed','forgefitos_original','core_flexion','core','beginner','minimal',
+       NULL, NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);
+     SELECT load_catalog_content_draft('$1','$2',1,'local-proof-author','2026-09-01',
+       '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+       '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,'[]'::jsonb);" >/dev/null \
+    || bad "fixture: mkstale load failed ($1)"
+  Q "SET ROLE exlib_catalog_reviewer;
+     SELECT apply_content_review('$1','$2','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale');" >/dev/null \
+    || bad "fixture: mkstale review failed ($1)"
+  Q "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$1','$2','$SRC_SHA');" >/dev/null \
+    || bad "fixture: mkstale admission failed ($1)"
 }
-mkstale "$WS1" "$SS1" "$CS1" 'Proof Stale Model One'
+mkstale "$WS1" "$CS1" 'Proof Stale Model One'
 expect_err "K1: an ALIAS added after admission makes publication fail closed as STALE (bound alias surface changed)" \
   "INSERT INTO exercise_catalog_aliases (logical_id, alias) VALUES ('$WS1','Stale probe alias');
    SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WS1','$CS1');" \
   "import admission is STALE"
-expect_err "K1b: even a DIRECT OWNER-LEVEL publish cannot bypass staleness - the trigger recomputes the manifest fingerprint structurally, not function-only" \
+expect_err "K2: even a direct OWNER break-glass publish cannot bypass staleness - the trigger recomputes the manifest fingerprint structurally" \
   "INSERT INTO exercise_catalog_aliases (logical_id, alias) VALUES ('$WS1','Stale probe alias two');
    UPDATE exercise_catalog_content SET publication_status='published' WHERE id='$CS1';" \
   "import admission is STALE"
-Q "DELETE FROM exercise_catalog_aliases WHERE logical_id='$WS1';" >/dev/null
-expect_err "K2: a post-admission review flip (approved -> rejected with fresh evidence) can never publish" \
+expect_err "K3: a post-admission review flip (approved -> rejected with fresh evidence, owner break-glass) can never publish" \
   "UPDATE exercise_catalog_content SET content_status='rejected', reviewed_by='Second Reviewer',
      reviewed_at=NOW(), review_rationale='withdrawn after admission' WHERE id='$CS1';
    SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WS1','$CS1');" \
   "only approved content can be published"
-mkstale "$WS2" "$SS2" "$CS2" 'Proof Stale Model Two'
-expect_err "K3: DEACTIVATING the bound snapshot after admission fails publication closed - the manifest requires exactly one ACTIVE snapshot (a missing bound surface, not just a changed one)" \
-  "UPDATE exercise_catalog SET is_active=false WHERE id='$SS2';
+mkstale "$WS2" "$CS2" 'Proof Stale Model Two'
+expect_err "K4: DEACTIVATING the bound snapshot after admission fails publication closed - the manifest requires exactly one ACTIVE snapshot (a missing bound surface, not just a changed one)" \
+  "UPDATE exercise_catalog SET is_active=false WHERE logical_id='$WS2';
    SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WS2','$CS2');" \
   "exactly one ACTIVE catalog snapshot"
-expect_err "K4: the legacy external snapshot CANNOT enter the admission workflow - its NULL discovery metadata fails the manifest closed (finding 4 workflow gate)" \
+expect_err "K5: the legacy external snapshot CANNOT enter the admission workflow - its NULL discovery metadata fails the manifest closed (round-1 finding 4 workflow gate)" \
   "$(cat <<SQL
-DO \$fix\$
-BEGIN
-  INSERT INTO exercise_catalog_content (id, logical_id, content_version, authored_by, authored_at,
-    setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance)
-  VALUES ('cccccccc-0000-0000-0000-000000000203','$GL1',1,'local-proof-author','2026-09-01',
-    '["s"]'::jsonb,'["e"]'::jsonb,'cue','["m"]'::jsonb,'guard');
-  UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-    reviewed_at=NOW(), review_rationale='local disposable fixture rationale'
-  WHERE id='cccccccc-0000-0000-0000-000000000203';
-END
-\$fix\$;
+SET ROLE exlib_catalog_loader;
+SELECT load_catalog_content_draft('$GL1','cccccccc-0000-0000-0000-000000000203',1,'local-proof-author','2026-09-01',
+  '["s"]'::jsonb,'["e"]'::jsonb,'cue','["m"]'::jsonb,'guard',NULL,NULL,'[]'::jsonb);
+RESET ROLE;
+SET ROLE exlib_catalog_reviewer;
+SELECT apply_content_review('$GL1','cccccccc-0000-0000-0000-000000000203','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale');
+RESET ROLE;
+SET ROLE exlib_catalog_admission;
 SELECT admit_catalog_content('$GL1','cccccccc-0000-0000-0000-000000000203','$SRC_SHA');
 SQL
 )" \
   "lacks complete discovery metadata"
 
 echo
-echo "=== L. Version isolation: one version's relationships cannot silently alter another's publication meaning (finding 3)"
+echo "=== L. THE WINDOW IS CLOSED: staging and admitting version 2 changes nothing for published version 1 (round-2 finding 1)"
 WV='11111111-2222-3333-4444-555555555301'
-SV1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee301'
 CVA='cccccccc-0000-0000-0000-000000000301'
 CVB='cccccccc-0000-0000-0000-000000000302'
-Q "INSERT INTO exercise_catalog_logical (id) VALUES ('$WV');
-   INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment,
-     laterality, tracking_mode, provenance, movement_pattern, training_role, difficulty, availability)
-   VALUES ('$SV1','$WV','Proof Version Isolation','isolation','abs','bodyweight','bilateral','timed',
-     'forgefitos_original','core_rotation','core','beginner','minimal');
-   UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer',
-     reviewed_at=NOW(), review_rationale='local disposable fixture' WHERE id='$SV1';" >/dev/null
-mkcontent "$CVA" "$WV" 1
-Q "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CVA','substitution','$WD');
-   UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='local disposable fixture rationale' WHERE id='$CVA';
-   INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WV','$WD','substitution');
-   SELECT admit_catalog_content('$WV','$CVA','$SRC_SHA');" >/dev/null
-mkcontent "$CVB" "$WV" 2
-expect_ok "L1: version 2 is authored with a DIFFERENT expected set (substitution to a different target) and approved" \
-  "INSERT INTO exercise_catalog_content_expected_relationships (content_id, relation, to_logical_id)
-   VALUES ('$CVB','substitution','$WX');
-   UPDATE exercise_catalog_content SET content_status='approved', reviewed_by='Local Proof Reviewer',
-     reviewed_at=NOW(), review_rationale='local disposable fixture rationale v2' WHERE id='$CVB';"
-expect_err "L2: version 2 cannot be admitted while the LIVE set still serves version 1 (exact equality per version)" \
-  "SELECT admit_catalog_content('$WV','$CVB','$SRC_SHA');" \
-  "an expected relationship is missing from the live set"
-Q "DELETE FROM exercise_catalog_relationships WHERE from_logical_id='$WV';
-   INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
-   VALUES ('$WV','$WX','substitution');" >/dev/null
-expect_ok "L3: after the live set moves to version 2's expected set, version 2 admits" \
-  "SELECT admit_catalog_content('$WV','$CVB','$SRC_SHA');"
-expect_err "L4: version 1 can NO LONGER publish - its meaning did not silently change; it fails CLOSED (required relationship missing + stale manifest)" \
-  "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WV','$CVA');" \
-  "a required relationship is missing at publication"
+Q "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_identity('$WV');
+   SELECT load_catalog_snapshot('$WV','Proof Version Isolation','isolation','abs','bodyweight',
+     'bilateral','timed','forgefitos_original','core_rotation','core','beginner','minimal',
+     NULL, NULL, NULL, NULL, '[]'::jsonb, '[]'::jsonb);
+   SELECT load_catalog_content_draft('$WV','$CVA',1,'local-proof-author','2026-09-01',
+     '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+     '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WD\"}]'::jsonb);" >/dev/null
+Q "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WV','$CVA','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale');" >/dev/null
+Q "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WV','$CVA','$SRC_SHA');" >/dev/null
+Q "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WV','$CVA');" >/dev/null
+LIVE_A="SELECT coalesce(string_agg(relation || '>' || to_logical_id::text, ',' ORDER BY relation, to_logical_id), '(empty)') FROM exercise_catalog_relationships WHERE from_logical_id='$WV'"
+expect_eq "L1: version 1 is PUBLISHED with relationship set A (substitution -> target D) projected live" \
+  "$LIVE_A" "substitution>$WD"
+expect_ok "L2: version 2 is STAGED with a DIFFERENT expected set B (substitution -> target X) while version 1/A remains published - loading changes nothing live" \
+  "SET ROLE exlib_catalog_loader;
+   SELECT load_catalog_content_draft('$WV','$CVB',2,'local-proof-author','2026-09-01',
+     '[\"step two\"]'::jsonb,'[\"exec two\"]'::jsonb,'breathe out on effort',
+     '[\"mistake two\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+     '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WX\"}]'::jsonb);"
+expect_ok "L3: version 2 is REVIEWED (approved) while version 1/A remains published - review changes nothing live" \
+  "SET ROLE exlib_catalog_reviewer;
+   SELECT apply_content_review('$WV','$CVB','approved','Local Proof Reviewer',NOW(),'local disposable fixture rationale v2');"
+expect_ok "L4: version 2 is ADMITTED with set B while version 1/A remains published - admission binds the version-owned set and never touches the live surface" \
+  "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WV','$CVB','$SRC_SHA');"
+STATE_AFTER_ADMIT=$(Q "SELECT ($LIVE_A) || ' | ' ||
+  (SELECT publication_status FROM exercise_catalog_content WHERE id='$CVA') || ' | ' ||
+  (SELECT (admitted_fingerprint = exlib_content_admission_fingerprint('$CVA'))::text
+   FROM exercise_catalog_content WHERE id='$CVA')")
+[ "$STATE_AFTER_ADMIT" = "substitution>$WD | published | true" ] \
+  && ok "L5: after version 2's admission, version 1 is STILL published, its live set is STILL exactly A, and its manifest is STILL FRESH - the round-2 mutation window does not exist" \
+  || bad "L5: version 1 was disturbed by version 2's staging/admission" "$STATE_AFTER_ADMIT"
+expect_err "L6: a FAILED version-2 publication (alias drift makes v2 stale) rolls back wholly" \
+  "INSERT INTO exercise_catalog_aliases (logical_id, alias) VALUES ('$WV','Window probe alias');
+   SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WV','$CVB');" \
+  "import admission is STALE"
+STATE_AFTER_FAIL=$(Q "SELECT ($LIVE_A) || ' | ' ||
+  (SELECT publication_status FROM exercise_catalog_content WHERE id='$CVA') || ' | ' ||
+  (SELECT publication_status FROM exercise_catalog_content WHERE id='$CVB')")
+[ "$STATE_AFTER_FAIL" = "substitution>$WD | published | draft" ] \
+  && ok "L7: the failed publication left version 1 published and set A intact EXACTLY (and version 2 still a draft) - atomicity by transaction, not by cleanup" \
+  || bad "L7: failed publication leaked state" "$STATE_AFTER_FAIL"
+PUB2_OUT=$(QQ "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WV','$CVB');")
+if [ $? -eq 0 ]; then
+  ok "L8: version 2 publishes successfully once fresh again"
+else
+  bad "L8: version 2 publication failed" "$(printf '%s' "$PUB2_OUT" | head -2 | tr '\n' ' ')"
+fi
+STATE_AFTER_PUB=$(Q "SELECT ($LIVE_A) || ' | ' ||
+  (SELECT publication_status FROM exercise_catalog_content WHERE id='$CVA') || ' | ' ||
+  (SELECT publication_status FROM exercise_catalog_content WHERE id='$CVB')")
+[ "$STATE_AFTER_PUB" = "substitution>$WX | retired | published" ] \
+  && ok "L9: the successful publication ATOMICALLY retired version 1 and activated EXACTLY set B - at no observable point was version 1 published with version 2's relationships" \
+  || bad "L9: publication switch was not atomic/exact" "$STATE_AFTER_PUB"
+expect_eq "L10: the two versions' relationship rows coexist WITHOUT collision in the version-owned expected table (1 row each), and each version's manifest binds its OWN set" \
+  "SELECT (SELECT count(*) FROM exercise_catalog_content_expected_relationships WHERE content_id='$CVA')::text || '/' ||
+     (SELECT count(*) FROM exercise_catalog_content_expected_relationships WHERE content_id='$CVB')::text" "1/1"
 
 echo
-echo "=== M. Distinct authorities and zero ordinary-client access (proofs 12-13)"
-expect_eq "M1: the four authorities are DISTINCT - admit EXECUTE belongs to exlib_catalog_admission alone, publish EXECUTE to exlib_catalog_admin alone; loading and review application have NO function grants at all (owner-only reviewed programs)" \
-  "SELECT
-     (SELECT coalesce(string_agg(grantee, ',' ORDER BY grantee), '(none)')
-      FROM information_schema.routine_privileges
-      WHERE routine_name='admit_catalog_content' AND privilege_type='EXECUTE' AND grantee <> 'postgres')
-   || ' / ' ||
-     (SELECT coalesce(string_agg(grantee, ',' ORDER BY grantee), '(none)')
-      FROM information_schema.routine_privileges
-      WHERE routine_name='publish_catalog_content' AND privilege_type='EXECUTE' AND grantee <> 'postgres')" \
-  "exlib_catalog_admission / exlib_catalog_admin"
+echo "=== M. FOUR distinct authorities: full cross-denial matrix; no ordinary-client access (finding 2; proofs 7-12)"
+expect_eq "M1: the GRANT matrix is exact - each of the six lifecycle functions is executable by EXACTLY its one owning role (loader: identity/snapshot/draft; reviewer: review; admission: admit; publication: publish)" \
+  "SELECT string_agg(g, ';' ORDER BY g) FROM (
+     SELECT routine_name || '=' || string_agg(grantee, ',' ORDER BY grantee) AS g
+     FROM information_schema.routine_privileges
+     WHERE routine_name IN ('load_catalog_identity','load_catalog_snapshot','load_catalog_content_draft',
+       'apply_content_review','admit_catalog_content','publish_catalog_content')
+       AND privilege_type='EXECUTE' AND grantee <> 'postgres'
+     GROUP BY routine_name) s" \
+  "admit_catalog_content=exlib_catalog_admission;apply_content_review=exlib_catalog_reviewer;load_catalog_content_draft=exlib_catalog_loader;load_catalog_identity=exlib_catalog_loader;load_catalog_snapshot=exlib_catalog_loader;publish_catalog_content=exlib_catalog_admin"
+expect_err "M2: LOADER cannot review (proof 8 inverse: cross-denial loader->review)" \
+  "SET ROLE exlib_catalog_loader; SELECT apply_content_review('$WP','$CV1','approved','x',NOW(),'rationale text');" \
+  "permission denied for function apply_content_review"
+expect_err "M3: LOADER cannot admit" \
+  "SET ROLE exlib_catalog_loader; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
+  "permission denied for function admit_catalog_content"
+expect_err "M4: LOADER cannot publish" \
+  "SET ROLE exlib_catalog_loader; SELECT publish_catalog_content('$WP','$CV1');" \
+  "permission denied for function publish_catalog_content"
+expect_err "M5: REVIEWER cannot load" \
+  "SET ROLE exlib_catalog_reviewer; SELECT load_catalog_identity(NULL);" \
+  "permission denied for function load_catalog_identity"
+expect_err "M6: REVIEWER cannot admit" \
+  "SET ROLE exlib_catalog_reviewer; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
+  "permission denied for function admit_catalog_content"
+expect_err "M7: REVIEWER cannot publish" \
+  "SET ROLE exlib_catalog_reviewer; SELECT publish_catalog_content('$WP','$CV1');" \
+  "permission denied for function publish_catalog_content"
+expect_err "M8: ADMISSION cannot load" \
+  "SET ROLE exlib_catalog_admission; SELECT load_catalog_identity(NULL);" \
+  "permission denied for function load_catalog_identity"
+expect_err "M9: ADMISSION cannot review" \
+  "SET ROLE exlib_catalog_admission; SELECT apply_content_review('$WP','$CV1','approved','x',NOW(),'rationale text');" \
+  "permission denied for function apply_content_review"
+expect_err "M10: ADMISSION cannot publish" \
+  "SET ROLE exlib_catalog_admission; SELECT publish_catalog_content('$WP','$CV1');" \
+  "permission denied for function publish_catalog_content"
+expect_err "M11: PUBLICATION cannot load" \
+  "SET ROLE exlib_catalog_admin; SELECT load_catalog_identity(NULL);" \
+  "permission denied for function load_catalog_identity"
+expect_err "M12: PUBLICATION cannot review" \
+  "SET ROLE exlib_catalog_admin; SELECT apply_content_review('$WP','$CV1','approved','x',NOW(),'rationale text');" \
+  "permission denied for function apply_content_review"
+expect_err "M13: PUBLICATION cannot admit" \
+  "SET ROLE exlib_catalog_admin; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
+  "permission denied for function admit_catalog_content"
+for role in anon authenticated; do
+  expect_err "M14: $role cannot LOAD (ordinary clients hold none of the four authorities)" \
+    "SET ROLE $role; SELECT load_catalog_identity(NULL);" "permission denied"
+  expect_err "M14: $role cannot REVIEW" \
+    "SET ROLE $role; SELECT apply_content_review('$WP','$CV1','approved','x',NOW(),'rationale text');" "permission denied"
+  expect_err "M14: $role cannot ADMIT" \
+    "SET ROLE $role; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" "permission denied"
+  expect_err "M14: $role cannot PUBLISH" \
+    "SET ROLE $role; SELECT publish_catalog_content('$WP','$CV1');" "permission denied"
+done
+expect_err "M15: operational roles hold NO direct table privileges - the loader cannot UPDATE content directly" \
+  "SET ROLE exlib_catalog_loader; UPDATE exercise_catalog_content SET breathing_cue='x' WHERE id='$CV1';" \
+  "permission denied"
+expect_err "M16: the reviewer cannot INSERT content directly" \
+  "SET ROLE exlib_catalog_reviewer; INSERT INTO exercise_catalog_content (logical_id, content_version,
+     authored_by, authored_at, setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance)
+   VALUES ('$WP',60,'a','2026-09-01','[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c');" \
+  "permission denied"
+expect_err "M17: the admission role cannot DELETE expected relationships directly" \
+  "SET ROLE exlib_catalog_admission; DELETE FROM exercise_catalog_content_expected_relationships WHERE content_id='$CV1';" \
+  "permission denied"
+expect_err "M18: the publication role cannot INSERT live relationships directly (denied by privilege before the projection trigger is even reached)" \
+  "SET ROLE exlib_catalog_admin; INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation)
+   VALUES ('$WB','$WD','substitution');" \
+  "permission denied"
 for tbl in exercise_catalog_content exercise_catalog_relationships exercise_catalog_content_expected_relationships; do
   for role in anon authenticated; do
-    expect_err "M2: $role has NO access to $tbl (read denied)" \
+    expect_err "M19: $role has NO access to $tbl (read denied)" \
       "SET ROLE $role; SELECT count(*) FROM $tbl;" "permission denied"
   done
 done
-expect_err "M3: authenticated cannot LOAD content" \
-  "SET ROLE authenticated; INSERT INTO exercise_catalog_content (logical_id, content_version,
-     authored_by, authored_at, setup_steps, execution_steps, breathing_cue, common_mistakes, safety_guidance)
-   VALUES ('$WP',50,'a','2026-09-01','[]'::jsonb,'[]'::jsonb,'b','[]'::jsonb,'c');" \
-  "permission denied"
-expect_err "M4: authenticated cannot APPLY A REVIEW DECISION" \
-  "SET ROLE authenticated; UPDATE exercise_catalog_content SET content_status='approved' WHERE id='$CV1';" \
-  "permission denied"
-expect_err "M5: authenticated cannot ADMIT (function execute denied; proof 13)" \
-  "SET ROLE authenticated; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
-  "permission denied"
-expect_err "M6: authenticated cannot PUBLISH (proof 13)" \
-  "SET ROLE authenticated; SELECT publish_catalog_content('$WP','$CV1');" \
-  "permission denied"
-expect_err "M7: authenticated cannot write expected relationships" \
-  "SET ROLE authenticated; INSERT INTO exercise_catalog_content_expected_relationships
-     (content_id, relation, to_logical_id) VALUES ('$CV1','regression','$WX');" \
-  "permission denied"
-expect_err "M8: authenticated cannot compute admission manifests or fingerprints (no forging oracle)" \
+expect_err "M20: authenticated cannot compute admission manifests or fingerprints (no forging oracle)" \
   "SET ROLE authenticated; SELECT exlib_content_admission_fingerprint('$CV1');" \
   "permission denied"
-expect_err "M9: anon cannot admit or publish either" \
-  "SET ROLE anon; SELECT admit_catalog_content('$WP','$CV1','$SRC_SHA');" \
-  "permission denied"
-expect_eq "M10: RLS is ENABLED with ZERO policies on all three new tables" \
+expect_eq "M21: RLS is ENABLED with ZERO policies on all three new tables" \
   "SELECT string_agg(c.relname || ':' || c.relrowsecurity::text || ':' ||
      (SELECT count(*) FROM pg_policy p WHERE p.polrelid=c.oid)::text, ',' ORDER BY c.relname)
    FROM pg_class c WHERE c.relname IN
      ('exercise_catalog_content','exercise_catalog_relationships','exercise_catalog_content_expected_relationships')" \
   "exercise_catalog_content:true:0,exercise_catalog_content_expected_relationships:true:0,exercise_catalog_relationships:true:0"
-expect_eq "M11: no service_role grant exists on any new object, and authenticated keeps EXACTLY its already-reviewed 026 delivery access" \
+expect_eq "M22: no service_role grant exists on any new object, and authenticated keeps EXACTLY its already-reviewed 026 delivery access" \
   "SELECT (SELECT count(*)::text FROM information_schema.role_table_grants
      WHERE grantee='service_role' AND table_name IN
        ('exercise_catalog_content','exercise_catalog_relationships','exercise_catalog_content_expected_relationships'))
@@ -655,13 +741,15 @@ expect_eq "M11: no service_role grant exists on any new object, and authenticate
       FROM information_schema.routine_privileges
       WHERE routine_name='deliver_catalog_exercises' AND privilege_type='EXECUTE' AND grantee='authenticated')" \
   "0/authenticated"
-expect_eq "M12: every function this proposal defines pins search_path = public, pg_temp (8 of 8, including the carried 023 freeze function)" \
+expect_eq "M23: every function this proposal defines pins search_path = public, pg_temp (13 of 13, including the carried 023 freeze function)" \
   "SELECT count(*)::text FROM pg_proc p
    WHERE p.proname IN ('exlib_freeze_catalog_snapshot','exlib_freeze_content_version',
-     'exlib_freeze_expected_relationships','exlib_manifest_hex','exlib_content_admission_manifest',
-     'exlib_content_admission_fingerprint','admit_catalog_content','publish_catalog_content')
+     'exlib_freeze_expected_relationships','exlib_protect_relationship_projection',
+     'exlib_manifest_hex','exlib_content_admission_manifest','exlib_content_admission_fingerprint',
+     'load_catalog_identity','load_catalog_snapshot','load_catalog_content_draft',
+     'apply_content_review','admit_catalog_content','publish_catalog_content')
      AND EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) cfg
-                 WHERE cfg LIKE 'search_path=%')" "8"
+                 WHERE cfg LIKE 'search_path=%')" "13"
 
 echo
 echo "=== N. Local advisor-equivalent checks (honest limitations recorded)"
@@ -684,9 +772,11 @@ expect_eq "N1: advisor-equivalent 'RLS disabled in public' - every new public ta
                        'exercise_catalog_content_expected_relationships')" "0"
 expect_eq "N2: advisor-equivalent 'SECURITY DEFINER exposure' - no new SECURITY DEFINER function is executable by PUBLIC, anon, or authenticated" \
   "SELECT count(*)::text FROM information_schema.routine_privileges
-   WHERE routine_name IN ('admit_catalog_content','publish_catalog_content',
+   WHERE routine_name IN ('load_catalog_identity','load_catalog_snapshot','load_catalog_content_draft',
+     'apply_content_review','admit_catalog_content','publish_catalog_content',
      'exlib_content_admission_manifest','exlib_content_admission_fingerprint','exlib_manifest_hex',
-     'exlib_freeze_content_version','exlib_freeze_expected_relationships')
+     'exlib_freeze_content_version','exlib_freeze_expected_relationships',
+     'exlib_protect_relationship_projection')
      AND privilege_type='EXECUTE' AND grantee IN ('PUBLIC','anon','authenticated')" "0"
 expect_eq "N3: advisor-equivalent 'unindexed foreign key' - every new FK has an index whose LEADING columns cover it" \
   "SELECT count(*)::text FROM (
@@ -701,8 +791,10 @@ expect_eq "N3: advisor-equivalent 'unindexed foreign key' - every new FK has an 
 expect_eq "N4: the fingerprint pipeline is SHA-256 end to end - no md5 call exists in any new function body" \
   "SELECT count(*)::text FROM pg_proc
    WHERE proname IN ('exlib_manifest_hex','exlib_content_admission_manifest',
-     'exlib_content_admission_fingerprint','admit_catalog_content','publish_catalog_content',
-     'exlib_freeze_content_version','exlib_freeze_expected_relationships')
+     'exlib_content_admission_fingerprint','load_catalog_identity','load_catalog_snapshot',
+     'load_catalog_content_draft','apply_content_review','admit_catalog_content',
+     'publish_catalog_content','exlib_freeze_content_version','exlib_freeze_expected_relationships',
+     'exlib_protect_relationship_projection')
      AND prosrc ILIKE '%md5%'" "0"
 
 echo
