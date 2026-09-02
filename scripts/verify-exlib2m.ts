@@ -1,6 +1,13 @@
-// EXLIB-2M verifier — migration-027 apply-preparation (LOCAL-ONLY;
-// the candidate is PREPARED, NOT APPLIED; hosted application remains
-// Joseph/ChatGPT-only under a future explicit instruction).
+// EXLIB-2M verifier — migration-027 apply-preparation (LOCAL-ONLY).
+// RETARGET (EXLIB-2M application record): during the apply-prep
+// phase the candidate was PREPARED, NOT APPLIED — that posture is
+// anchored to the apply-prep tip 66905d7 (whose tree provably
+// contains no application record) and was later superseded by the
+// authorized hosted application (ChatGPT; never Claude) evidenced in
+// docs/exlib2m-migration-027-application-record.md and owned by
+// scripts/verify-exlib2m-application.ts. Every byte-frozen
+// prepared-not-applied statement pinned below remains true AS
+// WRITTEN of its own phase.
 //
 // Proves the instruction's seventeen static requirements: exact
 // source refs, tag, fingerprints, and phase inventory; exactly one
@@ -259,7 +266,12 @@ async function main(): Promise<void> {
           l2.includes(LABEL) &&
           l2.includes('never both 027 and the proposal')
       })())
-    check('D4: the migration header states every required truthful fact — apply-prep candidate, reviewed source commit and proposal SHA-256, prepared for later explicit hosted application, NOT APPLIED during EXLIB-2M, Joseph/ChatGPT-only, schema-and-authorities-only, loads nothing, performs no lifecycle act, EXLIB-2K stays deferred (proof 17)',
+    check('D4: the migration header states every required truthful fact — apply-prep candidate, reviewed source commit and proposal SHA-256, prepared for later explicit hosted application, NOT APPLIED during EXLIB-2M (byte-frozen history, true as written of the apply-prep phase), Joseph/ChatGPT-only, schema-and-authorities-only, loads nothing, performs no lifecycle act, EXLIB-2K stays deferred — RETARGET (EXLIB-2M application record): the prepared-not-applied POSTURE is anchored to the apply-prep tip 66905d7, whose tree provably contains no application record; the later authorized hosted application is owned by verify-exlib2m-application.ts (proof 17)',
+      (() => {
+        const tipDocs = execSync('git ls-tree 66905d7464d3f9cc84bb07a3dc8f2062ac6b7745 docs/ --name-only', { encoding: 'utf8' })
+        if (tipDocs.includes('exlib2m-migration-027-application-record')) return false
+        return true
+      })() &&
       mig.includes('EXLIB-2M MIGRATION-027 APPLY-PREP CANDIDATE') &&
       mig.includes(SOURCE_TIP) &&
       mig.includes(PROPOSAL_SHA) &&
@@ -270,7 +282,7 @@ async function main(): Promise<void> {
       migProse.includes('it loads NO identities, snapshots, anatomy, aliases, content, relationships, runs, or membership') &&
       migProse.includes('it performs NO human review, admission, publication, approval, seal, revocation, delivery, seed edit, or inventory flip') &&
       migProse.includes('EXLIB-2K (Plank catalog load) remains DEFERRED until migration 027 is reviewed, applied, and evidenced'))
-    check('D5: the apply-prep record documents the gate (including the full tag-object SHA), the exact transformation, every classification, the boundaries, the totals, and the explicit prepared-not-applied no-hosted-contact posture',
+    check('D5: the apply-prep record documents the gate (including the full tag-object SHA), the exact transformation, every classification, the boundaries, the totals, and the explicit prepared-not-applied no-hosted-contact posture — RETARGET (EXLIB-2M application record): the record is byte-frozen history whose statements were true when written, during the apply-prep phase anchored at 66905d7; the supersession is documented in the application record',
       rec.includes(TAG_2L_OBJ) &&
       rec.includes(SOURCE_TIP) &&
       recFlat.includes('exactly its first 253 lines') &&
