@@ -46,6 +46,7 @@ const SOURCE_TIP = 'e6a98f2ccc531ca3976e91c53b9f30b09f8ae193'
 const OLD_CONTENT_SHA = 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a'
 const NEW_CONTENT_SHA = '4191659387d0d42303feb486b0dd7d7a1a72407d5c97b492db062350033a68fe'
 const COMPLETED_SHA = '59ad2668790b6d0b135c8c453a702c45774f905ece8749a6112881b1df7e5b98'
+const TIP_2I = '73231e928748c7499172c28445a1958b13eace12'
 const PHASE_NEW = [COMPLETED, RECORD, VERIFIER].sort()
 const PHASE_ALL = [...PHASE_NEW, CONTENT, 'scripts/verify-exlib2g.ts', 'scripts/verify-exlib2h.ts'].sort()
 
@@ -113,20 +114,21 @@ async function main(): Promise<void> {
         return old.length === 2729 && shaBuf(old) === OLD_CONTENT_SHA &&
           comp.content_fingerprint.bytes === 2729 && comp.content_fingerprint.sha256 === OLD_CONTENT_SHA
       })())
-    check('B2: the current content differs from the reviewed bytes ONLY in the schema-defined content_review fields plus the disclosed status comment line — every other record field is value-identical, and the current fingerprint is exact (2,848 B / 41916593...)',
+    check('B2: REVISED (RETARGET (EXLIB-2J R6 eligibility admission)) — the AS-DECIDED content is anchored to the promoted EXLIB-2I tip (73231e9): there it was exactly 2,848 B / 41916593..., differing from the reviewed bytes ONLY in the content_review fields plus the disclosed comment; the live post-admission state is owned by scripts/verify-exlib2j.ts',
       (() => {
-        if (readFileSync(CONTENT).length !== 2848 || sha256(CONTENT) !== NEW_CONTENT_SHA) return false
+        const decided = blob(TIP_2I, CONTENT)
+        if (decided.length !== 2848 || createHash('sha256').update(decided).digest('hex') !== NEW_CONTENT_SHA) return false
         const oldText = blob(SOURCE_TIP, CONTENT).toString('utf8')
         const oldRec = JSON.parse(oldText.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        const decRec = JSON.parse(decided.toString('utf8').split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
         for (const k of Object.keys(oldRec)) {
           if (k === 'content_review') continue
-          if (JSON.stringify(oldRec[k]) !== JSON.stringify(cur[k])) return false
+          if (JSON.stringify(oldRec[k]) !== JSON.stringify(decRec[k])) return false
         }
-        if (JSON.stringify(Object.keys(oldRec).sort()) !== JSON.stringify(Object.keys(cur).sort())) return false
-        // the comment line changed truthfully and is disclosed in the record
-        const curComment = read(CONTENT).split('\n')[0]
-        return curComment.startsWith('#') && curComment.includes('APPROVED by named human review') &&
-          curComment.includes('import_eligible=false') &&
+        if (JSON.stringify(Object.keys(oldRec).sort()) !== JSON.stringify(Object.keys(decRec).sort())) return false
+        const decComment = decided.toString('utf8').split('\n')[0]
+        return decComment.startsWith('#') && decComment.includes('APPROVED by named human review') &&
+          decComment.includes('import_eligible=false') &&
           recFlat.includes('leading status comment line was updated') &&
           recFlat.includes('This is disclosed here explicitly; it is commentary, not a schema field')
       })())
@@ -147,8 +149,11 @@ async function main(): Promise<void> {
           typeof cur.content_review.reviewed_at === 'string' &&
           cur.content_review.rationale.trim().length >= 10
       })())
-    check('B5: approved but still LOCKED — import_eligible remains the literal false, review_status remains proposed (distinct pipeline axis), no publication key exists, and the record states approval changes neither eligibility nor publication nor hosted catalog state',
-      cur.import_eligible === false && cur.review_status === 'proposed' &&
+    check('B5: REVISED (RETARGET (EXLIB-2J R6 eligibility admission)) — at the promoted EXLIB-2I tip the record was approved and still import-INELIGIBLE (anchored); the LIVE record still holds review_status proposed and no publication key, and the live eligibility state is owned by scripts/verify-exlib2j.ts',
+      (() => {
+        const decRec = JSON.parse(blob(TIP_2I, CONTENT).toString('utf8').split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        return decRec.import_eligible === false
+      })() && cur.review_status === 'proposed' &&
       !Object.keys(cur).some((k) => k.includes('publication')) &&
       recFlat.includes('changes neither import eligibility nor publication nor hosted catalog state') &&
       recFlat.includes('Approval alone authorizes NOTHING further'))

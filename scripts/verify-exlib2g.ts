@@ -159,7 +159,13 @@ async function main(): Promise<void> {
           .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
         if (!(p2g.content_review.status === 'pending' && p2g.content_review.reviewer === null &&
           p2g.content_review.reviewed_at === null && p2g.content_review.rationale === null)) return false
-        return p.review_status === 'proposed' && p.import_eligible === false &&
+        // RETARGET (EXLIB-2J R6 eligibility admission): the ineligible
+        // lock was last live-true at the promoted EXLIB-2I tip; the live
+        // eligibility state is owned by scripts/verify-exlib2j.ts.
+        const pDec = JSON.parse(execSync('git show 73231e928748c7499172c28445a1958b13eace12:docs/exlib2g-plank-content.jsonl', { encoding: 'utf8' })
+          .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        if (pDec.import_eligible !== false) return false
+        return p.review_status === 'proposed' &&
           p.deferred === false && p.deferred_reason === null &&
           p.provenance === 'forgefitos_original' &&
           !('source_url' in p) && !('source_page' in p) && !('retrieved_at' in p) &&

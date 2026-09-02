@@ -72,8 +72,14 @@ async function main(): Promise<void> {
         const rTip = JSON.parse(buf.toString('utf8').split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
         if (!(rTip.content_review.status === 'pending' && rTip.content_review.reviewer === null &&
           rTip.content_review.reviewed_at === null && rTip.content_review.rationale === null)) return false
+        // RETARGET (EXLIB-2J R6 eligibility admission): the ineligible
+        // lock was last live-true at the promoted EXLIB-2I tip; the live
+        // eligibility state is owned by scripts/verify-exlib2j.ts.
+        const rDec = JSON.parse(execSync('git show 73231e928748c7499172c28445a1958b13eace12:docs/exlib2g-plank-content.jsonl', { encoding: 'utf8' })
+          .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        if (rDec.import_eligible !== false) return false
         const r = parseJsonl(CONTENT)[0]
-        return r.review_status === 'proposed' && r.import_eligible === false &&
+        return r.review_status === 'proposed' &&
           !Object.keys(r).some((k) => k.includes('publication'))
       })())
     check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; zero supabase/ or src/ paths in the phase range; migrations exactly 26 with NO 027',
