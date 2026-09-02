@@ -186,7 +186,12 @@ async function main(): Promise<void> {
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
-        if (readdirSync('docs').some((f) => f.includes('load-payload') || f.includes('load-package'))) return false
+        // RETARGET (EXLIB-2K catalog-load preparation): the
+        // no-load-payload/load-package claim is anchored to the
+        // promoted EXLIB-2I tip, where it was true; EXLIB-2K later
+        // prepares (never hosted-executes) the reviewed docs package.
+        if (execSync(`git ls-tree ${TIP_2I} docs/ --name-only`, { encoding: 'utf8' })
+          .split('\n').some((f) => f.includes('load-payload') || f.includes('load-package'))) return false
         return recFlat.includes('no hosted service was contacted in this milestone')
       })())
     check('C3: fail-closed lifecycle stated and true — approval alone authorizes neither loading nor publication nor activation (R6 eligibility lock restated; publication separate; no catalog snapshot/run/seal/delivery exists or is authorized), and the retargets are narrow, labeled, and preserve the historical pending-review claims at their promoted tips',

@@ -176,7 +176,12 @@ async function main(): Promise<void> {
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
-        return !readdirSync('docs').some((f) => f.includes('load-payload') || f.includes('load-package'))
+        // RETARGET (EXLIB-2K catalog-load preparation): the
+        // no-load-payload/load-package claim is anchored to the
+        // promoted EXLIB-2J tip, where it was true; EXLIB-2K later
+        // prepares (never hosted-executes) the reviewed docs package.
+        return !execSync(`git ls-tree ${TIP_2J} docs/ --name-only`, { encoding: 'utf8' })
+          .split('\n').some((f) => f.includes('load-payload') || f.includes('load-package'))
       })())
     check('C3: the admission grants nothing further — the record explicitly separates human approval, eligibility, review_status, seed compatibility, loading, publication, and delivery activation, and states no hosted service was contacted',
       recFlat.includes('authorizes NO catalog snapshot, NO load package, NO loading, NO publication, NO delivery, NO runtime activation, NO hosted contact, NO seed edit, and NO seed_link_compatible flip') &&
