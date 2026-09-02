@@ -11,9 +11,12 @@
 # artifact BYTE BY BYTE. It then proves the fail-closed properties:
 # admission-before-review refused, publication refused, no live
 # projection, no run/seal/delivery/exercise/seed effect, one-use
-# second-execution refusal, and whole-transaction rollback for every
+# second-execution refusal, whole-transaction rollback for every
 # meaningful malformed or incomplete package variant (each on a
-# fresh scratch database). This script NEVER contacts Supabase,
+# fresh scratch database) including a claim-corruption variant that
+# trips the package's OWN three-claim postcondition, and a REAL
+# two-session concurrency race proving the lock-serialized fresh-load
+# gate admits exactly one execution. This script NEVER contacts Supabase,
 # Vercel, or any remote service; the package remains PREPARED - NOT
 # EXECUTED against any hosted or persistent database, and no
 # persistent local database is left behind.
@@ -152,6 +155,12 @@ expect_eq "C2: exact resulting identities and snapshots - 3 logical identities, 
      (SELECT count(*) FROM exercise_catalog_name_claims)::text || '/' ||
      (SELECT count(*) FROM exercise_catalog WHERE logical_id IN ('$DBU','$AW'))::text" \
   "3/1/2/2/3/0"
+expect_eq "C2b: the three claims are EXACTLY the required rows - canonical 'plank' plus alias 'forearm plank' and alias 'front plank', every one owned by the Plank identity" \
+  "SELECT string_agg(normalized_name||':'||claim_source||':'||logical_id::text, ' | ' ORDER BY normalized_name) FROM exercise_catalog_name_claims" \
+  "forearm plank:alias:$PL | front plank:alias:$PL | plank:canonical:$PL"
+expect_eq "C2c: migration-023's bidirectional claim invariant is clean after the load (0 orphaned claims, 0 unclaimed bearers)" \
+  "SELECT orphaned_claims::text||'/'||unclaimed_bearers::text FROM exlib_verify_catalog_claims()" \
+  "0/0"
 expect_eq "C3: exactly ONE Plank content version exists - version 1, PENDING, DRAFT, UNADMITTED, with zero review evidence and zero admission fields" \
   "SELECT (SELECT count(*) FROM exercise_catalog_content)::text || '/' ||
      (SELECT content_status||':'||publication_status||':'||import_admitted::text||':'||content_version::text
@@ -276,6 +285,58 @@ mkvariant_db v5 && {
          && ok "F(nonempty surface): the untouched package refuses to run over ANY pre-existing catalog state (fresh-load precondition)" \
          || bad "F(nonempty surface): unexpected refusal" "$(tail -2 "$TMP/variant-v5.out" | tr '\n' ' ')"; }
 }
+mkvariant_db v6 && run_variant v6 "claim corruption (an owner DELETE of one claim row injected after RESET ROLE) trips the package's OWN three-claim postcondition" \
+  "s/^RESET ROLE;\$/RESET ROLE; DELETE FROM public.exercise_catalog_name_claims WHERE normalized_name = 'front plank';/" \
+  "the catalog name claims are not exactly the three required rows"
+
+echo
+echo "=== F2. REAL two-session concurrency - the lock-serialized gate admits exactly one execution"
+# Both sessions run against the SAME fresh empty database. Session A
+# is the package with ONLY a pg_sleep injected AFTER the empty-state
+# gate passes (holding the window open deterministically while the
+# SRE locks are held); session B is the UNTOUCHED package. The lock
+# gate must let exactly one commit; the loser must wait on the table
+# lock and then fail at the package's own nonempty precondition.
+mkvariant_db cc
+sed 's/^\$pre\$;$/\$pre\$; SELECT pg_sleep(6);/' "$PACKAGE" > "$TMP/cc-A.sql"
+if cmp -s "$TMP/cc-A.sql" "$PACKAGE"; then
+  bad "CC0: the session-A sleep injection did not change the package (cannot stage the race)"
+else
+  ok "CC0: session A staged - the untouched package plus ONLY a pg_sleep after the empty-state gate; session B is the byte-untouched package"
+fi
+( psql -h "$SOCK" -U postgres -d cc -X -v ON_ERROR_STOP=1 -q -f "$TMP/cc-A.sql" > "$TMP/cc-A.out" 2>&1; echo $? > "$TMP/cc-A.rc" ) &
+A_JOB=$!
+AHOLD=0
+for _ in $(seq 1 100); do
+  AHOLD=$(psql -h "$SOCK" -U postgres -d cc -X -qtA -c "SELECT count(*) FROM pg_locks l JOIN pg_class c ON c.oid = l.relation WHERE c.relname = 'exercise_catalog_logical' AND l.mode = 'ShareRowExclusiveLock' AND l.granted" 2>/dev/null || echo 0)
+  [ "${AHOLD:-0}" -ge 1 ] && break; sleep 0.1
+done
+[ "${AHOLD:-0}" -ge 1 ] \
+  && ok "CC1: session A holds a GRANTED ShareRowExclusiveLock on the gate tables (it passed the empty-state read and sits inside the load window)" \
+  || bad "CC1: never observed session A holding the gate lock"
+( psql -h "$SOCK" -U postgres -d cc -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/cc-B.out" 2>&1; echo $? > "$TMP/cc-B.rc" ) &
+B_JOB=$!
+BWAIT=0
+for _ in $(seq 1 100); do
+  BWAIT=$(psql -h "$SOCK" -U postgres -d cc -X -qtA -c "SELECT count(*) FROM pg_locks l JOIN pg_class c ON c.oid = l.relation WHERE c.relname LIKE 'exercise_catalog%' AND l.mode = 'ShareRowExclusiveLock' AND NOT l.granted" 2>/dev/null || echo 0)
+  [ "${BWAIT:-0}" -ge 1 ] && break; sleep 0.1
+done
+[ "${BWAIT:-0}" -ge 1 ] \
+  && ok "CC2: session B is genuinely WAITING on the table lock (an ungranted ShareRowExclusiveLock request) - it cannot reach the empty-state read while A holds the gate" \
+  || bad "CC2: never observed session B waiting on the gate lock"
+wait "$A_JOB" 2>/dev/null
+wait "$B_JOB" 2>/dev/null
+ARC=$(cat "$TMP/cc-A.rc")
+BRC=$(cat "$TMP/cc-B.rc")
+if [ "$ARC" = "0" ] && [ "$BRC" != "0" ] && grep -qF 'ONE-USE fresh-load package and refuses to run twice or over foreign state' "$TMP/cc-B.out"; then
+  ok "CC3: EXACTLY ONE execution succeeded - session A committed; session B unblocked only after A's COMMIT and then failed closed at the package's OWN nonempty one-use precondition"
+else
+  bad "CC3: race outcome wrong (A rc=$ARC, B rc=$BRC)" "$(tail -2 "$TMP/cc-B.out" | tr '\n' ' ')"
+fi
+CCSTATE=$(psql -h "$SOCK" -U postgres -d cc -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)::text||'/'||(SELECT count(*) FROM exercise_catalog)::text||'/'||(SELECT count(*) FROM exercise_catalog_content)::text||'/'||(SELECT count(*) FROM exercise_catalog_name_claims)::text||'/'||(SELECT count(*) FROM exercise_catalog_content_expected_relationships)::text")
+[ "$CCSTATE" = "3/1/1/3/2" ] \
+  && ok "CC4: the final database holds EXACTLY ONE valid load result (3 identities / 1 snapshot / 1 content / 3 claims / 2 expected rows) - no duplicated, mixed, or partial state from the losing session" \
+  || bad "CC4: final state wrong ($CCSTATE)"
 
 echo
 echo "=== G. No hosted contact, ever"

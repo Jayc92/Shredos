@@ -18,6 +18,11 @@
 // seed/inventory/eligibility/ledger/runtime/config change; the
 // explicit prepared-not-executed posture; and the exact phase
 // inventory with the labeled historical-verifier lifecycle.
+// Correction findings (section E): the lock-serialized fresh-load
+// gate (deterministic coverage and order), the package-internal
+// three-claim postconditions with the corrected claim-count wording,
+// and the intended-vs-database-proven target-identity semantics with
+// the mandatory target-snapshot gate.
 // Performs NO hosted contact.
 //
 // Fail-closed: any mismatch fails the suite.
@@ -272,6 +277,70 @@ async function main(): Promise<void> {
           return JSON.stringify(range) === JSON.stringify([...PHASE_NEW, ...PHASE_MOD].sort())
         } catch { return false }
       })())
+  }
+
+  console.log('\nE. Correction findings (lock serialization, claim postconditions, target-identity semantics)')
+  {
+    check('E1: the fresh-load gate is LOCK-SERIALIZED — exactly one LOCK statement sits after BEGIN and before the empty-state read, takes SHARE ROW EXCLUSIVE on EXACTLY the ten tables the gate covers in documented alphabetical order, documents the real-table-lock (no advisory-only) design held through COMMIT with ordinary reads unblocked, and the live harness proves the REAL two-session race',
+      (() => {
+        if ((pkg.match(/^LOCK TABLE/gm) ?? []).length !== 1) return false
+        const iBegin = pkg.indexOf('\nBEGIN;')
+        const iLock = pkg.indexOf('LOCK TABLE')
+        const iPre = pkg.indexOf('DO $pre$')
+        if (!(iBegin > 0 && iBegin < iLock && iLock < iPre)) return false
+        const lockM = pkg.match(/^LOCK TABLE\n([\s\S]*?)IN SHARE ROW EXCLUSIVE MODE;/m)
+        if (!lockM) return false
+        const lockTables = lockM[1].split('\n').map((l) => l.trim().replace(/,$/, ''))
+          .filter((l) => l.startsWith('public.')).map((l) => l.replace('public.', ''))
+        if (lockTables.length !== 10) return false
+        if (JSON.stringify(lockTables) !== JSON.stringify([...lockTables].sort())) return false
+        const preBlock = pkg.slice(iPre, pkg.indexOf('$pre$;'))
+        const gateTables = Array.from(preBlock.matchAll(/count\(\*\) FROM public\.(\w+)\)/g))
+          .map((m) => m[1]).sort()
+        if (JSON.stringify(gateTables) !== JSON.stringify(lockTables)) return false
+        return pkgProse.includes('ALPHABETICAL by table name, in a single LOCK statement') &&
+          pkgProse.includes('REAL table locks - no advisory-lock-only design') &&
+          pkgProse.includes('remain held through every loader call, every postcondition, and COMMIT') &&
+          pkgProse.includes('while ordinary reads stay unblocked') &&
+          pkgProse.includes('A queued second execution proceeds only after this one commits, then fails closed at the nonempty one-use precondition') &&
+          live.includes('CC1: session A holds a GRANTED ShareRowExclusiveLock') &&
+          live.includes('CC2: session B is genuinely WAITING on the table lock') &&
+          live.includes('CC3: EXACTLY ONE execution succeeded') &&
+          live.includes('CC4: the final database holds EXACTLY ONE valid load result')
+      })())
+    check('E2: the three catalog name claims are part of the package\'s OWN fail-closed postconditions — exactly three rows, the exact canonical/alias/alias triple all owned by the Plank identity, migration-023\'s bidirectional invariant via exlib_verify_catalog_claims(), the stale "two claims" wording corrected everywhere, and the live harness proves both the exact external rows and the claim-corruption rollback',
+      pkgFlat.includes('(SELECT count(*) FROM public.exercise_catalog_name_claims) <> 3') &&
+      pkgFlat.includes("WHERE c.normalized_name = 'plank' AND c.claim_source = 'canonical' AND c.logical_id = '" + PL + "')") &&
+      pkgFlat.includes("WHERE c.normalized_name = 'front plank' AND c.claim_source = 'alias' AND c.logical_id = '" + PL + "')") &&
+      pkgFlat.includes("WHERE c.normalized_name = 'forearm plank' AND c.claim_source = 'alias' AND c.logical_id = '" + PL + "')") &&
+      pkgFlat.includes('FROM public.exlib_verify_catalog_claims() v') &&
+      pkgFlat.includes('v.orphaned_claims <> 0 OR v.unclaimed_bearers <> 0') &&
+      pkgProse.includes("exactly THREE catalog name claims (one canonical 'plank' plus the two alias claims), postcondition-verified together with migration 023's bidirectional claim invariant") &&
+      !pkgProse.includes('claims machinery entries') &&
+      !recFlat.replace(/miscounted the result as "two catalog name\/alias claims machinery entries"/, '').includes('claims machinery entries') &&
+      recFlat.includes('EXACTLY the three catalog name claims') &&
+      recFlat.includes('exlib_verify_catalog_claims() returns 0/0') &&
+      live.includes("C2b: the three claims are EXACTLY the required rows") &&
+      live.includes("C2c: migration-023's bidirectional claim invariant is clean after the load") &&
+      live.includes("claim corruption (an owner DELETE of one claim row injected after RESET ROLE) trips the package's OWN three-claim postcondition"))
+    check('E3: intended vs database-proven target identity is stated precisely — the package and record both say the artifact/package ASSIGN the intended mapping, the database stores only bare UUIDs with NO independent-proof claim, identity-only staging is bounded to this milestone (Plank pending/draft/unadmitted/unpublished), and review/admission/publication stay blocked until the fail-closed target-snapshot gate (Dead bug = ...0002, Ab wheel rollout = ...0003, never swapped/missing/inactive/ambiguous) exists; no target snapshot is created and neither expected relationship is weakened',
+      pkgProse.includes('INTENDED vs DATABASE-PROVEN TARGET IDENTITY (semantic precision):') &&
+      pkgProse.includes('ASSIGN the intended target-name-to-UUID mapping') &&
+      pkgProse.includes('NO claim is made that hosted database state independently proves those names after this load') &&
+      pkgProse.includes('MUST all remain blocked until separately reviewed target snapshots exist and a fail-closed gate proves that') &&
+      pkgProse.includes(DBU + " bears the active canonical snapshot 'Dead bug'") &&
+      pkgProse.includes(AW + " bears the active canonical snapshot 'Ab wheel rollout'") &&
+      pkgProse.includes('swapped, missing, inactive, or ambiguous') &&
+      recFlat.includes('the two target logical rows are BARE UUIDs') &&
+      recFlat.includes('NO claim is made that hosted database state independently proves those names') &&
+      recFlat.includes('MUST all remain blocked until separately reviewed target snapshots exist') &&
+      recFlat.includes(DBU + ' bears the active canonical snapshot "Dead bug"') &&
+      recFlat.includes(AW + ' bears the active canonical snapshot "Ab wheel rollout"') &&
+      recFlat.includes('with neither mapping swapped, missing, inactive, or ambiguous') &&
+      recFlat.includes('No target snapshot is created here (no authorized source artifact exists), and neither expected relationship is weakened or removed') &&
+      JSON.stringify(JSON.parse(tagged('expx'))) === JSON.stringify([
+        { relation: 'substitution', to_logical_id: DBU },
+        { relation: 'progression', to_logical_id: AW }]))
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

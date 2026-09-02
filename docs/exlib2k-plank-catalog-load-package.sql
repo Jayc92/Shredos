@@ -53,6 +53,22 @@
 -- state here (no separately approved and eligible source artifact
 -- exists for them).
 --
+-- INTENDED vs DATABASE-PROVEN TARGET IDENTITY (semantic precision):
+-- the admitted artifact and this reviewed package ASSIGN the intended
+-- target-name-to-UUID mapping above. After this load the database
+-- stores only the bare logical UUIDs; it does not yet carry
+-- canonical-name evidence for either target, and NO claim is made
+-- that hosted database state independently proves those names after
+-- this load. Identity-only staging is acceptable in THIS milestone
+-- only because Plank remains pending, draft, unadmitted, and
+-- unpublished. Database review, admission, and publication of Plank
+-- MUST all remain blocked until separately reviewed target snapshots
+-- exist and a fail-closed gate proves that
+-- e21b2c00-0000-4000-a000-000000000002 bears the active canonical
+-- snapshot 'Dead bug' and e21b2c00-0000-4000-a000-000000000003 bears
+-- the active canonical snapshot 'Ab wheel rollout', with neither
+-- mapping swapped, missing, inactive, or ambiguous.
+--
 -- FIELD DERIVATION: every loaded value is verbatim from the admitted
 -- artifact except (a) the four predeclared UUIDs above, (b)
 -- content_version = 1 (the deterministic first version under a fresh
@@ -81,6 +97,35 @@
 -- ============================================================
 
 BEGIN;
+
+-- ── Fresh-load gate serialization (concurrency correction) ───────
+-- Two concurrent executions of this package must never BOTH observe
+-- an empty surface and BOTH commit. Before the empty-state read, the
+-- transaction acquires SHARE ROW EXCLUSIVE locks on EVERY table the
+-- gate covers, in ONE deterministic, documented order: ALPHABETICAL
+-- by table name, in a single LOCK statement. SHARE ROW EXCLUSIVE
+-- conflicts with itself and with ROW EXCLUSIVE, so any concurrent
+-- package execution (or any unrelated direct writer) blocks here
+-- until this transaction ends, while ordinary reads stay unblocked.
+-- The same transaction's own loader calls are unaffected (a
+-- transaction does not conflict with its own locks). The locks are
+-- transaction-scoped, so they remain held through every loader call,
+-- every postcondition, and COMMIT. These are REAL table locks - no
+-- advisory-lock-only design - so non-cooperating writers are bound
+-- too. A queued second execution proceeds only after this one
+-- commits, then fails closed at the nonempty one-use precondition.
+LOCK TABLE
+  public.exercise_catalog,
+  public.exercise_catalog_aliases,
+  public.exercise_catalog_content,
+  public.exercise_catalog_content_expected_relationships,
+  public.exercise_catalog_import_runs,
+  public.exercise_catalog_logical,
+  public.exercise_catalog_muscles,
+  public.exercise_catalog_name_claims,
+  public.exercise_catalog_relationships,
+  public.exercise_catalog_run_items
+  IN SHARE ROW EXCLUSIVE MODE;
 
 -- ── Preconditions (run as the invoking operator role, BEFORE the
 --    loader role is assumed; the loader holds no table privileges) ─
@@ -219,6 +264,26 @@ BEGIN
           WHERE e.content_id = 'e21b2c00-0000-4000-a000-000000000101' AND e.relation = 'progression' AND e.to_logical_id = 'e21b2c00-0000-4000-a000-000000000003') THEN
     RAISE EXCEPTION 'exlib2k post: the expected relationship set is not exactly substitution->Dead bug and progression->Ab wheel rollout';
   END IF;
+  IF (SELECT count(*) FROM public.exercise_catalog_name_claims) <> 3
+     OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog_name_claims c
+          WHERE c.normalized_name = 'plank' AND c.claim_source = 'canonical'
+            AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000001')
+     OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog_name_claims c
+          WHERE c.normalized_name = 'front plank' AND c.claim_source = 'alias'
+            AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000001')
+     OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog_name_claims c
+          WHERE c.normalized_name = 'forearm plank' AND c.claim_source = 'alias'
+            AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000001') THEN
+    RAISE EXCEPTION 'exlib2k post: the catalog name claims are not exactly the three required rows (canonical plank plus the two alias claims, all owned by the Plank identity)';
+  END IF;
+  -- Bidirectional claim invariant, via the promoted migration-023
+  -- verifier function (STABLE, read-only; safe from this owner
+  -- postcondition context): zero orphaned claims AND zero unclaimed
+  -- bearers.
+  IF EXISTS (SELECT 1 FROM public.exlib_verify_catalog_claims() v
+             WHERE v.orphaned_claims <> 0 OR v.unclaimed_bearers <> 0) THEN
+    RAISE EXCEPTION 'exlib2k post: the bidirectional name-claim invariant is violated (orphaned claim or unclaimed bearer)';
+  END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_relationships) <> 0
      OR (SELECT count(*) FROM public.exercise_catalog_import_runs) <> 0
      OR (SELECT count(*) FROM public.exercise_catalog_run_items) <> 0
@@ -233,9 +298,11 @@ COMMIT;
 
 -- The transaction above is the entire package. After COMMIT the
 -- database holds exactly: three logical identities; one pending
--- Plank snapshot with its two anatomy rows, two aliases, and two
--- catalog name/alias claims machinery entries as migration 023
--- defines; one PENDING, DRAFT, UNADMITTED Plank content version 1
+-- Plank snapshot with its two anatomy rows, two aliases, and exactly THREE
+-- catalog name claims (one canonical 'plank' plus the two alias
+-- claims), postcondition-verified together with migration 023's
+-- bidirectional claim invariant; one PENDING, DRAFT, UNADMITTED
+-- Plank content version 1
 -- carrying the admitted payload verbatim; and its two-row expected
 -- relationship set. Database review, admission, publication, and
 -- every later act remain separately gated authorities.

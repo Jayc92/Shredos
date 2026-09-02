@@ -11,6 +11,23 @@ through the authorized Joseph/ChatGPT path. No hosted service was
 contacted in this phase. This record APPROVES NOTHING; it awaits
 Codex review.
 
+Correction (2026-09-02, this same pre-review phase, one plain
+forward commit; commit 2d00f57b649f3025470f3095ce832b8fa247f42f is
+preserved unrewritten): three Codex findings are applied. (1) The
+fresh-load gate is LOCK-SERIALIZED - the transaction acquires SHARE
+ROW EXCLUSIVE locks on all ten gate tables (one statement, documented
+alphabetical order) BEFORE the empty-state read, so two concurrent
+executions can never both pass the gate. (2) The three catalog name
+claims are now part of the package's OWN fail-closed postconditions
+(exactly three rows plus migration-023's bidirectional claim
+invariant), and an earlier trailing-comment description that
+miscounted the result as "two catalog name/alias claims machinery
+entries" is corrected - the true result is THREE claim rows: one
+canonical plus two aliases. (3) Intended vs database-proven target
+identity is stated precisely below, with database review, admission,
+and publication of Plank blocked until a fail-closed target-snapshot
+gate exists.
+
 ## 1. Source gate (all exact, after a fresh fetch)
 
 - main = origin/main = 3a1ac3b0bf2706ae9d1d03cc55a443b8bd4a1876,
@@ -120,6 +137,26 @@ pending/evidence-null/import-ineligible — no separately approved and
 eligible source artifact exists, so loading their content is
 forbidden and not performed.
 
+INTENDED vs DATABASE-PROVEN TARGET IDENTITY (semantic precision,
+correction finding 3): the two target logical rows are BARE UUIDs.
+The admitted artifact and the reviewed package ASSIGN the intended
+mapping (e21b2c00-0000-4000-a000-000000000002 = Dead bug;
+e21b2c00-0000-4000-a000-000000000003 = Ab wheel rollout); after the
+load the database stores only the bare UUIDs and carries no
+canonical-name evidence for either target, so NO claim is made that
+hosted database state independently proves those names. Identity-only
+staging is acceptable in THIS milestone only because Plank remains
+pending, draft, unadmitted, and unpublished. Database review,
+admission, and publication of Plank MUST all remain blocked until
+separately reviewed target snapshots exist and a fail-closed gate
+proves that e21b2c00-0000-4000-a000-000000000002 bears the active
+canonical snapshot "Dead bug" and
+e21b2c00-0000-4000-a000-000000000003 bears the active canonical
+snapshot "Ab wheel rollout", with neither mapping swapped, missing,
+inactive, or ambiguous. No target snapshot is created here (no
+authorized source artifact exists), and neither expected relationship
+is weakened or removed.
+
 NO IMPORT RUN OR MEMBERSHIP: the promoted 023/026 contracts bind
 import runs, run items, sealing, and revocation to the DELIVERY
 lifecycle (deliver_catalog_exercises consumes a sealed approved
@@ -142,14 +179,24 @@ derived as above; the fail-closed stop was not triggered.
 
 ## 4. The prepared load package
 
-docs/exlib2k-plank-catalog-load-package.sql — 16,099 bytes, SHA-256
-d53e90c0fa9c55ca7074cf2f3fef47956464861afaa4222e6c9d867d0a17d6e1.
+docs/exlib2k-plank-catalog-load-package.sql — 20,116 bytes, SHA-256
+78cff34a39239c62391f322138e7e4085191fb4f26fc0e87c17c6474915e21a7
+(as corrected; the pre-correction package was 16,099 bytes /
+d53e90c0fa9c55ca7074cf2f3fef47956464861afaa4222e6c9d867d0a17d6e1,
+superseded by this correction commit).
 Resident under docs/, NOT under supabase/migrations/. Labeled
 PREPARED — NOT EXECUTED; names ttybyljytiwntvorugcv as the only
 eventual target; binds the exact migration-027 and admitted-content
 fingerprints (any byte change to either voids it).
 
-Shape: ONE explicit transaction. Owner-role PRECONDITIONS (loader
+Shape: ONE explicit transaction. First, the LOCK-SERIALIZED gate:
+one LOCK statement takes SHARE ROW EXCLUSIVE on all ten gate tables
+in documented alphabetical order - SRE conflicts with itself and
+with writers while leaving ordinary reads unblocked, never blocks
+the transaction's own loader calls, and is held through every loader
+call, every postcondition, and COMMIT; it is a real table-lock
+design, not advisory-only, so non-cooperating writers are bound too.
+Then owner-role PRECONDITIONS (loader
 holds no table privileges): the three loader functions and the
 loader role must exist, and the ENTIRE catalog surface (ten tables
 including claims, runs, and items) must be EMPTY — the fresh-load
@@ -163,6 +210,11 @@ POSTCONDITIONS asserting the exact resulting state (3 identities;
 category and the NULL sources; the exact anatomy and alias pairs;
 exactly one PENDING/DRAFT/UNADMITTED content version 1 with every
 payload byte equal to the artifact; exactly the two expected rows;
+EXACTLY the three catalog name claims - canonical 'plank' plus alias
+'front plank' and alias 'forearm plank', all owned by the Plank
+identity - with migration-023's bidirectional claim invariant clean
+(exlib_verify_catalog_claims() returns 0/0; the function is STABLE
+and read-only, so it is safe from the owner postcondition context);
 zero live relationships, runs, items; zero target snapshots or
 content). ANY mismatch raises and rolls back the WHOLE package.
 
@@ -170,7 +222,11 @@ Rerun behavior, honestly: the promoted loader functions are
 deliberately non-idempotent (primary keys and claims), so the
 package does not pretend to be rerun-safe — a second execution fails
 closed at the empty-surface precondition BEFORE any write. One-use
-by design, documented in the package header.
+by design, documented in the package header. Concurrent execution is
+serialized by the lock gate: two simultaneous executions can never
+both pass the empty-surface read - the loser blocks on the table
+locks until the winner commits, then fails closed at the same
+nonempty precondition. Proven live with a REAL two-session race.
 
 What it never does: no review transition, no admission, no
 publication, no approval/seal/revocation/delivery, no import run or
@@ -198,9 +254,14 @@ directory for. Classification per the three classes:
 - UNRELATED TEXT: all other grep hits are check names or comments
   in the retargeted files themselves; untouched elsewhere.
 
-New verifiers: scripts/verify-exlib2k.ts (static, 13 instruction
-proofs) and scripts/verify-exlib2k-live.sh (disposable-cluster live
-proof; totals in the review export).
+New verifiers: scripts/verify-exlib2k.ts (static, the 13
+instruction proofs plus the three correction findings: lock coverage
+and order, package-internal claim postconditions with the corrected
+three-claim wording, and the intended-vs-proven target-identity
+semantics with the mandatory target-snapshot gate) and
+scripts/verify-exlib2k-live.sh (disposable-cluster live proof,
+including the REAL two-session concurrency race and the
+claim-corruption rollback variant; totals in the review export).
 
 ## 6. Prepared-not-executed posture (explicit)
 
