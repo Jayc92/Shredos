@@ -93,8 +93,13 @@ async function main() {
         // reviewed 026 candidate joins the boundary (PREPARED, NOT
         // APPLIED; executable SQL byte-identical to the promoted
         // proposal); exactly-25 becomes exactly-26 with 026 pinned.
-        return files.length === 26 &&
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed
+        // 027 candidate joins the boundary (PREPARED, NOT APPLIED;
+        // executable SQL byte-identical to the promoted EXLIB-2L
+        // proposal); exactly-26 becomes exactly-27 with 027 pinned.
+        return files.length === 27 &&
           files.includes('026_exlib_plank_seed_reconciliation.sql') &&
+          files.includes('027_exlib_catalog_content_schema.sql') &&
           files.filter((f) => f.startsWith('025')).length === 1 &&
           files.includes('025_exlib_equipment_vocabulary_support.sql') &&
           sha256('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql') === M023_SHA &&
@@ -170,14 +175,20 @@ async function main() {
       // purely by carrying migration 023's delivery semantics
       // verbatim (PREPARED, NOT APPLIED); the audit still names the
       // four that existed at audit time.
+      // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed
+      // 027 candidate is a SEVENTH vocabulary-bearing migration by
+      // carrying the promoted EXLIB-2L catalog vocabulary verbatim
+      // (PREPARED, NOT APPLIED); the audit still names the four that
+      // existed at audit time.
       JSON.stringify(migFiles) === JSON.stringify([
         '003_phase1c_workout_logging.sql',
         '010_phase2r_exercise_tracking_modes.sql',
         '021_ui5b_transactional_ordering.sql',
         '023_exlib_catalog_and_delivery_contract.sql',
         '025_exlib_equipment_vocabulary_support.sql',
-        '026_exlib_plank_seed_reconciliation.sql']) &&
-      migFiles.filter((f) => !f.startsWith('025') && !f.startsWith('026')).every((f) => audit.includes(f)) &&
+        '026_exlib_plank_seed_reconciliation.sql',
+        '027_exlib_catalog_content_schema.sql']) &&
+      migFiles.filter((f) => !f.startsWith('025') && !f.startsWith('026') && !f.startsWith('027')).every((f) => audit.includes(f)) &&
       auditFlat.includes('Migration 024 touches none of the three columns'))
     check('C2: the schema matrix enumerates S1-S15 including both CHECK pairs, the freeze trigger, delivery, rollback, append RPC, grants, and set storage',
       ['| S1 |', '| S2 |', '| S3 |', '| S4 |', '| S5 |', '| S6 |', '| S7 |',

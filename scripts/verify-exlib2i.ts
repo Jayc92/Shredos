@@ -177,13 +177,14 @@ async function main(): Promise<void> {
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)
         return cands.length === 26 && cands.every((c: any) => c.import_eligible === false)
       })())
-    check('C2: no runtime, migration, catalog-loading, API, UI, dependency, or configuration change — zero supabase/ or src/ or package/config paths in the phase range, migrations exactly 26 with no 027, zero deliver_catalog_exercises references in src, no load-payload artifact added, and the record makes no hosted-contact claim',
+    check('C2: no runtime, migration, catalog-loading, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2I tip (73231e9), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src, no load-payload artifact, and the no-hosted-contact claim remain live',
       (() => {
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${TIP_2I}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         if (range.some((p) => /^(src\/|supabase\/|package|next\.config|tsconfig|\.env|public\/)/.test(p))) return false
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        if (files.length !== 26 || files.some((f) => f.startsWith('027'))) return false
+        const files = execSync(`git ls-tree ${TIP_2I} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql'))
+        if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (readdirSync('docs').some((f) => f.includes('load-payload') || f.includes('load-package'))) return false
         return recFlat.includes('no hosted service was contacted in this milestone')

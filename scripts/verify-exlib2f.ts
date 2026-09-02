@@ -113,15 +113,17 @@ async function main(): Promise<void> {
           sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
           sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b'
       })())
-    check('A2: live migration boundary — exactly ONE numbered migration 026 with the exact candidate filename, NO 027, and exactly 26 numbered files forming the contiguous sequence 001-026',
+    check('A2: live migration boundary — exactly ONE numbered migration 026 with the exact candidate filename. RETARGET (EXLIB-2M migration-027 apply-prep): the contiguous sequence now extends to 001-027, where 027 is the reviewed EXLIB-2M apply-prep candidate (PREPARED, NOT APPLIED); exactly one 027, no gap, no duplicate, no 028+',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-        if (files.length !== 26) return false
+        if (files.length !== 27) return false
         if (files.filter((f) => f.startsWith('026')).length !== 1) return false
         if (!files.includes('026_exlib_plank_seed_reconciliation.sql')) return false
-        if (files.some((f) => f.startsWith('027'))) return false
+        if (files.filter((f) => f.startsWith('027')).length !== 1) return false
+        if (!files.includes('027_exlib_catalog_content_schema.sql')) return false
+        if (files.some((f) => f.startsWith('028'))) return false
         const prefixes = files.map((f) => parseInt((f.match(/^(\d{3})_/) ?? [])[1], 10))
-        return JSON.stringify(prefixes) === JSON.stringify(Array.from({ length: 26 }, (_, i) => i + 1))
+        return JSON.stringify(prefixes) === JSON.stringify(Array.from({ length: 27 }, (_, i) => i + 1))
       })())
     check('A3: the reviewed docs proposal is retained byte-identical to its promoted EXLIB-2E fingerprint (32,500 B) — not moved, not deleted, not edited',
       existsSync(PROPOSAL) && readFileSync(PROPOSAL).length === 32500 && sha256(PROPOSAL) === PROPOSAL_SHA)

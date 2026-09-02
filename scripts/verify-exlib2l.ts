@@ -49,6 +49,12 @@ const CONTENT = 'docs/exlib2g-plank-content.jsonl'
 const SOURCE_TIP = '2a0465e8be5ec2e33a41fde8f30d5fcd5a2de738'
 const SOURCE_TREE = '7d86338e99a0f382dc4b90f058262cbf4779a66d'
 const TAG_2J_OBJ = '2da3f3554d3dc94bc992f3809274bae140138755'
+// RETARGET (EXLIB-2M migration-027 apply-prep): this suite proves the
+// promoted, PROPOSAL-ONLY EXLIB-2L milestone at its exact promoted tip.
+// Its "no 027 / proposal only / five-path phase" claims are anchored to
+// that tip (where they were and remain true), because EXLIB-2M later
+// creates supabase/migrations/027 as a prepared-not-applied candidate.
+const PROMOTED_TIP_2L = '8289de5ef2f557fced97b9db88647b776a94b1bc'
 const PROPOSAL_SHA = '9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553'
 const PROPOSAL_BYTES = 78468
 const CONTENT_SHA = 'd82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752'
@@ -106,9 +112,10 @@ async function main(): Promise<void> {
       prop.includes('CORRECTED REVISION C') &&
       propFlat.includes('only Joseph/ChatGPT may ever apply migrations') &&
       designNoWs.includes(PROPOSAL_SHA))
-    check('A3: migrations remain EXACTLY 001-026 — 26 files, no 027, every file byte-identical to the source tip, and 023 at its exact applied REVISION H fingerprint (92,806 B / 0991448c...)',
+    check('A3: RETARGET (EXLIB-2M migration-027 apply-prep) — at the promoted EXLIB-2L tip (8289de5) migrations were EXACTLY 001-026 with no 027 (anchored via git, where the claim was true); every one of those 26 files remains byte-identical to the source tip in the LIVE tree today, and 023 keeps its exact applied REVISION H fingerprint (92,806 B / 0991448c...)',
       (() => {
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
+        const files = execSync(`git ls-tree ${PROMOTED_TIP_2L} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql')).map((f) => f.split('/').pop() as string).sort()
         if (files.length !== 26 || files.some((f) => f.startsWith('027'))) return false
         for (const f of files) if (!frozenVsSource(`supabase/migrations/${f}`)) return false
         return readFileSync('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql').length === 92806 &&
@@ -388,8 +395,13 @@ async function main(): Promise<void> {
           'exercise_catalog_relationships_projection_trigger',
           'exlib_catalog_loader', 'exlib_catalog_reviewer', 'exlib_catalog_admission', 'exlib_catalog_admin']
         if (!created.every((n) => n === 'exlib_freeze_catalog_snapshot' || newNames.includes(n))) return false
-        const allMigs = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-          .map((f) => read(`supabase/migrations/${f}`)).join('\n')
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the "genuinely new
+        // names absent from every committed migration" claim is anchored to
+        // the promoted EXLIB-2L tip, where migrations were exactly 001-026;
+        // EXLIB-2M's prepared 027 deliberately carries these names.
+        const allMigs = execSync(`git ls-tree ${PROMOTED_TIP_2L} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql'))
+          .map((f) => execSync(`git show ${PROMOTED_TIP_2L}:${f}`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 16 })).join('\n')
         const genuinelyNew = ['exercise_catalog_content', 'exercise_catalog_relationships',
           'exlib_content_admission_manifest', 'exlib_freeze_content_version',
           'exlib_protect_relationship_projection', 'load_catalog_identity', 'load_catalog_snapshot',
@@ -442,14 +454,11 @@ async function main(): Promise<void> {
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)
         return cands.length === 26 && cands.every((c: any) => c.import_eligible === false)
       })())
-    check('G3: no runtime, API, UI, dependency, or configuration change — the phase touches ONLY the five declared docs/ and scripts/ paths',
+    check('G3: RETARGET (EXLIB-2M migration-027 apply-prep) — the EXLIB-2L phase touched ONLY the five declared docs/ and scripts/ paths, anchored to the exact promoted range (source tip .. 8289de5) where the claim was and remains true; later phases own their own boundaries',
       (() => {
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${PROMOTED_TIP_2L}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
-        if (range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))) return false
-        return !execSync('git status --porcelain', { encoding: 'utf8' })
-          .split('\n').filter(Boolean)
-          .some((l) => /^(src\/|supabase\/|package|next\.config|tsconfig|\.env|public\/)/.test(l.slice(3)))
+        return range.length === 5 && !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())
     check('G4: the records are honest — the design record approves nothing and awaits Codex re-review; the implementation review record is explicitly NOT a specialist/human/Codex approval, answers BOTH round-2 findings, restates the no-regression matrix, and records the final totals truthfully; the advisors limitation is recorded honestly',
       designFlat.includes('This record APPROVES NOTHING') &&

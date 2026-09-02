@@ -72,9 +72,13 @@ ok "reviewed docs proposal unchanged: $PROPOSAL ($PROPBYTES bytes, sha256 $PROPS
 CANDSHA=$(shasum -a 256 "$CANDIDATE" | awk '{print $1}')
 CANDBYTES=$(wc -c < "$CANDIDATE" | tr -d ' ')
 ok "candidate under test: $CANDIDATE ($CANDBYTES bytes, sha256 $CANDSHA)"
+# RETARGET (EXLIB-2M migration-027 apply-prep): 027 now exists as the
+# reviewed EXLIB-2M apply-prep candidate (PREPARED, NOT APPLIED) and is
+# EXCLUDED from every loop in this suite; this suite's claims stay
+# exactly "migrations 001-026 + the reviewed 026 candidate". No 028+.
 CAND_COUNT=$(ls supabase/migrations/ | grep -c '^026' || true)
-N027=$(ls supabase/migrations/ | grep -c '^027' || true)
-[ "$CAND_COUNT/$N027" = "1/0" ] || { bad "expected exactly one 026 candidate and no 027, found $CAND_COUNT/$N027"; exit 1; }
+N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
+[ "$CAND_COUNT/$N028" = "1/0" ] || { bad "expected exactly one 026 candidate and no 028+, found $CAND_COUNT/$N028"; exit 1; }
 python3 - <<'PYEQ' && ok "exactly one 026 candidate, no 027; its executable SQL is byte-identical to the reviewed docs proposal (only the leading status header differs)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
 def body(p):
     ls = open(p, encoding='utf-8').read().splitlines(keepends=True)
@@ -106,6 +110,10 @@ echo "Apply auth stubs + the exact numbered migrations 001-026 (the candidate ap
 Q postgres "$STUBS" >/dev/null
 APPLIED=0
 for f in supabase/migrations/0*.sql; do
+  # RETARGET (EXLIB-2M migration-027 apply-prep): 027+ excluded - this
+  # suite's claim stays exactly "migrations 001-026"; the 027 candidate
+  # is proven by scripts/verify-exlib2m-live.sh.
+  case "$f" in supabase/migrations/02[7-9]_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/apply-err.log" \
     || { bad "migration failed: $f"; sed -n '1,5p' "$TMP/apply-err.log"; exit 1; }
   APPLIED=$((APPLIED+1))
@@ -616,6 +624,10 @@ for db in eqa eqb; do
   Q "$db" "$EQ_STUBS" >/dev/null
   for f in supabase/migrations/0*.sql; do
     if [ "$db" = "eqa" ]; then case "$f" in supabase/migrations/02[6-9]_*) continue;; esac; fi
+    # RETARGET (EXLIB-2M migration-027 apply-prep): eqb applies exactly
+    # 001-026 (the reviewed 026 from supabase/migrations); the prepared
+    # 027 candidate is excluded from BOTH equivalence databases here.
+    case "$f" in supabase/migrations/02[7-9]_*) continue;; esac
     psql -h "$SOCK" -U postgres -d "$db" -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1 \
       || { bad "equivalence db $db migration failed: $f"; exit 1; }
   done

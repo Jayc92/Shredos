@@ -166,13 +166,15 @@ async function main(): Promise<void> {
         }
         return true
       })())
-    check('C2: no load package, hosted mutation, runtime delivery, migration 027, API, UI, dependency, or configuration change — the phase range touches only docs/ and scripts/verify-* paths, migrations stay exactly 26 with no 027, zero deliver_catalog_exercises references in src, and no load-package artifact exists',
+    check('C2: no load package, hosted mutation, runtime delivery, migration 027, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2J tip (2a0465e), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src and no load-package artifact remain live claims',
       (() => {
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const TIP_2J = '2a0465e8be5ec2e33a41fde8f30d5fcd5a2de738'
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${TIP_2J}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         if (range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))) return false
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        if (files.length !== 26 || files.some((f) => f.startsWith('027'))) return false
+        const files = execSync(`git ls-tree ${TIP_2J} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql'))
+        if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         return !readdirSync('docs').some((f) => f.includes('load-payload') || f.includes('load-package'))
       })())

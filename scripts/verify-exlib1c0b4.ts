@@ -147,13 +147,18 @@ async function main(): Promise<void> {
         // RETARGET (EXLIB-2F migration 026 apply-prep candidate): the
         // reviewed 026 candidate extends the exact numeric sequence to
         // 001-026 (PREPARED, NOT APPLIED); no gap, no duplicate, no 027+.
-        const expected = Array.from({ length: 26 }, (_, i) => i + 1)
-        return files.length === 26 &&
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed 027
+        // candidate extends the exact numeric sequence to 001-027
+        // (PREPARED, NOT APPLIED); no gap, no duplicate, no 028+.
+        const expected = Array.from({ length: 27 }, (_, i) => i + 1)
+        return files.length === 27 &&
           !prefixes.some((n) => Number.isNaN(n)) &&
           JSON.stringify(prefixes) === JSON.stringify(expected) &&
           files.filter((f) => f.startsWith('026')).length === 1 &&
           files[25] === '026_exlib_plank_seed_reconciliation.sql' &&
-          files.filter((f) => f.startsWith('027')).length === 0 &&
+          files.filter((f) => f.startsWith('027')).length === 1 &&
+          files[26] === '027_exlib_catalog_content_schema.sql' &&
+          files.filter((f) => f.startsWith('028')).length === 0 &&
           files[24] === '025_exlib_equipment_vocabulary_support.sql' &&
           sha256(M025_FILE) === M025_SHA
       })())

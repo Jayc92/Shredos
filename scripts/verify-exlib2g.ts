@@ -67,7 +67,11 @@ async function main(): Promise<void> {
         } catch { return false }
         return sha256('supabase/migrations/026_exlib_plank_seed_reconciliation.sql') === '620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc' &&
           sha256('docs/exlib2f-migration-026-application-record.md') === 'dc6e6188f013eb02ad2028339d0515ea180ab1016b119eb15ee523db83358b2a' &&
-          sha256('scripts/verify-exlib2f-application.ts') === '2c603036ef420c1450e349cb381cb422f98ff50be0f022717a17e5ae070ca6e7' &&
+          // RETARGET (EXLIB-2M migration-027 apply-prep): the 2F application
+          // verifier was narrowly retargeted for the prepared 027 (its
+          // migration-inventory boundary extended to exactly-27); the pin
+          // follows those exact retargeted bytes.
+          sha256('scripts/verify-exlib2f-application.ts') === '20d5b2e3cb897c29b624e8156528f1af9f5ab4f51fcda5c5f4774e74573db1dd' &&
           sha256('docs/exlib2e-migration-026-proposal.sql') === 'a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108' &&
           sha256('docs/exlib2d-plank-seed-reconciliation-record.md') === '3ea2aa1d279bfd7a099e2b33fe4dfdba565dbde5c37e780c338673684e9baf7c' &&
           sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
@@ -99,11 +103,13 @@ async function main(): Promise<void> {
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         return sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5'
       })())
-    check('A4: no runtime delivery wiring (zero src references to deliver_catalog_exercises), no migration 027, migrations exactly the applied 26, and the seeding call sites are unchanged',
+    check('A4: no runtime delivery wiring (zero src references to deliver_catalog_exercises), and the seeding call sites are unchanged — RETARGET (EXLIB-2M migration-027 apply-prep): the no-migration-027/exactly-26 inventory is anchored to the promoted EXLIB-2G tip (b9af2a4), where it was true; EXLIB-2M later prepares (never applies) 027',
       (() => {
         if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        if (files.length !== 26 || files.some((f) => f.startsWith('027'))) return false
+        const TIP_2G = 'b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a'
+        const files = execSync(`git ls-tree ${TIP_2G} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql'))
+        if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         const callers = execSync("grep -rln 'seedExercisesIfNeeded' src/ || true", { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         return JSON.stringify(callers) === JSON.stringify([

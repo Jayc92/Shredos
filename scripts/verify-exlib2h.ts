@@ -82,7 +82,7 @@ async function main(): Promise<void> {
         return r.review_status === 'proposed' &&
           !Object.keys(r).some((k) => k.includes('publication'))
       })())
-    check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; zero supabase/ or src/ paths in the phase range; migrations exactly 26 with NO 027',
+    check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; RETARGET (EXLIB-2M migration-027 apply-prep): the migrations-exactly-26-with-NO-027 inventory is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027; zero src delivery references remain live',
       (() => {
         for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
           'docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
@@ -90,8 +90,10 @@ async function main(): Promise<void> {
           const tip = execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim()
           if (now !== tip) return false
         }
-        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'))
-        if (files.length !== 26 || files.some((f) => f.startsWith('027'))) return false
+        const TIP_2H = 'e6a98f2ccc531ca3976e91c53b9f30b09f8ae193'
+        const files = execSync(`git ls-tree ${TIP_2H} supabase/migrations/ --name-only`, { encoding: 'utf8' })
+          .split('\n').filter((f) => f.endsWith('.sql'))
+        if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
         return execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() === ''
       })())
   }
@@ -111,15 +113,15 @@ async function main(): Promise<void> {
           pkFlat.includes('The repository defines NO credential registry') &&
           pkFlat.includes('is NO (see 1-2)')
       })())
-    check('B2: statuses and transitions match the committed contract — pending -> approved | revised | rejected only, pending carries NO evidence, decided carries ALL (reviewer >= 3, reviewed_at, rationale >= 10), mirroring the applied exercise_catalog_review_audit_chk; the packet honestly notes exercise_catalog_content is NOT yet a migration; re-decision requires a NEW version',
+    check('B2: statuses and transitions match the committed contract — pending -> approved | revised | rejected only, pending carries NO evidence, decided carries ALL (reviewer >= 3, reviewed_at, rationale >= 10), mirroring the applied exercise_catalog_review_audit_chk; the packet honestly notes exercise_catalog_content was NOT yet a migration — RETARGET (EXLIB-2M migration-027 apply-prep): that no-migration-defines-the-content-table claim is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027 carrying that table; re-decision requires a NEW version',
       (() => {
         const schema = JSON.parse(read('docs/exlib2c-authoring-schema.json'))
         const st = schema.properties.content_review.properties.status.enum
         if (JSON.stringify(st) !== JSON.stringify(['pending', 'approved', 'revised', 'rejected'])) return false
         const m023 = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
         if (!m023.includes('CONSTRAINT exercise_catalog_review_audit_chk CHECK (')) return false
-        if (execSync("grep -c 'exercise_catalog_content' supabase/migrations/*.sql || true", { encoding: 'utf8' })
-          .split('\n').filter(Boolean).some((l) => !/:0$/.test(l))) return false
+        if (execSync('git grep -c exercise_catalog_content e6a98f2ccc531ca3976e91c53b9f30b09f8ae193 -- supabase/migrations || true', { encoding: 'utf8' })
+          .split('\n').filter(Boolean).length !== 0) return false
         return pkFlat.includes('pending -> approved | revised | rejected') &&
           pkFlat.includes('a pending record carries NO review evidence') &&
           pkFlat.includes('a decided record carries ALL of it') &&

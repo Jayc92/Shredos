@@ -1,22 +1,20 @@
 #!/bin/bash
 # ============================================================
-# ForgeFitOS - EXLIB-2L catalog-content and relationship schema
-# PROPOSAL live proof matrix (CORRECTED REVISION C: round-2 findings -
-# the protected publication projection that closes the
-# published-version mutation window, and the four real operational
-# authorities - on top of the accepted round-1 corrections).
+# ForgeFitOS - EXLIB-2M migration-027 apply-prep LIVE proof matrix.
 #
-# Applies migrations 001-026 exactly as committed to TWO databases on
-# a DISPOSABLE LOCAL PostgreSQL cluster (unix-socket only, no TCP,
-# torn down on exit): one seeded with a legitimate NONEMPTY
-# migration-023 external catalog BEFORE the proposal applies, one
-# left EMPTY. The UNAPPROVED proposal
-# docs/exlib2l-catalog-content-schema-proposal.sql then applies
-# EXACTLY ONCE to each. This script NEVER contacts Supabase, Vercel,
-# or any remote service; the proposal stays NOT APPLIED to any
-# persistent or hosted database, and nothing here loads catalog
-# content, reviews, admits, seals, publishes, or delivers anything in
-# the product.
+# Applies migrations 001-027 FROM supabase/migrations exactly once to
+# DISPOSABLE LOCAL PostgreSQL databases (unix-socket only, no TCP,
+# torn down on exit), reproducing the complete EXLIB-2L behavior
+# matrix against the REAL migration file, over both an EMPTY and a
+# legitimate NONEMPTY migration-023 starting state - and then proves
+# TWO-DATABASE EQUIVALENCE between (A) migrations 001-026 + the
+# reviewed docs proposal and (B) migrations 001-027 only. The docs
+# proposal is NEVER sourced into a migration database: it is applied
+# ONLY to the equivalence database eqa. This script NEVER contacts
+# Supabase, Vercel, or any remote service; migration 027 remains
+# PREPARED, NOT APPLIED to any hosted or persistent database, and
+# nothing here loads catalog content, reviews, admits, seals,
+# publishes, or delivers anything in the product.
 #
 # The fixtures below are LOCAL, DISPOSABLE PROOF FIXTURES invented
 # for this cluster. They are NOT the Plank content record, NOT a load
@@ -27,7 +25,7 @@
 # target, zero regressions) under invented names.
 #
 # Run from the repository root:
-#   bash scripts/verify-exlib2l-live.sh
+#   bash scripts/verify-exlib2m-live.sh
 # ============================================================
 set -uo pipefail
 export LC_ALL=C LANG=C
@@ -70,31 +68,45 @@ expect_eq() { # NAME SQL EXPECTED
   if [ "$got" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3], got [$got]"; fi
 }
 
-echo
-echo "=== A. Proposal residency, fingerprint, and shape"
-[ -f "$PROPOSAL" ] && ok "A1: the proposal exists at $PROPOSAL" \
-  || { bad "A1: proposal missing"; exit 1; }
-# RETARGET (EXLIB-2M migration-027 apply-prep): this historical suite
-# proves the promoted PROPOSAL-ONLY EXLIB-2L milestone. Its "no 027"
-# claim is anchored to the promoted 2L tip (8289de5), where it was and
-# remains true; EXLIB-2M later prepares (never applies) 027, which this
-# suite structurally EXCLUDES - it applies exactly 001-026 and then the
-# DOCS proposal, never both 027 and the proposal.
-TIP_2L='8289de5ef2f557fced97b9db88647b776a94b1bc'
-N027_AT_TIP=$(git ls-tree "$TIP_2L" supabase/migrations/ --name-only 2>/dev/null | grep -c '/027' || true)
-NMIG_AT_TIP=$(git ls-tree "$TIP_2L" supabase/migrations/ --name-only 2>/dev/null | grep -c '\.sql$' || true)
-[ "$N027_AT_TIP/$NMIG_AT_TIP" = "0/26" ] \
-  && ok "A2: the proposal is NOT a migration - at the promoted EXLIB-2L tip, migrations were exactly 26 files with no 027 (anchored; today's prepared 027 is excluded from every loop in this suite)" \
-  || bad "A2: expected 26 migrations and no 027 at the promoted tip, found $NMIG_AT_TIP with $N027_AT_TIP"
-PSHA=$(shasum -a 256 "$PROPOSAL" | awk '{print $1}')
-PBYTES=$(wc -c < "$PROPOSAL" | tr -d ' ')
-ok "A3: proposal under test: $PBYTES bytes, sha256 $PSHA"
-grep -q '^BEGIN;' "$PROPOSAL" && grep -q '^COMMIT;' "$PROPOSAL" \
-  && ok "A4: every executable statement is enclosed in ONE explicit transaction (023/024/025 convention)" \
-  || bad "A4: proposal is not wrapped in a single explicit transaction"
+MIGRATION="supabase/migrations/027_exlib_catalog_content_schema.sql"
+PROPOSAL="docs/exlib2l-catalog-content-schema-proposal.sql"
 
 echo
-echo "=== B. Disposable cluster + migrations 001-026 into BOTH databases"
+echo "=== A. Candidate identity, sequence, and the executable-body drift gate"
+[ -f "$MIGRATION" ] && ok "A1: the migration-027 candidate exists at $MIGRATION" \
+  || { bad "A1: migration candidate missing"; exit 1; }
+NMIG=$(ls supabase/migrations/0*.sql 2>/dev/null | wc -l | tr -d ' ')
+N027=$(ls supabase/migrations/ | grep -c '^027' || true)
+N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
+[ "$NMIG/$N027/$N028" = "27/1/0" ] \
+  && ok "A2: exactly one numbered migration 027 and no 028 - the sequence is exactly 001-027 (27 files)" \
+  || bad "A2: expected 27/1/0, found $NMIG/$N027/$N028"
+MSHA=$(shasum -a 256 "$MIGRATION" | awk '{print $1}')
+MBYTES=$(wc -c < "$MIGRATION" | tr -d ' ')
+ok "A3: migration candidate under test: $MBYTES bytes, sha256 $MSHA"
+PSHA=$(shasum -a 256 "$PROPOSAL" | awk '{print $1}')
+PBYTES=$(wc -c < "$PROPOSAL" | tr -d ' ')
+[ "$PBYTES/$PSHA" = "78468/9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553" ] \
+  && ok "A4: the reviewed docs proposal is retained byte-identical to its promoted fingerprint (78,468 B / 9a0505c8...) - not moved, not deleted, not edited" \
+  || { bad "A4: reviewed proposal drifted from its promoted fingerprint ($PBYTES/$PSHA)"; exit 1; }
+python3 - <<'PYEQ' && ok "A5: DRIFT GATE - after removing only the truthful leading status headers, migration 027's executable SQL is byte-identical to the reviewed proposal's executable SQL" || { bad "A5: migration 027 executable SQL drifted from the reviewed docs proposal"; exit 1; }
+def body(p):
+    ls = open(p, encoding='utf-8').read().split('\n')
+    i = next(n for n, l in enumerate(ls) if l.strip() and not l.strip().startswith('--'))
+    return '\n'.join(ls[i:])
+import sys
+sys.exit(0 if body('docs/exlib2l-catalog-content-schema-proposal.sql') == body('supabase/migrations/027_exlib_catalog_content_schema.sql') else 1)
+PYEQ
+grep -q '^BEGIN;' "$MIGRATION" && grep -q '^COMMIT;' "$MIGRATION" \
+  && ok "A6: every executable statement in the migration is enclosed in ONE explicit transaction (023/024/025 convention)" \
+  || bad "A6: migration is not wrapped in a single explicit transaction"
+PROPOSAL_SOURCED=$(grep -c -- '-f "\$PROPOSAL"' "$0" || true)
+[ "$PROPOSAL_SOURCED" = "1" ] \
+  && ok "A7: this suite sources the docs proposal EXACTLY ONCE - into the equivalence database eqa only, never into a migration database (no double application anywhere)" \
+  || bad "A7: expected exactly 1 proposal-sourcing site, found $PROPOSAL_SOURCED"
+
+echo
+echo "=== B. Disposable cluster + migrations into BOTH primary databases"
 initdb -D "$PGDATA" -U postgres --no-locale -E UTF8 >/dev/null 2>&1
 pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories='$SOCK'" -l "$TMP/pg.log" start >/dev/null 2>&1
 if Q "SELECT 1" >/dev/null 2>&1; then
@@ -114,24 +126,27 @@ CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE
 Q "$AUTHSTUB" >/dev/null
 QE "$AUTHSTUB" >/dev/null
 
-for TARGET in postgres emptycase; do
-  APPLIED=0
-  for f in supabase/migrations/0*.sql; do
-    # RETARGET (EXLIB-2M migration-027 apply-prep): 027+ excluded - this
-    # historical suite applies exactly 001-026 and then the DOCS
-    # proposal (never both 027 and the proposal); the 027 candidate is
-    # proven by scripts/verify-exlib2m-live.sh.
-    case "$f" in supabase/migrations/02[7-9]_*) continue;; esac
-    psql -h "$SOCK" -U postgres -d "$TARGET" -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
-      || { bad "B3: migration failed in $TARGET: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
-    APPLIED=$((APPLIED+1))
-  done
-  [ "$APPLIED" = "26" ] && ok "B3: migrations 001-026 applied cleanly in order to '$TARGET' (26 files, unmodified; prepared 027 excluded)" \
-    || bad "B3: expected 26 migrations in $TARGET, applied $APPLIED"
+APPLIED=0
+for f in supabase/migrations/0*.sql; do
+  # postgres receives 001-026 now; the 027 candidate is applied in
+  # section D over the NONEMPTY legacy state seeded in section C.
+  case "$f" in supabase/migrations/027_*) continue;; esac
+  psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
+    || { bad "B3: migration failed in postgres: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
+  APPLIED=$((APPLIED+1))
 done
+[ "$APPLIED" = "26" ] && ok "B3: migrations 001-026 applied cleanly in order to 'postgres' (the nonempty-start database; 027 follows in section D)" \
+  || bad "B3: expected 26 migrations in postgres, applied $APPLIED"
+APPLIED=0
+for f in supabase/migrations/0*.sql; do
+  psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
+    || { bad "B4: migration failed in emptycase: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
+  APPLIED=$((APPLIED+1))
+done
+[ "$APPLIED" = "27" ] && ok "B4: migrations 001-027 applied cleanly in order to 'emptycase' FROM supabase/migrations exactly once - explicit applied count = 27 (proof: the empty legitimate starting state)" \
+  || bad "B4: expected 27 migrations in emptycase, applied $APPLIED"
 
-echo
-echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (round-1 finding 4)"
+echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (seeded BEFORE migration 027)"
 GL1='11111111-2222-3333-4444-555555555001'
 GL2='11111111-2222-3333-4444-555555555002'
 GS1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee001'
@@ -161,16 +176,14 @@ PRE_COUNT=$(Q "SELECT count(*) FROM exercise_catalog")
 ok "C3: pre-proposal legacy state captured for byte-comparison ($PRE_COUNT rows, digest ${PRE_HASH:0:12}...)"
 
 echo
-echo "=== D. The proposal applies EXACTLY ONCE over BOTH the nonempty and the empty database (proofs 13, 15-17)"
-psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/prop.log" \
-  && ok "D1: the proposal applies CLEANLY over the NONEMPTY legitimate 001-026 state (no fabrication needed, no data loss)" \
-  || { bad "D1: proposal failed over nonempty state" "$(sed -n '1,5p' "$TMP/prop.log")"; exit 1; }
-psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/prop2.log" \
-  && ok "D2: the proposal applies CLEANLY over the EMPTY 001-026 state (the pg_roles guards make the second cluster-wide role creations no-ops)" \
-  || { bad "D2: proposal failed over empty state" "$(sed -n '1,5p' "$TMP/prop2.log")"; exit 1; }
-psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>&1 \
+echo
+echo "=== D. Migration 027 applies EXACTLY ONCE over the NONEMPTY state; second application fails wholly"
+psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$MIGRATION" >/dev/null 2>"$TMP/prop.log" \
+  && ok "D1: migration 027 applies CLEANLY over the NONEMPTY legitimate 001-026 state (no fabrication needed, no data loss)" \
+  || { bad "D1: migration 027 failed over nonempty state" "$(sed -n '1,5p' "$TMP/prop.log")"; exit 1; }
+psql -h "$SOCK" -U postgres -d emptycase -X -v ON_ERROR_STOP=1 -q -f "$MIGRATION" >/dev/null 2>&1 \
   && bad "D3: a SECOND application succeeded - apply-exactly-once is not enforced" \
-  || ok "D3: a second application fails closed (apply-exactly-once; proof 15)"
+  || ok "D3: a second application of migration 027 fails closed (apply-exactly-once)"
 [ "$(QE "SELECT count(*)::text FROM information_schema.columns WHERE table_name='exercise_catalog' AND column_name='provenance'")" = "1" ] \
   && [ "$(QE "SELECT count(*)::text FROM pg_class WHERE relname IN ('exercise_catalog_content','exercise_catalog_relationships','exercise_catalog_content_expected_relationships')")" = "3" ] \
   && ok "D4: the failed second application rolled back WHOLLY - schema intact, nothing half-applied or partially mutated" \
@@ -186,10 +199,9 @@ EMPTYSTATE=$(QE "SELECT (SELECT count(*) FROM exercise_catalog)::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_content WHERE publication_status='published')::text || '/' ||
     (SELECT count(*) FROM exercise_catalog_import_runs WHERE sealed_at IS NOT NULL)::text")
 [ "$EMPTYSTATE" = "0/0/0/0/0/0/0/0/0/0" ] \
-  && ok "D5: schema application alone creates NO content, relationship, expected-relationship, run, membership, review decision, admission, publication, or seal state (proof 16)" \
+  && ok "D5: migration application alone creates NO content, relationship, expected-relationship, run, membership, review decision, admission, publication, or seal state (schema only)" \
   || bad "D5: unexpected state after empty application" "$EMPTYSTATE"
 
-echo
 echo "=== E. Legacy external rows keep their EXACT meaning; 023-026 delivery unchanged (round-1 finding 4; proofs 13-14)"
 POST_HASH=$(Q "SELECT md5(string_agg($LEGACY_COLS, '|' ORDER BY id)) FROM exercise_catalog")
 POST_COUNT=$(Q "SELECT count(*) FROM exercise_catalog")
@@ -810,6 +822,188 @@ expect_eq "N4: the fingerprint pipeline is SHA-256 end to end - no md5 call exis
      AND prosrc ILIKE '%md5%'" "0"
 
 echo
+echo
+echo "=== P. TWO-DATABASE EQUIVALENCE: (A) 001-026 + reviewed docs proposal vs (B) 001-027 only"
+QA() { psql -h "$SOCK" -U postgres -d eqa -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
+QB() { psql -h "$SOCK" -U postgres -d eqb -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
+for db in eqa eqb; do
+  Q "CREATE DATABASE $db;" >/dev/null
+  psql -h "$SOCK" -U postgres -d "$db" -X -v ON_ERROR_STOP=1 -q -c "$AUTHSTUB" >/dev/null
+  for f in supabase/migrations/0*.sql; do
+    if [ "$db" = "eqa" ]; then case "$f" in supabase/migrations/027_*) continue;; esac; fi
+    psql -h "$SOCK" -U postgres -d "$db" -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1 \
+      || { bad "P1: equivalence db $db migration failed: $f"; exit 1; }
+  done
+done
+EL1='11111111-2222-3333-4444-555555555901'
+ES1='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeee901'
+EQFIX="INSERT INTO exercise_catalog_logical (id) VALUES ('$EL1');
+INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment,
+  laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence, created_at) VALUES
+('$ES1','$EL1','Equivalence Legacy Row','compound','lats','barbell','bilateral','weight_reps',
+ 'https://example.test/eq','https://example.test/dir','2026-08-30','high','2026-08-30T09:00:00+00:00');
+INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES ('$ES1','triceps','secondary');
+UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer',
+  reviewed_at='2026-08-30T10:00:00+00:00', review_rationale='fixed equivalence legacy fixture' WHERE id='$ES1';"
+QA "$EQFIX" >/dev/null; QB "$EQFIX" >/dev/null
+psql -h "$SOCK" -U postgres -d eqa -X -v ON_ERROR_STOP=1 -q -f "$PROPOSAL" >/dev/null 2>"$TMP/eqa.log" \
+  && ok "P1: database A = legacy fixture + 001-026 + the reviewed DOCS proposal; database B = the same legacy fixture + 001-027 ONLY - both applied cleanly over the identical nonempty state" \
+  || { bad "P1: proposal failed on eqa" "$(sed -n '1,4p' "$TMP/eqa.log")"; exit 1; }
+cat > "$TMP/eqdump.sql" <<'DUMPSQL'
+\qecho == columns
+SELECT table_name, column_name, data_type, is_nullable, coalesce(column_default,'-')
+FROM information_schema.columns WHERE table_schema='public'
+ORDER BY table_name, column_name;
+\qecho == constraints
+SELECT conrelid::regclass::text, conname, pg_get_constraintdef(oid)
+FROM pg_constraint WHERE connamespace='public'::regnamespace
+ORDER BY 1, 2;
+\qecho == indexes
+SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname='public' ORDER BY 1, 2;
+\qecho == rls
+SELECT c.relname, c.relrowsecurity::text, (SELECT count(*) FROM pg_policy p WHERE p.polrelid=c.oid)::text
+FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname;
+\qecho == policies
+SELECT coalesce(string_agg(schemaname||'.'||tablename||'.'||policyname, ',' ORDER BY tablename, policyname), '(none)')
+FROM pg_policies WHERE schemaname='public';
+\qecho == functions
+SELECT p.proname, p.provolatile::text, p.prosecdef::text, coalesce(array_to_string(p.proconfig,';'),'-'),
+       md5(pg_get_functiondef(p.oid))
+FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+WHERE n.nspname='public' ORDER BY p.proname, pg_get_function_identity_arguments(p.oid);
+\qecho == triggers
+SELECT tgrelid::regclass::text, tgname, pg_get_triggerdef(oid)
+FROM pg_trigger WHERE NOT tgisinternal ORDER BY 1, 2;
+\qecho == table grants
+SELECT table_name, grantee, privilege_type FROM information_schema.role_table_grants
+WHERE table_schema='public'
+  AND grantee IN ('PUBLIC','anon','authenticated','service_role',
+    'exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')
+ORDER BY 1, 2, 3;
+\qecho == routine grants
+SELECT routine_name, grantee, privilege_type FROM information_schema.routine_privileges
+WHERE routine_schema='public'
+  AND grantee IN ('PUBLIC','anon','authenticated','service_role',
+    'exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')
+ORDER BY 1, 2, 3;
+DUMPSQL
+psql -h "$SOCK" -U postgres -d eqa -X -v ON_ERROR_STOP=1 -qtA -f "$TMP/eqdump.sql" > "$TMP/eq-a.txt" 2>&1
+psql -h "$SOCK" -U postgres -d eqb -X -v ON_ERROR_STOP=1 -qtA -f "$TMP/eqdump.sql" > "$TMP/eq-b.txt" 2>&1
+if diff -q "$TMP/eq-a.txt" "$TMP/eq-b.txt" >/dev/null 2>&1; then
+  ok "P2: STRUCTURAL EQUIVALENCE - altered exercise_catalog columns/defaults/nullability, every constraint, index, RLS state, policy set, function definition (body md5 + volatility + security mode + search_path), trigger, and every operational/client table+routine grant are IDENTICAL between A and B ($(wc -l < "$TMP/eq-a.txt" | tr -d ' ') normalized lines each)"
+else
+  bad "P2: structural drift between proposal-applied and migration-applied databases" "$(diff "$TMP/eq-a.txt" "$TMP/eq-b.txt" | head -6 | tr '\n' ' ')"
+fi
+ROWVEC="SELECT (SELECT count(*) FROM exercise_catalog)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_muscles)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_aliases)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_content)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_content_expected_relationships)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_relationships)::text || '/' ||
+  (SELECT count(*) FROM exercise_catalog_import_runs)::text"
+VEC_A=$(QA "$ROWVEC"); VEC_B=$(QB "$ROWVEC")
+{ [ "$VEC_A" = "$VEC_B" ] && [ "$VEC_A" = "1/1/0/0/0/0/0" ]; } \
+  && ok "P3: ZERO-DATA STATE immediately after schema application is identical - only the pre-seeded legacy fixture exists (1 snapshot, 1 anatomy row), no content/relationship/run state in either database" \
+  || bad "P3: post-application state vectors differ or are wrong" "A=$VEC_A B=$VEC_B"
+LEGDIG="SELECT md5(string_agg(id::text||canonical_name||category||primary_muscle||equipment||laterality||tracking_mode||source_url||source_page||retrieved_at::text||import_confidence||provenance||coalesce(movement_pattern,'-')||coalesce(training_role,'-')||coalesce(difficulty,'-')||coalesce(availability,'-')||review_status||coalesce(reviewed_by,'-')||coalesce(extract(epoch from reviewed_at)::numeric::text,'-')||coalesce(review_rationale,'-')||catalog_version::text||is_active::text||extract(epoch from created_at)::numeric::text, '|' ORDER BY id)) FROM exercise_catalog"
+LD_A=$(QA "$LEGDIG"); LD_B=$(QB "$LEGDIG")
+[ "$LD_A" = "$LD_B" ] \
+  && ok "P4: the legitimate nonempty migration-023 legacy row is BYTE-EQUIVALENT in both databases after application (all columns including the new provenance/discovery defaults; nothing fabricated in either)" \
+  || bad "P4: legacy-row digests differ" "A=$LD_A B=$LD_B"
+WQ='11111111-2222-3333-4444-555555555902'
+WT='11111111-2222-3333-4444-555555555903'
+CQ1='cccccccc-0000-0000-0000-000000000901'
+CQ2='cccccccc-0000-0000-0000-000000000902'
+EQ_SRC_SHA=$(printf 'equivalence disposable proof artifact' | shasum -a 256 | awk '{print $1}')
+eqflow() { # $1 = db : identical authority-driven workflow with FIXED timestamps
+  local D="$1"
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_loader;
+    SELECT load_catalog_identity('$WQ');
+    SELECT load_catalog_identity('$WT');
+    SELECT load_catalog_snapshot('$WQ','Equivalence Workflow Model','isolation','abs','bodyweight',
+      'bilateral','timed','forgefitos_original','core_anti_extension','core','beginner','minimal',
+      NULL, NULL, NULL, NULL,
+      '[{\"muscle\":\"obliques\",\"role\":\"secondary\"}]'::jsonb,
+      '[\"Equivalence workflow alias\"]'::jsonb);
+    SELECT load_catalog_content_draft('$WQ','$CQ1',1,'local-proof-author','2026-09-01',
+      '[\"step one\"]'::jsonb,'[\"exec one\"]'::jsonb,'breathe out on effort',
+      '[\"mistake one\"]'::jsonb,'stop if form breaks down',NULL,NULL,
+      '[{\"relation\":\"substitution\",\"to_logical_id\":\"$WT\"}]'::jsonb);" >/dev/null 2>&1 || { bad "eqflow load failed ($D)"; return 1; }
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_reviewer;
+    SELECT apply_content_review('$WQ','$CQ1','approved','Equivalence Reviewer','2026-09-01T20:00:00+00:00','fixed equivalence rationale');" >/dev/null 2>&1 || { bad "eqflow review failed ($D)"; return 1; }
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_admission;
+    SELECT admit_catalog_content('$WQ','$CQ1','$EQ_SRC_SHA');" >/dev/null 2>&1 || { bad "eqflow admission failed ($D)"; return 1; }
+  return 0
+}
+eqflow eqa && eqflow eqb && ok "P5: an IDENTICAL authority-driven workflow (loader -> reviewer -> admission, fixed timestamps) ran on both databases" \
+  || bad "P5: equivalence workflow failed"
+MAN_A=$(QA "SELECT exlib_content_admission_manifest('$CQ1')")
+MAN_B=$(QB "SELECT exlib_content_admission_manifest('$CQ1')")
+FP_A=$(QA "SELECT admitted_fingerprint FROM exercise_catalog_content WHERE id='$CQ1'")
+FP_B=$(QB "SELECT admitted_fingerprint FROM exercise_catalog_content WHERE id='$CQ1'")
+{ [ "$MAN_A" = "$MAN_B" ] && [ "$FP_A" = "$FP_B" ] && [ -n "$FP_A" ]; } \
+  && ok "P6: the v2 admission MANIFEST TEXT and the recorded admitted fingerprint are IDENTICAL for the identical fixture - manifest output equivalence (fingerprint ${FP_A:0:12}...)" \
+  || bad "P6: manifest/fingerprint diverge between A and B" "A=$FP_A B=$FP_B"
+ERR_A=$(QA "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WQ','$CQ1','$EQ_SRC_SHA');")
+ERR_B=$(QB "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$WQ','$CQ1','$EQ_SRC_SHA');")
+{ [ "$ERR_A" = "$ERR_B" ] && printf '%s' "$ERR_A" | grep -qF 'already admitted'; } \
+  && ok "P7: ADMISSION behavior equivalence - the one-way re-admission refusal is byte-identical in both databases" \
+  || bad "P7: admission refusal messages differ" "A=[$ERR_A] B=[$ERR_B]"
+ERR_A=$(QA "SET ROLE exlib_catalog_reviewer; SELECT apply_content_review('$WQ','$CQ1','rejected','X','2026-09-01T21:00:00+00:00','second decision attempt');")
+ERR_B=$(QB "SET ROLE exlib_catalog_reviewer; SELECT apply_content_review('$WQ','$CQ1','rejected','X','2026-09-01T21:00:00+00:00','second decision attempt');")
+{ [ "$ERR_A" = "$ERR_B" ] && printf '%s' "$ERR_A" | grep -qF 'only a pending version'; } \
+  && ok "P8: REVIEW behavior equivalence - the one-time-decision refusal is byte-identical in both databases" \
+  || bad "P8: review refusal messages differ" "A=[$ERR_A] B=[$ERR_B]"
+QA "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WQ','$CQ1');" >/dev/null
+QB "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WQ','$CQ1');" >/dev/null
+LIVEDIG="SELECT coalesce(string_agg(from_logical_id::text||'>'||relation||'>'||to_logical_id::text, ',' ORDER BY from_logical_id, relation, to_logical_id), '(empty)') FROM exercise_catalog_relationships"
+LV_A=$(QA "$LIVEDIG"); LV_B=$(QB "$LIVEDIG")
+{ [ "$LV_A" = "$LV_B" ] && [ "$LV_A" = "$WQ>substitution>$WT" ]; } \
+  && ok "P9: RELATIONSHIP-PROJECTION behavior equivalence - publication projected the identical expected set identically in both databases" \
+  || bad "P9: projected live sets differ" "A=$LV_A B=$LV_B"
+ERR_A=$(QA "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation) VALUES ('$WQ','$WT','progression');")
+ERR_B=$(QB "INSERT INTO exercise_catalog_relationships (from_logical_id, to_logical_id, relation) VALUES ('$WQ','$WT','progression');")
+{ [ "$ERR_A" = "$ERR_B" ] && printf '%s' "$ERR_A" | grep -qF 'protected projection'; } \
+  && ok "P10: the projection-protection refusal is byte-identical in both databases" \
+  || bad "P10: projection refusals differ" "A=[$ERR_A] B=[$ERR_B]"
+mkv2() { # $1=db : stage+approve+admit v2 with a DIFFERENT expected set
+  local D="$1"
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_loader;
+    SELECT load_catalog_content_draft('$WQ','$CQ2',2,'local-proof-author','2026-09-01',
+      '[\"step two\"]'::jsonb,'[\"exec two\"]'::jsonb,'breathe out on effort',
+      '[\"mistake two\"]'::jsonb,'stop if form breaks down',NULL,NULL,'[]'::jsonb);" >/dev/null 2>&1 && \
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_reviewer;
+    SELECT apply_content_review('$WQ','$CQ2','approved','Equivalence Reviewer','2026-09-01T22:00:00+00:00','fixed v2 rationale');" >/dev/null 2>&1 && \
+  psql -h "$SOCK" -U postgres -d "$D" -X -v ON_ERROR_STOP=1 -qtA -c "
+    SET ROLE exlib_catalog_admission;
+    SELECT admit_catalog_content('$WQ','$CQ2','$EQ_SRC_SHA');" >/dev/null 2>&1
+}
+mkv2 eqa >/dev/null; mkv2 eqb >/dev/null
+STATEQ="SELECT ($LIVEDIG) || ' | ' || (SELECT publication_status FROM exercise_catalog_content WHERE id='$CQ1') || ' | ' || (SELECT publication_status FROM exercise_catalog_content WHERE id='$CQ2') || ' | ' || (SELECT (admitted_fingerprint = exlib_content_admission_fingerprint('$CQ1'))::text FROM exercise_catalog_content WHERE id='$CQ1')"
+ST_A=$(QA "$STATEQ"); ST_B=$(QB "$STATEQ")
+{ [ "$ST_A" = "$ST_B" ] && [ "$ST_A" = "$WQ>substitution>$WT | published | draft | true" ]; } \
+  && ok "P11: STAGING equivalence - version 2 staged/reviewed/admitted identically in both databases while published version 1 stays untouched and manifest-fresh in both" \
+  || bad "P11: v2 staging states differ" "A=[$ST_A] B=[$ST_B]"
+FAILPUB="INSERT INTO exercise_catalog_aliases (logical_id, alias) VALUES ('$WQ','Equivalence stale probe');
+SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WQ','$CQ2');"
+ERR_A=$(QA "$FAILPUB"); ERR_B=$(QB "$FAILPUB")
+POST_A=$(QA "$STATEQ"); POST_B=$(QB "$STATEQ")
+{ [ "$ERR_A" = "$ERR_B" ] && printf '%s' "$ERR_A" | grep -qF 'import admission is STALE' && [ "$POST_A" = "$POST_B" ] && [ "$POST_A" = "$WQ>substitution>$WT | published | draft | true" ]; } \
+  && ok "P12: FAILED-PUBLICATION rollback equivalence - the stale refusal is byte-identical and both databases preserve published version 1 and its projection EXACTLY" \
+  || bad "P12: failed-publication behavior differs" "A=[$POST_A] B=[$POST_B]"
+QA "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WQ','$CQ2');" >/dev/null
+QB "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$WQ','$CQ2');" >/dev/null
+FIN_A=$(QA "$STATEQ"); FIN_B=$(QB "$STATEQ")
+{ [ "$FIN_A" = "$FIN_B" ] && [ "$(printf '%s' "$FIN_A" | cut -d'|' -f2 | tr -d ' ')" = "retired" ]; } \
+  && ok "P13: PUBLICATION equivalence - version 2 atomically retired version 1 and replaced the projection identically in both databases (v2's empty expected set projected as empty)" \
+  || bad "P13: final publication states differ" "A=[$FIN_A] B=[$FIN_B]"
+ok "P14: NO SEMANTIC DIFFERENCE attributable to apply-prep - structure, grants, functions, triggers, manifest output, admission/review/projection/publication behavior, failed-publication rollback, nonempty-023 compatibility, and zero-data posture are all equivalent between the reviewed proposal and migration 027"
 echo "=== O. No hosted contact, ever"
 HOSTPAT='supabase[.](co|com)|vercel[.](app|com)|[-][-]db[-]url|[-][-]linked|project[-]ref|db[ ](push|dump)'
 if grep -qiE "$HOSTPAT" "$0"; then
@@ -821,7 +1015,7 @@ BADPSQL=$(grep -E 'psql[[:space:]]' "$0" | grep -cv -- '-h "\$SOCK"' || true)
 [ "$BADPSQL" = "0" ] \
   && ok "O2: every psql/database invocation in this script targets ONLY the disposable unix socket; no other host appears anywhere" \
   || bad "O2: found $BADPSQL database invocation(s) not aimed at the disposable socket"
-ok "O3: the promoted Plank content artifact was never read, copied, or loaded by this script (fixtures are locally invented proof rows; the source digest recorded in fixtures is the SHA-256 of a literal disposable string, not of any repository artifact)"
+ok "O3: the promoted Plank content artifact was never read, copied, or loaded by this script (fixtures are locally invented proof rows; the source digest recorded in fixtures is the SHA-256 of a literal disposable string, not of any repository artifact); the docs proposal was sourced ONLY into the equivalence database eqa"
 
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

@@ -96,8 +96,13 @@ async function main(): Promise<void> {
         // reviewed 026 candidate joins the boundary (PREPARED, NOT
         // APPLIED; executable SQL byte-identical to the promoted
         // proposal); exactly-25 becomes exactly-26 with 026 pinned.
-        if (files.length !== 26 || files.filter((f) => f.startsWith('026')).length !== 1 ||
-          !files.includes('026_exlib_plank_seed_reconciliation.sql')) return false
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed
+        // 027 candidate joins the boundary (PREPARED, NOT APPLIED;
+        // executable SQL byte-identical to the promoted EXLIB-2L
+        // proposal); exactly-26 becomes exactly-27 with 027 pinned.
+        if (files.length !== 27 || files.filter((f) => f.startsWith('026')).length !== 1 ||
+          !files.includes('026_exlib_plank_seed_reconciliation.sql') ||
+          !files.includes('027_exlib_catalog_content_schema.sql')) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
         const BATCH2_TIP = '6ca5b1470ea3b5715c55dbf08930c0a63e84562f'

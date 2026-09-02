@@ -140,7 +140,12 @@ async function main(): Promise<void> {
         const seedTip = execSync(`git show ${APPLY_PREP_TIP}:src/lib/supabase/seed-exercises.ts`, { encoding: 'buffer' as any }) as unknown as Buffer
         if (!seedNow.equals(seedTip)) return false
         const files = execSync('ls supabase/migrations', { encoding: 'utf8' }).split('\n').filter((f) => f.endsWith('.sql'))
-        if (files.length !== 26 || files.filter((f) => f.startsWith('026')).length !== 1) return false
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed
+        // 027 candidate joins the boundary (PREPARED, NOT APPLIED;
+        // executable SQL byte-identical to the promoted EXLIB-2L
+        // proposal); exactly-26 becomes exactly-27 with 027 pinned.
+        if (files.length !== 27 || files.filter((f) => f.startsWith('026')).length !== 1 ||
+          !files.includes('027_exlib_catalog_content_schema.sql')) return false
         const led = parseJsonl('docs/exlib1b1-review-ledger.jsonl')
         if (led.length !== 48 || !led.every((r: any) => r.status === 'pending' && r.reviewer === null)) return false
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)

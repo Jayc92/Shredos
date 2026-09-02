@@ -137,9 +137,14 @@ async function main(): Promise<void> {
         // reviewed 026 candidate joins the boundary (PREPARED, NOT
         // APPLIED; executable SQL byte-identical to the promoted
         // proposal); exactly-25 becomes exactly-26 with 026 pinned.
-        return files.length === 26 &&
+        // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed
+        // 027 candidate joins the boundary (PREPARED, NOT APPLIED;
+        // executable SQL byte-identical to the promoted EXLIB-2L
+        // proposal); exactly-26 becomes exactly-27 with 027 pinned.
+        return files.length === 27 &&
           files.filter((f) => f.startsWith('026')).length === 1 &&
           files[25] === '026_exlib_plank_seed_reconciliation.sql' &&
+          files[26] === '027_exlib_catalog_content_schema.sql' &&
           files[24] === '025_exlib_equipment_vocabulary_support.sql' &&
           sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
           src === ''
