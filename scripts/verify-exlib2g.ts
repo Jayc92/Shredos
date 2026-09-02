@@ -153,14 +153,18 @@ async function main(): Promise<void> {
           p.training_role === invPlank.training_role && p.difficulty === invPlank.difficulty &&
           p.availability === invPlank.availability && invPlank.exercise_type_derived === 'mobility'
       })())
-    check('B3: review state fail-closed — content_review pending with reviewer/reviewed_at/rationale all null, review_status proposed, import_eligible the literal false, deferred false with null reason, forgefitos_original provenance with NO source fields, and NO publication key anywhere',
-      p.content_review?.status === 'pending' && p.content_review?.reviewer === null &&
-      p.content_review?.reviewed_at === null && p.content_review?.rationale === null &&
-      p.review_status === 'proposed' && p.import_eligible === false &&
-      p.deferred === false && p.deferred_reason === null &&
-      p.provenance === 'forgefitos_original' &&
-      !('source_url' in p) && !('source_page' in p) && !('retrieved_at' in p) &&
-      !Object.keys(p).some((k) => k.includes('publication')))
+    check('B3: REVISED (RETARGET (EXLIB-2I human review decision)) — the AS-AUTHORED review state is anchored to the promoted EXLIB-2G tip (b9af2a4), where the record was pending with null evidence; the LIVE record still holds every standing lock (review_status proposed, import_eligible false, no source fields, no publication key), and the live decided state is owned by scripts/verify-exlib2i.ts',
+      (() => {
+        const p2g = JSON.parse(execSync('git show b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a:docs/exlib2g-plank-content.jsonl', { encoding: 'utf8' })
+          .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        if (!(p2g.content_review.status === 'pending' && p2g.content_review.reviewer === null &&
+          p2g.content_review.reviewed_at === null && p2g.content_review.rationale === null)) return false
+        return p.review_status === 'proposed' && p.import_eligible === false &&
+          p.deferred === false && p.deferred_reason === null &&
+          p.provenance === 'forgefitos_original' &&
+          !('source_url' in p) && !('source_page' in p) && !('retrieved_at' in p) &&
+          !Object.keys(p).some((k) => k.includes('publication'))
+      })())
     check('B4: schema, R-rule, and style conformance — exact required-field set, step/length bounds, normalized-unique non-colliding aliases, R3-resolvable relationship targets that avoid deferred identities, no self-reference, no medical/attribution language, stop language present, the breath rule, timed hold/duration language with no rep or per-side phrasing, no sentence copied from the promoted corpus, ASCII-only',
       (() => {
         const schema = JSON.parse(read('docs/exlib2c-authoring-schema.json'))
@@ -258,7 +262,10 @@ async function main(): Promise<void> {
         if (!recFlat.includes('only then may delivery be disabled and bodyweight legacy seeding re-enabled')) return false
         if (!recFlat.includes('revoke FIRST - initialization then fails closed for new users until steps (1)-(2) complete')) return false
         if (!recFlat.includes('NO instance bare-seeds during the mixed window')) return false
-        const buf = readFileSync(CONTENT)
+        // RETARGET (EXLIB-2I human review decision): the accepted content
+        // bytes are anchored to the promoted EXLIB-2G tip; the live record
+        // later gained ONLY the human review decision (verify-exlib2i.ts).
+        const buf = execSync('git show b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a:docs/exlib2g-plank-content.jsonl', { encoding: 'buffer' as any }) as unknown as Buffer
         if (buf.length !== 2729) return false
         return createHash('sha256').update(buf).digest('hex') === 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a'
       })())
@@ -318,7 +325,9 @@ async function main(): Promise<void> {
         if (!recFlat.includes('any later delivery decision requires a NEW run')) return false
         if (!recFlat.includes('means only the predicate state revoked_at IS NULL, never a transition')) return false
         // 9: accepted content byte-identical
-        const buf = readFileSync(CONTENT)
+        // RETARGET (EXLIB-2I human review decision): anchored to the
+        // promoted EXLIB-2G tip (see C3's note).
+        const buf = execSync('git show b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a:docs/exlib2g-plank-content.jsonl', { encoding: 'buffer' as any }) as unknown as Buffer
         if (buf.length !== 2729 ||
           createHash('sha256').update(buf).digest('hex') !== 'a8cb6a5ed54bfa20f296d0624ccd29b20936f1f5b1c48ae201c4c44c2914a30a') return false
         // 10: previously corrected post-S7 + rollback rules intact

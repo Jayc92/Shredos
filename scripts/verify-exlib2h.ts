@@ -58,17 +58,22 @@ async function main(): Promise<void> {
           execSync(`git merge-base --is-ancestor ${SOURCE_TIP} HEAD`, { stdio: 'pipe' })
         } catch { return false }
         return sha256('docs/exlib2g-plank-content-activation-design.md') === '139a097d7836bc1fee4a09a9014c03534e95d9a5c34438f97426df4cf6dafe1e' &&
-          sha256('scripts/verify-exlib2g.ts') === 'acb8b80cb3e8faa984d109f3ea0e18b5cd07abd9f2d1e2c961f0dfc4e02f3719' &&
+          // RETARGET (EXLIB-2I human review decision): the 2G verifier
+          // legitimately gained labeled EXLIB-2I retargets, so its frozen
+          // claim anchors to the promoted EXLIB-2H tip's blob.
+          createHash('sha256').update(execSync(`git show ${SOURCE_TIP}:scripts/verify-exlib2g.ts`, { encoding: 'buffer' as any }) as unknown as Buffer).digest('hex') === 'acb8b80cb3e8faa984d109f3ea0e18b5cd07abd9f2d1e2c961f0dfc4e02f3719' &&
           sha256('supabase/migrations/026_exlib_plank_seed_reconciliation.sql') === '620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc' &&
           sha256('docs/exlib2f-migration-026-application-record.md') === 'dc6e6188f013eb02ad2028339d0515ea180ab1016b119eb15ee523db83358b2a'
       })())
-    check('A2: the Plank content record is byte-identical (2,729 B) and its review state is untouched — pending with null reviewer/reviewed_at/rationale, review_status proposed, import_eligible false, no publication key',
+    check('A2: REVISED (RETARGET (EXLIB-2I human review decision)) — the AS-PREPARED review subject is anchored to the promoted EXLIB-2H tip (e6a98f2): there the record was byte-identical (2,729 B) and pending with null evidence; the LIVE record still holds review_status proposed, import_eligible false, and no publication key, and the live decided state is owned by scripts/verify-exlib2i.ts',
       (() => {
-        if (readFileSync(CONTENT).length !== 2729 || sha256(CONTENT) !== CONTENT_SHA) return false
+        const buf = execSync(`git show ${'e6a98f2ccc531ca3976e91c53b9f30b09f8ae193'}:docs/exlib2g-plank-content.jsonl`, { encoding: 'buffer' as any }) as unknown as Buffer
+        if (buf.length !== 2729 || createHash('sha256').update(buf).digest('hex') !== CONTENT_SHA) return false
+        const rTip = JSON.parse(buf.toString('utf8').split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        if (!(rTip.content_review.status === 'pending' && rTip.content_review.reviewer === null &&
+          rTip.content_review.reviewed_at === null && rTip.content_review.rationale === null)) return false
         const r = parseJsonl(CONTENT)[0]
-        return r.content_review.status === 'pending' && r.content_review.reviewer === null &&
-          r.content_review.reviewed_at === null && r.content_review.rationale === null &&
-          r.review_status === 'proposed' && r.import_eligible === false &&
+        return r.review_status === 'proposed' && r.import_eligible === false &&
           !Object.keys(r).some((k) => k.includes('publication'))
       })())
     check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; zero supabase/ or src/ paths in the phase range; migrations exactly 26 with NO 027',
@@ -168,9 +173,12 @@ async function main(): Promise<void> {
         if (!pkFlat.includes('Only an authorized human reviewer may fill the decision, identity, role/credential, timestamp, evidence, and rationale fields')) return false
         if (!pkFlat.includes('loading remains blocked until an authorized review decision is recorded AND that application is itself separately reviewed')) return false
         if (!pkFlat.includes('even a filled form changes nothing mechanically')) return false
-        // the content record itself still carries no decision (A2 pins bytes)
-        const r = parseJsonl(CONTENT)[0]
-        return r.content_review.status === 'pending'
+        // RETARGET (EXLIB-2I human review decision): at the promoted
+        // EXLIB-2H tip the record carried no decision (anchored); the
+        // live decided state is owned by scripts/verify-exlib2i.ts.
+        const rTip = JSON.parse(execSync('git show e6a98f2ccc531ca3976e91c53b9f30b09f8ae193:docs/exlib2g-plank-content.jsonl', { encoding: 'utf8' })
+          .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))[0])
+        return rTip.content_review.status === 'pending'
       })())
     check('G1: lifecycle-safe phase boundary — exactly the three new artifacts (packet, unfilled form, this verifier); strict porcelain while uncommitted, adder-anchored single-commit range once committed; ASCII-only new artifacts; no hosted contact (all proofs are local file and git reads)',
       (() => {
