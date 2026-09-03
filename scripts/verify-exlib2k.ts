@@ -1,6 +1,15 @@
 // EXLIB-2K verifier — Plank catalog-load preparation (LOCAL-ONLY;
 // the package is PREPARED, NOT EXECUTED; hosted execution remains a
 // later explicit Joseph/ChatGPT-path act).
+// RETARGET (EXLIB-2K hosted-load application record): during the
+// load-preparation phases the package was PREPARED, NOT EXECUTED —
+// that posture is anchored to the promoted correction tip 2d80603
+// (whose tree provably contains no application record) and was later
+// superseded by the authorized hosted execution (ChatGPT; never
+// Claude) evidenced in docs/exlib2k-hosted-load-application-record.md
+// and owned by scripts/verify-exlib2k-application.ts. Every
+// byte-frozen prepared-not-executed statement pinned below remains
+// true AS WRITTEN of its own phase.
 //
 // Proves the instruction's thirteen static requirements: exact
 // source refs, tags, and fingerprints; migration 027 applied and
@@ -226,7 +235,12 @@ async function main(): Promise<void> {
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())
-    check('D2: explicit prepared-not-executed posture — the package and the record both state it, the one-use behavior is documented honestly (non-idempotent loaders; empty-surface precondition), and the eventual hosted execution stays a separate Joseph/ChatGPT-path act (proof 12)',
+    check('D2: explicit prepared-not-executed posture — the package and the record both state it, the one-use behavior is documented honestly (non-idempotent loaders; empty-surface precondition), and the eventual hosted execution stays a separate Joseph/ChatGPT-path act — RETARGET (EXLIB-2K hosted-load application record): this POSTURE is anchored to the promoted correction tip 2d80603, whose tree provably contains no application record; the package header, both records, and the tag annotation are byte-frozen history true as written of their phases, and the later authorized hosted execution is owned by verify-exlib2k-application.ts (proof 12)',
+      (() => {
+        const tipDocs = execSync('git ls-tree 2d80603bfcf6568da8ab79457e5745a77b7fafd6 docs/ --name-only', { encoding: 'utf8' })
+        if (tipDocs.includes('exlib2k-hosted-load-application-record')) return false
+        return true
+      })() &&
       pkgProse.includes('ONE-USE package by design') &&
       pkgProse.includes('a second execution fails closed at the preconditions before any write') &&
       pkgProse.includes('Claude never executes it against hosted') &&
