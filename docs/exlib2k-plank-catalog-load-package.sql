@@ -91,6 +91,43 @@
 -- claims), so a second execution fails closed at the preconditions
 -- before any write. This is a ONE-USE package by design.
 --
+-- HOSTED EXECUTION HISTORY (evidence, preserved): ONE hosted
+-- execution of the promoted revision (20,116 bytes, SHA-256
+-- 78cff34a39239c62391f322138e7e4085191fb4f26fc0e87c17c6474915e21a7,
+-- tag exlib2k-plank-catalog-load-prep-reviewed-not-executed) was
+-- attempted by ChatGPT against ShredOS ttybyljytiwntvorugcv on
+-- 2026-09-02 and FAILED SAFELY before loading any data:
+--   ERROR 42501: permission denied to set role "exlib_catalog_loader"
+-- The failure occurred at SET ROLE, the transaction rolled back, and
+-- ChatGPT's immediate rollback proof confirmed all ten catalog tables
+-- remained exactly zero rows - no partial state and no lifecycle
+-- effect. That promoted revision is preserved byte-exact at the tag;
+-- THIS revision supersedes it for any future hosted execution and
+-- requires its own review.
+--
+-- HOSTED AUTHORITY POSTURE (the cause, and this revision's design):
+-- on hosted, current_user/session_user = postgres; postgres is NOT a
+-- superuser; and migration 027's CREATE ROLE gave postgres the
+-- implicit creator membership in exlib_catalog_loader with ADMIN
+-- TRUE, INHERIT FALSE, SET FALSE. SET ROLE requires a membership
+-- carrying the SET option, so the hosted refusal was correct
+-- PostgreSQL behavior, not a defect in the role model. Because
+-- postgres holds ADMIN OPTION on the loader role, this revision uses
+-- a TRANSACTION-CONTAINED elevation: inside the single transaction it
+-- (1) proves the EXACT baseline posture before any write or authority
+-- change, (2) grants itself the loader membership WITH SET TRUE,
+-- INHERIT FALSE (SET only; postgres never inherits loader
+-- privileges), (3) performs the load under SET ROLE exactly as
+-- reviewed - the loader authority alone executes the three loader
+-- operations, (4) revokes exactly the temporary grant it created
+-- (REVOKE ... GRANTED BY postgres), and (5) postcondition-verifies
+-- before COMMIT that the baseline membership is restored EXACTLY and
+-- that no client, service, or PUBLIC grant exists on the loader
+-- functions. Role membership changes are transactional, so failure at
+-- ANY point (before, during, or after the load) rolls back both the
+-- data and the temporary authority change. No standing privilege is
+-- widened by success or failure.
+--
 -- ATOMICITY: ONE explicit transaction encloses every statement;
 -- any precondition failure, loader refusal, constraint violation, or
 -- postcondition mismatch rolls back the WHOLE package.
@@ -141,6 +178,31 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'exlib_catalog_loader') THEN
     RAISE EXCEPTION 'exlib2k load: loader role missing';
   END IF;
+  -- Hosted authority posture, recognized BEFORE any write or
+  -- authority change: the invoker must be the non-superuser hosted
+  -- operator role postgres, and the loader role must carry EXACTLY
+  -- one membership - postgres with ADMIN TRUE, INHERIT FALSE,
+  -- SET FALSE (the implicit migration-027 creator grant). Any other
+  -- posture (superuser invoker, widened SET, extra members) refuses
+  -- fail-closed, because only this exact baseline makes the
+  -- temporary elevation below provably restoration-exact.
+  IF current_user <> 'postgres' THEN
+    RAISE EXCEPTION 'exlib2k load: the invoker must be the hosted operator role postgres (got %)', current_user;
+  END IF;
+  IF (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
+    RAISE EXCEPTION 'exlib2k load: the invoker is a superuser; this package is bound to the hosted non-superuser postgres posture';
+  END IF;
+  IF (SELECT count(*) FROM pg_catalog.pg_auth_members am
+        JOIN pg_roles r ON r.oid = am.roleid
+       WHERE r.rolname = 'exlib_catalog_loader') <> 1
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_auth_members am
+         JOIN pg_roles r ON r.oid = am.roleid
+         JOIN pg_roles m ON m.oid = am.member
+        WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND am.admin_option AND NOT am.inherit_option AND NOT am.set_option) THEN
+    RAISE EXCEPTION 'exlib2k load: the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE); refusing before any write or authority change';
+  END IF;
   SELECT (SELECT count(*) FROM public.exercise_catalog_logical)
        + (SELECT count(*) FROM public.exercise_catalog)
        + (SELECT count(*) FROM public.exercise_catalog_muscles)
@@ -157,6 +219,11 @@ BEGIN
   END IF;
 END
 $pre$;
+
+-- ── Transaction-contained elevation (posture-gated above; revoked
+--    below; postcondition-verified restored; rolls back with the
+--    whole transaction on ANY failure) ──────────────────────────────
+GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;
 
 -- ── The load, under the loader authority ONLY ────────────────────
 SET ROLE exlib_catalog_loader;
@@ -198,6 +265,12 @@ SELECT load_catalog_content_draft(
   $expx$[{"relation": "substitution", "to_logical_id": "e21b2c00-0000-4000-a000-000000000002"}, {"relation": "progression", "to_logical_id": "e21b2c00-0000-4000-a000-000000000003"}]$expx$::jsonb);
 
 RESET ROLE;
+
+-- ── Exact restoration: remove ONLY the temporary grant this package
+--    created, identified by its grantor; the implicit migration-027
+--    creator membership (ADMIN TRUE, INHERIT FALSE, SET FALSE, a
+--    different grantor) is untouched ─────────────────────────────────
+REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;
 
 -- ── Postconditions (owner reads; any mismatch rolls back ALL) ────
 DO $post$
@@ -291,6 +364,30 @@ BEGIN
      OR (SELECT count(*) FROM public.exercise_catalog_content WHERE logical_id IN ('e21b2c00-0000-4000-a000-000000000002','e21b2c00-0000-4000-a000-000000000003')) <> 0 THEN
     RAISE EXCEPTION 'exlib2k post: forbidden state exists (projection, run, membership, or target snapshot/content)';
   END IF;
+  -- Authority restoration: before COMMIT, the loader-role membership
+  -- posture must be EXACTLY the hosted baseline again - the temporary
+  -- SET grant is gone, nothing else appeared - and no client,
+  -- service, or PUBLIC grant may exist on the loader functions.
+  IF (SELECT count(*) FROM pg_catalog.pg_auth_members am
+        JOIN pg_roles r ON r.oid = am.roleid
+       WHERE r.rolname = 'exlib_catalog_loader') <> 1
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_auth_members am
+         JOIN pg_roles r ON r.oid = am.roleid
+         JOIN pg_roles m ON m.oid = am.member
+        WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND am.admin_option AND NOT am.inherit_option AND NOT am.set_option) THEN
+    RAISE EXCEPTION 'exlib2k post: the temporary loader elevation was not exactly restored to the hosted baseline membership';
+  END IF;
+  IF has_function_privilege('anon', 'public.load_catalog_identity(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.load_catalog_identity(uuid)', 'EXECUTE')
+     OR has_function_privilege('service_role', 'public.load_catalog_identity(uuid)', 'EXECUTE')
+     OR EXISTS (SELECT 1 FROM pg_proc p CROSS JOIN LATERAL aclexplode(p.proacl) a
+                 WHERE p.pronamespace = 'public'::regnamespace
+                   AND p.proname IN ('load_catalog_identity','load_catalog_snapshot','load_catalog_content_draft')
+                   AND a.grantee = 0) THEN
+    RAISE EXCEPTION 'exlib2k post: a client, service, or PUBLIC grant exists on the loader functions';
+  END IF;
 END
 $post$;
 
@@ -304,5 +401,7 @@ COMMIT;
 -- bidirectional claim invariant; one PENDING, DRAFT, UNADMITTED
 -- Plank content version 1
 -- carrying the admitted payload verbatim; and its two-row expected
--- relationship set. Database review, admission, publication, and
+-- relationship set - with the temporary loader elevation exactly
+-- restored to the hosted baseline membership before COMMIT. Database
+-- review, admission, publication, and
 -- every later act remain separately gated authorities.

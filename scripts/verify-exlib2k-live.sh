@@ -21,6 +21,20 @@
 # EXECUTED against any hosted or persistent database, and no
 # persistent local database is left behind.
 #
+# HOSTED-SHAPE FIXTURE (authority correction): the cluster boots with
+# a bootstrap superuser named cluster_admin used ONLY as platform
+# substrate and harness probe authority; the working role is a
+# recreated NON-SUPERUSER postgres (LOGIN, CREATEDB, CREATEROLE) - the
+# hosted operator posture. Migrations apply AS postgres, so migration
+# 027's CREATE ROLE statements natively produce the implicit creator
+# memberships ADMIN TRUE / INHERIT FALSE / SET FALSE - the exact
+# posture reported from the failed hosted attempt. The suite proves:
+# the PROMOTED package bytes reproduce the exact hosted 42501 refusal
+# on this fixture; the corrected package's transaction-contained
+# elevation restores the baseline membership exactly on success AND
+# on every failure path; and no client/service/PUBLIC authority ever
+# widens.
+#
 # The package's loaded content IS derived from the real admitted
 # Plank artifact - that is this milestone's purpose - but it is
 # loaded ONLY into the disposable cluster, left pending/draft/
@@ -51,8 +65,14 @@ cleanup() {
 trap cleanup EXIT
 
 DB=postgres
-Q()  { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
-QQ() { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
+# Q/QQ run as the NON-SUPERUSER working role postgres (the hosted
+# operator posture); QA/QQA run as the bootstrap superuser
+# cluster_admin - platform substrate and harness PROBE authority only,
+# never product authority.
+Q()   { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
+QQ()  { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
+QA()  { psql -h "$SOCK" -U cluster_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
+QQA() { psql -h "$SOCK" -U cluster_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
 expect_err() { # NAME SQL PATTERN
   local out; out=$(QQ "$2")
   if [ $? -eq 0 ]; then
@@ -64,6 +84,17 @@ expect_eq() { # NAME SQL EXPECTED
   local got; got=$(QQ "$2")
   if [ "$got" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3], got [$got]"; fi
 }
+expect_err_admin() { # NAME SQL PATTERN - via cluster_admin PROBE authority
+  local out; out=$(QQA "$2")
+  if [ $? -eq 0 ]; then
+    bad "$1" "expected fail-closed rejection, statement SUCCEEDED"
+  elif printf '%s' "$out" | grep -qF "$3"; then ok "$1"
+  else bad "$1" "rejected, but not by the expected rule ($3): $(printf '%s' "$out" | head -2 | tr '\n' ' ')"; fi
+}
+# Membership-baseline assertion: the loader role must carry EXACTLY
+# one membership - postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE.
+BASELINE_SQL="SELECT (SELECT count(*) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader')::text || '/' || (SELECT am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE r.rolname='exlib_catalog_loader' AND m.rolname='postgres')"
+BASELINE_OK="1/true:false:false" 
 
 PL='e21b2c00-0000-4000-a000-000000000001'
 DBU='e21b2c00-0000-4000-a000-000000000002'
@@ -104,15 +135,20 @@ grep -q '^SET ROLE exlib_catalog_loader;' "$PACKAGE" && grep -q '^RESET ROLE;' "
 
 echo
 echo "=== B. Disposable cluster + migrations 001-027 + representative tenant fixture"
-initdb -D "$PGDATA" -U postgres --no-locale -E UTF8 >/dev/null 2>&1
+initdb -D "$PGDATA" -U cluster_admin --no-locale -E UTF8 >/dev/null 2>&1
 pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories='$SOCK'" -l "$TMP/pg.log" start >/dev/null 2>&1
-if Q "SELECT 1" >/dev/null 2>&1; then
-  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact)"
+if QA "SELECT 1" >/dev/null 2>&1; then
+  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact; bootstrap superuser = cluster_admin, platform substrate only)"
 else
   bad "B1: cluster failed to start"; sed -n '1,5p' "$TMP/pg.log"; exit 1
 fi
-Q "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
-   CREATE SCHEMA auth;
+QA "CREATE ROLE postgres LOGIN NOSUPERUSER CREATEDB CREATEROLE;
+    CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
+    ALTER DATABASE postgres OWNER TO postgres;" >/dev/null
+expect_eq "B1b: the working role reproduces the hosted operator posture - postgres is LOGIN, NOSUPERUSER, CREATEDB, CREATEROLE (platform roles created by cluster_admin, as Supabase provisions them)" \
+  "SELECT rolcanlogin::text||'/'||rolsuper::text||'/'||rolcreatedb::text||'/'||rolcreaterole::text FROM pg_roles WHERE rolname='postgres'" \
+  "true/false/true/true"
+Q "CREATE SCHEMA auth;
    CREATE TABLE auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT);
    CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE
      AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;" >/dev/null
@@ -122,8 +158,14 @@ for f in supabase/migrations/0*.sql; do
     || { bad "B2: migration failed: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "27" ] && ok "B2: migrations 001-027 applied exactly once in order (27 files)" \
+[ "$APPLIED" = "27" ] && ok "B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)" \
   || bad "B2: expected 27 migrations, applied $APPLIED"
+expect_eq "B2b: HOSTED MEMBERSHIP SEMANTICS (dedicated check) - migration 027's CREATE ROLE, executed by the non-superuser postgres, natively yields the implicit creator membership ADMIN TRUE / INHERIT FALSE / SET FALSE on ALL FOUR catalog authorities, exactly one membership each - the exact posture reported from the failed hosted attempt" \
+  "SELECT string_agg(r.rolname||'='||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text||':'||m.rolname, ' | ' ORDER BY r.rolname) || ' rows=' || count(*)::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE r.rolname LIKE 'exlib_catalog_%'" \
+  "exlib_catalog_admin=true:false:false:postgres | exlib_catalog_admission=true:false:false:postgres | exlib_catalog_loader=true:false:false:postgres | exlib_catalog_reviewer=true:false:false:postgres rows=4"
+expect_err "B2c: SET ROLE exlib_catalog_loader as postgres is CORRECTLY denied at baseline - the fixture reproduces the hosted 42501 semantics" \
+  "SET ROLE exlib_catalog_loader;" \
+  "permission denied to set role \"exlib_catalog_loader\""
 ZERO=$(Q "SELECT (SELECT count(*) FROM exercise_catalog_logical) + (SELECT count(*) FROM exercise_catalog)
   + (SELECT count(*) FROM exercise_catalog_content) + (SELECT count(*) FROM exercise_catalog_content_expected_relationships)
   + (SELECT count(*) FROM exercise_catalog_relationships) + (SELECT count(*) FROM exercise_catalog_import_runs)")
@@ -147,6 +189,11 @@ echo "=== C. Execute the prepared package EXACTLY ONCE"
 psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/pkg.out" 2>&1 \
   && ok "C1: the package executed cleanly (one transaction, loader authority, all postconditions internally satisfied)" \
   || { bad "C1: package failed" "$(tail -3 "$TMP/pkg.out" | tr '\n' ' ')"; exit 1; }
+expect_eq "C1b: AUTHORITY RESTORED after success - the loader role again carries EXACTLY one membership, postgres with ADMIN TRUE / INHERIT FALSE / SET FALSE (the temporary in-transaction elevation left nothing behind)" \
+  "$BASELINE_SQL" "$BASELINE_OK"
+expect_err "C1c: SET ROLE exlib_catalog_loader as postgres is denied AGAIN after the successful load - no standing SET authority survives COMMIT" \
+  "SET ROLE exlib_catalog_loader;" \
+  "permission denied to set role \"exlib_catalog_loader\""
 expect_eq "C2: exact resulting identities and snapshots - 3 logical identities, 1 active pending Plank snapshot, 2 anatomy rows, 2 aliases, 3 catalog claims (canonical plank + two alias claims), and ZERO target snapshots" \
   "SELECT (SELECT count(*) FROM exercise_catalog_logical)::text || '/' ||
      (SELECT count(*) FROM exercise_catalog)::text || '/' ||
@@ -210,10 +257,10 @@ case "$PYOUT" in ARTIFACT-MATCH-OK) ok "C4: EVERY loaded value equals the admitt
 
 echo
 echo "=== D. The loaded version cannot advance without its separately gated authorities"
-expect_err "D1: it CANNOT be admitted before database review (admission-before-review refused by the promoted lifecycle)" \
+expect_err_admin "D1: it CANNOT be admitted before database review (admission-before-review refused by the promoted lifecycle) [role assumed via the harness's cluster_admin superuser PROBE authority - the non-superuser postgres cannot SET ROLE into any catalog authority at baseline]" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$PL','$CV', repeat('a',64));" \
   "admission cannot precede human approval"
-expect_err "D2: it CANNOT be published (pending, unadmitted)" \
+expect_err_admin "D2: it CANNOT be published (pending, unadmitted) [cluster_admin PROBE authority]" \
   "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$PL','$CV');" \
   "only approved content can be published"
 expect_eq "D3: NO live relationship projection exists before publication" \
@@ -228,7 +275,7 @@ EX_DIGEST_AFTER=$(Q "SELECT md5(string_agg(id::text||user_id::text||name||catego
 { [ "$EX_AFTER" = "84" ] && [ "$EX_DIGEST_AFTER" = "$EX_DIGEST_BEFORE" ]; } \
   && ok "D5: exercises remains EXACTLY 84 and byte-identical - the load mutated no tenant exercise, seed, or delivery state" \
   || bad "D5: tenant exercises changed" "$EX_BEFORE->$EX_AFTER"
-expect_err "D6: ordinary clients cannot invoke the loader (the package's authority is real, not decorative)" \
+expect_err_admin "D6: ordinary clients cannot invoke the loader (the package's authority is real, not decorative) [client role assumed via cluster_admin PROBE authority]" \
   "SET ROLE authenticated; SELECT load_catalog_identity(NULL);" \
   "permission denied for function load_catalog_identity"
 
@@ -244,6 +291,8 @@ expect_eq "E3: the failed second execution changed NOTHING (still exactly one co
   "SELECT (SELECT count(*) FROM exercise_catalog_content)::text || '/' ||
      (SELECT count(*) FROM exercise_catalog_logical)::text || '/' ||
      (SELECT count(*) FROM exercise_catalog_relationships)::text" "1/3/0"
+expect_eq "E3b: the failed second execution also left the authority baseline untouched (no elevation residue from the refused run)" \
+  "$BASELINE_SQL" "$BASELINE_OK"
 
 echo
 echo "=== F. Whole-transaction rollback for malformed/incomplete variants (fresh scratch database each)"
@@ -264,7 +313,32 @@ run_variant() { # $1=db $2=name $3=sedexpr $4=expected-pattern
   local Z; Z=$(psql -h "$SOCK" -U postgres -d "$1" -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical) + (SELECT count(*) FROM exercise_catalog) + (SELECT count(*) FROM exercise_catalog_content) + (SELECT count(*) FROM exercise_catalog_content_expected_relationships) + (SELECT count(*) FROM exercise_catalog_name_claims)")
   [ "$Z" = "0" ] && ok "F($2): the variant failed closed AND the WHOLE transaction rolled back - zero rows persisted" \
     || bad "F($2): partial state leaked ($Z rows)"
+  local MB; MB=$(psql -h "$SOCK" -U postgres -d "$1" -X -qtA -c "$BASELINE_SQL")
+  [ "$MB" = "$BASELINE_OK" ] && ok "F($2): the temporary authority elevation ALSO rolled back - loader membership is exactly the hosted baseline" \
+    || bad "F($2): authority residue after rollback ($MB)"
 }
+echo
+echo "=== F0. The PROMOTED package bytes reproduce the EXACT hosted refusal on the hosted-shape fixture"
+mkvariant_db rp && {
+  git show 56488527889858243b1fd701dc3944a8c0f4fc7b:docs/exlib2k-plank-catalog-load-package.sql > "$TMP/promoted-pkg.sql"
+  RSHA=$(shasum -a 256 "$TMP/promoted-pkg.sql" | awk '{print $1}')
+  RB=$(wc -c < "$TMP/promoted-pkg.sql" | tr -d ' ')
+  [ "$RB/$RSHA" = "20116/78cff34a39239c62391f322138e7e4085191fb4f26fc0e87c17c6474915e21a7" ] \
+    && ok "F0a: the promoted package bytes are fingerprint-verified from git (20,116 B / 78cff34a..., the exact revision ChatGPT attempted on hosted)" \
+    || bad "F0a: promoted bytes drifted ($RB/$RSHA)"
+  psql -h "$SOCK" -U postgres -d rp -X -v ON_ERROR_STOP=1 -q -f "$TMP/promoted-pkg.sql" > "$TMP/oldpkg.out" 2>&1 \
+    && bad "F0b: the promoted package SUCCEEDED on the hosted-shape fixture (it must not)" \
+    || { grep -qF 'permission denied to set role "exlib_catalog_loader"' "$TMP/oldpkg.out" \
+         && ok "F0b: the promoted package fails with EXACTLY the hosted error - permission denied to set role \"exlib_catalog_loader\" (42501 at SET ROLE, before any loader call)" \
+         || bad "F0b: failed for an unexpected reason" "$(tail -2 "$TMP/oldpkg.out" | tr '\n' ' ')"; }
+  Z0=$(psql -h "$SOCK" -U postgres -d rp -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)+(SELECT count(*) FROM exercise_catalog)+(SELECT count(*) FROM exercise_catalog_muscles)+(SELECT count(*) FROM exercise_catalog_aliases)+(SELECT count(*) FROM exercise_catalog_name_claims)+(SELECT count(*) FROM exercise_catalog_content)+(SELECT count(*) FROM exercise_catalog_content_expected_relationships)+(SELECT count(*) FROM exercise_catalog_relationships)+(SELECT count(*) FROM exercise_catalog_import_runs)+(SELECT count(*) FROM exercise_catalog_run_items)")
+  [ "$Z0" = "0" ] && ok "F0c: all TEN catalog tables remain exactly zero rows after the reproduced failure - matching ChatGPT's hosted rollback proof" \
+    || bad "F0c: rows leaked ($Z0)"
+  MB0=$(psql -h "$SOCK" -U postgres -d rp -X -qtA -c "$BASELINE_SQL")
+  [ "$MB0" = "$BASELINE_OK" ] && ok "F0d: the membership baseline is untouched by the reproduced failure" \
+    || bad "F0d: membership changed ($MB0)"
+}
+
 mkvariant_db v1 && run_variant v1 "invalid expected relation type" \
   "s/\"relation\": \"substitution\"/\"relation\": \"sideways\"/" \
   "violates check constraint"
@@ -278,7 +352,9 @@ mkvariant_db v4 && run_variant v4 "tampered payload (one word) trips the byte-eq
   "s/\\\$br\\\$Breathe steadily/\\\$br\\\$Breathe rapidly/" \
   "the authored payload does not match the admitted artifact exactly"
 mkvariant_db v5 && {
-  psql -h "$SOCK" -U postgres -d v5 -X -qtA -c "SET ROLE exlib_catalog_loader; SELECT load_catalog_identity('99999999-9999-4999-a999-999999999999');" >/dev/null 2>&1
+  # foreign-state pre-seed via cluster_admin PROBE authority (the
+  # non-superuser postgres correctly cannot SET ROLE at baseline)
+  psql -h "$SOCK" -U cluster_admin -d v5 -X -qtA -c "SET ROLE exlib_catalog_loader; SELECT load_catalog_identity('99999999-9999-4999-a999-999999999999');" >/dev/null 2>&1
   psql -h "$SOCK" -U postgres -d v5 -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/variant-v5.out" 2>&1 \
     && bad "F(nonempty surface): package ran over foreign state" \
     || { grep -qF "refuses to run twice or over foreign state" "$TMP/variant-v5.out" \
@@ -288,6 +364,9 @@ mkvariant_db v5 && {
 mkvariant_db v6 && run_variant v6 "claim corruption (an owner DELETE of one claim row injected after RESET ROLE) trips the package's OWN three-claim postcondition" \
   "s/^RESET ROLE;\$/RESET ROLE; DELETE FROM public.exercise_catalog_name_claims WHERE normalized_name = 'front plank';/" \
   "the catalog name claims are not exactly the three required rows"
+mkvariant_db v7 && run_variant v7 "restoration removed (the REVOKE ... GRANTED BY line deleted) trips the package's OWN authority-restoration postcondition" \
+  "/^REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;\$/d" \
+  "the temporary loader elevation was not exactly restored"
 
 echo
 echo "=== F2. REAL two-session concurrency - the lock-serialized gate admits exactly one execution"
@@ -337,6 +416,35 @@ CCSTATE=$(psql -h "$SOCK" -U postgres -d cc -X -qtA -c "SELECT (SELECT count(*) 
 [ "$CCSTATE" = "3/1/1/3/2" ] \
   && ok "CC4: the final database holds EXACTLY ONE valid load result (3 identities / 1 snapshot / 1 content / 3 claims / 2 expected rows) - no duplicated, mixed, or partial state from the losing session" \
   || bad "CC4: final state wrong ($CCSTATE)"
+CCMB=$(psql -h "$SOCK" -U postgres -d cc -X -qtA -c "$BASELINE_SQL")
+[ "$CCMB" = "$BASELINE_OK" ] \
+  && ok "CC5: after the race the authority baseline is exact - the winner restored its elevation, the loser never held one" \
+  || bad "CC5: authority residue after race ($CCMB)"
+
+echo
+echo "=== F3. A pre-widened baseline is refused BEFORE any write or authority change (run last; membership is cluster-wide)"
+mkvariant_db wd && {
+  QA "GRANT exlib_catalog_loader TO postgres WITH SET TRUE;" >/dev/null
+  WD0=$(Q "$BASELINE_SQL")
+  [ "$WD0" = "1/true:false:true" ] \
+    && ok "F3a: the harness pre-widened the baseline via cluster_admin (SET TRUE now present) to simulate a non-baseline hosted posture" \
+    || bad "F3a: unexpected widened shape ($WD0)"
+  psql -h "$SOCK" -U postgres -d wd -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/wd.out" 2>&1 \
+    && bad "F3b: the package RAN over a non-baseline posture (it must refuse)" \
+    || { grep -qF 'the loader-role membership posture is not the exact hosted baseline' "$TMP/wd.out" \
+         && ok "F3b: the untouched package refuses the widened posture at its OWN posture gate, before any write or authority change" \
+         || bad "F3b: refused for an unexpected reason" "$(tail -2 "$TMP/wd.out" | tr '\n' ' ')"; }
+  WZ=$(psql -h "$SOCK" -U postgres -d wd -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)+(SELECT count(*) FROM exercise_catalog)+(SELECT count(*) FROM exercise_catalog_content)+(SELECT count(*) FROM exercise_catalog_name_claims)")
+  WD1=$(Q "$BASELINE_SQL")
+  { [ "$WZ" = "0" ] && [ "$WD1" = "1/true:false:true" ]; } \
+    && ok "F3c: the refusal wrote nothing and did NOT touch the pre-existing (widened) membership - the package never modifies a posture it did not verify" \
+    || bad "F3c: refusal side effects (rows=$WZ, membership=$WD1)"
+  QA "REVOKE SET OPTION FOR exlib_catalog_loader FROM postgres;" >/dev/null
+  WD2=$(Q "$BASELINE_SQL")
+  [ "$WD2" = "$BASELINE_OK" ] \
+    && ok "F3d: the harness restored the exact baseline via cluster_admin (cluster-wide membership back to ADMIN TRUE / INHERIT FALSE / SET FALSE)" \
+    || bad "F3d: baseline not restored ($WD2)"
+}
 
 echo
 echo "=== G. No hosted contact, ever"

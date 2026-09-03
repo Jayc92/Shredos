@@ -23,6 +23,11 @@
 // three-claim postconditions with the corrected claim-count wording,
 // and the intended-vs-database-proven target-identity semantics with
 // the mandatory target-snapshot gate.
+// Hosted-authority correction (section F): the preserved failed-
+// hosted-attempt evidence, the posture-gated transaction-contained
+// elevation with exact restoration, the dedicated hosted-membership-
+// semantics live checks on the non-superuser fixture, and the
+// design-selection record.
 // Performs NO hosted contact.
 //
 // Fail-closed: any mismatch fails the suite.
@@ -231,7 +236,7 @@ async function main(): Promise<void> {
       recFlat.includes('the fail-closed stop was not triggered') &&
       live.includes('E1: a second execution fails closed at the empty-surface precondition (ONE-USE, exactly as documented)'))
     check('D3: the live harness proves the required matrix — 27 migrations exactly once, zero starting state, the 84-exercise representative tenant fixture, byte-level artifact match, admission-before-review and publication refusals, no projection, no run/delivery/exercise effect, one-use, and whole-transaction rollback variants on fresh scratch databases',
-      live.includes('B2: migrations 001-027 applied exactly once in order (27 files)') &&
+      live.includes('B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)') &&
       live.includes('B3: the database begins with ZERO catalog/content state') &&
       live.includes('B4: representative tenant fixture in place - exactly 84 exercises') &&
       live.includes('C4: EVERY loaded value equals the admitted artifact byte for byte') &&
@@ -341,6 +346,81 @@ async function main(): Promise<void> {
       JSON.stringify(JSON.parse(tagged('expx'))) === JSON.stringify([
         { relation: 'substitution', to_logical_id: DBU },
         { relation: 'progression', to_logical_id: AW }]))
+  }
+
+  console.log('\nF. Hosted-authority correction (failed-attempt evidence, posture gate, transactional elevation, hosted-shape fixture)')
+  {
+    const crec = read('docs/exlib2k-hosted-authority-correction-record.md')
+    const crecFlat = crec.replace(/\s+/g, ' ')
+    check('F1: the failed hosted attempt is preserved as evidence — performed by ChatGPT (not Claude) against ttybyljytiwntvorugcv on the exact promoted bytes (20,116 B / 78cff34a...), verbatim ERROR 42501 at SET ROLE before any loader call, transaction rolled back, ALL TEN tables zero, no partial state or lifecycle effect',
+      crecFlat.includes('performed by ChatGPT, not Claude') &&
+      crec.includes('ttybyljytiwntvorugcv') &&
+      crec.includes('78cff34a39239c62391f322138e7e4085191fb4f26fc0e87c17c6474915e21a7') &&
+      crecFlat.includes('20,116 B') &&
+      crecFlat.includes('ERROR 42501: permission denied to set role "exlib_catalog_loader"') &&
+      crecFlat.includes("The failure occurred at the package's SET ROLE statement — BEFORE any loader call") &&
+      crecFlat.includes('The single enclosing transaction rolled back') &&
+      crecFlat.includes('ALL TEN catalog tables remained exactly zero rows') &&
+      crecFlat.includes('No partial state and no lifecycle effect') &&
+      crecFlat.includes('ADMIN TRUE, INHERIT FALSE, SET FALSE') &&
+      crecFlat.includes('SET ROLE exlib_catalog_loader is CORRECTLY denied') &&
+      pkgProse.includes('HOSTED EXECUTION HISTORY (evidence, preserved):') &&
+      pkgProse.includes('ERROR 42501: permission denied to set role "exlib_catalog_loader"') &&
+      recFlat.includes('FAILED SAFELY at SET ROLE'))
+    check('F2: the corrected package is posture-gated and restoration-exact — the exact hosted baseline is proven BEFORE any write (postgres by name, non-superuser, exactly one membership ADMIN TRUE/INHERIT FALSE/SET FALSE), exactly one transaction-contained GRANT ... WITH SET TRUE, INHERIT FALSE precedes SET ROLE, exactly one REVOKE ... GRANTED BY postgres follows RESET ROLE, and the postconditions require the baseline restored plus zero anon/authenticated/service_role/PUBLIC grants on the loader functions',
+      (() => {
+        if ((pkg.match(/^GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;$/gm) ?? []).length !== 1) return false
+        if ((pkg.match(/^REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;$/gm) ?? []).length !== 1) return false
+        const iPre = pkg.indexOf('DO $pre$')
+        const iGrant = pkg.indexOf('\nGRANT exlib_catalog_loader')
+        const iSet = pkg.indexOf('\nSET ROLE exlib_catalog_loader;')
+        const iReset = pkg.indexOf('\nRESET ROLE;')
+        const iRevoke = pkg.indexOf('\nREVOKE exlib_catalog_loader')
+        const iPost = pkg.indexOf('DO $post$')
+        const iCommit = pkg.indexOf('\nCOMMIT;')
+        if (!(iPre > 0 && iPre < iGrant && iGrant < iSet && iSet < iReset && iReset < iRevoke && iRevoke < iPost && iPost < iCommit)) return false
+        return pkgFlat.includes("IF current_user <> 'postgres' THEN") &&
+          pkgFlat.includes('the invoker is a superuser; this package is bound to the hosted non-superuser postgres posture') &&
+          pkgFlat.includes('the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE); refusing before any write or authority change') &&
+          (pkgFlat.match(/am\.admin_option AND NOT am\.inherit_option AND NOT am\.set_option/g) ?? []).length === 2 &&
+          pkgFlat.includes('the temporary loader elevation was not exactly restored to the hosted baseline membership') &&
+          pkgFlat.includes("has_function_privilege('anon', 'public.load_catalog_identity(uuid)', 'EXECUTE')") &&
+          pkgFlat.includes("has_function_privilege('service_role', 'public.load_catalog_identity(uuid)', 'EXECUTE')") &&
+          pkgFlat.includes('a.grantee = 0') &&
+          pkgProse.includes('TRANSACTION-CONTAINED elevation') &&
+          pkgProse.includes('No standing privilege is widened by success or failure.')
+      })())
+    check('F3: the live fixture and proofs carry the hosted shape — a DEDICATED hosted-membership-semantics check (all four authorities ADMIN TRUE/INHERIT FALSE/SET FALSE for the non-superuser postgres), the baseline 42501 reproduction, the promoted-bytes reproduction of the exact hosted refusal with ten-zero rollback, restoration proofs on success/second-run/every variant/the race, the restoration-removed and pre-widened-baseline variants, and disclosed cluster_admin probe authority',
+      live.includes('B1b: the working role reproduces the hosted operator posture - postgres is LOGIN, NOSUPERUSER, CREATEDB, CREATEROLE') &&
+      live.includes('B2b: HOSTED MEMBERSHIP SEMANTICS (dedicated check)') &&
+      live.includes('B2c: SET ROLE exlib_catalog_loader as postgres is CORRECTLY denied at baseline') &&
+      live.includes('F0a: the promoted package bytes are fingerprint-verified from git (20,116 B / 78cff34a') &&
+      live.includes('F0b: the promoted package fails with EXACTLY the hosted error') &&
+      live.includes('F0c: all TEN catalog tables remain exactly zero rows after the reproduced failure') &&
+      live.includes('C1b: AUTHORITY RESTORED after success') &&
+      live.includes('C1c: SET ROLE exlib_catalog_loader as postgres is denied AGAIN after the successful load') &&
+      live.includes('E3b: the failed second execution also left the authority baseline untouched') &&
+      live.includes('the temporary authority elevation ALSO rolled back - loader membership is exactly the hosted baseline') &&
+      live.includes('restoration removed (the REVOKE ... GRANTED BY line deleted)') &&
+      live.includes('CC5: after the race the authority baseline is exact') &&
+      live.includes('F3b: the untouched package refuses the widened posture at its OWN posture gate') &&
+      live.includes('F3d: the harness restored the exact baseline via cluster_admin') &&
+      live.includes('cluster_admin PROBE authority') &&
+      crecFlat.includes('cluster_admin') && crecFlat.includes('non-superuser postgres'))
+    check('F4: the design selection is recorded fail-closed and nothing forbidden was done — shapes A/B/C evaluated with B SELECTED (zero residual authority) and A/C REJECTED, the deliberately-NOT-done list present, migrations remain exactly 001-027 with no 028, and the artifact and migration 027 stay byte-identical to promoted main',
+      (() => {
+        if (!crecFlat.includes('A. Standing hosted operator membership')) return false
+        if (!crecFlat.includes('REJECTED: it leaves a PERSISTENT widening')) return false
+        if (!crecFlat.includes('B. Package-contained transaction-safe elevation with exact restoration. SELECTED — smallest correct design')) return false
+        if (!crecFlat.includes('C. A separate migration/authority mechanism')) return false
+        if (!crecFlat.includes('largest blast radius of the three')) return false
+        if (!crecFlat.includes('SET ROLE was NOT deleted')) return false
+        if (!crecFlat.includes('NO hosted ACL change was applied')) return false
+        const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
+        if (files.length !== 27 || files.some((f) => f.startsWith('028'))) return false
+        return frozenVsSource('docs/exlib2g-plank-content.jsonl') &&
+          frozenVsSource('supabase/migrations/027_exlib_catalog_content_schema.sql')
+      })())
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

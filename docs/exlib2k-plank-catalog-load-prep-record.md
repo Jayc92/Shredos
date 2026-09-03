@@ -275,3 +275,21 @@ publication authorities. The Plank artifact, its human review, its
 R6 eligibility admission, the seed, seed_link_compatible, the
 inventory, the ledger, runtime, APIs, UI, dependencies, and
 configuration are all byte-unchanged in this phase.
+
+## 7. Addendum — hosted execution attempt and authority correction (2026-09-02, post-promotion)
+
+The promoted package revision (20,116 B / 78cff34a...) was attempted
+ONCE on hosted by ChatGPT and FAILED SAFELY at SET ROLE with
+ERROR 42501 (permission denied to set role "exlib_catalog_loader");
+the transaction rolled back and all ten catalog tables remained
+exactly zero rows — no partial state, no lifecycle effect. The
+promoted bytes remain preserved at the tag
+exlib2k-plank-catalog-load-prep-reviewed-not-executed. A
+hosted-authority compatibility correction supersedes that revision
+for any future execution — the corrected package (26,435 B /
+9234fee64a5729da9271b8582d78c3b0fd0cc9a76a50337ab8c3d68def35613d)
+and its full evidence, derivation, design selection, and fixture
+redesign are recorded in
+docs/exlib2k-hosted-authority-correction-record.md. This addendum
+adds history only; nothing above it is rewritten.
+
