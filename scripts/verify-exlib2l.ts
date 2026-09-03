@@ -39,6 +39,16 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending and byte-frozen from this suite's source tip through
+// the promoted EXLIB-2N tip; the approved human decisions change
+// exactly those two files after it. Their frozen-vs-source claims are
+// anchored to that promoted tip; every other file remains live.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const frozenAt2NVsSource = (p: string): boolean =>
+  execSync(`git rev-parse ${TIP_2N_RETARGET}:${p}`, { encoding: 'utf8' }).trim() ===
+  execSync(`git rev-parse ${SOURCE_TIP}:${p}`, { encoding: 'utf8' }).trim()
 
 const PROPOSAL = 'docs/exlib2l-catalog-content-schema-proposal.sql'
 const DESIGN = 'docs/exlib2l-catalog-content-schema-design-record.md'
@@ -447,7 +457,9 @@ async function main(): Promise<void> {
           if (!frozenVsSource(p)) return false
         }
         for (let i = 1; i <= 6; i += 1) {
-          if (!frozenVsSource(`docs/exlib2c-release1-batch0${i}-content.jsonl`)) return false
+          // RETARGET (EXLIB-2N review-decision application)
+          const frozen = (i === 2 || i === 4) ? frozenAt2NVsSource : frozenVsSource
+          if (!frozen(`docs/exlib2c-release1-batch0${i}-content.jsonl`)) return false
         }
         const led = parseJsonl('docs/exlib1b1-review-ledger.jsonl')
         if (led.length !== 48 || !led.every((r: any) => r.status === 'pending' && r.reviewer === null)) return false

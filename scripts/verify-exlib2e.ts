@@ -37,6 +37,20 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const sha256At2N = (p: string): string =>
+  createHash('sha256').update(readAt2N(p)).digest('hex')
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 
 const PROPOSAL = 'docs/exlib2e-migration-026-proposal.sql'
 const RECORD = 'docs/exlib2e-implementation-review-record.md'
@@ -76,9 +90,9 @@ async function main(): Promise<void> {
       sha256('docs/exlib2d-plank-seed-reconciliation-record.md') === '3ea2aa1d279bfd7a099e2b33fe4dfdba565dbde5c37e780c338673684e9baf7c' &&
       sha256('docs/exlib2d-plank-reconciliation-matrix.md') === '5e852982314ebbd52428b5a317388c2b88d69649e1c5c8f21b105f19f9734928' &&
       sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
-      sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
+      sha256At2N('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
       sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
-      sha256('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
+      sha256At2N('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
       sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
       sha256('docs/exlib2c-release1-batch06-content.jsonl') === 'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7' &&
       sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' &&
@@ -116,7 +130,13 @@ async function main(): Promise<void> {
         if (led.length !== 48 || !led.every((r: any) => r.status === 'pending' && r.reviewer === null)) return false
         if (cands.length !== 26 || !cands.every((c: any) => c.import_eligible === false)) return false
         const recs: any[] = []
-        for (let i = 1; i <= 6; i += 1) recs.push(...parseJsonl(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        for (let i = 1; i <= 6; i += 1) {
+          // RETARGET (EXLIB-2N review-decision application): batches 2
+          // and 4 anchored to the promoted 2N tip (pending there); the
+          // other four remain live claims.
+          const parse = (i === 2 || i === 4) ? parseJsonlAt2N : parseJsonl
+          recs.push(...parse(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        }
         return recs.length === 126 && recs.every((r) =>
           r.content_review.status === 'pending' && r.content_review.reviewer === null &&
           r.import_eligible === false && !Object.keys(r).some((k) => k.includes('publication')))

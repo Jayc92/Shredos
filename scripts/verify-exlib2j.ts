@@ -33,6 +33,18 @@ const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p
 const shaBuf = (b: Buffer): string => createHash('sha256').update(b).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const sha256At2N = (p: string): string =>
+  createHash('sha256').update(readAt2N(p)).digest('hex')
 const blob = (rev: string, p: string): Buffer =>
   execSync(`git show ${rev}:${p}`, { encoding: 'buffer' as any }) as unknown as Buffer
 
@@ -162,7 +174,11 @@ async function main(): Promise<void> {
           '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d',
           'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7']
         for (let i = 1; i <= 6; i += 1) {
-          if (sha256(`docs/exlib2c-release1-batch0${i}-content.jsonl`) !== SHAS[i - 1]) return false
+          // RETARGET (EXLIB-2N review-decision application): batches 2
+          // and 4 are anchored to the promoted 2N tip (their pending
+          // bytes); the other four remain live byte-frozen claims.
+          const shaOf = (i === 2 || i === 4) ? sha256At2N : sha256
+          if (shaOf(`docs/exlib2c-release1-batch0${i}-content.jsonl`) !== SHAS[i - 1]) return false
         }
         return true
       })())

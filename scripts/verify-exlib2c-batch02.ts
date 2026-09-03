@@ -34,6 +34,18 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const norm = (s: string): string => s.trim().toLowerCase()
 
 const CONTENT = 'docs/exlib2c-release1-batch02-content.jsonl'
@@ -47,7 +59,7 @@ const BATCH1_TIP = '064a131d88d4948a7aaaf9d77c9fa6565a9b000b'
 
 const [MODE_REPS, MODE_BW, MODE_CARDIO, MODE_TIMED] = TRACKING_MODES
 
-const batch = parseJsonl(CONTENT)
+const batch = parseJsonlAt2N(CONTENT) // RETARGET (EXLIB-2N review-decision application)
 const b1 = parseJsonl('docs/exlib2c-release1-batch01-content.jsonl')
 const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
 const invByName = new Map(inv.map((r) => [r.proposed_canonical_name, r]))

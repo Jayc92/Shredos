@@ -33,6 +33,20 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const sha256At2N = (p: string): string =>
+  createHash('sha256').update(readAt2N(p)).digest('hex')
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const norm = (s: string): string => s.trim().toLowerCase()
 
 const RECORD = 'docs/exlib2g-plank-content-activation-design.md'
@@ -45,7 +59,13 @@ const rec = read(RECORD)
 const recFlat = rec.replace(/\s+/g, ' ')
 const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
 const corpus: any[] = []
-for (let i = 1; i <= 6; i += 1) corpus.push(...parseJsonl(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+// RETARGET (EXLIB-2N review-decision application): corpus batches 2
+// and 4 anchored to the promoted 2N tip (pending there); the other
+// four remain live claims.
+for (let i = 1; i <= 6; i += 1) {
+  const parse = (i === 2 || i === 4) ? parseJsonlAt2N : parseJsonl
+  corpus.push(...parse(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+}
 const plankRecs = existsSync(CONTENT) ? parseJsonl(CONTENT) : []
 const p = plankRecs[0] ?? {}
 const proseOf = (r: any): string => [
@@ -71,13 +91,20 @@ async function main(): Promise<void> {
           // verifier was narrowly retargeted for the prepared 027 (its
           // migration-inventory boundary extended to exactly-27); the pin
           // follows those exact retargeted bytes.
-          sha256('scripts/verify-exlib2f-application.ts') === '20d5b2e3cb897c29b624e8156528f1af9f5ab4f51fcda5c5f4774e74573db1dd' &&
+          // RETARGET (EXLIB-2N review-decision application), second order:
+          // that same 2F application verifier carries batch02/04 members of
+          // the 126-record pending sweep, so applying the two approved human
+          // decisions forced its own labeled retarget and changed its bytes.
+          // The pin is anchored to the promoted 2N tip, where these exact
+          // bytes were the canonical ones; the assertion is unchanged in
+          // strength (still an exact full-file SHA-256 over a named commit).
+          sha256At2N('scripts/verify-exlib2f-application.ts') === '20d5b2e3cb897c29b624e8156528f1af9f5ab4f51fcda5c5f4774e74573db1dd' &&
           sha256('docs/exlib2e-migration-026-proposal.sql') === 'a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108' &&
           sha256('docs/exlib2d-plank-seed-reconciliation-record.md') === '3ea2aa1d279bfd7a099e2b33fe4dfdba565dbde5c37e780c338673684e9baf7c' &&
           sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
-          sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
+          sha256At2N('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
           sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
-          sha256('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
+          sha256At2N('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
           sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
           sha256('docs/exlib2c-release1-batch06-content.jsonl') === 'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7' &&
           sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' &&

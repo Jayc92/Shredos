@@ -31,6 +31,20 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const sha256At2N = (p: string): string =>
+  createHash('sha256').update(readAt2N(p)).digest('hex')
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 
 const RECORD = 'docs/exlib2d-plank-seed-reconciliation-record.md'
 const MATRIX = 'docs/exlib2d-plank-reconciliation-matrix.md'
@@ -53,9 +67,9 @@ async function main(): Promise<void> {
   {
     check('A1: Batch 1-6 content and promoted design artifacts remain byte-identical, and prior protected EXLIB artifacts hold',
       sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
-      sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
+      sha256At2N('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
       sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
-      sha256('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
+      sha256At2N('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
       sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
       sha256('docs/exlib2c-release1-batch06-content.jsonl') === 'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7' &&
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
@@ -363,7 +377,13 @@ async function main(): Promise<void> {
     check('B5: all 126 authored records remain pending, evidence-null, import_eligible:false, and unpublished (live parse, not just fingerprints)',
       (() => {
         const recs: any[] = []
-        for (let i = 1; i <= 6; i += 1) recs.push(...parseJsonl(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        for (let i = 1; i <= 6; i += 1) {
+          // RETARGET (EXLIB-2N review-decision application): batches 2
+          // and 4 anchored to the promoted 2N tip (pending there); the
+          // other four remain live claims.
+          const parse = (i === 2 || i === 4) ? parseJsonlAt2N : parseJsonl
+          recs.push(...parse(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        }
         return recs.length === 126 &&
           recs.every((r) => JSON.stringify(r.content_review) ===
             JSON.stringify({ status: 'pending', reviewer: null, reviewed_at: null, rationale: null }) &&

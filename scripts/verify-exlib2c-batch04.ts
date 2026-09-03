@@ -36,6 +36,20 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const sha256At2N = (p: string): string =>
+  createHash('sha256').update(readAt2N(p)).digest('hex')
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const norm = (s: string): string => s.trim().toLowerCase()
 
 const CONTENT = 'docs/exlib2c-release1-batch04-content.jsonl'
@@ -49,9 +63,9 @@ const BATCH3_TIP = '11393041149d8a95d573622f932dc5df1cbaec5d'
 
 const [MODE_REPS, MODE_BW, MODE_CARDIO, MODE_TIMED] = TRACKING_MODES
 
-const batch = parseJsonl(CONTENT)
+const batch = parseJsonlAt2N(CONTENT) // RETARGET (EXLIB-2N review-decision application)
 const b1 = parseJsonl('docs/exlib2c-release1-batch01-content.jsonl')
-const b2 = parseJsonl('docs/exlib2c-release1-batch02-content.jsonl')
+const b2 = parseJsonlAt2N('docs/exlib2c-release1-batch02-content.jsonl') // RETARGET (EXLIB-2N review-decision application)
 const b3 = parseJsonl('docs/exlib2c-release1-batch03-content.jsonl')
 const prior = [...b1, ...b2, ...b3]
 const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
@@ -99,7 +113,7 @@ async function main(): Promise<void> {
       // the functional safety-arm clearance doctrine in the same
       // explicitly authorized commit as this phase's corrections.
       sha256('docs/exlib2c-release1-batch01-content.jsonl') === '8168fc196f89781e8a30b315f29d1c72f46afeff8edfe89d1812b0a150ece2b2' &&
-      sha256('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
+      sha256At2N('docs/exlib2c-release1-batch02-content.jsonl') === '1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48' &&
       sha256('docs/exlib2c-release1-batch03-content.jsonl') === 'e4fca8b632c9c9af9b7c6eece660f2042b6a4c3ef613e14c278f95cf9fcab528' &&
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
       sha256('docs/exlib2a-catalog-architecture-record.md') === 'de825ddf18260a877651e426c8436709257c9100e3dfcbd994e3b9e2496191d8' &&

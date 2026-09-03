@@ -29,6 +29,18 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const parseJsonl = (p: string): any[] => read(p).split('\n')
   .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
+// RETARGET (EXLIB-2N review-decision application): the Dead bug
+// (batch02 line 12) and Ab wheel rollout (batch04 line 5) records
+// were pending through the promoted EXLIB-2N tip; the approved human
+// decisions are applied to exactly those two records after it. This
+// suite's byte-frozen claims for those two files are anchored to that
+// exact promoted tip, where they were true; every other file remains
+// a live claim.
+const TIP_2N_RETARGET = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const readAt2N = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N_RETARGET}:${p}`, { maxBuffer: 1 << 26 })
+const parseJsonlAt2N = (p: string): any[] => readAt2N(p).toString('utf8').split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 
 const RECORD = 'docs/exlib2f-migration-026-application-record.md'
 const VERIFIER = 'scripts/verify-exlib2f-application.ts'
@@ -151,7 +163,13 @@ async function main(): Promise<void> {
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)
         if (cands.length !== 26 || !cands.every((c: any) => c.import_eligible === false)) return false
         const recs: any[] = []
-        for (let i = 1; i <= 6; i += 1) recs.push(...parseJsonl(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        for (let i = 1; i <= 6; i += 1) {
+          // RETARGET (EXLIB-2N review-decision application): batches 2
+          // and 4 anchored to the promoted 2N tip (pending there); the
+          // other four remain live claims.
+          const parse = (i === 2 || i === 4) ? parseJsonlAt2N : parseJsonl
+          recs.push(...parse(`docs/exlib2c-release1-batch0${i}-content.jsonl`))
+        }
         if (recs.length !== 126 || !recs.every((r) =>
           r.content_review.status === 'pending' && r.import_eligible === false &&
           !Object.keys(r).some((k) => k.includes('publication')))) return false

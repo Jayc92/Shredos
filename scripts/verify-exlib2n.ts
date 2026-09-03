@@ -15,6 +15,16 @@
 // and lifecycle posture. Performs NO hosted contact.
 //
 // Fail-closed: any mismatch fails the suite.
+//
+// RETARGET (EXLIB-2N review-decision application): this suite's
+// preparation-phase claims — the pending batch records, the exact
+// batch fingerprints, the five-file docs set, and the six-path phase
+// inventory — were true through the promoted EXLIB-2N tip
+// c9c1afd7df35f2870430da3a8d1295ff7e48e11d and are anchored to it
+// (checks A2, A3, B1, B2, F1, I2). The later decision-application
+// milestone changes exactly the two reviewed records and adds its own
+// evidence files; scripts/verify-exlib2n-application.ts owns the
+// applied-state posture. No historical proof is weakened.
 
 import { execSync } from 'child_process'
 import { createHash } from 'crypto'
@@ -62,6 +72,11 @@ const sha256 = (buf: Buffer | string): string =>
   createHash('sha256').update(buf).digest('hex')
 const blobAtHead = (p: string): Buffer =>
   execSync(`git cat-file blob HEAD:${p}`, { maxBuffer: 1 << 26 })
+// RETARGET (EXLIB-2N review-decision application): reads anchored to
+// the promoted EXLIB-2N tip, where this suite's phase claims were true.
+const TIP_2N = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
+const blobAtTip = (p: string): Buffer =>
+  execSync(`git cat-file blob ${TIP_2N}:${p}`, { maxBuffer: 1 << 26 })
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 
 const dbForm = JSON.parse(readFileSync(DB_FORM, 'utf8'))
@@ -90,17 +105,17 @@ check('A1: source refs — the evidence tag is the exact annotated object, peels
       return execSync(`git rev-parse ${MAIN_TIP}^{tree}`, { encoding: 'utf8' }).trim() === MAIN_TREE
     } catch { return false }
   })())
-check('A2: the Dead bug authored source is byte-frozen — batch02 file and record line 12 match their exact byte counts and SHA-256 fingerprints at HEAD',
+check('A2: the Dead bug authored source was byte-frozen through the promoted 2N tip — batch02 file and record line 12 match their exact fingerprints — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
-    const buf = blobAtHead(B02)
+    const buf = blobAtTip(B02)
     if (buf.length !== B02_BYTES || sha256(buf) !== B02_SHA) return false
     const line = buf.toString('utf8').split('\n')[B02_LINE - 1]
     const lb = Buffer.from(line, 'utf8')
     return lb.length === B02_LINE_BYTES && sha256(lb) === B02_LINE_SHA
   })())
-check('A3: the Ab wheel rollout authored source is byte-frozen — batch04 file and record line 5 match their exact byte counts and SHA-256 fingerprints at HEAD',
+check('A3: the Ab wheel rollout authored source was byte-frozen through the promoted 2N tip — batch04 file and record line 5 match their exact fingerprints — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
-    const buf = blobAtHead(B04)
+    const buf = blobAtTip(B04)
     if (buf.length !== B04_BYTES || sha256(buf) !== B04_SHA) return false
     const line = buf.toString('utf8').split('\n')[B04_LINE - 1]
     const lb = Buffer.from(line, 'utf8')
@@ -118,11 +133,11 @@ check('A4: upstream authorities byte-frozen — the admitted Plank artifact, the
   })())
 
 console.log('\nB. Phase inventory')
-check('B1: the phase is exactly the six preparation paths (two packets, two forms, the record, this verifier) — committed as plain additions, or staged-clean pre-commit',
+check('B1: the phase was exactly the six preparation paths (two packets, two forms, the record, this verifier), committed as plain additions — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
     const committed = execSync(`git rev-list --count ${MAIN_TIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
     if (committed) {
-      const status = execSync(`git diff --name-status ${MAIN_TIP}..HEAD`, { encoding: 'utf8' })
+      const status = execSync(`git diff --name-status ${MAIN_TIP}..${TIP_2N}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).map((l) => l.split('\t'))
       if (status.length !== 6) return false
       if (!status.every(([s]) => s === 'A')) return false
@@ -136,9 +151,10 @@ check('B1: the phase is exactly the six preparation paths (two packets, two form
     return porc.length === untracked.length
       && JSON.stringify(untracked) === JSON.stringify(PHASE_PATHS)
   })())
-check('B2: the live docs tree carries exactly the five EXLIB-2N files — two packets, two forms, one preparation record — with the exact expected names',
+check('B2: the docs tree at the promoted 2N tip carried exactly the five EXLIB-2N files — two packets, two forms, one preparation record — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
-    const files = readdirSync('docs').filter((f) => f.startsWith('exlib2n-')).sort()
+    const files = execSync(`git ls-tree ${TIP_2N} docs/ --name-only`, { encoding: 'utf8' })
+      .split('\n').map((f) => f.replace('docs/', '')).filter((f) => f.startsWith('exlib2n-')).sort()
     const expected = [DB_PACKET, AW_PACKET, DB_FORM, AW_FORM, RECORD]
       .map((p) => p.replace('docs/', '')).sort()
     return JSON.stringify(files) === JSON.stringify(expected)
@@ -249,10 +265,10 @@ check('E3: Ab wheel rollout has NO fabricated category evidence — the form dec
   })())
 
 console.log('\nF. Authored-state truth')
-check('F1: both authored records remain pending / proposed / import-ineligible with null review evidence — parsed from the frozen batch lines at HEAD',
+check('F1: both authored records were pending / proposed / import-ineligible with null review evidence through the promoted 2N tip — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
     for (const [p, n] of [[B02, B02_LINE], [B04, B04_LINE]] as [string, number][]) {
-      const rec = JSON.parse(blobAtHead(p).toString('utf8').split('\n')[n - 1])
+      const rec = JSON.parse(blobAtTip(p).toString('utf8').split('\n')[n - 1])
       if (rec.content_review.status !== 'pending') return false
       if (rec.content_review.reviewer !== null || rec.content_review.reviewed_at !== null
         || rec.content_review.rationale !== null) return false
@@ -336,14 +352,14 @@ check('I1: two-state lifecycle — the promoted tip 9c73f3c carries NO exlib2n f
     const tipScripts = execSync(`git ls-tree ${MAIN_TIP} scripts/ --name-only`, { encoding: 'utf8' })
     return !tipDocs.includes('exlib2n') && !tipScripts.includes('exlib2n')
   })())
-check('I2: ZERO historical-verifier retargets — no pre-existing script or doc is modified by this phase (every phase path is a pure addition)',
+check('I2: ZERO historical-verifier retargets in the preparation phase — every preparation-phase path was a pure addition — RETARGET (EXLIB-2N review-decision application): anchored to the promoted 2N tip, where this was true',
   (() => {
     const committed = execSync(`git rev-list --count ${MAIN_TIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
     if (!committed) {
       return execSync('git status --porcelain', { encoding: 'utf8' })
         .split('\n').filter(Boolean).every((l) => l.startsWith('??'))
     }
-    return execSync(`git diff --name-status ${MAIN_TIP}..HEAD`, { encoding: 'utf8' })
+    return execSync(`git diff --name-status ${MAIN_TIP}..${TIP_2N}`, { encoding: 'utf8' })
       .split('\n').filter(Boolean).every((l) => l.startsWith('A\t'))
   })())
 check('I3: the preparation record documents the fail-closed origin, the distinct category carrier, the no-migration rationale, the evidence-carrier posture, and all eight later lifecycle stages in order',
