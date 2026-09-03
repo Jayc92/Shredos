@@ -1,0 +1,76 @@
+{
+  "form": "exlib2n-dead-bug-target-snapshot-review-form",
+  "form_version": 1,
+  "prepared_at": "2026-09-03",
+  "packet": "docs/exlib2n-dead-bug-target-snapshot-review-packet.md",
+  "authored_artifact": "docs/exlib2c-release1-batch02-content.jsonl",
+  "authored_artifact_fingerprint": {
+    "file_bytes": 51496,
+    "file_sha256": "1ddc3ab0bd92d60ef33960d82a8e0c8a2fdea1cb828d15fc9bf6a82c34305d48",
+    "record_line": 12,
+    "record_line_bytes_newline_excluded": 1900,
+    "record_line_sha256_newline_excluded": "3dbd0384542bdf6feb96d84a61d2d50b5c6ca0fdc057fcafded67aeb631a8796",
+    "note": "Any byte change to the authored record or its containing file voids this form and the packet."
+  },
+  "canonical_name": "Dead bug",
+  "intended_logical_uuid": "e21b2c00-0000-4000-a000-000000000002",
+  "intended_uuid_authority": "The admitted Plank artifact (docs/exlib2g-plank-content.jsonl, 2,928 B, sha256 d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752) names Dead bug as Plank's substitution target; the promoted EXLIB-2K load-preparation and hosted-load application records assign this UUID. Hosted state carries the UUID as a BARE identity only; no database state proves the name yet.",
+  "source_commit": "9c73f3c484c79d97cc31ef0a6b2fcae76fa334fc",
+  "source_tag": "exlib2k-hosted-load-application-evidence-stable",
+  "source_tag_object": "81c0954f2cb2971a79e1f139122e08bdca05acd0",
+  "current_authored_state": {
+    "content_review_status": "pending",
+    "content_review_reviewer": null,
+    "content_review_reviewed_at": null,
+    "content_review_rationale": null,
+    "review_status": "proposed",
+    "import_eligible": false,
+    "deferred": false,
+    "specialist_review_required": true
+  },
+  "decision": null,
+  "reviewer": null,
+  "reviewer_role_or_credential": null,
+  "reviewed_at": null,
+  "evidence": null,
+  "rationale": null,
+  "snapshot_category_decision": null,
+  "snapshot_category_rationale": null,
+  "snapshot_category_vocabulary": [
+    "compound",
+    "isolation",
+    "cardio",
+    "mobility",
+    "other"
+  ],
+  "snapshot_category_evidence": {
+    "exists": true,
+    "authoritative": false,
+    "preselected": false,
+    "source": "External discovery manifest entry (docs/exlib1a-discovery-manifest.jsonl): proposed_name 'Dead Bug', StrengthLog, source_url https://www.strengthlog.com/dead-bugs/, retrieved 2026-08-20, confidence medium, category field reads 'isolation'.",
+    "statement": "EVIDENCE ONLY. No promoted contract adopts the external manifest as authoritative for a forgefitos_original release snapshot; the release inventory deliberately did not carry its category forward; nothing is preselected and the reviewer is free to select any of the five legal values."
+  },
+  "needs_human_judgment_confirmations": {
+    "alias_absence_appropriate": null,
+    "anatomy_classification_defensible": null,
+    "difficulty_and_availability_defensible": null,
+    "tracking_mode_bodyweight_appropriate": null,
+    "laterality_alternating_appropriate": null,
+    "instruction_coaching_quality": null,
+    "positional_coherence_confirmed": null,
+    "safety_adequacy": null,
+    "plank_substitution_target_suitability": null
+  },
+  "legal_decisions": [
+    "approved",
+    "revised",
+    "rejected"
+  ],
+  "decision_requirements": "A decision requires, together and at the same time: reviewer (a NAMED HUMAN specialist, never AI, >= 3 non-blank chars), reviewer_role_or_credential (a valid role or credential confirmed by the operator), reviewed_at (a valid offset date-time), and rationale (>= 10 non-blank chars). An APPROVED decision additionally requires snapshot_category_decision (EXACTLY ONE value from snapshot_category_vocabulary), snapshot_category_rationale (>= 10 non-blank chars), and EVERY needs_human_judgment_confirmations value explicitly true. Optional evidence may be null and never substitutes for any required field.",
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate the human fields (decision, reviewer, reviewer_role_or_credential, reviewed_at, evidence, rationale, snapshot_category_decision, snapshot_category_rationale, and every needs_human_judgment_confirmations value).",
+  "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Even a filled, approved form changes nothing by itself: it does not modify the authored artifact, does not flip import_eligible, does not load any snapshot, and does not satisfy the hosted target-snapshot gate. Applying the recorded decision to the authored record is a separate, separately reviewed milestone with its own fingerprint gates.",
+  "import_eligible_effect": "none - import_eligible stays false; flipping it is a later, separately approved R6-style act on an exact fingerprinted payload (the EXLIB-2J precedent)",
+  "loading_effect": "none - no target-snapshot load package exists in this phase, and preparing one remains blocked until the completed human decision is separately applied and the R6-style eligibility admission is separately recorded",
+  "gate_effect": "none - the hosted target-snapshot gate (active canonical snapshot 'Dead bug' at the intended UUID, never swapped, missing, inactive, or ambiguous) is satisfied only by later hosted proof after the later hosted load; this form cannot satisfy it",
+  "voiding_rule": "Any byte change to the reviewed authored artifact (the batch file or the record line pinned above) voids this form."
+}
