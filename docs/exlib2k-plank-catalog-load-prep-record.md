@@ -286,10 +286,10 @@ exactly zero rows — no partial state, no lifecycle effect. The
 promoted bytes remain preserved at the tag
 exlib2k-plank-catalog-load-prep-reviewed-not-executed. A
 hosted-authority compatibility correction supersedes that revision
-for any future execution — the corrected package (26,435 B /
-9234fee64a5729da9271b8582d78c3b0fd0cc9a76a50337ab8c3d68def35613d)
+for any future execution — the corrected package (revision B after the
+Codex grantor/session findings: 29,760 B /
+a1b6dd55850c5d544e2f484d1ce4833b41deec7f3dd4d4c2373cb3b50daaccf0)
 and its full evidence, derivation, design selection, and fixture
 redesign are recorded in
 docs/exlib2k-hosted-authority-correction-record.md. This addendum
 adds history only; nothing above it is rewritten.
-

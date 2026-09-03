@@ -379,18 +379,18 @@ async function main(): Promise<void> {
         const iPost = pkg.indexOf('DO $post$')
         const iCommit = pkg.indexOf('\nCOMMIT;')
         if (!(iPre > 0 && iPre < iGrant && iGrant < iSet && iSet < iReset && iReset < iRevoke && iRevoke < iPost && iPost < iCommit)) return false
-        return pkgFlat.includes("IF current_user <> 'postgres' THEN") &&
+        return pkgFlat.includes("IF current_user <> 'postgres' OR session_user <> 'postgres' THEN") &&
           pkgFlat.includes('the invoker is a superuser; this package is bound to the hosted non-superuser postgres posture') &&
-          pkgFlat.includes('the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE); refusing before any write or authority change') &&
-          (pkgFlat.match(/am\.admin_option AND NOT am\.inherit_option AND NOT am\.set_option/g) ?? []).length === 2 &&
-          pkgFlat.includes('the temporary loader elevation was not exactly restored to the hosted baseline membership') &&
+          pkgFlat.includes('the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres granted BY supabase_admin with ADMIN TRUE, INHERIT FALSE, SET FALSE - grantor included); refusing before any write or authority change') &&
+          (pkgFlat.match(/am\.admin_option AND NOT am\.inherit_option AND NOT am\.set_option/g) ?? []).length === 3 &&
+          pkgFlat.includes('the temporary loader elevation was not exactly restored - EXACTLY the original supabase_admin-granted baseline row (grantor included) must remain') &&
           pkgFlat.includes("has_function_privilege('anon', 'public.load_catalog_identity(uuid)', 'EXECUTE')") &&
           pkgFlat.includes("has_function_privilege('service_role', 'public.load_catalog_identity(uuid)', 'EXECUTE')") &&
           pkgFlat.includes('a.grantee = 0') &&
           pkgProse.includes('TRANSACTION-CONTAINED elevation') &&
           pkgProse.includes('No standing privilege is widened by success or failure.')
       })())
-    check('F3: the live fixture and proofs carry the hosted shape — a DEDICATED hosted-membership-semantics check (all four authorities ADMIN TRUE/INHERIT FALSE/SET FALSE for the non-superuser postgres), the baseline 42501 reproduction, the promoted-bytes reproduction of the exact hosted refusal with ten-zero rollback, restoration proofs on success/second-run/every variant/the race, the restoration-removed and pre-widened-baseline variants, and disclosed cluster_admin probe authority',
+    check('F3: the live fixture and proofs carry the hosted shape — a DEDICATED hosted-membership-semantics check (all four authorities ADMIN TRUE/INHERIT FALSE/SET FALSE for the non-superuser postgres), the baseline 42501 reproduction, the promoted-bytes reproduction of the exact hosted refusal with ten-zero rollback, restoration proofs on success/second-run/every variant/the race, the restoration-removed and pre-widened-baseline variants, and disclosed supabase_admin probe authority',
       live.includes('B1b: the working role reproduces the hosted operator posture - postgres is LOGIN, NOSUPERUSER, CREATEDB, CREATEROLE') &&
       live.includes('B2b: HOSTED MEMBERSHIP SEMANTICS (dedicated check)') &&
       live.includes('B2c: SET ROLE exlib_catalog_loader as postgres is CORRECTLY denied at baseline') &&
@@ -404,9 +404,9 @@ async function main(): Promise<void> {
       live.includes('restoration removed (the REVOKE ... GRANTED BY line deleted)') &&
       live.includes('CC5: after the race the authority baseline is exact') &&
       live.includes('F3b: the untouched package refuses the widened posture at its OWN posture gate') &&
-      live.includes('F3d: the harness restored the exact baseline via cluster_admin') &&
-      live.includes('cluster_admin PROBE authority') &&
-      crecFlat.includes('cluster_admin') && crecFlat.includes('non-superuser postgres'))
+      live.includes('F3d: the harness restored the exact baseline via supabase_admin') &&
+      live.includes('supabase_admin PROBE authority') &&
+      crecFlat.includes('supabase_admin') && crecFlat.includes('non-superuser postgres'))
     check('F4: the design selection is recorded fail-closed and nothing forbidden was done — shapes A/B/C evaluated with B SELECTED (zero residual authority) and A/C REJECTED, the deliberately-NOT-done list present, migrations remain exactly 001-027 with no 028, and the artifact and migration 027 stay byte-identical to promoted main',
       (() => {
         if (!crecFlat.includes('A. Standing hosted operator membership')) return false
@@ -421,6 +421,61 @@ async function main(): Promise<void> {
         return frozenVsSource('docs/exlib2g-plank-content.jsonl') &&
           frozenVsSource('supabase/migrations/027_exlib_catalog_content_schema.sql')
       })())
+    check('F5: GRANTOR BINDING (dedicated) — the baseline gate, the structural two-grantor check between GRANT and SET ROLE, and the restoration postcondition all bind grantor supabase_admin exactly; the temporary row is postgres-granted SET-only; and the live suite carries the dedicated grantor proofs (exact baseline row, instrumented two-row shape, grantor-scoped-revoke isolation, GRANT-removed abort, wrong-grantor refusal with restoration)',
+      (() => {
+        const iGrant = pkg.indexOf('\nGRANT exlib_catalog_loader')
+        const iAuth = pkg.indexOf('DO $auth$')
+        const iSet = pkg.indexOf('\nSET ROLE exlib_catalog_loader;')
+        if (!(iGrant > 0 && iGrant < iAuth && iAuth < iSet)) return false
+        if ((pkgFlat.match(/g\.rolname = 'supabase_admin'/g) ?? []).length !== 3) return false
+        if ((pkgFlat.match(/g\.rolname = 'postgres'/g) ?? []).length !== 1) return false
+        if ((pkgFlat.match(/NOT am\.admin_option AND NOT am\.inherit_option AND am\.set_option/g) ?? []).length !== 1) return false
+        return pkgFlat.includes('the two-grantor membership shape after the temporary grant is not exact (supabase_admin-granted baseline row plus postgres-granted SET row); aborting before SET ROLE and before any loader call') &&
+          pkgProse.includes('grantor supabase_admin -> member postgres') &&
+          pkgProse.includes('STRUCTURAL TWO-GRANTOR SHAPE') &&
+          pkgProse.includes('cannot remove or alter the supabase_admin-granted baseline row') &&
+          live.includes('B2d: DEDICATED baseline-grantor proof') &&
+          live.includes('AU1: EXACT two-row shape immediately after the temporary GRANT') &&
+          live.includes('AU2: the grantor-scoped REVOKE ... GRANTED BY postgres removes ONLY the postgres-granted temporary row') &&
+          live.includes('AU3: the instrumented probe rolled back completely') &&
+          live.includes('elevation removed (the GRANT line deleted) - the structural two-grantor check aborts BEFORE SET ROLE and before any loader call') &&
+          live.includes('F4a: the harness constructed a GRANTOR-ISOLATED counterfactual baseline - exactly one row, member postgres, ADMIN TRUE / INHERIT FALSE / SET FALSE, and ONLY the grantor differs') &&
+          live.includes('F4b: the package refuses a baseline whose ONLY defect is the grantor - the grantor clause is load-bearing') &&
+          live.includes('F4c: the refusal wrote ZERO catalog rows and did not touch the (wrong-grantor) pre-existing membership') &&
+          live.includes('F4d: the harness restored the exact supabase_admin-granted baseline row') &&
+          live.includes('1/supabase_admin>postgres:true:false:false') &&
+          crecFlat.includes('GRANTOR supabase_admin') &&
+          crecFlat.includes('grantor-scoped REVOKE removes only the temporary row')
+      })())
+    check('F6: SESSION BINDING (dedicated) — the gate requires BOTH current_user AND session_user to equal postgres before any authority or data change, and the live suite proves a different session_user that switched current_user to postgres is refused before elevation and writes, with zero catalog rows and the baseline intact',
+      pkgFlat.includes("IF current_user <> 'postgres' OR session_user <> 'postgres' THEN") &&
+      pkgFlat.includes('BOTH execution identities must be the hosted operator role postgres (got current_user=%, session_user=%); refusing before any write or authority change') &&
+      pkgProse.includes('current_user = postgres AND session_user = postgres') &&
+      live.includes('F5a: the package refuses when session_user=exlib_intruder has switched current_user to postgres - rejection at the identity gate, BEFORE elevation and writes') &&
+      live.includes('F5b: the identity refusal wrote ZERO catalog rows and left the authority baseline exact') &&
+      live.includes('F5c: the harness intruder role is fully removed') &&
+      crecFlat.includes('current_user = postgres; session_user = postgres') &&
+      crecFlat.includes('a different session_user that switched current_user to postgres'))
+    check('F7: FIXTURE GRANTOR IDENTITY (dedicated) — the disposable bootstrap superuser is named supabase_admin so the implicit creator memberships reproduce the hosted grantor identity, not merely equivalent options; the fixture asserts the grantor-included row on all four authorities; and no cluster_admin naming remains anywhere in the live suite',
+      live.includes('initdb -D "$PGDATA" -U supabase_admin') &&
+      live.includes('exlib_catalog_loader=supabase_admin>postgres:true:false:false') &&
+      !live.includes('cluster_admin') &&
+      live.includes('BASELINE_OK="1/supabase_admin>postgres:true:false:false"') &&
+      crecFlat.includes('named for the hosted GRANTOR IDENTITY'))
+    check('F8: GRANTOR NON-CONSTRUCTIBILITY (dedicated) — the live suite proves, from PostgreSQL\'s own refusals, that a postgres-granted BASELINE row cannot exist (no-ADMIN grantor refusal plus the self-grantor ADMIN refusal), that the temporary postgres-granted row cannot outlive the baseline row it depends on, and that the hosted grantor supabase_admin is the BOOTSTRAP superuser PostgreSQL records for an implicit creator membership; the record states each fact and discloses that the grantor-isolating counterfactual is harness-only catalog surgery',
+      live.includes('F4e: with no baseline row present, a postgres-granted membership CANNOT be created') &&
+      live.includes('permission denied to grant privileges as role "postgres"') &&
+      live.includes('F4f: while the temporary postgres-granted row exists, PostgreSQL REFUSES to remove the supabase_admin-granted baseline row it depends on') &&
+      live.includes('dependent privileges exist') &&
+      live.includes('F4g: postgres cannot even recreate the baseline row under its own grantor') &&
+      live.includes('ADMIN option cannot be granted back to your own grantor') &&
+      live.includes('F4h: a role created by the NON-SUPERUSER postgres records its implicit creator membership with the BOOTSTRAP superuser as grantor') &&
+      live.includes('UPDATE pg_catalog.pg_auth_members SET grantor') &&
+      live.includes('disposable-fixture surgery') &&
+      crecFlat.includes("The GRANTOR of that implicit membership is PostgreSQL's BOOTSTRAP superuser") &&
+      crecFlat.includes('A postgres-granted BASELINE row therefore cannot exist') &&
+      crecFlat.includes('The temporary row can never outlive its baseline') &&
+      crecFlat.includes('That surgery exists ONLY in the disposable harness'))
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

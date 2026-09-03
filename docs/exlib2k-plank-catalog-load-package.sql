@@ -106,27 +106,42 @@
 -- requires its own review.
 --
 -- HOSTED AUTHORITY POSTURE (the cause, and this revision's design):
--- on hosted, current_user/session_user = postgres; postgres is NOT a
--- superuser; and migration 027's CREATE ROLE gave postgres the
--- implicit creator membership in exlib_catalog_loader with ADMIN
--- TRUE, INHERIT FALSE, SET FALSE. SET ROLE requires a membership
--- carrying the SET option, so the hosted refusal was correct
--- PostgreSQL behavior, not a defect in the role model. Because
--- postgres holds ADMIN OPTION on the loader role, this revision uses
--- a TRANSACTION-CONTAINED elevation: inside the single transaction it
--- (1) proves the EXACT baseline posture before any write or authority
--- change, (2) grants itself the loader membership WITH SET TRUE,
--- INHERIT FALSE (SET only; postgres never inherits loader
--- privileges), (3) performs the load under SET ROLE exactly as
--- reviewed - the loader authority alone executes the three loader
--- operations, (4) revokes exactly the temporary grant it created
--- (REVOKE ... GRANTED BY postgres), and (5) postcondition-verifies
--- before COMMIT that the baseline membership is restored EXACTLY and
--- that no client, service, or PUBLIC grant exists on the loader
--- functions. Role membership changes are transactional, so failure at
--- ANY point (before, during, or after the load) rolls back both the
--- data and the temporary authority change. No standing privilege is
--- widened by success or failure.
+-- on hosted, current_user = postgres AND session_user = postgres;
+-- postgres is NOT a superuser; and migration 027's CREATE ROLE gave
+-- postgres the implicit creator membership in exlib_catalog_loader
+-- with ADMIN TRUE, INHERIT FALSE, SET FALSE. ChatGPT's additional
+-- read-only hosted review query established the exact existing
+-- loader-membership row, INCLUDING ITS GRANTOR:
+--   grantor supabase_admin -> member postgres:
+--   ADMIN TRUE / INHERIT FALSE / SET FALSE
+-- SET ROLE requires a membership carrying the SET option, so the
+-- hosted refusal was correct PostgreSQL behavior, not a defect in the
+-- role model. Because postgres holds ADMIN OPTION on the loader role,
+-- this revision uses a TRANSACTION-CONTAINED elevation: inside the
+-- single transaction it (1) proves the EXACT baseline posture before
+-- any write or authority change - BOTH execution identities
+-- (current_user AND session_user) are postgres, the invoker is not a
+-- superuser, and the loader role carries EXACTLY ONE membership row,
+-- the supabase_admin-granted row above, grantor included, (2) grants
+-- itself the loader membership WITH SET TRUE, INHERIT FALSE (SET
+-- only; postgres never inherits loader privileges), (3) proves the
+-- resulting STRUCTURAL TWO-GRANTOR SHAPE - exactly two membership
+-- rows, the untouched supabase_admin baseline row plus the
+-- postgres-granted temporary row (SET TRUE, INHERIT FALSE, ADMIN
+-- FALSE) - BEFORE SET ROLE or any loader call; this proves the
+-- temporary grant is a DISTINCT grantor-keyed row, so the
+-- grantor-scoped REVOKE below removes only it and cannot remove or
+-- alter the supabase_admin-granted baseline row, (4) performs the
+-- load under SET ROLE exactly as reviewed - the loader authority
+-- alone executes the three loader operations, (5) revokes exactly
+-- the temporary grant it created (REVOKE ... GRANTED BY postgres),
+-- and (6) postcondition-verifies before COMMIT that EXACTLY the
+-- original supabase_admin-granted baseline row remains - grantor
+-- included - and that no client, service, or PUBLIC grant exists on
+-- the loader functions. Role membership changes are transactional,
+-- so failure at ANY point (before, during, or after the load) rolls
+-- back both the data and the temporary authority change. No standing
+-- privilege is widened by success or failure.
 --
 -- ATOMICITY: ONE explicit transaction encloses every statement;
 -- any precondition failure, loader refusal, constraint violation, or
@@ -186,8 +201,8 @@ BEGIN
   -- posture (superuser invoker, widened SET, extra members) refuses
   -- fail-closed, because only this exact baseline makes the
   -- temporary elevation below provably restoration-exact.
-  IF current_user <> 'postgres' THEN
-    RAISE EXCEPTION 'exlib2k load: the invoker must be the hosted operator role postgres (got %)', current_user;
+  IF current_user <> 'postgres' OR session_user <> 'postgres' THEN
+    RAISE EXCEPTION 'exlib2k load: BOTH execution identities must be the hosted operator role postgres (got current_user=%, session_user=%); refusing before any write or authority change', current_user, session_user;
   END IF;
   IF (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
     RAISE EXCEPTION 'exlib2k load: the invoker is a superuser; this package is bound to the hosted non-superuser postgres posture';
@@ -199,9 +214,11 @@ BEGIN
        SELECT 1 FROM pg_catalog.pg_auth_members am
          JOIN pg_roles r ON r.oid = am.roleid
          JOIN pg_roles m ON m.oid = am.member
+         JOIN pg_roles g ON g.oid = am.grantor
         WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND g.rolname = 'supabase_admin'
           AND am.admin_option AND NOT am.inherit_option AND NOT am.set_option) THEN
-    RAISE EXCEPTION 'exlib2k load: the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE); refusing before any write or authority change';
+    RAISE EXCEPTION 'exlib2k load: the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres granted BY supabase_admin with ADMIN TRUE, INHERIT FALSE, SET FALSE - grantor included); refusing before any write or authority change';
   END IF;
   SELECT (SELECT count(*) FROM public.exercise_catalog_logical)
        + (SELECT count(*) FROM public.exercise_catalog)
@@ -224,6 +241,41 @@ $pre$;
 --    below; postcondition-verified restored; rolls back with the
 --    whole transaction on ANY failure) ──────────────────────────────
 GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;
+
+-- ── Structural two-grantor proof (fail-closed, BEFORE SET ROLE or
+--    any loader call): the loader membership must now be EXACTLY two
+--    rows - the untouched supabase_admin-granted baseline (ADMIN
+--    TRUE, INHERIT FALSE, SET FALSE) plus the postgres-granted
+--    temporary row (SET TRUE, INHERIT FALSE, ADMIN FALSE). Grantor
+--    keys make these DISTINCT rows, which is exactly why the
+--    grantor-scoped REVOKE below removes only the temporary row and
+--    cannot remove or alter the baseline. Any other shape aborts
+--    before loading. ─────────────────────────────────────────────────
+DO $auth$
+BEGIN
+  IF (SELECT count(*) FROM pg_catalog.pg_auth_members am
+        JOIN pg_roles r ON r.oid = am.roleid
+       WHERE r.rolname = 'exlib_catalog_loader') <> 2
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_auth_members am
+         JOIN pg_roles r ON r.oid = am.roleid
+         JOIN pg_roles m ON m.oid = am.member
+         JOIN pg_roles g ON g.oid = am.grantor
+        WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND g.rolname = 'supabase_admin'
+          AND am.admin_option AND NOT am.inherit_option AND NOT am.set_option)
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_auth_members am
+         JOIN pg_roles r ON r.oid = am.roleid
+         JOIN pg_roles m ON m.oid = am.member
+         JOIN pg_roles g ON g.oid = am.grantor
+        WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND g.rolname = 'postgres'
+          AND NOT am.admin_option AND NOT am.inherit_option AND am.set_option) THEN
+    RAISE EXCEPTION 'exlib2k load: the two-grantor membership shape after the temporary grant is not exact (supabase_admin-granted baseline row plus postgres-granted SET row); aborting before SET ROLE and before any loader call';
+  END IF;
+END
+$auth$;
 
 -- ── The load, under the loader authority ONLY ────────────────────
 SET ROLE exlib_catalog_loader;
@@ -375,9 +427,11 @@ BEGIN
        SELECT 1 FROM pg_catalog.pg_auth_members am
          JOIN pg_roles r ON r.oid = am.roleid
          JOIN pg_roles m ON m.oid = am.member
+         JOIN pg_roles g ON g.oid = am.grantor
         WHERE r.rolname = 'exlib_catalog_loader' AND m.rolname = 'postgres'
+          AND g.rolname = 'supabase_admin'
           AND am.admin_option AND NOT am.inherit_option AND NOT am.set_option) THEN
-    RAISE EXCEPTION 'exlib2k post: the temporary loader elevation was not exactly restored to the hosted baseline membership';
+    RAISE EXCEPTION 'exlib2k post: the temporary loader elevation was not exactly restored - EXACTLY the original supabase_admin-granted baseline row (grantor included) must remain';
   END IF;
   IF has_function_privilege('anon', 'public.load_catalog_identity(uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.load_catalog_identity(uuid)', 'EXECUTE')

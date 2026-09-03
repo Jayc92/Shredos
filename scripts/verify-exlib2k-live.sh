@@ -22,7 +22,7 @@
 # persistent local database is left behind.
 #
 # HOSTED-SHAPE FIXTURE (authority correction): the cluster boots with
-# a bootstrap superuser named cluster_admin used ONLY as platform
+# a bootstrap superuser named supabase_admin used ONLY as platform
 # substrate and harness probe authority; the working role is a
 # recreated NON-SUPERUSER postgres (LOGIN, CREATEDB, CREATEROLE) - the
 # hosted operator posture. Migrations apply AS postgres, so migration
@@ -67,12 +67,12 @@ trap cleanup EXIT
 DB=postgres
 # Q/QQ run as the NON-SUPERUSER working role postgres (the hosted
 # operator posture); QA/QQA run as the bootstrap superuser
-# cluster_admin - platform substrate and harness PROBE authority only,
+# supabase_admin - platform substrate and harness PROBE authority only,
 # never product authority.
 Q()   { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
 QQ()  { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
-QA()  { psql -h "$SOCK" -U cluster_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
-QQA() { psql -h "$SOCK" -U cluster_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
+QA()  { psql -h "$SOCK" -U supabase_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
+QQA() { psql -h "$SOCK" -U supabase_admin -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1" 2>&1; }
 expect_err() { # NAME SQL PATTERN
   local out; out=$(QQ "$2")
   if [ $? -eq 0 ]; then
@@ -84,17 +84,24 @@ expect_eq() { # NAME SQL EXPECTED
   local got; got=$(QQ "$2")
   if [ "$got" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3], got [$got]"; fi
 }
-expect_err_admin() { # NAME SQL PATTERN - via cluster_admin PROBE authority
+expect_err_admin() { # NAME SQL PATTERN - via supabase_admin PROBE authority
   local out; out=$(QQA "$2")
   if [ $? -eq 0 ]; then
     bad "$1" "expected fail-closed rejection, statement SUCCEEDED"
   elif printf '%s' "$out" | grep -qF "$3"; then ok "$1"
   else bad "$1" "rejected, but not by the expected rule ($3): $(printf '%s' "$out" | head -2 | tr '\n' ' ')"; fi
 }
-# Membership-baseline assertion: the loader role must carry EXACTLY
-# one membership - postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE.
-BASELINE_SQL="SELECT (SELECT count(*) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader')::text || '/' || (SELECT am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE r.rolname='exlib_catalog_loader' AND m.rolname='postgres')"
-BASELINE_OK="1/true:false:false" 
+# Membership-baseline assertion, GRANTOR INCLUDED: the loader role
+# must carry EXACTLY one membership - the supabase_admin-granted row
+# for postgres with ADMIN TRUE, INHERIT FALSE, SET FALSE (the exact
+# hosted row ChatGPT's read-only review query established).
+BASELINE_SQL="SELECT (SELECT count(*) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader')::text || '/' || (SELECT g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname='exlib_catalog_loader' AND m.rolname='postgres')"
+BASELINE_OK="1/supabase_admin>postgres:true:false:false"
+# BASELINE_SQL asserts the ONE exact row and errors on any other count;
+# these two tolerate zero-row and multi-row postures, for the grantor
+# impossibility proofs in F4.
+MEMROWS_SQL="SELECT count(*)::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader'"
+MEMSET_SQL="SELECT coalesce(string_agg(g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, ' + ' ORDER BY g.rolname), '<none>') FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname='exlib_catalog_loader'"
 
 PL='e21b2c00-0000-4000-a000-000000000001'
 DBU='e21b2c00-0000-4000-a000-000000000002'
@@ -135,17 +142,17 @@ grep -q '^SET ROLE exlib_catalog_loader;' "$PACKAGE" && grep -q '^RESET ROLE;' "
 
 echo
 echo "=== B. Disposable cluster + migrations 001-027 + representative tenant fixture"
-initdb -D "$PGDATA" -U cluster_admin --no-locale -E UTF8 >/dev/null 2>&1
+initdb -D "$PGDATA" -U supabase_admin --no-locale -E UTF8 >/dev/null 2>&1
 pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories='$SOCK'" -l "$TMP/pg.log" start >/dev/null 2>&1
 if QA "SELECT 1" >/dev/null 2>&1; then
-  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact; bootstrap superuser = cluster_admin, platform substrate only)"
+  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact; bootstrap superuser = supabase_admin, platform substrate only)"
 else
   bad "B1: cluster failed to start"; sed -n '1,5p' "$TMP/pg.log"; exit 1
 fi
 QA "CREATE ROLE postgres LOGIN NOSUPERUSER CREATEDB CREATEROLE;
     CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;
     ALTER DATABASE postgres OWNER TO postgres;" >/dev/null
-expect_eq "B1b: the working role reproduces the hosted operator posture - postgres is LOGIN, NOSUPERUSER, CREATEDB, CREATEROLE (platform roles created by cluster_admin, as Supabase provisions them)" \
+expect_eq "B1b: the working role reproduces the hosted operator posture - postgres is LOGIN, NOSUPERUSER, CREATEDB, CREATEROLE (platform roles created by supabase_admin, as Supabase provisions them)" \
   "SELECT rolcanlogin::text||'/'||rolsuper::text||'/'||rolcreatedb::text||'/'||rolcreaterole::text FROM pg_roles WHERE rolname='postgres'" \
   "true/false/true/true"
 Q "CREATE SCHEMA auth;
@@ -161,11 +168,37 @@ done
 [ "$APPLIED" = "27" ] && ok "B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)" \
   || bad "B2: expected 27 migrations, applied $APPLIED"
 expect_eq "B2b: HOSTED MEMBERSHIP SEMANTICS (dedicated check) - migration 027's CREATE ROLE, executed by the non-superuser postgres, natively yields the implicit creator membership ADMIN TRUE / INHERIT FALSE / SET FALSE on ALL FOUR catalog authorities, exactly one membership each - the exact posture reported from the failed hosted attempt" \
-  "SELECT string_agg(r.rolname||'='||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text||':'||m.rolname, ' | ' ORDER BY r.rolname) || ' rows=' || count(*)::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE r.rolname LIKE 'exlib_catalog_%'" \
-  "exlib_catalog_admin=true:false:false:postgres | exlib_catalog_admission=true:false:false:postgres | exlib_catalog_loader=true:false:false:postgres | exlib_catalog_reviewer=true:false:false:postgres rows=4"
+  "SELECT string_agg(r.rolname||'='||g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, ' | ' ORDER BY r.rolname) || ' rows=' || count(*)::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname LIKE 'exlib_catalog_%'" \
+  "exlib_catalog_admin=supabase_admin>postgres:true:false:false | exlib_catalog_admission=supabase_admin>postgres:true:false:false | exlib_catalog_loader=supabase_admin>postgres:true:false:false | exlib_catalog_reviewer=supabase_admin>postgres:true:false:false rows=4"
+expect_eq "B2d: DEDICATED baseline-grantor proof - the loader membership is EXACTLY the hosted row: grantor supabase_admin -> member postgres, ADMIN TRUE / INHERIT FALSE / SET FALSE, one row, grantor included" \
+  "$BASELINE_SQL" "$BASELINE_OK"
 expect_err "B2c: SET ROLE exlib_catalog_loader as postgres is CORRECTLY denied at baseline - the fixture reproduces the hosted 42501 semantics" \
   "SET ROLE exlib_catalog_loader;" \
   "permission denied to set role \"exlib_catalog_loader\""
+
+echo
+echo "=== AU. Dedicated grantor-mechanics proofs (instrumented; rolled back; package untouched)"
+# One instrumented transaction AS postgres proves the exact two-row
+# shape immediately after the temporary GRANT and that the
+# grantor-scoped REVOKE removes ONLY the postgres-granted row - then
+# rolls everything back.
+AUOUT=$(psql -h "$SOCK" -U postgres -d "$DB" -X -qtA <<'AUSQL' 2>&1
+BEGIN;
+GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;
+SELECT 'AFTER-GRANT=' || (SELECT count(*) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader')::text || '[' || (SELECT string_agg(g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, ' + ' ORDER BY g.rolname) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname='exlib_catalog_loader') || ']';
+REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;
+SELECT 'AFTER-REVOKE=' || (SELECT count(*) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid WHERE r.rolname='exlib_catalog_loader')::text || '[' || (SELECT string_agg(g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, ' + ' ORDER BY g.rolname) FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname='exlib_catalog_loader') || ']';
+ROLLBACK;
+AUSQL
+)
+printf '%s' "$AUOUT" | grep -qF 'AFTER-GRANT=2[postgres>postgres:false:false:true + supabase_admin>postgres:true:false:false]' \
+  && ok "AU1: EXACT two-row shape immediately after the temporary GRANT - the supabase_admin baseline row untouched PLUS the postgres-granted SET row (distinct grantor-keyed rows)" \
+  || bad "AU1: two-row shape wrong" "$AUOUT"
+printf '%s' "$AUOUT" | grep -qF 'AFTER-REVOKE=1[supabase_admin>postgres:true:false:false]' \
+  && ok "AU2: the grantor-scoped REVOKE ... GRANTED BY postgres removes ONLY the postgres-granted temporary row - the supabase_admin-granted baseline row is neither removed nor altered (mechanical grantor-separation proof)" \
+  || bad "AU2: grantor-scoped revoke touched the wrong row(s)" "$AUOUT"
+expect_eq "AU3: the instrumented probe rolled back completely - the baseline grantor row is exact again" \
+  "$BASELINE_SQL" "$BASELINE_OK"
 ZERO=$(Q "SELECT (SELECT count(*) FROM exercise_catalog_logical) + (SELECT count(*) FROM exercise_catalog)
   + (SELECT count(*) FROM exercise_catalog_content) + (SELECT count(*) FROM exercise_catalog_content_expected_relationships)
   + (SELECT count(*) FROM exercise_catalog_relationships) + (SELECT count(*) FROM exercise_catalog_import_runs)")
@@ -189,7 +222,7 @@ echo "=== C. Execute the prepared package EXACTLY ONCE"
 psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/pkg.out" 2>&1 \
   && ok "C1: the package executed cleanly (one transaction, loader authority, all postconditions internally satisfied)" \
   || { bad "C1: package failed" "$(tail -3 "$TMP/pkg.out" | tr '\n' ' ')"; exit 1; }
-expect_eq "C1b: AUTHORITY RESTORED after success - the loader role again carries EXACTLY one membership, postgres with ADMIN TRUE / INHERIT FALSE / SET FALSE (the temporary in-transaction elevation left nothing behind)" \
+expect_eq "C1b: AUTHORITY RESTORED after success - EXACTLY the original supabase_admin-granted baseline row remains (grantor included: supabase_admin -> postgres, ADMIN TRUE / INHERIT FALSE / SET FALSE); the temporary in-transaction elevation left nothing behind" \
   "$BASELINE_SQL" "$BASELINE_OK"
 expect_err "C1c: SET ROLE exlib_catalog_loader as postgres is denied AGAIN after the successful load - no standing SET authority survives COMMIT" \
   "SET ROLE exlib_catalog_loader;" \
@@ -257,10 +290,10 @@ case "$PYOUT" in ARTIFACT-MATCH-OK) ok "C4: EVERY loaded value equals the admitt
 
 echo
 echo "=== D. The loaded version cannot advance without its separately gated authorities"
-expect_err_admin "D1: it CANNOT be admitted before database review (admission-before-review refused by the promoted lifecycle) [role assumed via the harness's cluster_admin superuser PROBE authority - the non-superuser postgres cannot SET ROLE into any catalog authority at baseline]" \
+expect_err_admin "D1: it CANNOT be admitted before database review (admission-before-review refused by the promoted lifecycle) [role assumed via the harness's supabase_admin superuser PROBE authority - the non-superuser postgres cannot SET ROLE into any catalog authority at baseline]" \
   "SET ROLE exlib_catalog_admission; SELECT admit_catalog_content('$PL','$CV', repeat('a',64));" \
   "admission cannot precede human approval"
-expect_err_admin "D2: it CANNOT be published (pending, unadmitted) [cluster_admin PROBE authority]" \
+expect_err_admin "D2: it CANNOT be published (pending, unadmitted) [supabase_admin PROBE authority]" \
   "SET ROLE exlib_catalog_admin; SELECT publish_catalog_content('$PL','$CV');" \
   "only approved content can be published"
 expect_eq "D3: NO live relationship projection exists before publication" \
@@ -275,7 +308,7 @@ EX_DIGEST_AFTER=$(Q "SELECT md5(string_agg(id::text||user_id::text||name||catego
 { [ "$EX_AFTER" = "84" ] && [ "$EX_DIGEST_AFTER" = "$EX_DIGEST_BEFORE" ]; } \
   && ok "D5: exercises remains EXACTLY 84 and byte-identical - the load mutated no tenant exercise, seed, or delivery state" \
   || bad "D5: tenant exercises changed" "$EX_BEFORE->$EX_AFTER"
-expect_err_admin "D6: ordinary clients cannot invoke the loader (the package's authority is real, not decorative) [client role assumed via cluster_admin PROBE authority]" \
+expect_err_admin "D6: ordinary clients cannot invoke the loader (the package's authority is real, not decorative) [client role assumed via supabase_admin PROBE authority]" \
   "SET ROLE authenticated; SELECT load_catalog_identity(NULL);" \
   "permission denied for function load_catalog_identity"
 
@@ -352,9 +385,9 @@ mkvariant_db v4 && run_variant v4 "tampered payload (one word) trips the byte-eq
   "s/\\\$br\\\$Breathe steadily/\\\$br\\\$Breathe rapidly/" \
   "the authored payload does not match the admitted artifact exactly"
 mkvariant_db v5 && {
-  # foreign-state pre-seed via cluster_admin PROBE authority (the
+  # foreign-state pre-seed via supabase_admin PROBE authority (the
   # non-superuser postgres correctly cannot SET ROLE at baseline)
-  psql -h "$SOCK" -U cluster_admin -d v5 -X -qtA -c "SET ROLE exlib_catalog_loader; SELECT load_catalog_identity('99999999-9999-4999-a999-999999999999');" >/dev/null 2>&1
+  psql -h "$SOCK" -U supabase_admin -d v5 -X -qtA -c "SET ROLE exlib_catalog_loader; SELECT load_catalog_identity('99999999-9999-4999-a999-999999999999');" >/dev/null 2>&1
   psql -h "$SOCK" -U postgres -d v5 -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/variant-v5.out" 2>&1 \
     && bad "F(nonempty surface): package ran over foreign state" \
     || { grep -qF "refuses to run twice or over foreign state" "$TMP/variant-v5.out" \
@@ -367,6 +400,9 @@ mkvariant_db v6 && run_variant v6 "claim corruption (an owner DELETE of one clai
 mkvariant_db v7 && run_variant v7 "restoration removed (the REVOKE ... GRANTED BY line deleted) trips the package's OWN authority-restoration postcondition" \
   "/^REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;\$/d" \
   "the temporary loader elevation was not exactly restored"
+mkvariant_db v8 && run_variant v8 "elevation removed (the GRANT line deleted) - the structural two-grantor check aborts BEFORE SET ROLE and before any loader call (loading only happens after the two-row proof)" \
+  "/^GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;\$/d" \
+  "the two-grantor membership shape after the temporary grant is not exact"
 
 echo
 echo "=== F2. REAL two-session concurrency - the lock-serialized gate admits exactly one execution"
@@ -426,8 +462,8 @@ echo "=== F3. A pre-widened baseline is refused BEFORE any write or authority ch
 mkvariant_db wd && {
   QA "GRANT exlib_catalog_loader TO postgres WITH SET TRUE;" >/dev/null
   WD0=$(Q "$BASELINE_SQL")
-  [ "$WD0" = "1/true:false:true" ] \
-    && ok "F3a: the harness pre-widened the baseline via cluster_admin (SET TRUE now present) to simulate a non-baseline hosted posture" \
+  [ "$WD0" = "1/supabase_admin>postgres:true:false:true" ] \
+    && ok "F3a: the harness pre-widened the baseline via supabase_admin (SET TRUE now present) to simulate a non-baseline hosted posture" \
     || bad "F3a: unexpected widened shape ($WD0)"
   psql -h "$SOCK" -U postgres -d wd -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/wd.out" 2>&1 \
     && bad "F3b: the package RAN over a non-baseline posture (it must refuse)" \
@@ -436,14 +472,108 @@ mkvariant_db wd && {
          || bad "F3b: refused for an unexpected reason" "$(tail -2 "$TMP/wd.out" | tr '\n' ' ')"; }
   WZ=$(psql -h "$SOCK" -U postgres -d wd -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)+(SELECT count(*) FROM exercise_catalog)+(SELECT count(*) FROM exercise_catalog_content)+(SELECT count(*) FROM exercise_catalog_name_claims)")
   WD1=$(Q "$BASELINE_SQL")
-  { [ "$WZ" = "0" ] && [ "$WD1" = "1/true:false:true" ]; } \
+  { [ "$WZ" = "0" ] && [ "$WD1" = "1/supabase_admin>postgres:true:false:true" ]; } \
     && ok "F3c: the refusal wrote nothing and did NOT touch the pre-existing (widened) membership - the package never modifies a posture it did not verify" \
     || bad "F3c: refusal side effects (rows=$WZ, membership=$WD1)"
   QA "REVOKE SET OPTION FOR exlib_catalog_loader FROM postgres;" >/dev/null
   WD2=$(Q "$BASELINE_SQL")
   [ "$WD2" = "$BASELINE_OK" ] \
-    && ok "F3d: the harness restored the exact baseline via cluster_admin (cluster-wide membership back to ADMIN TRUE / INHERIT FALSE / SET FALSE)" \
+    && ok "F3d: the harness restored the exact baseline via supabase_admin (cluster-wide membership back to ADMIN TRUE / INHERIT FALSE / SET FALSE)" \
     || bad "F3d: baseline not restored ($WD2)"
+}
+
+echo
+echo "=== F4. GRANTOR BINDING: a wrong-grantor baseline is refused, and PostgreSQL itself forbids every postgres-granted baseline"
+mkvariant_db wg && {
+  # The grantor clause has to be proven ISOLATED - a posture satisfying
+  # every OTHER baseline condition (exactly one row, member postgres,
+  # ADMIN TRUE / INHERIT FALSE / SET FALSE) and differing ONLY in the
+  # grantor. PostgreSQL cannot build that through GRANT at all (F4e-F4g
+  # prove why: a non-bootstrap grantor must derive ADMIN from its own
+  # membership row on the same role, so any legitimately granted
+  # wrong-grantor row implies a SECOND row, which the exactly-one-row
+  # clause would reject on its own and leave the grantor clause
+  # unproven). So the harness rewrites the shared catalog's grantor
+  # column DIRECTLY under the disclosed bootstrap-superuser PROBE
+  # authority. This is disposable-fixture surgery: no product code
+  # path, no package statement, and nothing hosted ever does it.
+  QA "CREATE ROLE exlib_alt_admin NOLOGIN NOSUPERUSER;" >/dev/null
+  QA "UPDATE pg_catalog.pg_auth_members SET grantor = (SELECT oid FROM pg_roles WHERE rolname='exlib_alt_admin') WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname='exlib_catalog_loader') AND member = (SELECT oid FROM pg_roles WHERE rolname='postgres')" >/dev/null
+  WG0=$(Q "$BASELINE_SQL")
+  [ "$WG0" = "1/exlib_alt_admin>postgres:true:false:false" ] \
+    && ok "F4a: the harness constructed a GRANTOR-ISOLATED counterfactual baseline - exactly one row, member postgres, ADMIN TRUE / INHERIT FALSE / SET FALSE, and ONLY the grantor differs (exlib_alt_admin instead of supabase_admin)" \
+    || bad "F4a: unexpected surgical shape ($WG0)"
+  psql -h "$SOCK" -U postgres -d wg -X -v ON_ERROR_STOP=1 -q -f "$PACKAGE" > "$TMP/wg.out" 2>&1 \
+    && bad "F4b: the package RAN over a wrong-grantor baseline (it must refuse)" \
+    || { grep -qF 'granted BY supabase_admin with ADMIN TRUE, INHERIT FALSE, SET FALSE - grantor included' "$TMP/wg.out" \
+         && ok "F4b: the package refuses a baseline whose ONLY defect is the grantor - the grantor clause is load-bearing, and the refusal lands at its own posture gate before any write or authority change" \
+         || bad "F4b: refused for an unexpected reason" "$(tail -2 "$TMP/wg.out" | tr '\n' ' ')"; }
+  WGZ=$(psql -h "$SOCK" -U postgres -d wg -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)+(SELECT count(*) FROM exercise_catalog)+(SELECT count(*) FROM exercise_catalog_content)+(SELECT count(*) FROM exercise_catalog_name_claims)")
+  WG1=$(Q "$BASELINE_SQL")
+  { [ "$WGZ" = "0" ] && [ "$WG1" = "1/exlib_alt_admin>postgres:true:false:false" ]; } \
+    && ok "F4c: the refusal wrote ZERO catalog rows and did not touch the (wrong-grantor) pre-existing membership" \
+    || bad "F4c: refusal side effects (rows=$WGZ, membership=$WG1)"
+  QA "UPDATE pg_catalog.pg_auth_members SET grantor = (SELECT oid FROM pg_roles WHERE rolname='supabase_admin') WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname='exlib_catalog_loader') AND member = (SELECT oid FROM pg_roles WHERE rolname='postgres')" >/dev/null
+  QA "DROP ROLE exlib_alt_admin;" >/dev/null
+  WG2=$(Q "$BASELINE_SQL")
+  [ "$WG2" = "$BASELINE_OK" ] \
+    && ok "F4d: the harness restored the exact supabase_admin-granted baseline row (no fixture residue)" \
+    || bad "F4d: baseline not restored ($WG2)"
+  # F4e-F4g: PostgreSQL's OWN refusals, which is why a postgres-granted
+  # BASELINE row cannot exist at all and why the temporary row can never
+  # outlive the row it depends on.
+  QA "REVOKE exlib_catalog_loader FROM postgres GRANTED BY supabase_admin;" >/dev/null
+  E1=$(QQ "GRANT exlib_catalog_loader TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;")
+  E2=$(QQA "GRANT exlib_catalog_loader TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE GRANTED BY postgres;")
+  ER=$(QA "$MEMROWS_SQL")
+  { printf '%s' "$E1" | grep -qF 'permission denied to grant role "exlib_catalog_loader"' \
+    && printf '%s' "$E2" | grep -qF 'permission denied to grant privileges as role "postgres"' \
+    && [ "$ER" = "0" ]; } \
+    && ok "F4e: with no baseline row present, a postgres-granted membership CANNOT be created - postgres holds no ADMIN option to grant with, and even a bootstrap superuser's GRANTED BY postgres is refused (the grantor must itself hold ADMIN), so the loader membership stays at zero rows" \
+    || bad "F4e: postgres-granted row was constructible or errors differ (rows=$ER)" "$(printf '%s | %s' "$(printf '%s' "$E1" | head -1)" "$(printf '%s' "$E2" | head -1)")"
+  QA "GRANT exlib_catalog_loader TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;" >/dev/null
+  Q "GRANT exlib_catalog_loader TO postgres WITH SET TRUE, INHERIT FALSE;" >/dev/null
+  E3=$(QQA "REVOKE exlib_catalog_loader FROM postgres GRANTED BY supabase_admin;")
+  E3S=$(QA "$MEMSET_SQL")
+  { printf '%s' "$E3" | grep -qF 'dependent privileges exist' \
+    && [ "$E3S" = "postgres>postgres:false:false:true + supabase_admin>postgres:true:false:false" ]; } \
+    && ok "F4f: while the temporary postgres-granted row exists, PostgreSQL REFUSES to remove the supabase_admin-granted baseline row it depends on ('dependent privileges exist') - the temporary row can never outlive its baseline, and no grantor-scoped revoke can silently strand it" \
+    || bad "F4f: dependency refusal missing (membership=$E3S)" "$(printf '%s' "$E3" | head -2 | tr '\n' ' ')"
+  Q "REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;" >/dev/null
+  E4=$(QQ "GRANT exlib_catalog_loader TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;")
+  E4S=$(Q "$BASELINE_SQL")
+  { printf '%s' "$E4" | grep -qF 'ADMIN option cannot be granted back to your own grantor' \
+    && [ "$E4S" = "$BASELINE_OK" ]; } \
+    && ok "F4g: postgres cannot even recreate the baseline row under its own grantor ('ADMIN option cannot be granted back to your own grantor'), and the exact baseline row survives every attempt above" \
+    || bad "F4g: self-grantor ADMIN refusal missing (membership=$E4S)" "$(printf '%s' "$E4" | head -1)"
+  Q "CREATE ROLE exlib_grantor_probe NOLOGIN;" >/dev/null
+  E5=$(QA "SELECT g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname='exlib_grantor_probe'")
+  Q "DROP ROLE exlib_grantor_probe;" >/dev/null
+  E5R=$(QA "SELECT count(*)::text FROM pg_roles WHERE rolname='exlib_grantor_probe'")
+  { [ "$E5" = "supabase_admin>postgres:true:false:false" ] && [ "$E5R" = "0" ]; } \
+    && ok "F4h: a role created by the NON-SUPERUSER postgres records its implicit creator membership with the BOOTSTRAP superuser as grantor, not the creator - which is exactly why the hosted row reads grantor supabase_admin, and why the fixture reproduces that identity by name" \
+    || bad "F4h: creator-membership grantor origin unexpected ($E5, residue=$E5R)"
+}
+
+echo
+echo "=== F5. A DIFFERENT session_user that switched current_user to postgres is refused before elevation and writes"
+mkvariant_db si && {
+  QA "CREATE ROLE exlib_intruder LOGIN; GRANT postgres TO exlib_intruder WITH SET TRUE, INHERIT FALSE;" >/dev/null
+  psql -h "$SOCK" -U exlib_intruder -d si -X -v ON_ERROR_STOP=1 -q -c "SET ROLE postgres;" -f "$PACKAGE" > "$TMP/si.out" 2>&1 \
+    && bad "F5a: the package RAN for a non-postgres session_user (it must refuse)" \
+    || { grep -qF 'BOTH execution identities must be the hosted operator role postgres' "$TMP/si.out" \
+         && grep -qF 'session_user=exlib_intruder' "$TMP/si.out" \
+         && ok "F5a: the package refuses when session_user=exlib_intruder has switched current_user to postgres - rejection at the identity gate, BEFORE elevation and writes" \
+         || bad "F5a: refused for an unexpected reason" "$(tail -2 "$TMP/si.out" | tr '\n' ' ')"; }
+  SIZ=$(psql -h "$SOCK" -U postgres -d si -X -qtA -c "SELECT (SELECT count(*) FROM exercise_catalog_logical)+(SELECT count(*) FROM exercise_catalog)+(SELECT count(*) FROM exercise_catalog_content)+(SELECT count(*) FROM exercise_catalog_name_claims)")
+  SI1=$(Q "$BASELINE_SQL")
+  { [ "$SIZ" = "0" ] && [ "$SI1" = "$BASELINE_OK" ]; } \
+    && ok "F5b: the identity refusal wrote ZERO catalog rows and left the authority baseline exact" \
+    || bad "F5b: refusal side effects (rows=$SIZ, membership=$SI1)"
+  QA "REVOKE postgres FROM exlib_intruder; DROP ROLE exlib_intruder;" >/dev/null
+  QA "SELECT count(*) FROM pg_roles WHERE rolname='exlib_intruder'" | grep -qx 0 \
+    && ok "F5c: the harness intruder role is fully removed (no fixture residue)" \
+    || bad "F5c: intruder role residue"
 }
 
 echo
