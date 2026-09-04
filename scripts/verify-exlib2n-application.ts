@@ -22,6 +22,16 @@ const TIP = 'c9c1afd7df35f2870430da3a8d1295ff7e48e11d'
 const TIP_TREE = 'c645439460601d44b9c889e2ac4e83cb624ea48d'
 const TAG = 'exlib2n-target-snapshot-review-prep-stable'
 const TAG_OBJ = '59c853c12455d1ac00522c479a2d5aad86b6c6ab'
+// RETARGET (EXLIB-2N R6 eligibility admission): this suite proves the
+// APPLICATION milestone, promoted as the single commit d48a554... on
+// the 2N tip. The R6 admission milestone later flips import_eligible
+// on exactly the two admitted records (changing the two batch files
+// and HEAD topology), so this suite's phase claims — post-transition
+// batch bytes, the 126-record eligibility sweep, the 19-path range,
+// and the G replacement-branch topology — are anchored to that exact
+// promoted application tip, where they were and remain true. Claims
+// over files the admission does not touch stay live.
+const TIP_APP = 'd48a554454456713633bbc5bd3e4af5d8405135a'
 
 const B02 = 'docs/exlib2c-release1-batch02-content.jsonl'
 const B04 = 'docs/exlib2c-release1-batch04-content.jsonl'
@@ -178,7 +188,8 @@ check('B5: exact category decisions — Dead bug = mobility, Ab wheel rollout = 
 console.log('\nC. Minimal authored-record transitions')
 const transition = (path: string, pre: any, post: any, cr: any): boolean => {
   const preBuf = blobAt(TIP, path)
-  const postBuf = blobAt('HEAD', path)
+  // RETARGET (EXLIB-2N R6 eligibility admission): post bytes anchored
+  const postBuf = blobAt(TIP_APP, path)
   if (preBuf.length !== pre.bytes || sha256(preBuf) !== pre.sha) return false
   if (postBuf.length !== post.bytes || sha256(postBuf) !== post.sha) return false
   const preLines = preBuf.toString('utf8').split('\n')
@@ -209,7 +220,8 @@ check('C3: EVERY leading header line is truthful COMMENTARY (Codex round 2) — 
   (() => {
     for (const [path, name] of [[B02, 'Dead bug'], [B04, 'Ab wheel rollout']] as [string, string][]) {
       const pre = blobAt(TIP, path).toString('utf8').split('\n')
-      const post = blobAt('HEAD', path).toString('utf8').split('\n')
+      // RETARGET (EXLIB-2N R6 eligibility admission): anchored
+      const post = blobAt(TIP_APP, path).toString('utf8').split('\n')
       for (let i = 0; i < HEADER_LINES; i += 1) if (!post[i].startsWith('#')) return false
       if (post[HEADER_LINES].startsWith('#')) return false
       const hdr = post.slice(0, HEADER_LINES).join('\n')
@@ -235,7 +247,8 @@ check('C3: EVERY leading header line is truthful COMMENTARY (Codex round 2) — 
 check('C4: the EXLIB-2I convention holds — content_review.reviewer carries the reviewer NAME only; the role/credential lives in the completed forms and the application record, and no invented field exists in either record',
   (() => {
     for (const [path, line] of [[B02, 12], [B04, 5]] as [string, number][]) {
-      const rec = JSON.parse(blobAt('HEAD', path).toString('utf8').split('\n')[line - 1])
+      // RETARGET (EXLIB-2N R6 eligibility admission): anchored
+      const rec = JSON.parse(blobAt(TIP_APP, path).toString('utf8').split('\n')[line - 1])
       if (rec.content_review.reviewer !== 'Nick Tkacz') return false
       if (JSON.stringify(Object.keys(rec.content_review)) !== JSON.stringify(['status', 'reviewer', 'reviewed_at', 'rationale'])) return false
       if ('category' in rec || 'reviewer_role_or_credential' in rec || 'snapshot_category_decision' in rec) return false
@@ -250,7 +263,10 @@ check('D1: both records stay review_status "proposed", import_eligible false, de
     let approved = 0
     let pending = 0
     for (let i = 1; i <= 6; i += 1) {
-      const recs = blobAt('HEAD', `docs/exlib2c-release1-batch0${i}-content.jsonl`).toString('utf8')
+      // RETARGET (EXLIB-2N R6 eligibility admission): the phase sweep
+      // (2 approved / 124 pending / ALL import-ineligible) anchored to
+      // the promoted application tip, where it was true.
+      const recs = blobAt(TIP_APP, `docs/exlib2c-release1-batch0${i}-content.jsonl`).toString('utf8')
         .split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
       for (const r of recs) {
         if (r.import_eligible !== false) return false
@@ -269,10 +285,12 @@ check('D1: both records stay review_status "proposed", import_eligible false, de
 check('D2: no publication key anywhere, no load package or SQL artifact in the phase, and the R6 eligibility admissions are DELIBERATELY not performed (stated in the record)',
   (() => {
     for (const [path, line] of [[B02, 12], [B04, 5]] as [string, number][]) {
-      const rec = JSON.parse(blobAt('HEAD', path).toString('utf8').split('\n')[line - 1])
+      // RETARGET (EXLIB-2N R6 eligibility admission): anchored
+      const rec = JSON.parse(blobAt(TIP_APP, path).toString('utf8').split('\n')[line - 1])
       if (Object.keys(rec).some((k) => k.includes('publication'))) return false
     }
-    const range = execSync(`git diff --name-only ${TIP}..HEAD`, { encoding: 'utf8' }).split('\n').filter(Boolean)
+    // RETARGET (EXLIB-2N R6 eligibility admission): anchored range
+    const range = execSync(`git diff --name-only ${TIP}..${TIP_APP}`, { encoding: 'utf8' }).split('\n').filter(Boolean)
     if (range.some((p) => p.endsWith('.sql'))) return false
     return recFlat.includes('R6-style eligibility admissions are DELIBERATELY NOT performed in this milestone')
       && recFlat.includes('import_eligible — the R6 admission axis: UNCHANGED at false for both')
@@ -301,9 +319,9 @@ check('E1: two-state lifecycle — the promoted 2N tip carries neither completed
     for (const p of [DB_DONE, AW_DONE, RECORD, VERIFIER]) blobAt('HEAD', p)
     return true
   })())
-check('E2: exact phase inventory — the range from the promoted 2N tip is exactly the nineteen disclosed paths (2 modified batch files, 4 additions, 13 labeled retargeted suites) with no other change',
+check('E2: exact phase inventory — the range from the promoted 2N tip is exactly the nineteen disclosed paths (2 modified batch files, 4 additions, 13 labeled retargeted suites) with no other change — RETARGET (EXLIB-2N R6 eligibility admission): anchored to the promoted application tip',
   (() => {
-    const status = execSync(`git diff --name-status ${TIP}..HEAD`, { encoding: 'utf8' })
+    const status = execSync(`git diff --name-status ${TIP}..${TIP_APP}`, { encoding: 'utf8' })
       .split('\n').filter(Boolean).sort()
     return JSON.stringify(status) === JSON.stringify(PHASE_PATHS)
   })())
@@ -312,7 +330,8 @@ check('E3: every retargeted suite carries the exact label and no other pre-exist
     for (const p of RETARGETED) {
       if (!blobAt('HEAD', p).toString('utf8').includes('RETARGET (EXLIB-2N review-decision application)')) return false
     }
-    const mods = execSync(`git diff --name-status ${TIP}..HEAD`, { encoding: 'utf8' })
+    // RETARGET (EXLIB-2N R6 eligibility admission): anchored range
+    const mods = execSync(`git diff --name-status ${TIP}..${TIP_APP}`, { encoding: 'utf8' })
       .split('\n').filter((l) => l.startsWith('M\t')).map((l) => l.slice(2))
     return JSON.stringify(mods.sort()) === JSON.stringify([B02, B04, ...RETARGETED].sort())
   })())
@@ -356,8 +375,9 @@ check('F2: character hygiene — the completed forms, both edited record lines, 
     }
     if (!ascii(blobAt('HEAD', DB_DONE).toString('utf8'))) return false
     if (!ascii(blobAt('HEAD', AW_DONE).toString('utf8'))) return false
+    // RETARGET (EXLIB-2N R6 eligibility admission): batch lines anchored
     for (const [path, line] of [[B02, 12], [B04, 5], [B02, 1], [B04, 1], [B02, 2], [B04, 2], [B02, 3], [B04, 3], [B02, 4], [B04, 4]] as [string, number][]) {
-      if (!ascii(blobAt('HEAD', path).toString('utf8').split('\n')[line - 1])) return false
+      if (!ascii(blobAt(TIP_APP, path).toString('utf8').split('\n')[line - 1])) return false
     }
     for (const ch of blobAt('HEAD', RECORD).toString('utf8')) {
       const c = ch.codePointAt(0) as number
@@ -374,30 +394,34 @@ console.log('\nG. Replacement-branch topology (Codex round 2)')
 // These proofs bind the replacement topology at review time; a later
 // milestone that advances HEAD retargets them to the then-known tip
 // under the established labeled-retarget lifecycle.
+// RETARGET (EXLIB-2N R6 eligibility admission): exactly that — the
+// application milestone's tip is now the promoted TIP_APP constant,
+// and all four topology proofs are anchored to it, where they were
+// and remain true as history.
 check('G1: replacement parentage — the merge base of HEAD and the promoted 2N tip IS the tip, HEAD\'s only parent IS the tip (single-parent, no second parent)',
   (() => {
     try {
-      if (execSync(`git merge-base ${TIP} HEAD`, { encoding: 'utf8' }).trim() !== TIP) return false
-      if (execSync('git rev-parse HEAD^1', { encoding: 'utf8' }).trim() !== TIP) return false
-      const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+      if (execSync(`git merge-base ${TIP} ${TIP_APP}`, { encoding: 'utf8' }).trim() !== TIP) return false
+      if (execSync(`git rev-parse ${TIP_APP}^1`, { encoding: 'utf8' }).trim() !== TIP) return false
+      const parents = execSync(`git rev-list --parents -n 1 ${TIP_APP}`, { encoding: 'utf8' }).trim().split(/\s+/)
       return parents.length === 2 && parents[1] === TIP
     } catch { return false }
   })())
 check('G2: replacement distance — HEAD is exactly 1 ahead of and 0 behind the promoted 2N tip',
   (() => {
-    const ahead = execSync(`git rev-list --count ${TIP}..HEAD`, { encoding: 'utf8' }).trim()
-    const behind = execSync(`git rev-list --count HEAD..${TIP}`, { encoding: 'utf8' }).trim()
+    const ahead = execSync(`git rev-list --count ${TIP}..${TIP_APP}`, { encoding: 'utf8' }).trim()
+    const behind = execSync(`git rev-list --count ${TIP_APP}..${TIP}`, { encoding: 'utf8' }).trim()
     return ahead === '1' && behind === '0'
   })())
 check('G3: replacement purity — the range from the promoted 2N tip contains exactly one commit and zero merges',
   (() => {
-    const commits = execSync(`git rev-list --count ${TIP}..HEAD`, { encoding: 'utf8' }).trim()
-    const merges = execSync(`git rev-list --count --merges ${TIP}..HEAD`, { encoding: 'utf8' }).trim()
+    const commits = execSync(`git rev-list --count ${TIP}..${TIP_APP}`, { encoding: 'utf8' }).trim()
+    const merges = execSync(`git rev-list --count --merges ${TIP}..${TIP_APP}`, { encoding: 'utf8' }).trim()
     return commits === '1' && merges === '0'
   })())
 check('G4: replacement inventory — the single commit carries exactly the nineteen disclosed paths (2 modified batch files, 4 additions, 13 labeled retargeted suites) and nothing else',
   (() => {
-    const status = execSync(`git diff --name-status ${TIP}..HEAD`, { encoding: 'utf8' })
+    const status = execSync(`git diff --name-status ${TIP}..${TIP_APP}`, { encoding: 'utf8' })
       .split('\n').filter(Boolean).sort()
     return JSON.stringify(status) === JSON.stringify(PHASE_PATHS)
   })())
