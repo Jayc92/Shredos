@@ -3,7 +3,12 @@
 //
 // Proves: the exact promoted source (R6 admission tip + tag); the
 // package fingerprint, labels, and structure (one transaction, the
-// exact ten-table lock list, exactly TWO load_catalog_snapshot calls
+// exact ELEVEN-table lock list — review events included, so the
+// package's serialized boundary and its internally proven surface are
+// the same eleven tables — the complete authoritative Plank pre-state
+// gate, the distinction between that gate and the in-transaction
+// transition-neutrality digests, whole-row tenant protection,
+// exactly TWO load_catalog_snapshot calls
 // and zero identity/content/review/admission/publication/seal/
 // delivery calls, the transaction-contained authority elevation and
 // grantor-scoped restoration, the exact pre/post count vectors, the
@@ -28,6 +33,12 @@ const SRC_TAG = 'exlib2n-r6-eligibility-admission-stable'
 const SRC_TAG_OBJ = '7106b05fa1308fef03b9e0942572b662435c3259'
 const SRC_TAG_MSG = 'EXLIB-2N target-snapshot R6 eligibility admissions stable — ELIGIBLE — NOT LOADED OR PUBLISHED\n'
 
+// The original EXLIB-2O preparation commit, PRESERVED untouched: the
+// Codex round-2 correction is one plain forward commit on top of it,
+// never an amend, rebase, squash, or rewrite.
+const PREP = '2f8f135fd97812c4a5a6a498796ee85f9d7df556'
+const PREP_TREE = '816d6a24d5fab3b3ae70450f3347d6bcf4db3d4d'
+
 const PKG = 'docs/exlib2o-target-snapshot-load-package.sql'
 const RECORD = 'docs/exlib2o-target-snapshot-load-prep-record.md'
 const VERIFIER = 'scripts/verify-exlib2o.ts'
@@ -45,12 +56,24 @@ const PKG2K = { path: 'docs/exlib2k-plank-catalog-load-package.sql', bytes: 2976
 
 const DB_UUID = 'e21b2c00-0000-4000-a000-000000000002'
 const AW_UUID = 'e21b2c00-0000-4000-a000-000000000003'
-const PRE_VECTOR = '3/1/2/2/3/1/2/0/0/0'
-const POST_VECTOR = '3/3/5/3/6/1/2/0/0/0'
+// ELEVEN terms, matching the eleven locked tables exactly (Codex
+// round-2 finding 1): logical / catalog / muscles / aliases / claims /
+// content / expected-relationships / relationships / import-runs /
+// run-items / REVIEW-EVENTS.
+const PRE_VECTOR = '3/1/2/2/3/1/2/0/0/0/0'
+const POST_VECTOR = '3/3/5/3/6/1/2/0/0/0/0'
+const LOCKED_TABLES = ['public.exercise_catalog', 'public.exercise_catalog_aliases',
+  'public.exercise_catalog_content', 'public.exercise_catalog_content_expected_relationships',
+  'public.exercise_catalog_import_runs', 'public.exercise_catalog_logical',
+  'public.exercise_catalog_muscles', 'public.exercise_catalog_name_claims',
+  'public.exercise_catalog_relationships', 'public.exercise_catalog_review_events',
+  'public.exercise_catalog_run_items']
 
 const PHASE = [
   ['A', PKG], ['A', RECORD], ['A', VERIFIER], ['A', LIVE], ['M', R6_VERIFIER],
 ].map(([s, p]) => `${s}\t${p}`).sort()
+// The four paths the Codex round-2 correction commit modifies.
+const CORRECTED = [PKG, RECORD, VERIFIER, LIVE]
 
 const sha256 = (buf: Buffer | string): string => createHash('sha256').update(buf).digest('hex')
 const blobAt = (ref: string, p: string): Buffer =>
@@ -63,7 +86,17 @@ const check = (name: string, ok: boolean): void => {
   else { fail += 1; console.log(`  FAIL  ${name}`) }
 }
 
-const committed = execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
+// Which bytes are authoritative? Round 1 decided this from the commit
+// distance alone, which silently graded a CORRECTION round's edits
+// against the already-committed (pre-correction) blobs. The phase is
+// "committed" only when the worktree holds no uncommitted change at
+// all; while corrections are being authored the worktree is
+// authoritative, and the topology checks take their authoring branch.
+const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
+const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
+const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
+const committed = CHANGED.length === 0
+  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 const bytesOf = (p: string): Buffer => (committed ? blobAt('HEAD', p) : readFileSync(p))
 const pkg = bytesOf(PKG).toString('utf8')
 const rec = bytesOf(RECORD).toString('utf8')
@@ -114,17 +147,14 @@ check('B2: exactly one explicit transaction encloses the package',
   (pkg.match(/^BEGIN;$/m) || []).length === 1
   && pkg.split('\n').filter((l) => l === 'BEGIN;').length === 1
   && pkg.split('\n').filter((l) => l === 'COMMIT;').length === 1)
-check('B3: the fresh-state gate is serialized by REAL table locks — one SHARE ROW EXCLUSIVE statement over exactly the ten catalog tables in alphabetical order, before any gated read',
+check('B3: the fresh-state gate is serialized by REAL table locks — one SHARE ROW EXCLUSIVE statement over exactly the ELEVEN catalog tables in deterministic alphabetical order (review events included), before any gated read',
   (() => {
     const m = pkg.match(/LOCK TABLE\n([\s\S]*?)\n  IN SHARE ROW EXCLUSIVE MODE;/)
     if (!m) return false
     const tables = m[1].split('\n').map((l) => l.trim().replace(/,$/, '')).filter(Boolean)
-    const expected = ['public.exercise_catalog', 'public.exercise_catalog_aliases',
-      'public.exercise_catalog_content', 'public.exercise_catalog_content_expected_relationships',
-      'public.exercise_catalog_import_runs', 'public.exercise_catalog_logical',
-      'public.exercise_catalog_muscles', 'public.exercise_catalog_name_claims',
-      'public.exercise_catalog_relationships', 'public.exercise_catalog_run_items']
-    if (JSON.stringify(tables) !== JSON.stringify(expected)) return false
+    if (tables.length !== 11) return false
+    if (JSON.stringify(tables) !== JSON.stringify(LOCKED_TABLES)) return false
+    if (JSON.stringify(tables) !== JSON.stringify([...tables].sort())) return false
     return pkg.indexOf('LOCK TABLE') < pkg.indexOf('DO $pre$')
   })())
 check('B4: the narrowest authority — exactly TWO load_catalog_snapshot calls and ZERO load_catalog_identity, load_catalog_content_draft, review, admission, publication, seal, run, or delivery calls',
@@ -143,13 +173,13 @@ check('B5: transaction-contained elevation with grantor-scoped restoration — G
   && pkg.includes('REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;')
   && pkg.includes("pg_has_role('postgres', 'exlib_catalog_loader', 'SET')")
   && pkg.includes('authority restoration is not exact'))
-check('B6: the fail-closed pre-state gate demands the EXACT post-EXLIB-2K hosted surface — the ten-table count vector, the exact three identities, both targets BARE, the three names unclaimed, the exact Plank shape, and the claims invariant — all BEFORE any write or authority change',
+check('B6: the fail-closed pre-state gate demands the EXACT post-EXLIB-2K hosted surface — the ELEVEN-table count vector, the exact three identities, both targets BARE, the three names unclaimed, the complete authoritative Plank state, and the claims invariant — all BEFORE any write or authority change',
   pkg.includes(`<> '${PRE_VECTOR}'`)
   && pkg.includes('an expected logical identity is missing')
   && pkg.includes('a target identity already carries snapshot/alias/claim state')
   && pkg.includes('an intended catalog name is already claimed')
-  && pkg.includes('the existing Plank snapshot is not the exact loaded EXLIB-2K state')
-  && pkg.includes('the existing Plank content draft is not the exact loaded EXLIB-2K row')
+  && pkg.includes('the Plank snapshot is not the exact promoted EXLIB-2K state')
+  && pkg.includes('the Plank content draft is not the exact promoted EXLIB-2K state')
   && pkg.includes('the catalog claims invariant is already violated')
   && pkg.indexOf('DO $pre$') < pkg.indexOf('GRANT exlib_catalog_loader')
   && pkg.includes('refuses to run twice, over foreign state, or over an ambiguous surface'))
@@ -164,6 +194,103 @@ check('B7: the postconditions prove the EXACT post-state — the count vector, b
   && pkg.includes('executable by an ordinary client role')
   && (pkg.match(/rolling back everything/g) || []).length >= 10
   && pkg.includes('CREATE TEMP TABLE exlib2o_pre_evidence ON COMMIT DROP'))
+
+// ── Codex round-2 corrections: dedicated checks ──────────────────
+// Round 1 serialized and proved TEN tables while asserting zero
+// review events only from OUTSIDE the package, and pinned the Plank
+// pre-state with four fields plus an in-transaction digest that could
+// only ever prove "nothing changed while I ran". B8-B12 bind the
+// corrections so neither gap can silently reopen.
+check('B8: the serialized boundary and the internally proven surface are the SAME ELEVEN tables — the count vector is built from exactly the eleven locked tables (same set, eleven terms), and both the pre and post vector constants carry eleven terms',
+  (() => {
+    const vecBlocks = pkg.match(/SELECT \(SELECT count\(\*\) FROM public\.exercise_catalog_logical\)::text[\s\S]*?INTO v_counts;/g)
+    if (!vecBlocks || vecBlocks.length !== 2) return false
+    for (const block of vecBlocks) {
+      const counted = (block.match(/count\(\*\) FROM public\.(\w+)/g) || [])
+        .map((s) => `public.${s.replace(/^count\(\*\) FROM public\./, '')}`)
+      if (counted.length !== 11) return false
+      if (JSON.stringify([...counted].sort()) !== JSON.stringify([...LOCKED_TABLES].sort())) return false
+      if (!counted.includes('public.exercise_catalog_review_events')) return false
+    }
+    return PRE_VECTOR.split('/').length === 11 && POST_VECTOR.split('/').length === 11
+      && pkg.includes(`<> '${PRE_VECTOR}'`) && pkg.includes(`<> '${POST_VECTOR}'`)
+  })())
+check('B9: zero review events is enforced by the package ITSELF, not only asserted from outside — review events are locked, counted in the pre vector (expected 0), counted again in the post vector (expected 0), and any nonzero count refuses fail-closed before any write',
+  (() => {
+    const locked = pkg.includes('public.exercise_catalog_review_events,')
+    const counted = (pkg.match(/count\(\*\) FROM public\.exercise_catalog_review_events/g) || []).length
+    // review events are the ELEVENTH (last) term of both vectors, and
+    // both constants end in the zero that pins them empty
+    return locked && counted === 2
+      && PRE_VECTOR.split('/')[10] === '0' && POST_VECTOR.split('/')[10] === '0'
+      && pkg.includes('refuses to run twice, over foreign state, or over an ambiguous surface')
+      && pkg.includes('post-state counts are not exact')
+  })())
+check('B10: the COMPLETE authoritative Plank pre-state is proven from promoted committed evidence before GRANT — snapshot semantics, anatomy, aliases, claims, the full content payload with authorship and review evidence, the draft/unadmitted/unpublished lifecycle, and the exact expected relationships — each with its own fail-closed refusal',
+  (() => {
+    const msgs = [
+      'the Plank snapshot is not the exact promoted EXLIB-2K state',
+      'the Plank anatomy set is not the exact promoted EXLIB-2K state',
+      'the Plank alias set is not the exact promoted EXLIB-2K state',
+      'the Plank claim set is not the exact promoted EXLIB-2K state',
+      'the Plank content draft is not the exact promoted EXLIB-2K state',
+      'the Plank expected-relationship set is not the exact promoted EXLIB-2K state',
+    ]
+    if (!msgs.every((m) => pkg.includes(m))) return false
+    // every gate precedes the authority change and the loader calls
+    const grant = pkg.indexOf('GRANT exlib_catalog_loader TO postgres WITH SET TRUE')
+    const firstLoad = pkg.search(/^SELECT load_catalog_snapshot\(/m)
+    if (!msgs.every((m) => pkg.indexOf(m) < grant && pkg.indexOf(m) < firstLoad)) return false
+    // snapshot semantics: every stable field, not just name/active/pending/v1
+    const snapFields = ["e.category = 'isolation'", "e.primary_muscle = 'abs'",
+      "e.equipment = 'bodyweight'", "e.laterality = 'bilateral'", "e.tracking_mode = 'timed'",
+      "e.provenance = 'forgefitos_original'", "e.movement_pattern = 'core_anti_extension'",
+      "e.training_role = 'core'", "e.difficulty = 'beginner'", "e.availability = 'minimal'",
+      'e.source_url IS NULL', 'e.source_page IS NULL', 'e.retrieved_at IS NULL',
+      'e.import_confidence IS NULL', "e.review_status = 'pending'", 'e.reviewed_by IS NULL',
+      'e.catalog_version = 1', 'e.is_active']
+    if (!snapFields.every((f) => pkg.includes(f))) return false
+    // complete content payload + lifecycle + authorship
+    const contentFields = ['md5(c.setup_steps::text)', 'md5(c.execution_steps::text)',
+      'md5(c.common_mistakes::text)', 'md5(c.breathing_cue)', 'md5(c.safety_guidance)',
+      "c.equipment_setup = ''", 'md5(c.accessibility_alternative)',
+      "c.authored_at = DATE '2026-09-01'", "c.content_status = 'pending'",
+      "c.publication_status = 'draft'", 'c.import_admitted = false',
+      'c.reviewed_by IS NULL', 'c.reviewed_at IS NULL', 'c.review_rationale IS NULL',
+      'c.admitted_fingerprint IS NULL', 'c.admitted_source_sha256 IS NULL', 'c.admitted_at IS NULL']
+    if (!contentFields.every((f) => pkg.includes(f))) return false
+    // exact anatomy/alias/claim/relationship sets
+    return pkg.includes("'lower_back:tertiary,obliques:secondary'")
+      && pkg.includes("'Forearm plank,Front plank'")
+      && pkg.includes("'forearm plank=alias,front plank=alias,plank=canonical'")
+      && pkg.includes("'progression>e21b2c00-0000-4000-a000-000000000003,substitution>e21b2c00-0000-4000-a000-000000000002'")
+      // generated ids/timestamps are bound STRUCTURALLY, never invented:
+      // the content row is addressed by its fixed UUID, and no created_at/
+      // updated_at literal is pinned anywhere in the gate
+      && pkg.includes("c.id = 'e21b2c00-0000-4000-a000-000000000101'")
+      && !/c\.created_at\s*=/.test(pkg) && !/c\.updated_at\s*=/.test(pkg)
+      && !/e\.created_at\s*=/.test(pkg) && !/e\.updated_at\s*=/.test(pkg)
+  })())
+check('B11: the authoritative pre-state proof and the in-transaction digests are kept DISTINCT — the digests are labeled transition-neutrality evidence explicitly disclaiming pre-state authority, are captured only AFTER every authoritative gate has passed, and are compared in $post$ to prove EXLIB-2O changed nothing',
+  (() => {
+    const digestLabel = 'TRANSITION-NEUTRALITY EVIDENCE (not a pre-state authority'
+    if (!pkg.includes(digestLabel)) return false
+    const capture = pkg.indexOf('CREATE TEMP TABLE exlib2o_pre_evidence')
+    const lastGate = pkg.indexOf('the Plank expected-relationship set is not the exact promoted EXLIB-2K state')
+    const compare = pkg.indexOf('an untouched surface changed')
+    return lastGate > 0 && capture > lastGate
+      && capture < pkg.indexOf('GRANT exlib_catalog_loader')
+      && compare > capture && compare > pkg.indexOf('DO $post$')
+      && pkg.includes('re-digested after the')
+  })())
+check('B12: the "tenant table unchanged" claim covers EVERY persisted column — the digest is a whole-row rendering (row::text) over the entire exercises table with deterministic primary-key ordering, plus the row count, and pins no narrowed column list',
+  (() => {
+    const rowDigests = (pkg.match(/md5\(coalesce\(string_agg\(t::text, '\|' ORDER BY t\.id\), '<none>'\)\)/g) || []).length
+    return rowDigests === 2
+      && (pkg.match(/count\(\*\) FROM public\.exercises/g) || []).length === 2
+      && pkg.includes('every persisted column')
+      && !/string_agg\(t\.(name|category|slug)/.test(pkg)
+  })())
 
 console.log('\nC. Loader literals re-derived from the admitted sources')
 const b02rec = JSON.parse(bytesOf(B02).toString('utf8').split('\n')[B02_FP.line - 1])
@@ -231,7 +358,11 @@ check('D1: the record binds every fingerprint (both admitted sources with line f
     for (const s of [B02_FP.sha, B04_FP.sha, DB_FORM.sha, AW_FORM.sha, MIG027.sha, PKG2K.sha, sha256(pkgBytes)]) {
       if (!recSolid.includes(s)) return false
     }
-    if (!recSolid.includes(`${pkgBytes.length.toString().slice(0, 2)}`)) return false
+    // the record writes byte counts comma-grouped ("35,468 B"). Round 1
+    // compared only the first two digits, which any stale count sharing
+    // a leading pair would have passed; assert the exact grouped count
+    // so "recompute every fingerprint from final bytes" is really proven.
+    if (!recSolid.includes(`${pkgBytes.length.toLocaleString('en-US')}B`)) return false
     return recFlat.includes(DB_UUID) && recFlat.includes(AW_UUID)
       && recFlat.includes('category **mobility**') && recFlat.includes('category **other**')
       && recFlat.includes('CONSTRUCTED VALUES: NONE')
@@ -275,32 +406,40 @@ check('E3: migrations remain exactly 001-027 with no 028 — the package lives u
     return migs.length === 27 && !migs.some((f) => f.includes('/028'))
   })())
 if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source, the sole parent of HEAD IS the source, exactly 1 ahead / 0 behind, one commit, zero merges',
+  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, then the one Codex round-2 correction), 2 ahead / 0 behind, zero merges',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync('git rev-parse HEAD^1', { encoding: 'utf8' }).trim() !== SRC) return false
+        if (execSync('git rev-parse HEAD^1', { encoding: 'utf8' }).trim() !== PREP) return false
         const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
+        if (parents.length !== 2 || parents[1] !== PREP) return false
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }
     })())
-  check('G2: exact phase inventory — the single commit carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
+  check('G2: exact phase inventory — the two-commit range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
     (() => {
       const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       return JSON.stringify(status) === JSON.stringify(PHASE)
     })())
-} else {
-  check('G1-G2 (uncommitted authoring state): the worktree changes are exactly the five phase paths',
+  check('G4: the ORIGINAL preparation commit is PRESERVED, never rewritten — it still carries its exact recorded tree and its sole parent is still the promoted source — and the correction is exactly ONE plain single-parent forward commit on top of it, modifying exactly the four corrected paths',
     (() => {
-      const porc = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-      const paths = porc.map((l) => l.slice(3).trim()).sort()
-      const expected = PHASE.map((s) => s.split('\t')[1]).sort()
-      return JSON.stringify(paths) === JSON.stringify(expected)
+      try {
+        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        const pparents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (pparents.length !== 2 || pparents[1] !== SRC) return false
+        if (execSync(`git rev-list --count ${PREP}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count --merges ${PREP}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
+        const status = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        return JSON.stringify(status) === JSON.stringify(CORRECTED.map((p) => `M\t${p}`).sort())
+      } catch { return false }
     })())
+} else {
+  check('G1-G2-G4 (uncommitted correction-authoring state): every worktree change lies inside the five phase paths — nothing outside this phase is touched',
+    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
 }
 check('G3: two-state lifecycle — the package, record, and both verifiers are absent at the promoted source tip and present in this phase',
   (() => {
@@ -328,13 +467,26 @@ check('H1: no phase file contains credential material, hosted connection strings
     }
     return true
   })())
-check('H2: the live verifier exists, targets only disposable socket-only clusters, executes the committed 2K package to build the pre-state, and carries the full refusal matrix including the two-session race',
+check('H2: the live verifier exists, targets only disposable socket-only clusters, executes the committed 2K package to build the pre-state, carries the FOURTEEN-variant refusal matrix including all five round-2 additions, checks every harness surgery so a silently rejected mutation can never read as a pass, and proves the review-events writer exclusion structurally from pg_locks',
   (() => {
     const l = bytesOf(LIVE).toString('utf8')
     return l.includes('unix_socket_directories') && l.includes("listen_addresses=''")
       && l.includes('exlib2k-plank-catalog-load-package.sql')
       && l.includes(PKG)
       && l.includes('RACE') && l.includes('exactly one committer')
+      // the five round-2 refusal variants, by their pinned gate messages
+      && l.includes('PRE-EXISTING REVIEW EVENT refused')
+      && l.includes('MUTATED PLANK CONTENT PAYLOAD refused')
+      && l.includes('ALTERED PLANK LIFECYCLE refused')
+      && l.includes('ALTERED EXPECTED RELATIONSHIP refused')
+      && l.includes('ALTERED PLANK SNAPSHOT FIELD refused')
+      // fail-loud harness surgery, and the ELEVEN-term live vectors
+      && l.includes('HARNESS SURGERY FAILED')
+      && l.includes(`PRE_VECTOR="${PRE_VECTOR}"`) && l.includes(`POST_VECTOR="${POST_VECTOR}"`)
+      // structural review-events lock proof: granted holder vs ungranted waiter
+      && l.includes("l.mode = 'ShareRowExclusiveLock' AND l.granted")
+      && l.includes("l.mode = 'RowExclusiveLock' AND NOT l.granted")
+      && l.includes("c.relname = 'exercise_catalog_review_events'")
   })())
 
 console.log(`\n${pass} passed, ${fail} failed`)

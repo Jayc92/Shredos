@@ -73,9 +73,10 @@
 --
 -- ONE-USE / FAIL-CLOSED: the pre-state gate demands the EXACT hosted
 -- surface the executed EXLIB-2K package left behind (the exact
--- ten-table count vector, the exact three identities, both targets
--- bare, all three target names unclaimed, the claims invariant
--- clean). After this package commits, that gate can never hold
+-- ELEVEN-table count vector including zero review events, the exact
+-- three identities, both targets bare, all three target names
+-- unclaimed, the COMPLETE authoritative Plank pre-state, the claims
+-- invariant clean). After this package commits, that gate can never hold
 -- again, so a second execution refuses BEFORE any write or authority
 -- change. Unrelated pre-existing state fails the same gate. The
 -- whole package is ONE transaction: any failed precondition, loader
@@ -94,11 +95,15 @@
 
 BEGIN;
 
--- ── Fresh-state gate serialization: REAL table locks, taken before
---    any read the gate depends on, in ONE deterministic alphabetical
---    statement. SHARE ROW EXCLUSIVE conflicts with itself, so two
---    concurrent executions serialize here; the loser proceeds only
---    after the winner commits and then refuses at the pre-state gate.
+-- ── Fresh-state gate serialization: REAL table locks over the
+--    ELEVEN gated tables (every table the pre/post vectors count,
+--    review events included), taken before any read the gate depends
+--    on, in ONE deterministic alphabetical statement. SHARE ROW
+--    EXCLUSIVE conflicts with itself and with ordinary writers, so
+--    two concurrent executions serialize here and no writer can
+--    introduce a review event (or any other gated row) inside the
+--    package's gated interval; the loser proceeds only after the
+--    winner commits and then refuses at the pre-state gate.
 LOCK TABLE
   public.exercise_catalog,
   public.exercise_catalog_aliases,
@@ -109,6 +114,7 @@ LOCK TABLE
   public.exercise_catalog_muscles,
   public.exercise_catalog_name_claims,
   public.exercise_catalog_relationships,
+  public.exercise_catalog_review_events,
   public.exercise_catalog_run_items
   IN SHARE ROW EXCLUSIVE MODE;
 
@@ -148,7 +154,9 @@ BEGIN
     RAISE EXCEPTION 'exlib2o load: the loader-role membership posture is not the exact hosted baseline (exactly one membership: postgres granted BY supabase_admin with ADMIN TRUE, INHERIT FALSE, SET FALSE — grantor included); refusing before any write or authority change';
   END IF;
   -- EXACT expected pre-state: the surface the executed EXLIB-2K
-  -- package left behind, as a full ten-table count vector. Any other
+  -- package left behind, as a full eleven-table count vector — the
+  -- same eleven tables this transaction locks, review events
+  -- included. Any other
   -- surface — including the surface this package itself produces —
   -- refuses fail-closed BEFORE any write (one-use + foreign-state
   -- refusal in one gate).
@@ -162,9 +170,10 @@ BEGIN
      || '/' || (SELECT count(*) FROM public.exercise_catalog_relationships)::text
      || '/' || (SELECT count(*) FROM public.exercise_catalog_import_runs)::text
      || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
+     || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
     INTO v_counts;
-  IF v_counts <> '3/1/2/2/3/1/2/0/0/0' THEN
-    RAISE EXCEPTION 'exlib2o load: the catalog surface is not the exact post-EXLIB-2K hosted pre-state (expected 3/1/2/2/3/1/2/0/0/0, found %); this ONE-USE package refuses to run twice, over foreign state, or over an ambiguous surface', v_counts;
+  IF v_counts <> '3/1/2/2/3/1/2/0/0/0/0' THEN
+    RAISE EXCEPTION 'exlib2o load: the catalog surface is not the exact post-EXLIB-2K hosted pre-state (expected 3/1/2/2/3/1/2/0/0/0/0, found %); this ONE-USE package refuses to run twice, over foreign state, or over an ambiguous surface', v_counts;
   END IF;
   -- the exact three identities, by UUID
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog_logical WHERE id = 'e21b2c00-0000-4000-a000-000000000001')
@@ -192,20 +201,88 @@ BEGIN
               WHERE c.normalized_name IN ('dead bug', 'ab wheel rollout', 'ab roller rollout')) THEN
     RAISE EXCEPTION 'exlib2o load: an intended catalog name is already claimed; refusing (possible rename/swap or foreign state)';
   END IF;
-  -- the existing Plank surface must be EXACTLY the loaded EXLIB-2K
-  -- shape: one born-active born-pending snapshot named Plank on
-  -- ...0001 and the untouched draft content row ...0101 v1
+  -- AUTHORITATIVE PLANK PRE-STATE GATE (Codex round-2 correction):
+  -- every stable semantic field of the loaded EXLIB-2K Plank surface
+  -- is proven against the promoted committed evidence BEFORE any
+  -- authority change - the snapshot row (all vocabulary,
+  -- classification, provenance, discovery, audit, version, and
+  -- activity fields), the exact anatomy, alias, and claim sets, the
+  -- COMPLETE content payload (scalar fields verbatim; JSONB arrays
+  -- by md5 over the deterministic jsonb::text rendering, each pin
+  -- re-derivable from the admitted artifact
+  -- d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752),
+  -- the authorship fields, the untouched review evidence, the
+  -- draft/unadmitted/unpublished lifecycle, and the exact expected
+  -- relationships. Hosted-generated row ids and timestamps are bound
+  -- structurally (through the fixed logical/content UUIDs), never to
+  -- invented values. Any pre-execution drift refuses fail-closed
+  -- here, before GRANT and before either loader call.
   IF (SELECT count(*) FROM public.exercise_catalog e
+       WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000001') <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000001'
-         AND e.canonical_name = 'Plank' AND e.is_active
-         AND e.review_status = 'pending' AND e.catalog_version = 1) <> 1 THEN
-    RAISE EXCEPTION 'exlib2o load: the existing Plank snapshot is not the exact loaded EXLIB-2K state (active pending v1 named Plank on ...0001); refusing (ambiguous surface)';
+         AND e.canonical_name = 'Plank' AND e.category = 'isolation'
+         AND e.primary_muscle = 'abs' AND e.equipment = 'bodyweight'
+         AND e.laterality = 'bilateral' AND e.tracking_mode = 'timed'
+         AND e.provenance = 'forgefitos_original'
+         AND e.movement_pattern = 'core_anti_extension'
+         AND e.training_role = 'core' AND e.difficulty = 'beginner'
+         AND e.availability = 'minimal'
+         AND e.source_url IS NULL AND e.source_page IS NULL
+         AND e.retrieved_at IS NULL AND e.import_confidence IS NULL
+         AND e.review_status = 'pending' AND e.reviewed_by IS NULL
+         AND e.reviewed_at IS NULL AND e.review_rationale IS NULL
+         AND e.catalog_version = 1 AND e.is_active) THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank snapshot is not the exact promoted EXLIB-2K state (a semantic field drifted); refusing before any write or authority change';
+  END IF;
+  IF (SELECT string_agg(m.muscle || ':' || m.role, ',' ORDER BY m.muscle)
+        FROM public.exercise_catalog_muscles m
+        JOIN public.exercise_catalog e ON e.id = m.catalog_id
+       WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000001')
+     IS DISTINCT FROM 'lower_back:tertiary,obliques:secondary' THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank anatomy set is not the exact promoted EXLIB-2K state; refusing before any write or authority change';
+  END IF;
+  IF (SELECT string_agg(a.alias, ',' ORDER BY a.alias)
+        FROM public.exercise_catalog_aliases a
+       WHERE a.logical_id = 'e21b2c00-0000-4000-a000-000000000001')
+     IS DISTINCT FROM 'Forearm plank,Front plank' THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank alias set is not the exact promoted EXLIB-2K state; refusing before any write or authority change';
+  END IF;
+  IF (SELECT string_agg(c.normalized_name || '=' || c.claim_source, ',' ORDER BY c.normalized_name)
+        FROM public.exercise_catalog_name_claims c
+       WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000001')
+     IS DISTINCT FROM 'forearm plank=alias,front plank=alias,plank=canonical' THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank claim set is not the exact promoted EXLIB-2K state; refusing before any write or authority change';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c
+       WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000001') <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog_content c
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000101'
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000001'
-         AND c.content_version = 1) <> 1 THEN
-    RAISE EXCEPTION 'exlib2o load: the existing Plank content draft is not the exact loaded EXLIB-2K row (...0101 v1 on ...0001); refusing (ambiguous surface)';
+         AND c.content_version = 1
+         AND c.authored_by = 'ForgeFitOS content program (AI-drafted original prose; pending human specialist review)'
+         AND c.authored_at = DATE '2026-09-01'
+         AND md5(c.setup_steps::text) = 'dfbdb37c2ea00360e8c713dd416b28ec'
+         AND md5(c.execution_steps::text) = 'e7acdaa556ac809b3d162181ce8b6a76'
+         AND md5(c.common_mistakes::text) = '4cfc1543c9167a7525b83b492c179b9b'
+         AND md5(c.breathing_cue) = '4842866263a20de6505a68c0c7df98e6'
+         AND md5(c.safety_guidance) = '49375ede569c75c16844c5aa831ca7ee'
+         AND c.equipment_setup = ''
+         AND md5(c.accessibility_alternative) = 'b63bb46ebbaf4383b4b9ccf1c18699ed'
+         AND c.content_status = 'pending'
+         AND c.publication_status = 'draft'
+         AND c.import_admitted = false
+         AND c.reviewed_by IS NULL AND c.reviewed_at IS NULL
+         AND c.review_rationale IS NULL
+         AND c.admitted_fingerprint IS NULL
+         AND c.admitted_source_sha256 IS NULL
+         AND c.admitted_at IS NULL) THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank content draft is not the exact promoted EXLIB-2K state (payload, authorship, review evidence, or draft/unadmitted/unpublished lifecycle drifted); refusing before any write or authority change';
+  END IF;
+  IF (SELECT string_agg(x.relation || '>' || x.to_logical_id::text, ',' ORDER BY x.relation)
+        FROM public.exercise_catalog_content_expected_relationships x)
+     IS DISTINCT FROM 'progression>e21b2c00-0000-4000-a000-000000000003,substitution>e21b2c00-0000-4000-a000-000000000002' THEN
+    RAISE EXCEPTION 'exlib2o load: the Plank expected-relationship set is not the exact promoted EXLIB-2K state; refusing before any write or authority change';
   END IF;
   -- the catalog-claim invariant must already hold
   SELECT orphaned_claims, unclaimed_bearers
@@ -213,10 +290,13 @@ BEGIN
   IF v_orphaned <> 0 OR v_unclaimed <> 0 THEN
     RAISE EXCEPTION 'exlib2o load: the catalog claims invariant is already violated (orphaned=%, unclaimed=%); refusing', v_orphaned, v_unclaimed;
   END IF;
-  -- freeze the untouched-surface evidence for the postconditions:
-  -- Plank rows (identity, snapshot, anatomy, aliases, claims,
-  -- content, expected relationships) and the whole tenant exercises
-  -- table, digested now, re-digested after the load
+  -- TRANSITION-NEUTRALITY EVIDENCE (not a pre-state authority: the
+  -- authoritative pre-state is proven by the exact gates above):
+  -- whole-row digests of the Plank rows and the ENTIRE tenant
+  -- exercises table (every persisted column, via the deterministic
+  -- row::text rendering, ordered by primary key, within this one
+  -- session/transaction), captured now and re-digested after the
+  -- load to prove EXLIB-2O itself changes none of them
   CREATE TEMP TABLE exlib2o_pre_evidence ON COMMIT DROP AS
   SELECT
     (SELECT md5(string_agg(e::text, '|' ORDER BY e.id))
@@ -238,7 +318,7 @@ BEGIN
     (SELECT md5(coalesce(string_agg(x::text, '|' ORDER BY x.relation, x.to_logical_id), '<none>'))
        FROM public.exercise_catalog_content_expected_relationships x) AS expected_rel_digest,
     (SELECT count(*) FROM public.exercises) AS tenant_count,
-    (SELECT md5(coalesce(string_agg(t.id::text || t.user_id::text || t.name || t.is_active::text, '|' ORDER BY t.id), '<none>'))
+    (SELECT md5(coalesce(string_agg(t::text, '|' ORDER BY t.id), '<none>'))
        FROM public.exercises t) AS tenant_digest;
 END
 $pre$;
@@ -362,9 +442,10 @@ BEGIN
      || '/' || (SELECT count(*) FROM public.exercise_catalog_relationships)::text
      || '/' || (SELECT count(*) FROM public.exercise_catalog_import_runs)::text
      || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
+     || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
     INTO v_counts;
-  IF v_counts <> '3/3/5/3/6/1/2/0/0/0' THEN
-    RAISE EXCEPTION 'exlib2o load: post-state counts are not exact (expected 3/3/5/3/6/1/2/0/0/0, found %); rolling back everything', v_counts;
+  IF v_counts <> '3/3/5/3/6/1/2/0/0/0/0' THEN
+    RAISE EXCEPTION 'exlib2o load: post-state counts are not exact (expected 3/3/5/3/6/1/2/0/0/0/0, found %); rolling back everything', v_counts;
   END IF;
   -- Dead bug binding, proven INDEPENDENTLY: exactly one snapshot on
   -- ...0002 and it is exactly the admitted record + the human
@@ -489,7 +570,7 @@ BEGIN
                FROM public.exercise_catalog_content_expected_relationships x)
        OR p.tenant_count IS DISTINCT FROM (SELECT count(*) FROM public.exercises)
        OR p.tenant_digest IS DISTINCT FROM
-            (SELECT md5(coalesce(string_agg(t.id::text || t.user_id::text || t.name || t.is_active::text, '|' ORDER BY t.id), '<none>'))
+            (SELECT md5(coalesce(string_agg(t::text, '|' ORDER BY t.id), '<none>'))
                FROM public.exercises t)) THEN
     RAISE EXCEPTION 'exlib2o load: an untouched surface changed (Plank rows, expected relationships, or tenant exercises); rolling back everything';
   END IF;
