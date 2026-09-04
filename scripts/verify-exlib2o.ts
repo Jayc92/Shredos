@@ -48,6 +48,16 @@ const PREP_TREE = '816d6a24d5fab3b3ae70450f3347d6bcf4db3d4d'
 const R2 = '8845c9d90e7e251342f01551f42796f0dda9550a'
 const R2_TREE = 'c0aca442e5ba43db4ea6764e0135990beb53d797'
 
+// RETARGET (EXLIB-2O hosted-execution evidence): this suite proves the
+// LOAD-PREPARATION phase. That phase was promoted as main = TIP and the
+// hosted execution happened; the application-evidence milestone then
+// legitimately advances HEAD (adding the application record and its
+// verifier), so the topology proofs below are anchored to the promoted
+// EXLIB-2O tip — where they were and remain true — instead of HEAD.
+// The tip's tree is pinned so a rewrite still fails here.
+const TIP = '632ef40f448c49e07bb7569fd6cd29cc14e62c1b'
+const TIP_TREE = 'ebe875778a4c76a5fac5e022a2a9f455163db1a7'
+
 const PKG = 'docs/exlib2o-target-snapshot-load-package.sql'
 const RECORD = 'docs/exlib2o-target-snapshot-load-prep-record.md'
 const VERIFIER = 'scripts/verify-exlib2o.ts'
@@ -102,7 +112,6 @@ const check = (name: string, ok: boolean): void => {
 // "committed" only when the worktree holds no uncommitted change at
 // all; while corrections are being authored the worktree is
 // authoritative, and the topology checks take their authoring branch.
-const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
 const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
 const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
@@ -539,52 +548,52 @@ check('E3: migrations remain exactly 001-027 with no 028 — the package lives u
       .split('\n').filter((f) => /\/0\d\d_.+\.sql$/.test(f))
     return migs.length === 27 && !migs.some((f) => f.includes('/028'))
   })())
-if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly THREE plain single-parent commits in order (the original preparation, the Codex round-2 correction, the Codex round-3 correction), 3 ahead / 0 behind, zero merges',
-    (() => {
-      try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        // every link in the chain, walked explicitly: HEAD -> R2 -> PREP -> SRC
-        for (const [child, parent] of [['HEAD', R2], [R2, PREP], [PREP, SRC]]) {
-          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
-          if (parents.length !== 2 || parents[1] !== parent) return false
-        }
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '3'
-          && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
-          && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
-      } catch { return false }
-    })())
-  check('G2: exact phase inventory — the three-commit range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
-    (() => {
-      const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
-        .split('\n').filter(Boolean).sort()
-      return JSON.stringify(status) === JSON.stringify(PHASE)
-    })())
-  check('G4: BOTH earlier commits are PRESERVED, never rewritten — the original preparation and the round-2 correction still carry their exact recorded trees, and the parent chain is unchanged — and the round-3 correction is exactly ONE plain single-parent forward commit on top of the round-2 correction, modifying exactly the four corrected paths',
-    (() => {
-      try {
-        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
-        if (execSync(`git rev-parse ${R2}^{tree}`, { encoding: 'utf8' }).trim() !== R2_TREE) return false
-        const pparents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (pparents.length !== 2 || pparents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${R2}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        if (execSync(`git rev-list --count --merges ${R2}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        // each correction round, taken on its own, modifies exactly the
-        // four corrected paths - round 2 over the preparation commit and
-        // round 3 over round 2
-        for (const base of [PREP, R2]) {
-          const range = base === PREP ? `${PREP}..${R2}` : `${R2}..HEAD`
-          const status = execSync(`git diff --name-status ${range}`, { encoding: 'utf8' })
-            .split('\n').filter(Boolean).sort()
-          if (JSON.stringify(status) !== JSON.stringify(CORRECTED.map((p) => `M\t${p}`).sort())) return false
-        }
-        return true
-      } catch { return false }
-    })())
-} else {
-  check('G1-G2-G4 (uncommitted correction-authoring state): every worktree change lies inside the five phase paths — nothing outside this phase is touched',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
-}
+// RETARGET (EXLIB-2O hosted-execution evidence): G1/G2/G4 walk the
+// promoted EXLIB-2O tip instead of HEAD, so they hold in every later
+// milestone; the tip must remain an ancestor of HEAD.
+check('G1: phase topology — the merge base of the promoted EXLIB-2O tip and the promoted source IS the source; the phase is exactly THREE plain single-parent commits in order (the original preparation, the Codex round-2 correction, the Codex round-3 correction), 3 ahead / 0 behind, zero merges — RETARGET (EXLIB-2O hosted-execution evidence): anchored to the promoted tip 632ef40..., where this was and remains true',
+  (() => {
+    try {
+      if (execSync(`git rev-parse ${TIP}^{tree}`, { encoding: 'utf8' }).trim() !== TIP_TREE) return false
+      execSync(`git merge-base --is-ancestor ${TIP} HEAD`, { stdio: 'pipe' })
+      if (execSync(`git merge-base ${SRC} ${TIP}`, { encoding: 'utf8' }).trim() !== SRC) return false
+      // every link in the chain, walked explicitly: TIP -> R2 -> PREP -> SRC
+      for (const [child, parent] of [[TIP, R2], [R2, PREP], [PREP, SRC]]) {
+        const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (parents.length !== 2 || parents[1] !== parent) return false
+      }
+      return execSync(`git rev-list --count ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '3'
+        && execSync(`git rev-list --count ${TIP}..${SRC}`, { encoding: 'utf8' }).trim() === '0'
+        && execSync(`git rev-list --count --merges ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '0'
+    } catch { return false }
+  })())
+check('G2: exact phase inventory — the three-commit range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else — anchored to the promoted tip',
+  (() => {
+    const status = execSync(`git diff --name-status ${SRC}..${TIP}`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean).sort()
+    return JSON.stringify(status) === JSON.stringify(PHASE)
+  })())
+check('G4: BOTH earlier commits are PRESERVED, never rewritten — the original preparation and the round-2 correction still carry their exact recorded trees, and the parent chain is unchanged — and the round-3 correction is exactly ONE plain single-parent forward commit on top of the round-2 correction, modifying exactly the four corrected paths — anchored to the promoted tip',
+  (() => {
+    try {
+      if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+      if (execSync(`git rev-parse ${R2}^{tree}`, { encoding: 'utf8' }).trim() !== R2_TREE) return false
+      const pparents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (pparents.length !== 2 || pparents[1] !== SRC) return false
+      if (execSync(`git rev-list --count ${R2}..${TIP}`, { encoding: 'utf8' }).trim() !== '1') return false
+      if (execSync(`git rev-list --count --merges ${R2}..${TIP}`, { encoding: 'utf8' }).trim() !== '0') return false
+      // each correction round, taken on its own, modifies exactly the
+      // four corrected paths - round 2 over the preparation commit and
+      // round 3 over round 2
+      for (const base of [PREP, R2]) {
+        const range = base === PREP ? `${PREP}..${R2}` : `${R2}..${TIP}`
+        const status = execSync(`git diff --name-status ${range}`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        if (JSON.stringify(status) !== JSON.stringify(CORRECTED.map((p) => `M\t${p}`).sort())) return false
+      }
+      return true
+    } catch { return false }
+  })())
 check('G3: two-state lifecycle — the package, record, and both verifiers are absent at the promoted source tip and present in this phase',
   (() => {
     const srcDocs = execSync(`git ls-tree ${SRC} docs/ --name-only`, { encoding: 'utf8' })
