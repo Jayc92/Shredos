@@ -46,8 +46,8 @@ human reviews or category decisions this package carries.
 
 ## 2. The prepared package
 
-docs/exlib2o-target-snapshot-load-package.sql — 35,468 B, SHA-256
-e106c9dda06a7279cf37f23647dfe37c88c5c2e5315eb0886cea034ad8d52527.
+docs/exlib2o-target-snapshot-load-package.sql — 39,230 B, SHA-256
+4c0d74f942da4e92efab5923a435512c750c6d794077804ffeee8c0c305c966d.
 PREPARED — NOT EXECUTED. One transaction; SHARE ROW EXCLUSIVE locks
 on all ELEVEN catalog tables (alphabetical, one statement —
 exercise_catalog_review_events included, the boundary correction
@@ -95,12 +95,14 @@ discovery fields NULL, review_status pending with NULL audit,
 catalog_version 1, is_active; the exact anatomy set
 "lower_back:tertiary,obliques:secondary"; the exact alias set
 "Forearm plank,Front plank"; the exact claim set; the complete
-...0101 content payload pinned field by field (six md5 digests plus
-the empty equipment_setup), its authored_at date, and its whole
-pending/draft/unadmitted lifecycle with every review and admission
-field NULL. This gate runs BEFORE the authority grant, so a drifted
-Plank surface is refused with no write and no elevation (correction
-recorded in section 9).
+...0101 content payload pinned field by field by EXACT VALUE EQUALITY
+against dollar-quoted literals re-derived mechanically from the
+promoted admitted Plank artifact — no hash of any kind appears in
+this gate (the round-2 md5 pins are superseded; see section 10) —
+its authored_at date, and its whole pending/draft/unadmitted
+lifecycle with every review and admission field NULL. This gate runs
+BEFORE the authority grant, so a drifted Plank surface is refused
+with no write and no elevation (correction recorded in section 9).
 
 EXPECTED POST-STATE (package-internal postconditions; any mismatch
 rolls back everything): count vector 3/3/5/3/6/1/2/0/0/0/0 — the
@@ -119,10 +121,11 @@ EXLIB-2O changed nothing DURING execution; they are NOT a pre-state
 authority, and the package labels them so (section 9).
 
 AUTHORITY: the narrowest migration-027 operational authority capable
-of the work — exlib_catalog_loader via exactly TWO
-load_catalog_snapshot calls (zero load_catalog_identity, zero
-load_catalog_content_draft, zero review/admission/publication/seal/
-delivery calls). The hosted non-superuser posture proven during
+of the work — exlib_catalog_loader via exactly TWO SCHEMA-QUALIFIED
+public.load_catalog_snapshot calls, which are the same database
+object the package's own precondition proves to exist (zero
+load_catalog_identity, zero load_catalog_content_draft, zero
+review/admission/publication/seal/delivery calls). The hosted non-superuser posture proven during
 EXLIB-2K is demanded before any write: current_user AND session_user
 = postgres, non-superuser, and the loader role carrying EXACTLY one
 membership — postgres granted BY supabase_admin, ADMIN TRUE /
@@ -203,23 +206,43 @@ drifted from the expected pre-state.
   mutable timestamp column; the two whole-row digests are labelled
   transition-neutrality only and are captured after the gates; and
   the tenant digest stays a whole-row digest, counted twice, with no
-  narrowed column list. G4 additionally proves the preserved-commit
-  topology: 2f8f135's tree is unrewritten and the correction is
-  exactly one plain single-parent commit over exactly four paths.
+  narrowed column list. TWO further checks added in the second
+  correction round (B13-B14) bind the round-3 findings mechanically:
+  B13 pins the promoted admitted Plank artifact by bytes and digest,
+  proves the authoritative gate contains NO hash predicate of any kind
+  (md5, digest, sha, hashtext, encode, crypt), and re-derives every
+  expected value in that gate — all eight payload fields, the
+  authorship line, the authored_at date, the anatomy/alias/claim sets,
+  the nine snapshot vocabulary fields and the canonical name —
+  mechanically from that artifact (with the Plank category taken from
+  the promoted SPENT EXLIB-2K load call, the only authority that
+  carries it), while confining every remaining md5 to the
+  transition-neutrality evidence slice with its disclaimers present;
+  B14 proves exactly two SCHEMA-QUALIFIED public.load_catalog_snapshot
+  calls and ZERO unqualified call sites, parses the precondition's
+  18-argument signature and each call's arity independently, and
+  inventories every remaining unqualified name in the package. G4
+  additionally proves the preserved-commit topology: the trees of
+  2f8f135 and 8845c9d are unrewritten and each correction is exactly
+  one plain single-parent commit over exactly four paths.
 - scripts/verify-exlib2o-live.sh (new, live): disposable socket-only
   PostgreSQL cluster; migrations 001-027 applied exactly once by the
   non-superuser postgres on the supabase_admin-bootstrapped fixture;
   the 84-exercise tenant fixture; the committed EXLIB-2K package
   executed once to produce the exact expected pre-state; then the
   EXLIB-2O package proven on the happy path (exact post-state,
-  bindings, digests, invariant, restoration) and against a FOURTEEN-
-  variant refusal matrix (second execution; missing identity; foreign
-  target claim; claimed intended name; foreign snapshot on a target;
-  malformed category; swapped UUIDs; tampered anatomy payload;
-  omitted loader call; widened authority baseline; and the five
-  correction-round additions — pre-existing review event, mutated
-  Plank content payload, schema-legal reviewed+admitted Plank
-  content, repointed expected relationship, drifted Plank difficulty)
+  bindings, digests, invariant, restoration) and against a SIXTEEN-
+  variant refusal matrix — a count the static verifier now derives
+  mechanically from the live script rather than trusting this prose —
+  (missing identity; foreign target claim; claimed intended name;
+  foreign snapshot on a target; malformed category; swapped UUIDs;
+  tampered anatomy payload; omitted loader call; widened authority
+  baseline; the five round-2 additions — pre-existing review event,
+  mutated Plank content payload, schema-legal reviewed+admitted Plank
+  content, repointed expected relationship, drifted Plank difficulty;
+  and the two round-3 additions — a jsonb payload field drift and a
+  search_path HIJACK of the unqualified call shape), plus the
+  second-execution (one-use) refusal proven on the loaded database,
   with whole-transaction rollback and byte-exact authority
   restoration proven after every variant. Each counterfactual is
   built through a checked surgery helper that FAILS LOUDLY if the
@@ -237,7 +260,21 @@ drifted from the expected pre-state.
   behind it, and an independent third session reads ZERO review
   events inside the gated interval — with the exact final vector,
   the guard trigger's rejection of direct writes, and the byte-exact
-  authority baseline proven afterwards.
+  authority baseline proven afterwards. The round-3 correction adds
+  section H, a REAL search_path decoy: a same-signature
+  load_catalog_snapshot is created in a schema placed AHEAD of public
+  in a throwaway database's search_path, the unqualified name is first
+  proven to resolve to that decoy IN THE LOADER ROLE'S OWN context
+  (so the test demonstrably has teeth), and the corrected package is
+  then proven to invoke public.load_catalog_snapshot exactly twice and
+  the decoy zero times, with the exact post-state and byte-exact
+  authority restoration. The instrument is pg_stat_user_functions
+  under track_functions=all, chosen because function statistics are
+  NOT rolled back: the same counters prove that the two payload
+  counterfactuals never reached the loader at all, and that the
+  round-2 UNQUALIFIED call shape run against the same decoy IS
+  hijacked (decoy invoked twice, public zero times) — which is what
+  makes the zero a measurement rather than an assumption.
 - RETARGET (EXLIB-2O target-snapshot load prep):
   scripts/verify-exlib2n-r6-admission.ts — its committed-topology
   G1-G3 proofs and its F1 phase-range scan are anchored to the
@@ -258,7 +295,17 @@ drifted from the expected pre-state.
   four: the only references to these paths are the EXLIB-2O suites
   reading them, which re-derive their content rather than pinning
   their bytes. The correction adds NO retarget, and the single
-  EXLIB-2O retarget above is preserved unchanged.
+  EXLIB-2O retarget above is preserved unchanged. RE-RUN exhaustively
+  again for the round-3 correction over the same four paths, using
+  their round-2 blobs at 8845c9d as the sweep sources (the four
+  fingerprints are listed in section 10) together with every 64-hex
+  constant in the round-3 verifiers. The only hits are inside this
+  record's own supersession sections, which quote the superseded
+  fingerprints as history rather than asserting them, and the
+  verifiers' own pins of promoted upstream artifacts. Round 3 adds no
+  retarget and changes no retarget anchor: the EXLIB-2O retarget in
+  scripts/verify-exlib2n-r6-admission.ts remains anchored to the
+  promoted R6 tip, byte-unchanged from the round-2 commit.
 
 ## 7. What this milestone did NOT do
 
@@ -286,7 +333,7 @@ are byte-unchanged.
    and publication — each its own authority-gated act; target
    content authoring/loading remains its own later program.
 
-## 9. Codex correction round (2026-09-04) — supersession disclosure
+## 9. Codex correction round 2 (2026-09-04) — supersession disclosure
 
 Codex reviewed the prepared package at commit 2f8f135fd97812c4a5a6a4
 98796ee85f9d7df556 and required two release-blocking fail-closed
@@ -360,9 +407,11 @@ review_status pending with NULL audit, catalog_version 1, is_active;
 the exact anatomy set; the exact alias set; the exact claim set; the
 exact expected-relationship set; and the content row's full payload
 field by field against md5 digests re-derived from the admitted
-EXLIB-2K artifact, its authored_at date, and its complete
-pending/draft/unadmitted lifecycle with every review and admission
-field NULL. Mutable timestamps (created_at, updated_at) are
+EXLIB-2K artifact — SUPERSEDED IN TURN by round 3, which replaced
+those digests with exact-value literals because an md5 binding is not
+an authoritative payload binding (section 10.2) — its authored_at
+date, and its complete pending/draft/unadmitted lifecycle with every
+review and admission field NULL. Mutable timestamps (created_at, updated_at) are
 deliberately NOT pinned, and the static verifier asserts their
 absence so the gate cannot become spuriously unsatisfiable by the
 passage of time.
@@ -425,3 +474,185 @@ the EXLIB-2K spent package, migration 027, the single EXLIB-2O
 retarget, and every promoted commit — all byte-unchanged. No approval
 is claimed or implied by this section; the milestone remains
 LOCAL-ONLY and awaits Codex re-review.
+
+## 10. Codex correction round 3 (2026-09-04) — supersession disclosure
+
+Codex accepted both round-2 corrections and required two further
+release blockers to be closed before publication. Nothing from either
+earlier round is rewritten or hidden: 2f8f135 (tree 816d6a24d5fab3b3ae
+70450f3347d6bcf4db3d4d) and 8845c9d90e7e251342f01551f42796f0dda9550a
+(tree c0aca442e5ba43db4ea6764e0135990beb53d797) are PRESERVED
+untouched, both trees and the whole parent chain are asserted
+unrewritten by the static verifier's G1 and G4, and this correction is
+exactly ONE further plain single-parent forward commit changing exactly
+the same four paths: the package, this record, and the two verifiers.
+No amend, squash, rebase, deletion, push, promotion, tag, or hosted
+contact.
+
+### 10.1 Superseded claim 3 — the verified function was not the invoked function
+
+SUPERSEDED: the package proved
+`to_regprocedure('public.load_catalog_snapshot(<18 args>)') IS NOT
+NULL` and then invoked `SELECT load_catalog_snapshot(...)` —
+UNQUALIFIED. An unqualified function call is resolved through
+search_path, which the package neither pinned nor inspected, so the
+object it verified and the object it invoked were only the same object
+by assumption. Anything reachable earlier on the executing session's
+search_path with the same 18-argument signature would have been called
+instead, and the loader's own `SET search_path = public, pg_temp`
+protects only its BODY, never its CALL SITE.
+
+CORRECTED: both calls are `SELECT public.load_catalog_snapshot(...)`.
+The checked object and the invoked object are now the same database
+object by construction, independent of search_path. Every other name
+in the package is either public.-qualified, a pg_catalog system view or
+built-in (pg_catalog is searched ahead of every search_path entry, so
+it cannot be shadowed from search_path), or the package's own ON COMMIT
+DROP temp evidence table (reached through the implicit pg_temp, which
+is searched for RELATIONS only and only by the session that owns it) —
+so the package deliberately pins NO search_path and needs none. The
+static verifier's B14 inventories every remaining unqualified name
+mechanically and fails on any addition: the exhaustive current
+inventory is `pg_roles` (a pg_catalog view), `exlib2o_pre_evidence`
+(the package's own temp table, whose CREATE fails closed if a relation
+of that name already exists) and `postgres` (a ROLE name in the
+grantor-scoped REVOKE, not a schema-resolved object). Pinning
+search_path was considered and deliberately REJECTED: qualification
+already removes search_path from the resolution of the calls, while a
+pin would additionally make the live decoy unreachable and so destroy
+the very proof that the correction works.
+
+The live suite's new section H proves this empirically rather than
+rhetorically. A REAL same-signature `load_catalog_snapshot` is created
+in a decoy schema placed AHEAD of public in a throwaway database's
+search_path, with USAGE granted so it is genuinely visible (name
+resolution silently skips schemas the calling role cannot use, so
+without that grant the test would prove nothing). In the LOADER ROLE's
+own resolution context the unqualified name is first shown to resolve
+to the decoy; the corrected package is then executed against that
+decoy and proven — from pg_stat_user_functions under
+track_functions=all — to have invoked public.load_catalog_snapshot
+EXACTLY TWICE and the decoy ZERO times, with the decoy's own SECURITY
+DEFINER marker table empty, the exact post-state vector
+3/3/5/3/6/1/2/0/0/0/0, both bindings exact, and byte-exact authority
+restoration. The teeth are then proven directly: a sed-derived
+UNQUALIFIED copy of the same package — the round-2 call shape, nothing
+else changed — run against the same decoy IS hijacked (decoy invoked
+twice, public.load_catalog_snapshot zero times) and is caught only
+afterwards, by the package's own exact post-state gate, which rolls the
+whole transaction back. That is the defect this round corrected,
+demonstrated rather than described, and it is what makes the zero in
+the corrected run a measurement rather than an assumption.
+
+DISCLOSED, and NOT retroactively correctable: migration 027 itself
+creates the function with an unqualified `CREATE OR REPLACE FUNCTION
+load_catalog_snapshot(...)`, and the promoted, SPENT EXLIB-2K package
+invoked it with the same unqualified `SELECT load_catalog_snapshot(`
+call shape. Both landed in public in fact — the live suite applies the
+real migrations and then resolves `public.load_catalog_snapshot`
+successfully — but EXLIB-2K's call carried exactly the weakness
+corrected here. It has already executed against hosted ShredOS and its
+result was verified field by field afterwards, so this is a disclosure
+about a completed act, not a change to it: history is not rewritten,
+and the promoted 2K package stays byte-frozen at 29,760 B /
+a1b6dd55850c5d544e2f484d1ce4833b41deec7f3dd4d4c2373cb3b50daaccf0.
+Future packages in this program should qualify their loader calls.
+
+### 10.2 Superseded claim 4 — md5 is not an authoritative payload binding
+
+SUPERSEDED: the round-2 authoritative Plank content gate bound seven
+payload fields — setup_steps, execution_steps, common_mistakes,
+breathing_cue, safety_guidance, equipment_setup,
+accessibility_alternative — and the authorship line with `md5(...)`
+predicates. That proves only md5 equality. This program had ALREADY
+rejected md5 as an admission binding and standardized on SHA-256 and
+database-computed manifests, so an md5 predicate in the authoritative
+gate contradicted its own standard.
+
+CORRECTED: every payload field is now compared by EXACT VALUE
+EQUALITY. The text fields are compared to dollar-quoted authoritative
+literals; the jsonb fields (setup_steps, execution_steps,
+common_mistakes) are compared to authoritative jsonb literals by JSONB
+EQUALITY. Every literal was generated MECHANICALLY, field by field,
+from the promoted admitted Plank artifact
+docs/exlib2g-plank-content.jsonl (2,928 B; its SHA-256 is stated in
+full below), never transcribed by hand, and the
+static verifier's B13 re-derives all of them from that artifact on
+every run, so a hand-edited literal fails the suite. NO hash of any
+kind survives in the authoritative gate, and B13 asserts that
+mechanically by rejecting any md5/digest/sha/hashtext/encode/crypt
+predicate inside the gate's own text slice.
+
+The artifact digest, stated exactly: docs/exlib2g-plank-content.jsonl
+— 2,928 B / d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c
+679d752.
+
+HONEST NUANCE, recorded rather than glossed: jsonb canonicalizes on
+input (whitespace stripped, object keys sorted), so `md5(col::text)`
+on a jsonb column was already value-determined — the round-2 binding
+was NOT exposed to representation drift, and no such counterfactual is
+constructible. The real defect was that md5 proves equality only up to
+md5, is not the program's standard, and cannot be audited by reading
+the gate: a reviewer had to trust a 32-hex constant instead of reading
+the sentence being asserted. The corrected gate is auditable by eye.
+
+The two whole-row pre/post digests are KEPT as TRANSITION-NEUTRALITY
+EVIDENCE only, and they remain md5 — which is acceptable precisely
+because they bind nothing to any source artifact. Both are captured
+INSIDE the one transaction, so all they can prove is that nothing
+changed between two readings taken during execution; a drifted
+pre-state would be compared against itself and pass. The package says
+so in the same breath as the digests, the record says so here and in
+sections 2 and 9.2, and B13 asserts that every remaining md5 in the
+package lies inside that evidence slice with its disclaimer present.
+
+Two live counterfactuals exercise the corrected payload binding, one
+per column type: a SCALAR field drift (safety_guidance, F11,
+re-pointed from the round-2 md5 pin to the exact-value literal) and a
+JSONB field drift (setup_steps element 0 rewritten, F15). Each is
+refused by the package's own authoritative precondition. Each is also
+proven to have refused BEFORE the loader calls by durable, NON-
+TRANSACTIONAL function statistics: zero public.load_catalog_snapshot
+invocations survive the rollback, and a liveness probe on the same
+counter in the same database registers 1, so the zero cannot be a dead
+instrument. "Before the GRANT" rests on the raised message being the
+pre-state gate's, which the static verifier pins textually ahead of
+both the GRANT and the first loader call — stated that way because the
+GRANT is inside the same transaction, so its absence cannot be
+observed after a rollback.
+
+### 10.3 What round 3 preserved unchanged
+
+Every accepted round-2 correction stands: the eleven-table lock
+boundary including exercise_catalog_review_events; the eleven-term
+pre/post vectors; the authoritative Plank snapshot, anatomy, alias,
+claim, content, lifecycle and expected-relationship gates ordered
+before the GRANT; the transition-neutrality distinction; the fail-loud
+surgery helper; the schema-legal reviewed+admitted lifecycle
+counterfactual; the G5 structural review-event concurrency proof over
+pg_locks; and the authority-restoration and race proofs. The refusal
+matrix only grew.
+
+### 10.4 Superseded fingerprints (valid only at 8845c9d)
+
+The round-2 blobs, retained for the preserved commit and used as the
+sources of the section-6 second-order sweep for this round:
+
+- docs/exlib2o-target-snapshot-load-package.sql — 35,468 B /
+  e106c9dda06a7279cf37f23647dfe37c88c5c2e5315eb0886cea034ad8d52527.
+- docs/exlib2o-target-snapshot-load-prep-record.md — 24,255 B /
+  65a8a91c53b5f8e47acb5fda2f84f2831dec0af235e0c6fac5620b45d1653fe9.
+- scripts/verify-exlib2o.ts — 33,829 B /
+  42e2b343f60b9804b511faea22a90d6797260c691e15294ec5b7c3db1085b78d.
+- scripts/verify-exlib2o-live.sh — 41,854 B /
+  062b5168d0c3d5f516e5cd1ab8a816aead304e0ea253e8aea4fce9a448a19a65.
+
+The round-1 fingerprints in section 9.4 remain valid only at 2f8f135.
+The corrected package fingerprint in section 2 is authoritative. What
+this round did NOT change: both admitted authored records, both
+completed forms, both UUID bindings, both human category decisions,
+the promoted admitted Plank artifact, the SPENT EXLIB-2K package,
+migration 027, the single EXLIB-2O retarget and its anchor, and every
+promoted commit — all byte-unchanged. No approval is claimed or
+implied by this section, and no reviewer identity is asserted: the
+milestone remains LOCAL-ONLY and awaits Codex re-review.

@@ -6,9 +6,14 @@
 // exact ELEVEN-table lock list — review events included, so the
 // package's serialized boundary and its internally proven surface are
 // the same eleven tables — the complete authoritative Plank pre-state
-// gate, the distinction between that gate and the in-transaction
+// gate, in which every expected value is bound by EXACT value
+// equality to a literal re-derived mechanically from the promoted
+// admitted Plank artifact and no hash appears at all, the distinction
+// between that gate and the in-transaction
 // transition-neutrality digests, whole-row tenant protection,
-// exactly TWO load_catalog_snapshot calls
+// exactly TWO SCHEMA-QUALIFIED public.load_catalog_snapshot calls and
+// ZERO unqualified ones — so the function the package verifies is the
+// function it invokes, whatever search_path says —
 // and zero identity/content/review/admission/publication/seal/
 // delivery calls, the transaction-contained authority elevation and
 // grantor-scoped restoration, the exact pre/post count vectors, the
@@ -33,11 +38,15 @@ const SRC_TAG = 'exlib2n-r6-eligibility-admission-stable'
 const SRC_TAG_OBJ = '7106b05fa1308fef03b9e0942572b662435c3259'
 const SRC_TAG_MSG = 'EXLIB-2N target-snapshot R6 eligibility admissions stable — ELIGIBLE — NOT LOADED OR PUBLISHED\n'
 
-// The original EXLIB-2O preparation commit, PRESERVED untouched: the
-// Codex round-2 correction is one plain forward commit on top of it,
-// never an amend, rebase, squash, or rewrite.
+// The original EXLIB-2O preparation commit and the Codex round-2
+// correction, BOTH PRESERVED untouched: the round-3 correction is one
+// further plain forward commit on top of them, never an amend, rebase,
+// squash, or rewrite. Each preserved commit's tree is pinned here, so a
+// rewrite of either one fails this suite rather than passing quietly.
 const PREP = '2f8f135fd97812c4a5a6a498796ee85f9d7df556'
 const PREP_TREE = '816d6a24d5fab3b3ae70450f3347d6bcf4db3d4d'
+const R2 = '8845c9d90e7e251342f01551f42796f0dda9550a'
+const R2_TREE = 'c0aca442e5ba43db4ea6764e0135990beb53d797'
 
 const PKG = 'docs/exlib2o-target-snapshot-load-package.sql'
 const RECORD = 'docs/exlib2o-target-snapshot-load-prep-record.md'
@@ -72,7 +81,8 @@ const LOCKED_TABLES = ['public.exercise_catalog', 'public.exercise_catalog_alias
 const PHASE = [
   ['A', PKG], ['A', RECORD], ['A', VERIFIER], ['A', LIVE], ['M', R6_VERIFIER],
 ].map(([s, p]) => `${s}\t${p}`).sort()
-// The four paths the Codex round-2 correction commit modifies.
+// The four paths each Codex correction commit modifies (rounds 2 and 3
+// touch the same four: the package, the record, and both verifiers).
 const CORRECTED = [PKG, RECORD, VERIFIER, LIVE]
 
 const sha256 = (buf: Buffer | string): string => createHash('sha256').update(buf).digest('hex')
@@ -100,6 +110,10 @@ const committed = CHANGED.length === 0
 const bytesOf = (p: string): Buffer => (committed ? blobAt('HEAD', p) : readFileSync(p))
 const pkg = bytesOf(PKG).toString('utf8')
 const rec = bytesOf(RECORD).toString('utf8')
+// package comment prose with the comment markers and line wrapping
+// removed, so a phrase can be asserted without depending on where the
+// 60-column comment blocks happen to wrap it
+const pkgProse = pkg.replace(/\n\s*--/g, '').replace(/\s+/g, ' ')
 const recFlat = rec.replace(/\s+/g, ' ')
 const recSolid = rec.replace(/\s+/g, '')
 
@@ -159,7 +173,7 @@ check('B3: the fresh-state gate is serialized by REAL table locks — one SHARE 
   })())
 check('B4: the narrowest authority — exactly TWO load_catalog_snapshot calls and ZERO load_catalog_identity, load_catalog_content_draft, review, admission, publication, seal, run, or delivery calls',
   (() => {
-    const snap = (pkg.match(/^SELECT load_catalog_snapshot\(/gm) || []).length
+    const snap = (pkg.match(/^SELECT public\.load_catalog_snapshot\(/gm) || []).length
     const ident = (pkg.match(/load_catalog_identity\s*\(/g) || []).length
     const draft = (pkg.match(/load_catalog_content_draft\s*\(\s*'/g) || []).length
     const other = (pkg.match(/apply_content_review|admit_catalog_content|publish_catalog_content|exlib_approve_and_seal_run|deliver_catalog_exercises|rollback_catalog_delivery|exlib_revoke_run_delivery/g) || []).length
@@ -239,7 +253,7 @@ check('B10: the COMPLETE authoritative Plank pre-state is proven from promoted c
     if (!msgs.every((m) => pkg.includes(m))) return false
     // every gate precedes the authority change and the loader calls
     const grant = pkg.indexOf('GRANT exlib_catalog_loader TO postgres WITH SET TRUE')
-    const firstLoad = pkg.search(/^SELECT load_catalog_snapshot\(/m)
+    const firstLoad = pkg.search(/^SELECT public\.load_catalog_snapshot\(/m)
     if (!msgs.every((m) => pkg.indexOf(m) < grant && pkg.indexOf(m) < firstLoad)) return false
     // snapshot semantics: every stable field, not just name/active/pending/v1
     const snapFields = ["e.category = 'isolation'", "e.primary_muscle = 'abs'",
@@ -250,10 +264,14 @@ check('B10: the COMPLETE authoritative Plank pre-state is proven from promoted c
       'e.import_confidence IS NULL', "e.review_status = 'pending'", 'e.reviewed_by IS NULL',
       'e.catalog_version = 1', 'e.is_active']
     if (!snapFields.every((f) => pkg.includes(f))) return false
-    // complete content payload + lifecycle + authorship
-    const contentFields = ['md5(c.setup_steps::text)', 'md5(c.execution_steps::text)',
-      'md5(c.common_mistakes::text)', 'md5(c.breathing_cue)', 'md5(c.safety_guidance)',
-      "c.equipment_setup = ''", 'md5(c.accessibility_alternative)',
+    // complete content payload + lifecycle + authorship. Every payload
+    // field is compared to a dollar-quoted authoritative literal by
+    // EXACT value equality (B13 proves the literals are the artifact's
+    // own values and that no hash survives in this gate).
+    const contentFields = ['AND c.setup_steps = $p_setu$', 'AND c.execution_steps = $p_exec$',
+      'AND c.common_mistakes = $p_mist$', 'AND c.breathing_cue = $p_br$',
+      'AND c.safety_guidance = $p_sf$', 'AND c.equipment_setup = $p_es$$p_es$',
+      'AND c.accessibility_alternative = $p_ac$', 'AND c.authored_by = $p_ab$',
       "c.authored_at = DATE '2026-09-01'", "c.content_status = 'pending'",
       "c.publication_status = 'draft'", 'c.import_admitted = false',
       'c.reviewed_by IS NULL', 'c.reviewed_at IS NULL', 'c.review_rationale IS NULL',
@@ -290,6 +308,122 @@ check('B12: the "tenant table unchanged" claim covers EVERY persisted column —
       && (pkg.match(/count\(\*\) FROM public\.exercises/g) || []).length === 2
       && pkg.includes('every persisted column')
       && !/string_agg\(t\.(name|category|slug)/.test(pkg)
+  })())
+
+// ── Codex round-3 corrections: dedicated checks ──────────────────
+// Round 2 verified public.load_catalog_snapshot but INVOKED
+// load_catalog_snapshot unqualified, so search_path — which the
+// package does not pin — stood between the checked object and the
+// invoked one; and it pinned six payload fields with md5, which proves
+// md5 equality rather than value equality and which this program had
+// already rejected as an admission binding. B13/B14 bind both fixes.
+const PLANK_ARTIFACT = { path: 'docs/exlib2g-plank-content.jsonl', bytes: 2928, sha: 'd82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752' }
+const GATE_OPEN = 'AUTHORITATIVE PLANK PRE-STATE GATE'
+const GATE_CLOSE = 'TRANSITION-NEUTRALITY EVIDENCE'
+// The payload/authorship fields, with the dollar-quote tag each is
+// bound by and whether the binding is text or JSONB equality.
+const PAYLOAD: [string, string, 'text' | 'json'][] = [
+  ['setup_steps', 'p_setu', 'json'], ['execution_steps', 'p_exec', 'json'],
+  ['common_mistakes', 'p_mist', 'json'], ['breathing_cue', 'p_br', 'text'],
+  ['safety_guidance', 'p_sf', 'text'], ['equipment_setup', 'p_es', 'text'],
+  ['accessibility_alternative', 'p_ac', 'text'], ['authored_by', 'p_ab', 'text'],
+]
+check('B13: the authoritative Plank gate carries NO hash of any kind — every payload and authorship field is bound by EXACT value equality (text to a dollar-quoted text literal, JSONB to a JSONB literal), every expected value in the whole gate is re-derived mechanically from the promoted admitted Plank artifact (or, for the category the artifact cannot carry, from the promoted EXLIB-2K load call), and the md5 transition-neutrality digests survive only OUTSIDE the gate, explicitly disclaimed as never a source binding',
+  (() => {
+    const art = bytesOf(PLANK_ARTIFACT.path)
+    if (art.length !== PLANK_ARTIFACT.bytes || sha256(art) !== PLANK_ARTIFACT.sha) return false
+    const lines = art.toString('utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#'))
+    if (lines.length !== 1) return false
+    const plank: Record<string, unknown> = JSON.parse(lines[0])
+    const open = pkg.indexOf(GATE_OPEN)
+    const close = pkg.indexOf(GATE_CLOSE)
+    if (open < 0 || close < 0 || close < open) return false
+    const gate = pkg.slice(open, close)
+    // (1) zero hash predicates anywhere in the authoritative gate —
+    // md5 above all, but also the digest/encode family
+    if (/(md5|digest|sha\d+|hashtext|encode|crypt)\s*\(/i.test(gate)) return false
+    // (2) every payload field compared directly, and every literal
+    // equal BY VALUE to the artifact's own field
+    for (const [col, tag, kind] of PAYLOAD) {
+      if (!gate.includes(`AND c.${col} = $${tag}$`)) return false
+      const v = lit(tag)
+      if (v === null) return false
+      if (kind === 'json') {
+        if (!gate.includes(`$${tag}$::jsonb`)) return false
+        if (JSON.stringify(JSON.parse(v)) !== JSON.stringify(plank[col])) return false
+      } else if (v !== plank[col]) return false
+    }
+    if (!gate.includes(`c.authored_at = DATE '${plank.authored_at as string}'`)) return false
+    // (3) the rest of the gate's expected values, re-derived the same way
+    const anatomy = (plank.muscle_targets as { muscle: string, role: string }[])
+      .map((m) => `${m.muscle}:${m.role}`).sort().join(',')
+    const aliases = (plank.aliases as string[]).slice().sort().join(',')
+    const claims = [...(plank.aliases as string[]).map((a) => `${a.toLowerCase()}=alias`),
+      `${(plank.proposed_canonical_name as string).toLowerCase()}=canonical`].sort().join(',')
+    if (!gate.includes(`'${anatomy}'`) || !gate.includes(`'${aliases}'`) || !gate.includes(`'${claims}'`)) return false
+    for (const f of ['primary_muscle', 'equipment', 'laterality', 'tracking_mode', 'provenance',
+      'movement_pattern', 'training_role', 'difficulty', 'availability']) {
+      if (!gate.includes(`e.${f} = '${plank[f] as string}'`)) return false
+    }
+    if (!gate.includes(`e.canonical_name = '${plank.proposed_canonical_name as string}'`)) return false
+    // category exists in no authored record: its authority is the
+    // promoted (SPENT) EXLIB-2K load call's third argument
+    const k2 = bytesOf(PKG2K.path).toString('utf8')
+    const kCat = k2.match(/SELECT load_catalog_snapshot\(\n[^\n]*\n[^\n]*\n {2}'([a-z_]+)',\n/)
+    if (!kCat || !gate.includes(`e.category = '${kCat[1]}'`)) return false
+    // (4) the md5 digests live ONLY in the transition-neutrality
+    // evidence, which disclaims source authority in its own words
+    const evidence = pkg.slice(close)
+    return (evidence.match(/md5\(/g) || []).length === (pkg.match(/md5\(/g) || []).length
+      && (evidence.match(/md5\(/g) || []).length === 14
+      && evidence.includes('never as')
+      && evidence.includes('a binding to any source artifact')
+      && evidence.includes('compared against itself and pass')
+  })())
+check('B14: the VERIFIED function and the INVOKED function are structurally the same object — both loader calls are schema-qualified public.load_catalog_snapshot, there is not one unqualified call site anywhere, the precondition checks that exact schema-qualified 18-argument signature, each call passes exactly 18 arguments, and every other name in the package is either public.-qualified or a pg_catalog object no search_path entry can shadow',
+  (() => {
+    // exactly two qualified call sites, zero unqualified ones
+    if ((pkg.match(/^SELECT public\.load_catalog_snapshot\(/gm) || []).length !== 2) return false
+    if ((pkg.match(/(?<!public\.)load_catalog_snapshot\s*\(/g) || []).length !== 0) return false
+    // the checked signature, and its argument arity
+    const sig = pkg.match(/to_regprocedure\('public\.load_catalog_snapshot\(([^)]*)\)'\)/)
+    if (!sig) return false
+    const argTypes = sig[1].split(',').map((s) => s.trim()).filter(Boolean)
+    if (argTypes.length !== 18 || argTypes[0] !== 'uuid') return false
+    // each call's own arity: strip dollar-quoted literals (their
+    // contents carry commas), then count top-level commas
+    const calls = pkg.match(/^SELECT public\.load_catalog_snapshot\(([\s\S]*?)\);$/gm)
+    if (!calls || calls.length !== 2) return false
+    for (const call of calls) {
+      const stripped = call.replace(/\$[a-z0-9_]*\$[\s\S]*?\$[a-z0-9_]*\$/g, 'X')
+      let depth = 0
+      let args = 1
+      for (const ch of stripped.slice(stripped.indexOf('(') + 1, stripped.lastIndexOf(')'))) {
+        if (ch === '(') depth += 1
+        else if (ch === ')') depth -= 1
+        else if (ch === ',' && depth === 0) args += 1
+      }
+      if (args !== 18) return false
+    }
+    // EXACT inventory of every name the package does NOT qualify, so a
+    // new unqualified reference cannot slip in unnoticed:
+    //   pg_roles             — a pg_catalog system view; pg_catalog is
+    //                          searched ahead of every search_path
+    //                          entry, so no interposed schema can
+    //                          shadow it
+    //   exlib2o_pre_evidence — this transaction's own ON COMMIT DROP
+    //                          temp table; only this session's temp
+    //                          schema can hold that name, and a
+    //                          pre-existing one makes the CREATE fail
+    //                          closed
+    //   postgres             — the ROLE in "REVOKE ... FROM postgres",
+    //                          not a relation at all
+    const rels = Array.from(new Set((pkg.match(/(?:FROM|JOIN)\s+([a-zA-Z_][\w.]*)/g) || [])
+      .map((s) => s.replace(/^(?:FROM|JOIN)\s+/, ''))
+      .filter((n) => !n.startsWith('public.') && !n.startsWith('pg_catalog.')))).sort()
+    if (JSON.stringify(rels) !== JSON.stringify(['exlib2o_pre_evidence', 'pg_roles', 'postgres'])) return false
+    return pkgProse.includes('This package therefore pins no search_path and needs none.')
+      && pkgProse.includes('the checked object and the invoked object are now the same database object by construction')
   })())
 
 console.log('\nC. Loader literals re-derived from the admitted sources')
@@ -336,7 +470,7 @@ check('C6: Ab wheel rollout category is the HUMAN decision (other) from the comp
 check('C7: the UUID bindings appear exactly and are never swapped — each loader call opens with its own identity, matching the completed forms, and the discovery quadruple is NULL in both calls exactly as authored',
   (() => {
     const uuidOf = (tag: string): string | null => {
-      const m = pkg.match(new RegExp(`SELECT load_catalog_snapshot\\(\\s*'([0-9a-f-]{36})',\\s*\\$${tag}\\$`))
+      const m = pkg.match(new RegExp(`SELECT public\\.load_catalog_snapshot\\(\\s*'([0-9a-f-]{36})',\\s*\\$${tag}\\$`))
       return m ? m[1] : null
     }
     if (uuidOf('nm1') !== DB_UUID) return false
@@ -406,35 +540,45 @@ check('E3: migrations remain exactly 001-027 with no 028 — the package lives u
     return migs.length === 27 && !migs.some((f) => f.includes('/028'))
   })())
 if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, then the one Codex round-2 correction), 2 ahead / 0 behind, zero merges',
+  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly THREE plain single-parent commits in order (the original preparation, the Codex round-2 correction, the Codex round-3 correction), 3 ahead / 0 behind, zero merges',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync('git rev-parse HEAD^1', { encoding: 'utf8' }).trim() !== PREP) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== PREP) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
+        // every link in the chain, walked explicitly: HEAD -> R2 -> PREP -> SRC
+        for (const [child, parent] of [['HEAD', R2], [R2, PREP], [PREP, SRC]]) {
+          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== parent) return false
+        }
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '3'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }
     })())
-  check('G2: exact phase inventory — the two-commit range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
+  check('G2: exact phase inventory — the three-commit range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
     (() => {
       const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       return JSON.stringify(status) === JSON.stringify(PHASE)
     })())
-  check('G4: the ORIGINAL preparation commit is PRESERVED, never rewritten — it still carries its exact recorded tree and its sole parent is still the promoted source — and the correction is exactly ONE plain single-parent forward commit on top of it, modifying exactly the four corrected paths',
+  check('G4: BOTH earlier commits are PRESERVED, never rewritten — the original preparation and the round-2 correction still carry their exact recorded trees, and the parent chain is unchanged — and the round-3 correction is exactly ONE plain single-parent forward commit on top of the round-2 correction, modifying exactly the four corrected paths',
     (() => {
       try {
         if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        if (execSync(`git rev-parse ${R2}^{tree}`, { encoding: 'utf8' }).trim() !== R2_TREE) return false
         const pparents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (pparents.length !== 2 || pparents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${PREP}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        if (execSync(`git rev-list --count --merges ${PREP}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        const status = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        return JSON.stringify(status) === JSON.stringify(CORRECTED.map((p) => `M\t${p}`).sort())
+        if (execSync(`git rev-list --count ${R2}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count --merges ${R2}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
+        // each correction round, taken on its own, modifies exactly the
+        // four corrected paths - round 2 over the preparation commit and
+        // round 3 over round 2
+        for (const base of [PREP, R2]) {
+          const range = base === PREP ? `${PREP}..${R2}` : `${R2}..HEAD`
+          const status = execSync(`git diff --name-status ${range}`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          if (JSON.stringify(status) !== JSON.stringify(CORRECTED.map((p) => `M\t${p}`).sort())) return false
+        }
+        return true
       } catch { return false }
     })())
 } else {
@@ -467,19 +611,38 @@ check('H1: no phase file contains credential material, hosted connection strings
     }
     return true
   })())
-check('H2: the live verifier exists, targets only disposable socket-only clusters, executes the committed 2K package to build the pre-state, carries the FOURTEEN-variant refusal matrix including all five round-2 additions, checks every harness surgery so a silently rejected mutation can never read as a pass, and proves the review-events writer exclusion structurally from pg_locks',
+check('H2: the live verifier exists, targets only disposable socket-only clusters, executes the committed 2K package to build the pre-state, carries a refusal matrix of EXACTLY SIXTEEN counterfactual variants (the five round-2 additions and the two round-3 additions among them), counts the loader calls SCHEMA-QUALIFIED, proves with a real same-signature decoy ahead of public that the qualified call cannot be hijacked, checks every harness surgery so a silently rejected mutation can never read as a pass, and proves the review-events writer exclusion structurally from pg_locks',
   (() => {
     const l = bytesOf(LIVE).toString('utf8')
     return l.includes('unix_socket_directories') && l.includes("listen_addresses=''")
       && l.includes('exlib2k-plank-catalog-load-package.sql')
       && l.includes(PKG)
       && l.includes('RACE') && l.includes('exactly one committer')
+      // the refusal matrix is COUNTED, not described: the header prose and
+      // the actual number of counterfactual variants cannot drift apart
+      && (l.match(/^expect_pkg_refusal /gm) || []).length === 16
+      && l.includes('SIXTEEN counterfactual variants')
       // the five round-2 refusal variants, by their pinned gate messages
       && l.includes('PRE-EXISTING REVIEW EVENT refused')
       && l.includes('MUTATED PLANK CONTENT PAYLOAD refused')
       && l.includes('ALTERED PLANK LIFECYCLE refused')
       && l.includes('ALTERED EXPECTED RELATIONSHIP refused')
       && l.includes('ALTERED PLANK SNAPSHOT FIELD refused')
+      // round-3: the live parsing/counting/surgery logic recognizes the
+      // SCHEMA-QUALIFIED calls (package identity, omitted-call surgery)
+      && l.includes("^SELECT public\\.load_catalog_snapshot(")
+      && l.includes('ZERO unqualified call sites')
+      && l.includes('/^SELECT public\\.load_catalog_snapshot\\(/{n++}')
+      // round-3: both payload counterfactuals, scalar and jsonb
+      && l.includes('MUTATED PLANK CONTENT PAYLOAD refused - SCALAR payload field')
+      && l.includes('MUTATED PLANK CONTENT PAYLOAD refused - JSONB payload field')
+      // round-3: the durable, NON-TRANSACTIONAL invocation instrument and
+      // the real decoy that gives it teeth
+      && l.includes('track_functions=all') && l.includes('pg_stat_user_functions')
+      && l.includes('SEARCH_PATH DECOY')
+      && l.includes('CREATE FUNCTION exlib2o_decoy.load_catalog_snapshot(')
+      && l.includes('ALTER DATABASE $V SET search_path = exlib2o_decoy, public')
+      && l.includes('the round-2 UNQUALIFIED call shape IS hijacked')
       // fail-loud harness surgery, and the ELEVEN-term live vectors
       && l.includes('HARNESS SURGERY FAILED')
       && l.includes(`PRE_VECTOR="${PRE_VECTOR}"`) && l.includes(`POST_VECTOR="${POST_VECTOR}"`)

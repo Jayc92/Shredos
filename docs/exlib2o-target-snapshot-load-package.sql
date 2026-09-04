@@ -91,6 +91,15 @@
 -- proves the exact two-grantor shape, performs the two loader calls
 -- under SET ROLE, then restores byte-for-byte with a grantor-scoped
 -- REVOKE and verifies the restored baseline in its postconditions.
+--
+-- NAME RESOLUTION (Codex round-3 correction): both loader calls are
+-- SCHEMA-QUALIFIED as public.load_catalog_snapshot, so the function
+-- the precondition proves to exist is the function actually invoked,
+-- independent of search_path. Every OTHER name in this package is
+-- either public.-qualified or a pg_catalog system view or built-in,
+-- and pg_catalog is searched ahead of every search_path entry, so no
+-- schema placed on search_path can shadow any of them. This package
+-- therefore pins no search_path and needs none.
 -- ============================================================
 
 BEGIN;
@@ -201,22 +210,35 @@ BEGIN
               WHERE c.normalized_name IN ('dead bug', 'ab wheel rollout', 'ab roller rollout')) THEN
     RAISE EXCEPTION 'exlib2o load: an intended catalog name is already claimed; refusing (possible rename/swap or foreign state)';
   END IF;
-  -- AUTHORITATIVE PLANK PRE-STATE GATE (Codex round-2 correction):
-  -- every stable semantic field of the loaded EXLIB-2K Plank surface
-  -- is proven against the promoted committed evidence BEFORE any
-  -- authority change - the snapshot row (all vocabulary,
-  -- classification, provenance, discovery, audit, version, and
-  -- activity fields), the exact anatomy, alias, and claim sets, the
-  -- COMPLETE content payload (scalar fields verbatim; JSONB arrays
-  -- by md5 over the deterministic jsonb::text rendering, each pin
-  -- re-derivable from the admitted artifact
-  -- d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752),
+  -- AUTHORITATIVE PLANK PRE-STATE GATE (Codex round-2 correction;
+  -- payload binding corrected in round 3): every stable semantic
+  -- field of the loaded EXLIB-2K Plank surface is proven against the
+  -- promoted committed evidence BEFORE any authority change - the
+  -- snapshot row (all vocabulary, classification, provenance,
+  -- discovery, audit, version, and activity fields), the exact
+  -- anatomy, alias, and claim sets, the COMPLETE content payload,
   -- the authorship fields, the untouched review evidence, the
   -- draft/unadmitted/unpublished lifecycle, and the exact expected
   -- relationships. Hosted-generated row ids and timestamps are bound
   -- structurally (through the fixed logical/content UUIDs), never to
   -- invented values. Any pre-execution drift refuses fail-closed
   -- here, before GRANT and before either loader call.
+  --
+  -- EVERY payload field is bound by EXACT VALUE EQUALITY to a
+  -- dollar-quoted authoritative literal - text fields by text
+  -- equality, JSONB fields by JSONB equality against a JSONB literal.
+  -- NO hash of any kind appears in this gate. Round 2 pinned six of
+  -- these fields with md5 digests, which prove only md5 equality and
+  -- which this program had already rejected as an admission binding;
+  -- every literal below is instead re-derived mechanically, field by
+  -- field, from the promoted admitted Plank artifact
+  -- docs/exlib2g-plank-content.jsonl (2,928 B, sha256
+  -- d82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752),
+  -- and is therefore readable and independently checkable in this
+  -- package's own text. The md5 digests that remain in this package
+  -- are ONLY the transition-neutrality evidence below, which compares
+  -- a value against itself inside one transaction and is never a
+  -- source binding.
   IF (SELECT count(*) FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000001') <> 1
      OR NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
@@ -260,15 +282,15 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000101'
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000001'
          AND c.content_version = 1
-         AND c.authored_by = 'ForgeFitOS content program (AI-drafted original prose; pending human specialist review)'
+         AND c.authored_by = $p_ab$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$p_ab$
          AND c.authored_at = DATE '2026-09-01'
-         AND md5(c.setup_steps::text) = 'dfbdb37c2ea00360e8c713dd416b28ec'
-         AND md5(c.execution_steps::text) = 'e7acdaa556ac809b3d162181ce8b6a76'
-         AND md5(c.common_mistakes::text) = '4cfc1543c9167a7525b83b492c179b9b'
-         AND md5(c.breathing_cue) = '4842866263a20de6505a68c0c7df98e6'
-         AND md5(c.safety_guidance) = '49375ede569c75c16844c5aa831ca7ee'
-         AND c.equipment_setup = ''
-         AND md5(c.accessibility_alternative) = 'b63bb46ebbaf4383b4b9ccf1c18699ed'
+         AND c.setup_steps = $p_setu$["Lie face down, then prop yourself on your forearms with your elbows stacked directly under your shoulders.", "Extend your legs behind you with your feet about hip-width apart and your toes tucked under.", "Before lifting, brace your trunk gently as if preparing for a light press against your stomach."]$p_setu$::jsonb
+         AND c.execution_steps = $p_exec$["Lift your hips so your body forms one straight line from the back of your head to your heels.", "Squeeze your glutes and keep your ribs drawn down so your lower back never sags toward the floor.", "Hold the position for the planned duration while keeping your neck long and your gaze at the floor.", "End the hold by lowering your knees to the floor under control, then rest fully before the next hold."]$p_exec$::jsonb
+         AND c.common_mistakes = $p_mist$["Letting the hips sag so the lower back arches instead of staying in one straight line.", "Lifting the hips too high, which turns the hold into a rest position for the trunk.", "Grinding out extra seconds with a broken line instead of ending the hold when the position degrades."]$p_mist$::jsonb
+         AND c.breathing_cue = $p_br$Breathe steadily for the whole hold with slow inhales and full exhales; never hold your breath to stiffen the position.$p_br$
+         AND c.safety_guidance = $p_sf$A plank loads the trunk hardest once the hips drift, so keep the line strict rather than chasing longer times; if your lower back starts to ache or your hips sag and you cannot correct it, lower your knees and stop the hold there.$p_sf$
+         AND c.equipment_setup = $p_es$$p_es$
+         AND c.accessibility_alternative = $p_ac$Hold the position with your knees resting on the floor, or brace against a countertop at an incline for a gentler version.$p_ac$
          AND c.content_status = 'pending'
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
@@ -296,7 +318,13 @@ BEGIN
   -- exercises table (every persisted column, via the deterministic
   -- row::text rendering, ordered by primary key, within this one
   -- session/transaction), captured now and re-digested after the
-  -- load to prove EXLIB-2O itself changes none of them
+  -- load to prove EXLIB-2O itself changes none of them. These
+  -- digests are md5, and md5 is used here ONLY to detect a change
+  -- between two readings taken inside this one transaction - never as
+  -- a binding to any source artifact. A drifted pre-state would be
+  -- compared against itself and pass, which is exactly why the
+  -- authoritative gates above exist and why nothing in this block is
+  -- treated as pre-state or source authority.
   CREATE TEMP TABLE exlib2o_pre_evidence ON COMMIT DROP AS
   SELECT
     (SELECT md5(string_agg(e::text, '|' ORDER BY e.id))
@@ -362,10 +390,21 @@ $auth$;
 --    Values are VERBATIM from the R6-admitted authored records; the
 --    category arguments are the HUMAN decisions from the completed
 --    forms; the four discovery-source arguments are NULL exactly as
---    authored and as the forgefitos_original constraint requires. ──
+--    authored and as the forgefitos_original constraint requires.
+--
+--    BOTH calls are SCHEMA-QUALIFIED (Codex round-3 correction). The
+--    precondition above proves that
+--    public.load_catalog_snapshot(<the exact 18-argument signature>)
+--    exists; round 2 then invoked the function UNQUALIFIED, so the
+--    call was resolved through search_path and the verified function
+--    was not structurally the invoked function. Naming the schema in
+--    the call removes search_path from the resolution entirely: the
+--    checked object and the invoked object are now the same database
+--    object by construction, and no schema placed ahead of public can
+--    interpose a same-signature function. ─────────────────────────
 SET ROLE exlib_catalog_loader;
 
-SELECT load_catalog_snapshot(
+SELECT public.load_catalog_snapshot(
   'e21b2c00-0000-4000-a000-000000000002',
   $nm1$Dead bug$nm1$,
   $cat1$mobility$cat1$,
@@ -382,7 +421,7 @@ SELECT load_catalog_snapshot(
   $anat1$[{"muscle": "hip_flexors", "role": "secondary"}]$anat1$::jsonb,
   $alia1$[]$alia1$::jsonb);
 
-SELECT load_catalog_snapshot(
+SELECT public.load_catalog_snapshot(
   'e21b2c00-0000-4000-a000-000000000003',
   $nm2$Ab wheel rollout$nm2$,
   $cat2$other$cat2$,

@@ -13,18 +13,33 @@
 # expected hosted pre-state, and then proves the EXLIB-2O package:
 # the happy path (exact post-state, independent and cross bindings,
 # untouched-surface digests, claims invariant, byte-exact authority
-# restoration), the full refusal matrix — FOURTEEN variants: second
-# execution, missing identity, foreign target claim, claimed name,
-# malformed category, swapped UUIDs, tampered anatomy payload,
-# omitted loader call, widened authority baseline, and the five
-# Codex round-2 additions (pre-existing review event, mutated Plank
-# content payload, reviewed+admitted Plank lifecycle, repointed Plank
-# expected relationship, drifted Plank snapshot field) — each on a
-# fresh scratch database copied from a pre-state template with
-# whole-transaction rollback and restored authority proven after
-# EVERY variant, a REAL two-session serialization RACE proving
-# exactly one committer, and a REAL three-session lock proof that a
-# review-events writer is excluded from the package's gated interval.
+# restoration), the refusal matrix — SIXTEEN counterfactual variants,
+# each on a fresh scratch database copied from a pre-state template
+# with whole-transaction rollback and restored authority proven after
+# EVERY one, plus the second-execution (one-use) refusal proven on the
+# loaded database: missing identity, foreign target claim, claimed
+# name, unexpected pre-existing snapshot, malformed category, swapped
+# UUIDs, tampered anatomy payload, omitted loader call, widened
+# authority baseline, the five Codex round-2 additions (pre-existing
+# review event, mutated Plank content payload, reviewed+admitted Plank
+# lifecycle, repointed Plank expected relationship, drifted Plank
+# snapshot field), the round-3 JSONB payload drift, and the round-3
+# search_path HIJACK of an unqualified loader call — a REAL two-session
+# serialization RACE proving exactly one committer, and a REAL
+# three-session lock proof that a review-events writer is excluded
+# from the package's gated interval.
+#
+# Codex round-3 additions (§H and the two payload counterfactuals):
+# the cluster runs with track_functions=all, so per-function call
+# counts are available from pg_stat_user_functions. Those counts are
+# NON-TRANSACTIONAL — they survive a rollback — which makes them the
+# right instrument for proving what a REFUSED run did not do. §H
+# builds a REAL same-signature decoy load_catalog_snapshot in a schema
+# placed AHEAD of public in the database's search_path and proves the
+# qualified call in the package still reaches public.load_catalog_snapshot
+# exactly twice while the decoy is never invoked; the teeth of that
+# test are proven by running a sed-derived UNQUALIFIED copy of the
+# same package against the same decoy, which IS hijacked.
 #
 # Every counterfactual mutation is applied through surgery(), which
 # fails loudly if the mutation does not land: a silently rejected
@@ -75,6 +90,20 @@ PRE_VECTOR="3/1/2/2/3/1/2/0/0/0/0"
 POST_VECTOR="3/3/5/3/6/1/2/0/0/0/0"
 PLANK_DIGEST_SQL="SELECT md5((SELECT coalesce(string_agg(e::text,'|' ORDER BY e.id),'-') FROM exercise_catalog e WHERE e.logical_id='e21b2c00-0000-4000-a000-000000000001') || (SELECT coalesce(string_agg(c::text,'|' ORDER BY c.id),'-') FROM exercise_catalog_content c WHERE c.logical_id='e21b2c00-0000-4000-a000-000000000001') || (SELECT coalesce(string_agg(a::text,'|' ORDER BY a.alias),'-') FROM exercise_catalog_aliases a WHERE a.logical_id='e21b2c00-0000-4000-a000-000000000001') || (SELECT coalesce(string_agg(n::text,'|' ORDER BY n.normalized_name),'-') FROM exercise_catalog_name_claims n WHERE n.logical_id='e21b2c00-0000-4000-a000-000000000001') || (SELECT coalesce(string_agg(x::text,'|' ORDER BY x.relation, x.to_logical_id),'-') FROM exercise_catalog_content_expected_relationships x))"
 TENANT_DIGEST_SQL="SELECT count(*)::text || ':' || md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM exercises t"
+# Codex round-3 instrument: per-function invocation counts. These are
+# NON-TRANSACTIONAL - PostgreSQL does not roll back statistics - so a
+# zero here is durable evidence that a REFUSED run never reached the
+# loader, and a two is durable evidence about which schema's function
+# actually ran. pg_stat_user_functions is per-database, and every
+# variant database is freshly created (a new database oid), so each
+# variant starts from zero with no inherited counts.
+CALLS_PUB="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.proname='load_catalog_snapshot' AND n.nspname='public'),0)::text"
+CALLS_DEC="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.proname='load_catalog_snapshot' AND n.nspname='exlib2o_decoy'),0)::text"
+CALLS_PROBE="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid WHERE p.proname='exlib2o_stat_probe'),0)::text"
+TRACKFN_SQL="SELECT current_setting('track_functions')"
+# the exact 18-argument signature of the migration-027 loader, used to
+# build a same-signature decoy and to probe unqualified resolution
+LOADER_SIG="uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,date,text,jsonb,jsonb"
 DBU='e21b2c00-0000-4000-a000-000000000002'
 AWU='e21b2c00-0000-4000-a000-000000000003'
 PL='e21b2c00-0000-4000-a000-000000000001'
@@ -98,19 +127,32 @@ ok "A3: package under test: $PBYTES bytes, sha256 $PSHA"
 grep -q 'PREPARED — NOT EXECUTED' "$PACKAGE" && grep -q 'ttybyljytiwntvorugcv' "$PACKAGE" \
   && ok "A4: the package is labeled PREPARED - NOT EXECUTED and names the only eventual hosted target" \
   || bad "A4: labels missing"
-SNAP_CALLS=$(grep -c '^SELECT load_catalog_snapshot(' "$PACKAGE")
+# Codex round-3: the loader calls must be SCHEMA-QUALIFIED, so the
+# function the package's precondition proves to exist
+# (to_regprocedure('public.load_catalog_snapshot(...)')) is the exact
+# function the package invokes, whatever search_path happens to be.
+# UNQUAL counts call sites of the bare name anywhere in the package -
+# it must be zero. (The bare name still appears in prose and in the
+# precondition's own error text, which is why the pattern requires the
+# opening parenthesis of a call.)
+SNAP_CALLS=$(grep -c '^SELECT public\.load_catalog_snapshot(' "$PACKAGE")
+UNQUAL=$(grep -cE '(^|[^.[:alnum:]_])load_catalog_snapshot[[:space:]]*\(' "$PACKAGE" || true)
 IDENT_CALLS=$(grep -c 'load_catalog_identity(' "$PACKAGE" || true)
 DRAFT_CALLS=$(grep -cE "^SELECT load_catalog_content_draft\(" "$PACKAGE" || true)
-[ "$SNAP_CALLS/$IDENT_CALLS/$DRAFT_CALLS" = "2/0/0" ] \
-  && ok "A5: exactly TWO load_catalog_snapshot calls; zero identity or content-draft calls (targets already exist; no content loads)" \
-  || bad "A5: loader-call shape wrong ($SNAP_CALLS/$IDENT_CALLS/$DRAFT_CALLS)"
+[ "$SNAP_CALLS/$UNQUAL/$IDENT_CALLS/$DRAFT_CALLS" = "2/0/0/0" ] \
+  && ok "A5: exactly TWO SCHEMA-QUALIFIED public.load_catalog_snapshot calls and ZERO unqualified call sites; zero identity or content-draft calls (targets already exist; no content loads)" \
+  || bad "A5: loader-call shape wrong (qualified=$SNAP_CALLS unqualified=$UNQUAL identity=$IDENT_CALLS draft=$DRAFT_CALLS)"
 
 echo
 echo "=== B. Disposable cluster + migrations 001-027 + tenant fixture + hosted posture"
 initdb -D "$PGDATA" -U supabase_admin --no-locale -E UTF8 >/dev/null 2>&1
-pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories='$SOCK'" -l "$TMP/pg.log" start >/dev/null 2>&1
-if QA "SELECT 1" >/dev/null 2>&1; then
-  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact; bootstrap superuser = supabase_admin, platform substrate only)"
+# track_functions=all arms the per-function call counters used by the
+# round-3 checks (§F11/§F15 zero-invocation proofs and §H's
+# which-function-actually-ran proof). It is an observation setting only:
+# it changes no name resolution, no privilege and no result.
+pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories='$SOCK' -c track_functions=all" -l "$TMP/pg.log" start >/dev/null 2>&1
+if QA "SELECT 1" >/dev/null 2>&1 && [ "$(QA "$TRACKFN_SQL")" = "all" ]; then
+  ok "B1: cluster up at $SOCK (unix socket only; no TCP; no hosted contact; bootstrap superuser = supabase_admin, platform substrate only; track_functions=all so per-function invocation counts are armed)"
 else
   bad "B1: cluster failed to start"; sed -n '1,5p' "$TMP/pg.log"; exit 1
 fi
@@ -276,6 +318,34 @@ surgery() { # LABEL SQL   (operates on $V)
   fi
   return 0
 }
+await_calls() { # SQL WANT [TRIES] -> echoes the observed count; rc 1 if it never matched
+  local i out=""
+  for i in $(seq 1 "${3:-20}"); do
+    out=$(Q "$1" "$V" 2>/dev/null)
+    [ "$out" = "$2" ] && { printf '%s' "$out"; return 0; }
+    sleep 0.25
+  done
+  printf '%s' "${out:-?}"; return 1
+}
+# loader_never_invoked: durable proof that a REFUSED run never reached
+# the loader calls. Function-call statistics are NOT rolled back, so a
+# zero here cannot be an artifact of the aborted transaction - it means
+# the invocation never happened. The liveness probe that follows is a
+# CONTROL in the same database: it creates and calls a throwaway
+# function and requires the counter to register it, so a zero above can
+# never be a dead instrument reading. DISCLOSED: the probe leaves one
+# throwaway function behind in a scratch variant database, created
+# AFTER the measurement, touching no product table and no authority.
+loader_never_invoked() { # LABEL   (operates on $V)
+  local calls track probe
+  calls=$(Q "$CALLS_PUB" "$V"); track=$(Q "$TRACKFN_SQL" "$V")
+  QA "CREATE FUNCTION public.exlib2o_stat_probe() RETURNS int LANGUAGE plpgsql AS \$fn\$BEGIN RETURN 1; END\$fn\$;" "$V" >/dev/null 2>&1
+  QA "SELECT public.exlib2o_stat_probe()" "$V" >/dev/null 2>&1
+  probe=$(await_calls "$CALLS_PROBE" "1")
+  { [ "$calls" = "0" ] && [ "$track" = "all" ] && [ "$probe" = "1" ]; } \
+    && ok "$1" \
+    || bad "$1" "public.load_catalog_snapshot calls=$calls track_functions=$track liveness-probe calls=$probe"
+}
 
 # F1 missing identity (counts-neutral: replace ...0003 with a decoy).
 # HARNESS SURGERY, DISCLOSED: the Plank draft's expected relationships
@@ -347,8 +417,8 @@ assert_rolled_back "F7b: WHOLE-TRANSACTION rollback after the tampered load" "$V
 
 # F8 omitted loader call (delete the second SELECT block)
 new_variant
-awk '/^SELECT load_catalog_snapshot\(/{n++} n==2 && !done { if (/\);$/) {done=1}; next } {print}' "$PACKAGE" > "$TMP/pkg-omit.sql"
-[ "$(grep -c '^SELECT load_catalog_snapshot(' "$TMP/pkg-omit.sql")" = "1" ] || bad "F8-setup: omission failed"
+awk '/^SELECT public\.load_catalog_snapshot\(/{n++} n==2 && !done { if (/\);$/) {done=1}; next } {print}' "$PACKAGE" > "$TMP/pkg-omit.sql"
+[ "$(grep -c '^SELECT public\.load_catalog_snapshot(' "$TMP/pkg-omit.sql")" = "1" ] || bad "F8-setup: omission failed"
 expect_pkg_refusal "F8: OMITTED LOADER CALL refused - the exact post-state vector postcondition catches the missing snapshot and rolls back whole" \
   "$V" "$TMP/pkg-omit.sql" 'post-state counts are not exact' "$TMP/f8.out"
 assert_rolled_back "F8b: WHOLE-TRANSACTION rollback after the incomplete load" "$V"
@@ -384,14 +454,19 @@ expect_pkg_refusal "F10: PRE-EXISTING REVIEW EVENT refused - the ELEVEN-term vec
   "$V" "$PACKAGE" 'refuses to run twice, over foreign state, or over an ambiguous surface' "$TMP/f10.out"
 [ "$(Q "$BASELINE_SQL" "$V")" = "$BASELINE_OK" ] && ok "F10b: authority baseline exact after refusal" || bad "F10b: baseline drifted"
 
-# F11 mutated Plank content payload (old digest only proved no change DURING execution)
+# F11 mutated Plank content payload - SCALAR field (round-2 variant,
+# re-pointed by round 3 at the corrected gate). The round-2 gate bound
+# this field with an md5 digest; the corrected gate compares it to a
+# dollar-quoted literal re-derived from the promoted admitted artifact,
+# so the refusal below is now an exact-value refusal with no hash in it.
 new_variant
-surgery "F11 mutated Plank content payload" "ALTER TABLE exercise_catalog_content DISABLE TRIGGER ALL;
+surgery "F11 mutated Plank content payload (scalar safety_guidance)" "ALTER TABLE exercise_catalog_content DISABLE TRIGGER ALL;
     UPDATE exercise_catalog_content SET safety_guidance = safety_guidance || ' Drifted sentence.' WHERE id='e21b2c00-0000-4000-a000-000000000101';
     ALTER TABLE exercise_catalog_content ENABLE TRIGGER ALL;"
-expect_pkg_refusal "F11: MUTATED PLANK CONTENT PAYLOAD refused - the authoritative payload gate (md5 pins re-derived from the admitted artifact) catches pre-execution drift the old in-transaction digest could not" \
+expect_pkg_refusal "F11: MUTATED PLANK CONTENT PAYLOAD refused - SCALAR payload field (safety_guidance) drifted; the corrected gate compares it by EXACT VALUE to the dollar-quoted literal re-derived from the admitted artifact - no md5, no digest of any kind" \
   "$V" "$PACKAGE" 'the Plank content draft is not the exact promoted EXLIB-2K state' "$TMP/f11.out"
 assert_rolled_back "F11b: no state written; authority exact after refusal" "$V"
+loader_never_invoked "F11c: the scalar-payload refusal happened BEFORE the loader calls - durable NON-TRANSACTIONAL function statistics record ZERO public.load_catalog_snapshot invocations in this database (a liveness probe on the same counter registers 1, so the zero is a live observation), and the raised message is the pre-state gate's, which the static verifier pins textually ahead of the GRANT"
 
 # F12 altered Plank content lifecycle (reviewed AND admitted).
 # DISCLOSED: migration 027 makes a lone admission flag impossible -
@@ -439,6 +514,29 @@ surgery "F14 drifted Plank difficulty" "ALTER TABLE exercise_catalog DISABLE TRI
 expect_pkg_refusal "F14: ALTERED PLANK SNAPSHOT FIELD refused - a vocabulary-legal difficulty drift fails the complete snapshot gate (the old gate checked only name/active/pending/v1)" \
   "$V" "$PACKAGE" 'the Plank snapshot is not the exact promoted EXLIB-2K state' "$TMP/f14.out"
 [ "$(Q "$BASELINE_SQL" "$V")" = "$BASELINE_OK" ] && ok "F14b: authority baseline exact after refusal" || bad "F14b: baseline drifted"
+
+# ── Codex round-3 variant: the JSONB half of the payload counterfactual
+#    (F11 above is the SCALAR half, re-pointed at the corrected gate).
+# F15 mutated Plank content payload - JSONB field.
+# DISCLOSED HONESTLY: jsonb canonicalizes on input (whitespace stripped,
+# object keys sorted), so a representation-only drift of a jsonb column
+# is not constructible - there is no such state to test, and the round-2
+# md5-over-text binding was therefore never exposed to formatting drift.
+# What IS constructible, and what an md5 binding could only ever prove
+# by collision resistance, is a VALUE drift: this variant rewrites one
+# array element, and the corrected gate compares the whole column to an
+# authoritative jsonb literal by JSONB EQUALITY.
+new_variant
+surgery "F15 mutated Plank content payload (jsonb setup_steps)" "ALTER TABLE exercise_catalog_content DISABLE TRIGGER ALL;
+    UPDATE exercise_catalog_content SET setup_steps = jsonb_set(setup_steps, '{0}', to_jsonb('Drifted first setup step.'::text)) WHERE id='e21b2c00-0000-4000-a000-000000000101';
+    ALTER TABLE exercise_catalog_content ENABLE TRIGGER ALL;"
+[ "$(Q "SELECT setup_steps->>0 FROM exercise_catalog_content WHERE id='e21b2c00-0000-4000-a000-000000000101'" "$V")" = "Drifted first setup step." ] \
+  && ok "F15-setup: the jsonb payload drift is present and VALUE-level (element 0 of setup_steps rewritten - jsonb equality, not text formatting, is what the gate must catch)" \
+  || bad "F15-setup: the jsonb drift did not land" "$(Q "SELECT setup_steps->>0 FROM exercise_catalog_content WHERE id='e21b2c00-0000-4000-a000-000000000101'" "$V")"
+expect_pkg_refusal "F15: MUTATED PLANK CONTENT PAYLOAD refused - JSONB payload field (setup_steps) drifted; the corrected gate compares the column to an authoritative jsonb literal by JSONB EQUALITY re-derived from the admitted artifact, with no md5 anywhere in the gate" \
+  "$V" "$PACKAGE" 'the Plank content draft is not the exact promoted EXLIB-2K state' "$TMP/f15.out"
+assert_rolled_back "F15b: no state written; authority exact after the jsonb-payload refusal" "$V"
+loader_never_invoked "F15c: the jsonb-payload refusal happened BEFORE the loader calls - durable NON-TRANSACTIONAL function statistics record ZERO public.load_catalog_snapshot invocations in this database (liveness probe on the same counter registers 1)"
 
 echo
 echo "=== G. RACE: two simultaneous sessions - exactly one committer"
@@ -567,6 +665,88 @@ fi
 [ "$(Q "$BASELINE_SQL" "$V")" = "$BASELINE_OK" ] \
   && ok "G5h: authority baseline exact after the writer race" \
   || bad "G5h: baseline drifted"
+
+echo
+echo "=== H. SEARCH_PATH DECOY: the schema-qualified loader call cannot be hijacked (Codex round-3, real same-signature decoy ahead of public)"
+# A REAL load_catalog_snapshot with the IDENTICAL 18-argument signature
+# is created in a decoy schema, and that schema is placed AHEAD of
+# public in the database's search_path, so an UNQUALIFIED call resolves
+# to the decoy. The corrected package qualifies both calls, so it must
+# still reach public.load_catalog_snapshot exactly twice and never touch
+# the decoy. The TEETH are proven at the end by running a sed-derived
+# UNQUALIFIED copy of the same package against the same decoy: that
+# copy IS hijacked - which is precisely the defect round 3 corrected.
+#
+# Scope discipline: the hijack is installed DATABASE-scoped (ALTER
+# DATABASE ... SET search_path) on a throwaway variant, never
+# role-scoped or cluster-scoped, so it cannot leak into any other
+# database or any later section. USAGE on the decoy schema is granted
+# to PUBLIC deliberately: name resolution SKIPS schemas the calling
+# role has no USAGE on, so without that grant the decoy would be
+# invisible and this section would prove nothing.
+build_decoy() { # operates on $V
+  surgery "H same-signature decoy loader ahead of public" "CREATE SCHEMA exlib2o_decoy;
+      CREATE TABLE exlib2o_decoy.invocations (at timestamptz NOT NULL DEFAULT now());
+      CREATE FUNCTION exlib2o_decoy.load_catalog_snapshot($LOADER_SIG) RETURNS JSONB
+        LANGUAGE plpgsql SECURITY DEFINER AS \$decoy\$
+        BEGIN
+          INSERT INTO exlib2o_decoy.invocations DEFAULT VALUES;
+          RETURN jsonb_build_object('hijacked', true);
+        END \$decoy\$;
+      GRANT USAGE ON SCHEMA exlib2o_decoy TO PUBLIC;
+      ALTER DATABASE $V SET search_path = exlib2o_decoy, public;"
+}
+new_variant
+build_decoy
+DEC_NS=$(QA "SET ROLE exlib_catalog_loader; SELECT n.nspname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE p.oid = to_regprocedure('load_catalog_snapshot($LOADER_SIG)')" "$V")
+DEC_SP=$(Q "SHOW search_path" "$V")
+DEC_REAL=$(Q "SELECT (to_regprocedure('public.load_catalog_snapshot($LOADER_SIG)') IS NOT NULL)::text" "$V")
+if [ "$DEC_NS" = "exlib2o_decoy" ] && [ "$DEC_SP" = "exlib2o_decoy, public" ] && [ "$DEC_REAL" = "true" ]; then
+  ok "H1: the decoy has TEETH - in the LOADER ROLE's own resolution context the unqualified name load_catalog_snapshot resolves to schema exlib2o_decoy (search_path = $DEC_SP), while public.load_catalog_snapshot still exists unchanged"
+else
+  bad "H1: the decoy was not resolvable ahead of public, so nothing below would mean anything" \
+      "unqualified resolves to='$DEC_NS' search_path='$DEC_SP' public loader present='$DEC_REAL'"
+fi
+if run_pkg "$V" "$PACKAGE" "$TMP/h-qual.out"; then
+  ok "H2: the CORRECTED package executed cleanly with the decoy sitting ahead of public in search_path - qualification also proves no OTHER name in the package depends on search_path (built-ins and system views resolve through pg_catalog, which is searched ahead of every search_path entry, and its temp evidence table through the implicit pg_temp)"
+else
+  bad "H2: the corrected package failed with a decoy on search_path" "$(tail -3 "$TMP/h-qual.out" | tr '\n' ' ')"
+fi
+H_PUB=$(await_calls "$CALLS_PUB" "2")
+H_DEC=$(Q "$CALLS_DEC" "$V")
+{ [ "$H_PUB" = "2" ] && [ "$H_DEC" = "0" ]; } \
+  && ok "H3: durable per-function statistics show public.load_catalog_snapshot invoked EXACTLY TWICE and the decoy ZERO times (the zero is read from the same statistics flush that carries the two, so it is a live observation and not a dead counter)" \
+  || bad "H3: invocation counts wrong (public=$H_PUB decoy=$H_DEC)"
+[ "$(QA "SELECT count(*) FROM exlib2o_decoy.invocations" "$V")" = "0" ] \
+  && ok "H4: second, independent witness - the decoy's own SECURITY DEFINER marker table is EMPTY after a COMMITTED run, so no decoy invocation was even attempted" \
+  || bad "H4: the decoy recorded an invocation ($(QA "SELECT count(*) FROM exlib2o_decoy.invocations" "$V") rows)"
+H_BIND=$(Q "SELECT (SELECT canonical_name FROM exercise_catalog WHERE logical_id='$DBU')||'/'||(SELECT canonical_name FROM exercise_catalog WHERE logical_id='$AWU')" "$V")
+{ [ "$(Q "$COUNTS_SQL" "$V")" = "$POST_VECTOR" ] && [ "$H_BIND" = "Dead bug/Ab wheel rollout" ]; } \
+  && ok "H5: the EXACT expected post-state was produced under the decoy ($POST_VECTOR, bindings 'Dead bug'/'Ab wheel rollout') - the real migration-027 loader did the work" \
+  || bad "H5: post-state wrong under the decoy ($(Q "$COUNTS_SQL" "$V") / $H_BIND)"
+[ "$(Q "$BASELINE_SQL" "$V")" = "$BASELINE_OK" ] \
+  && ok "H6: authority RESTORED byte-for-byte after the decoy run - exactly the supabase_admin-granted baseline row" \
+  || bad "H6: baseline drifted after the decoy run ($(Q "$BASELINE_SQL" "$V"))"
+
+# H7-H10: the teeth. The SAME decoy, against the round-2 call shape.
+new_variant
+build_decoy
+sed 's/^SELECT public\.load_catalog_snapshot(/SELECT load_catalog_snapshot(/' "$PACKAGE" > "$TMP/pkg-unqual.sql"
+{ [ "$(grep -c '^SELECT load_catalog_snapshot(' "$TMP/pkg-unqual.sql")" = "2" ] \
+  && [ "$(grep -c '^SELECT public\.load_catalog_snapshot(' "$TMP/pkg-unqual.sql")" = "0" ]; } \
+  && ok "H7-setup: a round-2-shaped UNQUALIFIED copy is built (both calls stripped of their public. qualification, nothing else changed; the repository package is never modified)" \
+  || bad "H7-setup: the unqualified copy was not built"
+expect_pkg_refusal "H7: the round-2 UNQUALIFIED call shape IS hijacked - the decoy returns without loading anything, so the package's own exact post-state gate catches the empty result and rolls the whole transaction back" \
+  "$V" "$TMP/pkg-unqual.sql" 'post-state counts are not exact' "$TMP/h-unqual.out"
+H_DEC2=$(await_calls "$CALLS_DEC" "2")
+H_PUB2=$(Q "$CALLS_PUB" "$V")
+{ [ "$H_DEC2" = "2" ] && [ "$H_PUB2" = "0" ]; } \
+  && ok "H8: the hijack is REAL and the instrument is SENSITIVE - the DECOY was invoked exactly twice and public.load_catalog_snapshot zero times, which is what makes H3's zero a measurement rather than an assumption" \
+  || bad "H8: the unqualified copy did not demonstrate the hijack (decoy=$H_DEC2 public=$H_PUB2)"
+assert_rolled_back "H9: WHOLE-TRANSACTION rollback after the hijacked run - pre-state vector and authority baseline exact, so even a hijacked loader could not leave state behind" "$V"
+[ "$(QA "SELECT count(*) FROM exlib2o_decoy.invocations" "$V")" = "0" ] \
+  && ok "H10: DISCLOSED - the decoy's marker rows rolled back WITH the aborted transaction (0 rows), which is exactly why the durable non-transactional function counter in H8, not the marker table, is the instrument that proves the hijack occurred" \
+  || bad "H10: unexpected surviving marker rows"
 
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"
