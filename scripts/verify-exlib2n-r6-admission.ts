@@ -20,6 +20,14 @@ import { execSync } from 'child_process'
 import { createHash } from 'crypto'
 
 const SRC = 'd48a554454456713633bbc5bd3e4af5d8405135a'
+// RETARGET (EXLIB-2O target-snapshot load prep): this suite proves
+// the R6 ADMISSION milestone, promoted as the single commit
+// 4e4a6e6... on the application tip. The EXLIB-2O milestone later
+// advances HEAD (adding the prepared load package and its verifiers),
+// so this suite's phase-range and committed-topology claims are
+// anchored to that exact promoted admission tip, where they were and
+// remain true. Claims over files EXLIB-2O does not touch stay live.
+const TIP_R6 = '4e4a6e6c06ad3eaab234697cbc11725650f1a09f'
 const SRC_TREE = '53196cd1927e2037f415b7dd5a92ee7280386df0'
 const SRC_TAG = 'exlib2n-review-decision-application-stable'
 const SRC_TAG_OBJ = '0802c029c1bc37d67579bf1ba7600cc70d510195'
@@ -228,8 +236,10 @@ check('F1: no snapshot, load package, SQL artifact, or hosted claim — the phas
     if (!flat.includes('no hosted contact of any kind')) return false
     if (!flat.includes('ChatGPT and Claude did NOT perform, influence, or fabricate the human reviews')) return false
     if (!flat.includes('ANY later change to either record\u0027s content bytes INVALIDATES')) return false
+    // RETARGET (EXLIB-2O target-snapshot load prep): anchored range —
+    // EXLIB-2O legitimately adds a docs-only .sql load package later
     const phase = committed
-      ? execSync(`git diff --name-only ${SRC}..HEAD`, { encoding: 'utf8' }).split('\n').filter(Boolean)
+      ? execSync(`git diff --name-only ${SRC}..${TIP_R6}`, { encoding: 'utf8' }).split('\n').filter(Boolean)
       : execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean).map((l) => l.slice(3).trim())
     if (phase.some((p) => p.endsWith('.sql'))) return false
     const spent = bytesOf('docs/exlib2k-plank-catalog-load-package.sql')
@@ -256,22 +266,25 @@ if (committed) {
   check('G1: admission parentage — the merge base of HEAD and the promoted source IS the source, HEAD\u0027s only parent IS the source (single parent)',
     (() => {
       try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync('git rev-parse HEAD^1', { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        // RETARGET (EXLIB-2O target-snapshot load prep): anchored
+        if (execSync(`git merge-base ${SRC} ${TIP_R6}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        if (execSync(`git rev-parse ${TIP_R6}^1`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const parents = execSync(`git rev-list --parents -n 1 ${TIP_R6}`, { encoding: 'utf8' }).trim().split(/\s+/)
         return parents.length === 2 && parents[1] === SRC
       } catch { return false }
     })())
   check('G2: admission distance and purity — exactly 1 ahead / 0 behind the promoted source; one commit; zero merges',
     (() => {
-      const ahead = execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim()
-      const behind = execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim()
-      const merges = execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim()
+      // RETARGET (EXLIB-2O target-snapshot load prep): anchored
+      const ahead = execSync(`git rev-list --count ${SRC}..${TIP_R6}`, { encoding: 'utf8' }).trim()
+      const behind = execSync(`git rev-list --count ${TIP_R6}..${SRC}`, { encoding: 'utf8' }).trim()
+      const merges = execSync(`git rev-list --count --merges ${SRC}..${TIP_R6}`, { encoding: 'utf8' }).trim()
       return ahead === '1' && behind === '0' && merges === '0'
     })())
   check('G3: exact phase inventory — the single commit carries exactly the five disclosed paths (2 modified batch files, 2 additions, 1 labeled retargeted suite) and nothing else',
     (() => {
-      const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+      // RETARGET (EXLIB-2O target-snapshot load prep): anchored
+      const status = execSync(`git diff --name-status ${SRC}..${TIP_R6}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       return JSON.stringify(status) === JSON.stringify(PHASE)
     })())
