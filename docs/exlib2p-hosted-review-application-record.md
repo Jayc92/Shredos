@@ -55,9 +55,15 @@ seed_link_compatible flip all remain separately gated acts.
 BEFORE executing the package, ChatGPT independently verified the
 package bytes locally, queried the Supabase project identity, and
 queried the hosted database state — all read-only — and executed only
-after every result matched. The separate preflight queries returned
-exactly the following, and nothing here is drawn from the package's
-own gates:
+after every result matched. The separate preflight queries
+independently observed the facts listed below; nothing here is drawn
+from the package's own gates. PRESERVATION SCOPE: the preflight's
+content-row query returned the whole hosted row — including its
+payload and authorship fields — but the exact returned payload and
+authorship VALUES were not supplied to this evidence milestone and
+are NOT preserved here. This record preserves ONLY the fields
+explicitly listed below, and nothing is reconstructed or inferred
+from the package, the artifact, or the post-state:
 
 - Project identity: name ShredOS, ref ttybyljytiwntvorugcv, status
   ACTIVE_HEALTHY, PostgreSQL engine 17, reported database version
@@ -70,12 +76,13 @@ own gates:
   membership row — member postgres, grantor supabase_admin,
   ADMIN true, INHERIT false, SET false.
 - Pre-execution count vector: 3/3/5/3/6/1/2/0/0/0/0.
-- The complete Plank content row (returned whole, including its
-  payload and authorship fields): logical UUID
-  e21b2c00-0000-4000-a000-000000000001, content UUID
-  e21b2c00-0000-4000-a000-000000000101, content version 1,
-  content_status = pending, reviewed_by/reviewed_at/review_rationale
-  all null, publication_status = draft, import_admitted = false,
+- The Plank content row (the query returned the whole row; per the
+  preservation scope above, this record preserves exactly these
+  fields): logical UUID e21b2c00-0000-4000-a000-000000000001,
+  content UUID e21b2c00-0000-4000-a000-000000000101, content
+  version 1, content_status = pending,
+  reviewed_by/reviewed_at/review_rationale all null,
+  publication_status = draft, import_admitted = false,
   admitted_fingerprint/admitted_source_sha256/admitted_at all null.
 - Both target snapshot rows: Dead bug (hosted snapshot UUID
   1ce09c1f-c13d-4231-8e12-6f35cfd761b5, logical
@@ -100,7 +107,11 @@ expected-relationship sets, and every other internal transaction gate
 were NOT independently queried by the preflight. Those are proven
 because the package's own preconditions ran and the transaction
 committed — package-internal evidence, kept distinct from the
-independently queried facts above.
+independently queried facts above. And, per the preservation scope,
+the payload and authorship values the whole-row query returned are
+themselves not preserved in this record: observation of a row and
+preservation of its values are separate questions, and this record
+claims only what it preserves.
 
 ## 3. The returned JSONB (surfaced by the hosted SQL response)
 
@@ -337,3 +348,41 @@ the preflight verbatim with its precision boundary, and the
 application verifier gained a dedicated preflight-facts check and a
 dedicated correction-topology check while its false-statement
 enforcement was removed.
+
+## 14. Codex correction round 2 (2026-09-05) — the preservation scope
+
+The round-1 correction commit 3c91d9ee6707658f9b6891f49d3a52412f4c55f7
+OVERSTATED what this record preserves: its section 2 said the
+preflight queries "returned exactly the following" and described "the
+complete Plank content row (returned whole, including its payload and
+authorship fields)" — while the bullet beneath preserved only the
+identifiers, version, lifecycle state, and review/admission fields,
+not the payload or authorship values the sentence implied were
+recorded. The verifier's preflight check certified that incomplete
+transcription as complete.
+
+The exact returned payload and authorship values were NOT available
+to this milestone: the operator-supplied preflight evidence stated
+that the whole row was returned but did not supply those values, and
+no preflight transcript exists in this milestone's possession. They
+were therefore NOT reconstructed or inferred from the package, the
+artifact, or the post-state — inventing them would have been a worse
+defect than the overstatement. Section 2 now states the truthful
+preservation scope (the whole-row return is evidenced; only the
+explicitly listed fields are preserved), the Plank bullet claims
+exactly what it lists, and the precision boundary distinguishes
+observation from preservation.
+
+No fact was invented in either round; the round-1 defect was an
+overstatement of preservation, not a fabricated value. The hosted
+execution and the post-state remain valid exactly as evidenced; the
+package is SPENT and was NOT rerun; NO hosted contact of any kind
+occurred during this local correction. This correction is exactly ONE
+plain forward commit on the preserved round-1 commit (3c91d9ee...,
+tree 3544e9b9c29983c031b39a277c32fdd8a59246f7, unchanged and never
+rewritten, atop the equally preserved original evidence commit
+0843ed4a...), touching exactly this record and
+scripts/verify-exlib2p-application.ts. The application verifier's
+preflight check now enforces the narrower truthful claim, a dedicated
+new check pins this correction's supersession, and the
+correction-topology proof covers the full chain.
