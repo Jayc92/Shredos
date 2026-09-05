@@ -41,16 +41,68 @@ seed_link_compatible flip all remain separately gated acts.
   execution refuses fail-closed BEFORE any write or authority change
   (the reviewed row is no longer pending), exactly as documented and
   as proven by the promoted live-harness one-use and race checks.
-- The package's internal preconditions — operator identity, the
-  grantor-included reviewer baseline, the exact eleven-term vector,
-  both target-snapshot gates forward and reverse, the complete
-  field-level Plank pre-state, zero review events, the claims
-  invariant, and client-privilege denial — all held on hosted: any
-  failure would have rolled the whole transaction back, and the
-  transaction committed. No separate pre-flight read set is claimed
-  beyond the recovery point above; nothing is invented here.
+- The evidence in this record comes from THREE distinct sources,
+  kept separate throughout: (a) the INDEPENDENT READ-ONLY PREFLIGHT
+  ChatGPT performed before executing the package (section 2); (b) the
+  package's INTERNAL preconditions and postconditions, proven because
+  they ran and the transaction committed — any failure would have
+  rolled everything back; and (c) ChatGPT's POST-EXECUTION queries
+  (section 4 onward). Nothing from one source is presented as coming
+  from another.
 
-## 2. The returned JSONB (surfaced by the hosted SQL response)
+## 2. The independent read-only preflight (operator-confirmed)
+
+BEFORE executing the package, ChatGPT independently verified the
+package bytes locally, queried the Supabase project identity, and
+queried the hosted database state — all read-only — and executed only
+after every result matched. The separate preflight queries returned
+exactly the following, and nothing here is drawn from the package's
+own gates:
+
+- Project identity: name ShredOS, ref ttybyljytiwntvorugcv, status
+  ACTIVE_HEALTHY, PostgreSQL engine 17, reported database version
+  17.6.1.127.
+- Package bytes, verified locally first: 37,702 bytes, SHA-256
+  76d1d67d6ec2bafc49ef43a6312700559cd9eeee4b8b9433868de9daf95dc666.
+- Execution identity: current_user = postgres AND session_user =
+  postgres; postgres is not a superuser.
+- Reviewer-role baseline: exactly one exlib_catalog_reviewer
+  membership row — member postgres, grantor supabase_admin,
+  ADMIN true, INHERIT false, SET false.
+- Pre-execution count vector: 3/3/5/3/6/1/2/0/0/0/0.
+- The complete Plank content row (returned whole, including its
+  payload and authorship fields): logical UUID
+  e21b2c00-0000-4000-a000-000000000001, content UUID
+  e21b2c00-0000-4000-a000-000000000101, content version 1,
+  content_status = pending, reviewed_by/reviewed_at/review_rationale
+  all null, publication_status = draft, import_admitted = false,
+  admitted_fingerprint/admitted_source_sha256/admitted_at all null.
+- Both target snapshot rows: Dead bug (hosted snapshot UUID
+  1ce09c1f-c13d-4231-8e12-6f35cfd761b5, logical
+  e21b2c00-0000-4000-a000-000000000002, canonical name Dead bug,
+  category mobility, active, version 1, review_status pending, all
+  snapshot reviewer fields null) and Ab wheel rollout (hosted
+  snapshot UUID c715d840-944b-4019-b984-1687accffcf4, logical
+  e21b2c00-0000-4000-a000-000000000003, canonical name
+  Ab wheel rollout, category other, active, version 1, review_status
+  pending, all snapshot reviewer fields null).
+- Claims invariant: 0 orphaned / 0 unclaimed.
+- Client execution denials: anon, authenticated, and service_role
+  could each NOT execute public.apply_content_review.
+- Tenant exercises count: 84.
+- Recovery: the physical backup at 2026-09-04 13:09:27 UTC,
+  confirmed before execution.
+
+PRECISION BOUNDARY (what the separate preflight did NOT return): the
+complete field-by-field authoritative payload comparison, the reverse
+target bindings, the exact alias, anatomy, claim, and
+expected-relationship sets, and every other internal transaction gate
+were NOT independently queried by the preflight. Those are proven
+because the package's own preconditions ran and the transaction
+committed — package-internal evidence, kept distinct from the
+independently queried facts above.
+
+## 3. The returned JSONB (surfaced by the hosted SQL response)
 
 The single SELECT echoed the review function's JSONB return, exactly:
 
@@ -62,7 +114,7 @@ Every field equals the package's own call arguments and the row
 postconditions below; the echo is display evidence and the row is the
 binding proof, exactly as the package header states.
 
-## 3. Operator-confirmed hosted proof (post-execution)
+## 4. Operator-confirmed hosted proof (post-execution)
 
 The following facts were confirmed against the hosted database by
 ChatGPT's post-execution proof. Claude did not contact the hosted
@@ -111,7 +163,7 @@ pin term for term, in the package's own order:
 - exercise_catalog_run_items: 0
 - exercise_catalog_review_events: 0
 
-## 4. Review-event precision (schema-derived, formally accepted)
+## 5. Review-event precision (schema-derived, formally accepted)
 
 - exercise_catalog_review_events remains exactly 0. This is EXPECTED
   AND CORRECT: the table is SNAPSHOT-review scoped (its catalog_id
@@ -127,7 +179,7 @@ pin term for term, in the package's own order:
   designed, as Codex formally accepted in the EXLIB-2P preparation
   review.
 
-## 5. Unchanged surfaces (operator-confirmed)
+## 6. Unchanged surfaces (operator-confirmed)
 
 - Catalog claims invariant: 0 orphaned / 0 unclaimed.
 - Projected relationships: 0. Import runs: 0. Run items: 0.
@@ -141,7 +193,7 @@ pin term for term, in the package's own order:
   e21b2c00-0000-4000-a000-000000000003 (Ab wheel rollout) and
   substitution -> e21b2c00-0000-4000-a000-000000000002 (Dead bug).
 
-## 6. Target snapshots (operator-confirmed, distinct and unswapped)
+## 7. Target snapshots (operator-confirmed, distinct and unswapped)
 
 Dead bug:
 
@@ -163,7 +215,7 @@ Ab wheel rollout:
 The bindings remain distinct and unswapped; the content review
 touched neither target snapshot.
 
-## 7. Authority restoration (operator-confirmed)
+## 8. Authority restoration (operator-confirmed)
 
 - Exactly ONE exlib_catalog_reviewer membership remains: member
   postgres, grantor supabase_admin, ADMIN TRUE, INHERIT FALSE,
@@ -176,7 +228,7 @@ touched neither target snapshot.
   transaction-contained elevation was created and exactly restored
   inside the single committed transaction, precisely as reviewed.
 
-## 8. Hosted advisors (run by ChatGPT, never Claude)
+## 9. Hosted advisors (run by ChatGPT, never Claude)
 
 - BOTH hosted advisor classes — the Supabase SECURITY advisor and the
   Supabase PERFORMANCE advisor — were run by ChatGPT immediately
@@ -195,7 +247,7 @@ touched neither target snapshot.
   accepted, or adjudicated here; they belong to their own future
   operator decisions.
 
-## 9. The lifecycle distinction (held precisely)
+## 10. The lifecycle distinction (held precisely)
 
 The four stages remain distinct and are never conflated:
 
@@ -213,7 +265,7 @@ The four stages remain distinct and are never conflated:
    invoked; relationship projection and delivery activation likewise
    remain separately gated later acts.
 
-## 10. Verifier lifecycle for this milestone
+## 11. Verifier lifecycle for this milestone
 
 - scripts/verify-exlib2p.ts carried the preparation phase's HEAD
   topology (exactly one commit over the promoted evidence source).
@@ -241,7 +293,7 @@ The four stages remain distinct and are never conflated:
   check (no application record at the promoted tip; exactly this one
   in the live tree).
 
-## 11. Dependency map (later, explicitly gated)
+## 12. Dependency map (later, explicitly gated)
 
 1. Codex review of this evidence milestone; push, promotion, and tag
    are separate explicit gates.
@@ -257,3 +309,31 @@ The four stages remain distinct and are never conflated:
    delivery-activation release.
 5. Any further catalog lifecycle act requires its own authored,
    reviewed package; this package is SPENT and must never be rerun.
+
+## 13. Codex correction round 1 (2026-09-05) — the preflight disclosure
+
+The original evidence commit 0843ed4aeb408992faf6af65d51f711f22e510a5
+stated: "No separate pre-flight read set is claimed beyond the
+recovery point above; nothing is invented here." That statement was
+FALSE as a statement about what happened: ChatGPT HAD performed the
+independent read-only preflight now recorded in section 2 — verifying
+the package bytes locally, querying the Supabase project identity,
+and querying the hosted database state — and executed the package
+only after those results matched. The original commit under-claimed
+the evidence; it invented nothing, but it wrongly asserted that no
+independent preflight existed.
+
+This correction is exactly ONE plain forward commit on the preserved
+original evidence commit (0843ed4..., tree
+6fb25ca8485345c8853f35b6fe9b3e56fe003546, unchanged and never
+rewritten), touching exactly this record and
+scripts/verify-exlib2p-application.ts. The hosted execution and the
+post-state remain valid exactly as evidenced; the package is SPENT
+and was NOT rerun; NO hosted contact of any kind occurred during this
+local correction. Section 1 now separates the three evidence sources
+explicitly (independent preflight, package-internal gates proven by
+the committed transaction, post-execution queries), section 2 records
+the preflight verbatim with its precision boundary, and the
+application verifier gained a dedicated preflight-facts check and a
+dedicated correction-topology check while its false-statement
+enforcement was removed.

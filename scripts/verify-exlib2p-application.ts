@@ -136,13 +136,48 @@ async function main(): Promise<void> {
         const b = toInstant(T_BACKUP); const s = toInstant(T_START); const f = toInstant(T_FINISH)
         return b < s && s < f && f - s < 60_000
       })())
-    check('B3: the one-use posture is precise — NO migration-history entry, the sequence stays 001-027, the package is SPENT and must never be rerun, the second-run refusal is the content-pending gate, and the internal-preconditions statement claims no invented pre-flight read set beyond the recovery point',
+    check('B3: the one-use posture is precise — NO migration-history entry, the sequence stays 001-027, the package is SPENT and must never be rerun, the second-run refusal is the content-pending gate, the superseded no-preflight sentence is GONE, and the three-source evidence split (independent preflight / package-internal gates / post-execution queries) is explicit',
       recFlat.includes('it creates NO migration-history entry') &&
       recFlat.includes('remains exactly 001-027') &&
       recFlat.includes('ONE-USE by design and is now SPENT') &&
       recFlat.includes('must never be rerun') &&
       recFlat.includes('the reviewed row is no longer pending') &&
-      recFlat.includes('No separate pre-flight read set is claimed beyond the recovery point above; nothing is invented here'))
+      // the superseded sentence must be GONE from the factual body
+      // (sections 1-12); the section-13 disclosure QUOTES it as what
+      // the original commit said, which is the supersession record
+      !recFlat.slice(0, recFlat.indexOf('## 13.')).includes('No separate pre-flight read set is claimed') &&
+      (recFlat.slice(recFlat.indexOf('## 13.')).match(/No separate pre-flight read set is claimed/g) || []).length === 1 &&
+      recFlat.includes('THREE distinct sources') &&
+      recFlat.includes('Nothing from one source is presented as coming from another'))
+    check('B5: PREFLIGHT (Codex correction round 1, dedicated) — the independent read-only preflight is recorded verbatim (project identity ACTIVE_HEALTHY / PostgreSQL 17 / 17.6.1.127, locally-verified package bytes, dual postgres identity + non-superuser, the exact reviewer baseline row, the pre-execution vector, the COMPLETE Plank content row, both target snapshot rows with their hosted UUIDs, the 0/0 invariant, all three client denials, tenant 84, and the backup) and the PRECISION BOUNDARY is enforced: the preflight section claims nothing the separate query did not return',
+      (() => {
+        const s2start = rec.indexOf('## 2. The independent read-only preflight')
+        const s2end = rec.indexOf('## 3.')
+        if (s2start < 0 || s2end < 0 || s2end <= s2start) return false
+        const s2 = rec.slice(s2start, s2end).replace(/\s+/g, ' ')
+        if (!s2.includes('verified the package bytes locally, queried the Supabase project identity, and queried the hosted database state')) return false
+        if (!s2.includes('executed only after every result matched')) return false
+        if (!s2.includes('name ShredOS, ref ttybyljytiwntvorugcv, status ACTIVE_HEALTHY, PostgreSQL engine 17, reported database version 17.6.1.127')) return false
+        if (!s2.includes(`37,702 bytes, SHA-256 ${PKG_SHA}`)) return false
+        if (!s2.includes('current_user = postgres AND session_user = postgres; postgres is not a superuser')) return false
+        if (!s2.includes('member postgres, grantor supabase_admin, ADMIN true, INHERIT false, SET false')) return false
+        if (!s2.includes(`Pre-execution count vector: ${STATE_VECTOR}`)) return false
+        if (!s2.includes('The complete Plank content row (returned whole, including its payload and authorship fields)')) return false
+        if (!s2.includes('content_status = pending, reviewed_by/reviewed_at/review_rationale all null')) return false
+        if (!s2.includes(DB_SNAP) || !s2.includes(AW_SNAP)) return false
+        if (!s2.includes('0 orphaned / 0 unclaimed')) return false
+        if (!s2.includes('anon, authenticated, and service_role could each NOT execute public.apply_content_review')) return false
+        if (!s2.includes('Tenant exercises count: 84')) return false
+        if (!s2.includes(`physical backup at ${T_BACKUP}`)) return false
+        // the precision boundary: package-internal gates are NOT claimed
+        // as independently queried, and the preflight bullet list never
+        // mentions the package-internal-only surfaces
+        if (!s2.includes('PRECISION BOUNDARY')) return false
+        if (!s2.includes('were NOT independently queried by the preflight')) return false
+        if (!s2.includes('the reverse target bindings, the exact alias, anatomy, claim, and expected-relationship sets')) return false
+        const bullets = s2.slice(0, s2.indexOf('PRECISION BOUNDARY'))
+        return !/anatomy|alias|expected[- ]relationship|reverse/i.test(bullets)
+      })())
     check('B4: the returned JSONB is recorded verbatim and every field equals the package\'s own call arguments — decision approved, content ...0101, logical ...0001',
       recFlat.includes('decision: approved') &&
       recFlat.includes(`content_id: ${CV}`) &&
@@ -353,6 +388,35 @@ async function main(): Promise<void> {
           if (both.includes(bad)) return false
         }
         return recFlat.includes('Claude made no hosted contact in this phase')
+      })())
+    check('E5: Codex correction round 1 topology — the original evidence commit 0843ed4 is PRESERVED untouched with its exact recorded tree and its parent is the promoted tip; the correction is exactly ONE plain single-parent forward commit modifying exactly the record and this verifier, zero merges (strict two-file worktree scope while it is being authored); and the record carries the dated supersession disclosure with the no-hosted-contact and not-rerun statements',
+      (() => {
+        try {
+          const R1 = '0843ed4aeb408992faf6af65d51f711f22e510a5'
+          const R1_TREE = '6fb25ca8485345c8853f35b6fe9b3e56fe003546'
+          if (execSync(`git rev-parse ${R1}^{tree}`, { encoding: 'utf8' }).trim() !== R1_TREE) return false
+          if (execSync(`git rev-parse ${R1}^`, { encoding: 'utf8' }).trim() !== SOURCE_TIP) return false
+          const disclosure = recFlat.includes('Codex correction round 1 (2026-09-05)') &&
+            recFlat.includes('That statement was FALSE as a statement about what happened') &&
+            recFlat.includes('ChatGPT HAD performed the independent read-only preflight') &&
+            recFlat.includes('The hosted execution and the post-state remain valid exactly as evidenced') &&
+            recFlat.includes('the package is SPENT and was NOT rerun') &&
+            recFlat.includes('NO hosted contact of any kind occurred during this local correction')
+          if (!disclosure) return false
+          const ahead = execSync(`git rev-list --count ${R1}..HEAD`, { encoding: 'utf8' }).trim()
+          if (ahead === '0') {
+            const entries = execSync('git status --porcelain', { encoding: 'utf8' })
+              .split('\n').filter(Boolean).map((l) => l.trim()).sort()
+            return JSON.stringify(entries) === JSON.stringify([`M ${RECORD}`, `M ${VERIFIER}`].sort())
+          }
+          if (ahead !== '1') return false
+          if (execSync(`git rev-list --count --merges ${R1}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
+          const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== R1) return false
+          const status = execSync(`git diff --name-status ${R1}..HEAD`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          return JSON.stringify(status) === JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`].sort())
+        } catch { return false }
       })())
   }
 
