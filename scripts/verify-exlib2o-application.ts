@@ -64,6 +64,16 @@ const T_BACKUP = '2026-09-04 13:09:27 UTC'
 const LABEL = 'RETARGET (EXLIB-2O hosted-execution evidence)'
 const PRE_VECTOR = '3/1/2/2/3/1/2/0/0/0/0'
 const POST_VECTOR = '3/3/5/3/6/1/2/0/0/0/0'
+// The package's authoritative eleven-table vector order (Codex
+// correction round 1 pins it here once; C7 proves it EXTRACTED from
+// both of the package's own vector-building queries rather than
+// trusting this constant alone).
+const CANON_ORDER = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
+  'exercise_catalog_aliases', 'exercise_catalog_name_claims', 'exercise_catalog_content',
+  'exercise_catalog_content_expected_relationships', 'exercise_catalog_relationships',
+  'exercise_catalog_import_runs', 'exercise_catalog_run_items', 'exercise_catalog_review_events']
+const R1 = '16b8ab0c0e95b0aceff2ed0c2540399651dc0ff6'
+const R1_TREE = '2f706e99bd5fd1f9882a66e488aaeb3b763153d7'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 const rec = read(RECORD)
@@ -162,12 +172,8 @@ async function main(): Promise<void> {
         if (!pkg.includes(`v_counts <> '${POST_VECTOR}'`)) return false
         if (!recFlat.includes(`eleven-table vector was exactly ${POST_VECTOR}`)) return false
         const terms = POST_VECTOR.split('/').map(Number)
-        const tables = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
-          'exercise_catalog_aliases', 'exercise_catalog_name_claims', 'exercise_catalog_content',
-          'exercise_catalog_content_expected_relationships', 'exercise_catalog_relationships',
-          'exercise_catalog_import_runs', 'exercise_catalog_run_items', 'exercise_catalog_review_events']
-        for (let i = 0; i < tables.length; i += 1) {
-          if (!rec.includes(`- ${tables[i]}: ${terms[i]}`)) return false
+        for (let i = 0; i < CANON_ORDER.length; i += 1) {
+          if (!rec.includes(`- ${CANON_ORDER[i]}: ${terms[i]}`)) return false
         }
         return recFlat.includes('exercises (tenant): 84, unchanged')
       })())
@@ -230,6 +236,45 @@ async function main(): Promise<void> {
       recFlat.includes('a hosted fact, not a package literal') &&
       !pkg.includes(DB_SNAP) && !pkg.includes(AW_SNAP) &&
       recFlat.includes('recorded on ChatGPT\'s operator-path authority'))
+    check('C7: VECTOR-ORDER PROOF (Codex correction round 1, dedicated) — the ordered table references are EXTRACTED mechanically from BOTH of the package\'s vector-building queries, the two extracted orders are identical, both equal the canonical eleven-table order, the record\'s pre-state parenthetical order matches it, and the record\'s post-state per-table list matches it term for term with run_items preceding review_events',
+      (() => {
+        // extract every vector-building query: the package has exactly
+        // two (the pre-state gate's and the post-state gate's), each a
+        // chain of (SELECT count(*) FROM public.<table>) terms INTO
+        // v_counts — the extraction fails loudly if that shape drifts
+        const queries = pkg.match(/SELECT \(SELECT count\(\*\) FROM public\.[\s\S]*?INTO v_counts/g) || []
+        if (queries.length !== 2) return false
+        const orderOf = (q: string): string[] => {
+          const out: string[] = []
+          const re = /FROM public\.(exercise_catalog[a-z_]*)\)/g
+          let m: RegExpExecArray | null = re.exec(q)
+          while (m !== null) { out.push(m[1]); m = re.exec(q) }
+          return out
+        }
+        const pre = orderOf(queries[0])
+        const post = orderOf(queries[1])
+        if (pre.length !== 11 || post.length !== 11) return false
+        if (JSON.stringify(pre) !== JSON.stringify(post)) return false
+        if (JSON.stringify(pre) !== JSON.stringify(CANON_ORDER)) return false
+        // the record's section-2 parenthetical, rebuilt from the
+        // EXTRACTED order (short names strip the exercise_catalog_
+        // prefix; the bare catalog table reads "catalog") and compared
+        // on the whitespace-stripped record so 72-column wrapping
+        // cannot hide a swap
+        const shorts = pre.map((t) => (t === 'exercise_catalog' ? 'catalog' : t.replace(/^exercise_catalog_/, '')))
+        if (!recSolid.includes(shorts.join('/'))) return false
+        // the record's section-3 per-table list, read back in ORDER
+        const listed: string[] = []
+        const lineRe = /^- (exercise_catalog[a-z_]*): (\d+)$/gm
+        let lm: RegExpExecArray | null = lineRe.exec(rec)
+        while (lm !== null) { listed.push(lm[1]); lm = lineRe.exec(rec) }
+        if (JSON.stringify(listed) !== JSON.stringify(pre)) return false
+        if (listed.indexOf('exercise_catalog_run_items') > listed.indexOf('exercise_catalog_review_events')) return false
+        // the corrected zero-surface sentence follows the same order,
+        // and the record pins the full canonical order once verbatim
+        return recFlat.includes('Zero import runs, zero run items, zero review events') &&
+          recFlat.includes(CANON_ORDER.join(', '))
+      })())
   }
 
   console.log('\nD. Output precision, gate distinction, authority, advisors, and boundaries')
@@ -295,7 +340,7 @@ async function main(): Promise<void> {
         const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p)) &&
-          recFlat.includes('Zero review events, zero import runs, zero run items')
+          recFlat.includes('Zero import runs, zero run items, zero review events')
       })())
   }
 
@@ -365,6 +410,34 @@ async function main(): Promise<void> {
           if (both.includes(bad)) return false
         }
         return recFlat.includes('Claude made no hosted contact in this phase')
+      })())
+    check('E5: Codex correction round 1 topology — the original evidence commit 16b8ab0 is PRESERVED untouched with its exact recorded tree and its parent is the promoted tip; the correction is exactly ONE plain single-parent forward commit modifying exactly the record and this verifier (strict two-file worktree scope while it is being authored); and the record carries the truthful supersession disclosure — the reversed statement was the section-3 zero-surface sentence, the parenthetical and per-table list were already in package order, the numeric vectors were always correct, and the hosted execution stays valid and is never rerun',
+      (() => {
+        try {
+          if (execSync(`git rev-parse ${R1}^{tree}`, { encoding: 'utf8' }).trim() !== R1_TREE) return false
+          if (execSync(`git rev-parse ${R1}^`, { encoding: 'utf8' }).trim() !== SOURCE_TIP) return false
+          const disclosure = recFlat.includes('single reversed-order statement in 16b8ab0 was the section-3 zero-surface sentence') &&
+            recFlat.includes('were ALREADY in the package\'s exact order') &&
+            recFlat.includes('No numeric value changes anywhere') &&
+            recFlat.includes('remains valid, is unaffected, and is never rerun') &&
+            recFlat.includes('16b8ab0 is PRESERVED untouched')
+          if (!disclosure) return false
+          const ahead = execSync(`git rev-list --count ${R1}..HEAD`, { encoding: 'utf8' }).trim()
+          if (ahead === '0') {
+            // authoring state: HEAD is still the evidence commit and the
+            // worktree holds exactly the two correction files
+            const entries = execSync('git status --porcelain', { encoding: 'utf8' })
+              .split('\n').filter(Boolean).map((l) => l.trim()).sort()
+            return JSON.stringify(entries) === JSON.stringify([`M ${RECORD}`, `M ${VERIFIER}`].sort())
+          }
+          if (ahead !== '1') return false
+          if (execSync(`git rev-list --count --merges ${R1}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
+          const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== R1) return false
+          const status = execSync(`git diff --name-status ${R1}..HEAD`, { encoding: 'utf8' })
+            .split('\n').filter(Boolean).sort()
+          return JSON.stringify(status) === JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`].sort())
+        } catch { return false }
       })())
   }
 

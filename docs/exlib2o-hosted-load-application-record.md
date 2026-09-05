@@ -134,7 +134,7 @@ Bindings, claims, and invariants:
 - The catalog claims invariant remained 0 orphaned / 0 unclaimed.
 - Both targets have ZERO instructional content (this package loads
   snapshots, never content) and ZERO projected relationships.
-- Zero review events, zero import runs, zero run items.
+- Zero import runs, zero run items, zero review events.
 - No database review, admission, publication, projection, delivery,
   or seed activation occurred.
 
@@ -262,3 +262,49 @@ admission occurred, no publication occurred.
 5. Any future catalog loading beyond these two snapshots requires its
    own authored, reviewed, and admitted artifacts and its own reviewed
    load package; this package is SPENT and must never be rerun.
+
+## 11. Codex correction round 1 (2026-09-04) — vector-order labeling
+
+Codex's review of the evidence commit
+16b8ab0c0e95b0aceff2ed0c2540399651dc0ff6 found one release-blocking
+evidence-precision defect: this record describing the final terms of
+the package's eleven-table vector order with review events ahead of
+run items. The hosted execution itself remains valid, is unaffected,
+and is never rerun.
+
+Verified against the committed 16b8ab0 bytes before correcting: the
+section-2 parenthetical order and the section-3 per-table count list
+were ALREADY in the package's exact order — import_runs ninth,
+run_items tenth, review_events eleventh and last — so neither is
+changed by this correction. The single reversed-order statement in
+16b8ab0 was the section-3 zero-surface sentence, which read "Zero
+review events, zero import runs, zero run items" — placing review
+events FIRST, the opposite end of the vector. That sentence now reads
+in the package's own order: "Zero import runs, zero run items, zero
+review events." A search of the complete record found no other
+statement of the vector order. No numeric value changes anywhere: the
+pre vector 3/1/2/2/3/1/2/0/0/0/0, the post vector
+3/3/5/3/6/1/2/0/0/0/0, all twelve recorded counts, and every hosted
+execution fact in sections 1-8 were always correct and are
+byte-unchanged by this round except for that one sentence.
+
+The package's authoritative eleven-table vector order, stated once in
+full: exercise_catalog_logical, exercise_catalog,
+exercise_catalog_muscles, exercise_catalog_aliases,
+exercise_catalog_name_claims, exercise_catalog_content,
+exercise_catalog_content_expected_relationships,
+exercise_catalog_relationships, exercise_catalog_import_runs,
+exercise_catalog_run_items, exercise_catalog_review_events.
+
+The application verifier no longer trusts any hard-coded order alone:
+a dedicated new check mechanically extracts the ordered table
+references from BOTH of the executed package's vector-building
+queries — the pre-state gate's and the post-state gate's — proves the
+two extracted orders identical, proves them equal to the eleven-table
+order above, and proves this record's section-2 parenthetical and
+section-3 per-table list match that extracted order term for term. A
+second new check pins this correction's topology: 16b8ab0 is
+PRESERVED untouched with its exact tree, and this correction is
+exactly ONE further plain forward commit touching exactly this record
+and scripts/verify-exlib2o-application.ts. No amend, squash, rebase,
+deletion, push, promotion, tag, or hosted contact.
