@@ -58,6 +58,15 @@ const CV = 'e21b2c00-0000-4000-a000-000000000101'
 const DBU = 'e21b2c00-0000-4000-a000-000000000002'
 const AW = 'e21b2c00-0000-4000-a000-000000000003'
 const LABEL_2P = 'RETARGET (EXLIB-2P Plank database-review preparation)'
+// RETARGET (EXLIB-2P hosted-review evidence): this suite proves the
+// PREPARATION phase. That phase was promoted as main = TIP and the
+// hosted review happened; the application-evidence milestone then
+// legitimately advances HEAD (adding the application record and its
+// verifier), so the topology proofs below are anchored to the
+// promoted EXLIB-2P tip — where they were and remain true — instead
+// of HEAD. The tip's tree is pinned so a rewrite still fails here.
+const TIP = '0e816533e6e3947ec007d7203937d67ce9d69e8d'
+const TIP_TREE = 'd38d92e1f77635e0e35fc96a1cd9200fc5b659a1'
 const STATE_VECTOR = '3/3/5/3/6/1/2/0/0/0/0'
 const REVIEW_SIG = 'uuid,uuid,text,text,timestamptz,text'
 const CANON_ORDER = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
@@ -100,7 +109,6 @@ const lit = (text: string, tag: string): string | null => {
 const PHASE = [
   `A\t${PKG}`, `A\t${RECORD}`, `A\t${VERIFIER}`, `A\t${LIVE}`, `M\t${RETARGETED}`,
 ].sort()
-const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
 
 console.log(`EXLIB-2P static verification (${committed ? 'committed' : 'uncommitted authoring'} state)`)
 
@@ -371,28 +379,30 @@ check('F2: the live one-use and race proofs key on the CONTENT gate, not the vec
   })())
 
 console.log('\nG. Phase topology (two-state)')
-if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges',
-    (() => {
-      try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
-          && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
-          && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
-      } catch { return false }
-    })())
-  check('G2: exact phase inventory — the commit carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
-    (() => {
-      const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
-        .split('\n').filter(Boolean).sort()
-      return JSON.stringify(status) === JSON.stringify(PHASE)
-    })())
-} else {
-  check('G1-G2 (uncommitted authoring state): every worktree change lies inside the five phase paths — nothing outside this phase is touched',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
-}
+// RETARGET (EXLIB-2P hosted-review evidence): G1/G2 walk the promoted
+// EXLIB-2P tip instead of HEAD, so they hold in every later milestone;
+// the tip must remain an ancestor of HEAD. The old uncommitted-state
+// scope check is superseded by the application verifier's strict
+// phase-boundary check.
+check('G1: phase topology — the merge base of the promoted EXLIB-2P tip and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges — RETARGET (EXLIB-2P hosted-review evidence): anchored to the promoted tip 0e816533..., where this was and remains true',
+  (() => {
+    try {
+      if (execSync(`git rev-parse ${TIP}^{tree}`, { encoding: 'utf8' }).trim() !== TIP_TREE) return false
+      execSync(`git merge-base --is-ancestor ${TIP} HEAD`, { stdio: 'pipe' })
+      if (execSync(`git merge-base ${SRC} ${TIP}`, { encoding: 'utf8' }).trim() !== SRC) return false
+      const parents = execSync(`git rev-list --parents -n 1 ${TIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (parents.length !== 2 || parents[1] !== SRC) return false
+      return execSync(`git rev-list --count ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '1'
+        && execSync(`git rev-list --count ${TIP}..${SRC}`, { encoding: 'utf8' }).trim() === '0'
+        && execSync(`git rev-list --count --merges ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '0'
+    } catch { return false }
+  })())
+check('G2: exact phase inventory — the commit carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else — anchored to the promoted tip',
+  (() => {
+    const status = execSync(`git diff --name-status ${SRC}..${TIP}`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean).sort()
+    return JSON.stringify(status) === JSON.stringify(PHASE)
+  })())
 check('G3: two-state lifecycle — the package, record, and both verifiers are absent at the promoted source tip and present in this phase',
   (() => {
     const srcDocs = execSync(`git ls-tree ${SRC} docs/ --name-only`, { encoding: 'utf8' })
