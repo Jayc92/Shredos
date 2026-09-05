@@ -62,6 +62,14 @@ const T_FINISH = '2026-09-05 03:14:37.444297 UTC'
 const T_BACKUP = '2026-09-04 13:09:27 UTC'
 const T_UPDATED = '2026-09-05 03:14:36.146071 UTC'
 const LABEL = 'RETARGET (EXLIB-2P hosted-review evidence)'
+// RETARGET (EXLIB-2Q Plank import-admission preparation): this suite
+// proves the EVIDENCE milestone, which was promoted as main =
+// EV2P_TIP; the EXLIB-2Q preparation then legitimately advances HEAD,
+// so E5's correction-topology proof is anchored to the promoted
+// evidence tip — where it was and remains true — instead of HEAD.
+// The tip's tree is pinned so a rewrite still fails here.
+const EV2P_TIP = '93202b4e89e92eef9a0f57d28c59900898cbc2ba'
+const EV2P_TREE = '814d94e41b6f0d1395b945c5a40e2da3b8c0d274'
 const STATE_VECTOR = '3/3/5/3/6/1/2/0/0/0/0'
 const REVIEW_SIG = 'uuid,uuid,text,text,timestamptz,text'
 const CANON_ORDER = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
@@ -435,17 +443,16 @@ async function main(): Promise<void> {
             recFlat.includes('the package is SPENT and was NOT rerun') &&
             recFlat.includes('NO hosted contact of any kind occurred during this local correction')
           if (!disclosure) return false
-          const ahead = execSync(`git rev-list --count ${R2}..HEAD`, { encoding: 'utf8' }).trim()
-          if (ahead === '0') {
-            const entries = execSync('git status --porcelain', { encoding: 'utf8' })
-              .split('\n').filter(Boolean).map((l) => l.trim()).sort()
-            return JSON.stringify(entries) === JSON.stringify([`M ${RECORD}`, `M ${VERIFIER}`].sort())
-          }
-          if (ahead !== '1') return false
-          if (execSync(`git rev-list --count --merges ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-          const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+          // RETARGET (EXLIB-2Q Plank import-admission preparation):
+          // anchored to the promoted evidence tip, where this was and
+          // remains true; the tip must remain an ancestor of HEAD.
+          if (execSync(`git rev-parse ${EV2P_TIP}^{tree}`, { encoding: 'utf8' }).trim() !== EV2P_TREE) return false
+          execSync(`git merge-base --is-ancestor ${EV2P_TIP} HEAD`, { stdio: 'pipe' })
+          if (execSync(`git rev-list --count ${R2}..${EV2P_TIP}`, { encoding: 'utf8' }).trim() !== '1') return false
+          if (execSync(`git rev-list --count --merges ${SOURCE_TIP}..${EV2P_TIP}`, { encoding: 'utf8' }).trim() !== '0') return false
+          const parents = execSync(`git rev-list --parents -n 1 ${EV2P_TIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
           if (parents.length !== 2 || parents[1] !== R2) return false
-          const status = execSync(`git diff --name-status ${R2}..HEAD`, { encoding: 'utf8' })
+          const status = execSync(`git diff --name-status ${R2}..${EV2P_TIP}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
           return JSON.stringify(status) === twoFiles
         } catch { return false }
