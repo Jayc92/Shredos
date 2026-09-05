@@ -74,6 +74,14 @@ const CANON_ORDER = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_c
   'exercise_catalog_import_runs', 'exercise_catalog_run_items', 'exercise_catalog_review_events']
 const R1 = '16b8ab0c0e95b0aceff2ed0c2540399651dc0ff6'
 const R1_TREE = '2f706e99bd5fd1f9882a66e488aaeb3b763153d7'
+// RETARGET (EXLIB-2P Plank database-review preparation): this suite
+// proves the EVIDENCE milestone, which was promoted as main = EV_TIP;
+// the EXLIB-2P preparation then legitimately advances HEAD, so E5's
+// correction-topology proof is anchored to the promoted evidence tip
+// — where it was and remains true — instead of HEAD. The tip's tree
+// is pinned so a rewrite still fails here.
+const EV_TIP = '442b6247ad2f4b95ce58a1c2ed72df2ca84aff63'
+const EV_TREE = 'aee2a0c72c2fdcd8b9aa8f505c71cbf235e42252'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 const rec = read(RECORD)
@@ -422,19 +430,16 @@ async function main(): Promise<void> {
             recFlat.includes('remains valid, is unaffected, and is never rerun') &&
             recFlat.includes('16b8ab0 is PRESERVED untouched')
           if (!disclosure) return false
-          const ahead = execSync(`git rev-list --count ${R1}..HEAD`, { encoding: 'utf8' }).trim()
-          if (ahead === '0') {
-            // authoring state: HEAD is still the evidence commit and the
-            // worktree holds exactly the two correction files
-            const entries = execSync('git status --porcelain', { encoding: 'utf8' })
-              .split('\n').filter(Boolean).map((l) => l.trim()).sort()
-            return JSON.stringify(entries) === JSON.stringify([`M ${RECORD}`, `M ${VERIFIER}`].sort())
-          }
-          if (ahead !== '1') return false
-          if (execSync(`git rev-list --count --merges ${R1}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-          const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+          // RETARGET (EXLIB-2P Plank database-review preparation):
+          // anchored to the promoted evidence tip, where this was and
+          // remains true; the tip must remain an ancestor of HEAD.
+          if (execSync(`git rev-parse ${EV_TIP}^{tree}`, { encoding: 'utf8' }).trim() !== EV_TREE) return false
+          execSync(`git merge-base --is-ancestor ${EV_TIP} HEAD`, { stdio: 'pipe' })
+          if (execSync(`git rev-list --count ${R1}..${EV_TIP}`, { encoding: 'utf8' }).trim() !== '1') return false
+          if (execSync(`git rev-list --count --merges ${R1}..${EV_TIP}`, { encoding: 'utf8' }).trim() !== '0') return false
+          const parents = execSync(`git rev-list --parents -n 1 ${EV_TIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
           if (parents.length !== 2 || parents[1] !== R1) return false
-          const status = execSync(`git diff --name-status ${R1}..HEAD`, { encoding: 'utf8' })
+          const status = execSync(`git diff --name-status ${R1}..${EV_TIP}`, { encoding: 'utf8' })
             .split('\n').filter(Boolean).sort()
           return JSON.stringify(status) === JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`].sort())
         } catch { return false }
