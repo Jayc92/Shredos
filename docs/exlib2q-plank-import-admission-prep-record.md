@@ -278,8 +278,8 @@ instruction; this package is one-use and becomes SPENT.
 
 - docs/exlib2q-plank-import-admission-package.sql — the exact byte
   count and SHA-256 are stated below and re-verified mechanically:
-  39,361 bytes, SHA-256
-  6406eb57637a09885c429b732230bc1928d7c023592889a7603a454045a3f803.
+  39,382 bytes, SHA-256
+  b15b9313db5efe679ca0d13cd0d9b9d97fd9316ec1d66d99c5bba6ca47529e57.
 - Constructed values: NONE. Every literal in the package is
   re-derived from a promoted artifact (sections 1-3); the only new
   prose is gate wording and refusal messages.
@@ -290,3 +290,39 @@ This milestone stops LOCAL-ONLY for Codex review. Not pushed, not
 promoted, not tagged; no hosted contact; no admission, publication,
 projection, run, delivery, seed, or seed_link_compatible change; no
 runtime, API, UI, dependency, or configuration change.
+
+## 10. Codex correction round 1 (2026-09-05) — package-prose truthfulness
+
+Codex accepted the SQL mechanics but found four stale review-stage
+statements in the package's permanent reviewed bytes — leftovers of
+the EXLIB-2P skeleton this package was derived from: the baseline
+comment said "reviewer-role" instead of admission-role; the
+transition-neutrality comment said the digests are re-digested "after
+the review to prove EXLIB-2P itself changes none" instead of after
+the admission to prove EXLIB-2Q changes none; the two-grantor refusal
+message said "before the review call" instead of the admission call;
+and the invariant refusal message said "after the review" instead of
+after the admission. A mechanical scan of the package, this record,
+and both verifiers found two further stale phrases of the same class
+(the two-grantor section comment and the "its review surface"
+neutrality phrase) plus two stale comments in the live verifier — all
+corrected — while every legitimate reference to the prior EXLIB-2P
+review milestone, the frozen human/database review tuple,
+review_status, and the snapshot-scoped review events is preserved
+unchanged.
+
+The EXECUTABLE ADMISSION LOGIC IS UNCHANGED: a comment-stripped diff
+of the package shows exactly the two refusal-message literals and
+nothing else — no statement, gate, lock, argument, or postcondition
+changed. The original preparation commit
+09d49b86143ee85059952f70dfa039af861baba8 (tree
+985d2f2f551f7ce07459dc6b4d5ea45e2564a926) is PRESERVED untouched;
+this correction is exactly ONE plain forward commit on top of it,
+touching exactly the four phase files (package, this record, both
+verifiers). The package fingerprint in section 8 is refreshed to the
+corrected bytes; the static verifier gained a dedicated
+package-prose truthfulness check that pins the corrected
+admission-stage language, rejects the stale phrases, and asserts the
+legitimate historical references remain. NO hosted contact or
+execution occurred during this correction; the package remains
+PREPARED — NOT EXECUTED and its one-use/SPENT semantics are unchanged.

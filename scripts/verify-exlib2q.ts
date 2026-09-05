@@ -206,6 +206,29 @@ check('B7: the review-event SCOPING is enforced and disclosed — the package as
   && pkgProse.includes('writes ZERO rows there BY SCHEMA DESIGN'))
 check('B8: ordinary clients stay locked out — has_function_privilege is checked for anon, authenticated, AND service_role, in BOTH the preconditions and the postconditions',
   (pkg.match(new RegExp(`has_function_privilege\\('(anon|authenticated|service_role)', 'public\\.admit_catalog_content\\(${ADMIT_SIG.replace(/,/g, ',')}\\)', 'EXECUTE'\\)`, 'g')) || []).length === 6)
+check('B10: PACKAGE-PROSE TRUTHFULNESS (Codex round 1, dedicated) — the permanent reviewed bytes name the admission stage exactly: the admission-role baseline comment, the before-the-admission-call two-grantor message, the after-the-admission invariant message, and the re-digested-after-the-admission neutrality comment are all present, and all four stale review-stage phrases are GONE — while legitimate references to the prior EXLIB-2P review milestone, the frozen review tuple, review_status, and the snapshot-scoped review events remain untouched',
+  (() => {
+    // corrected admission-stage language, pinned
+    if (!pkg.includes('the exact admission-role authority baseline, grantor included')) return false
+    if (!pkgFlat.includes('aborting before SET ROLE and before the admission call')) return false
+    if (!pkgFlat.includes('does not hold after the admission')) return false
+    if (!pkgProse.includes('re-digested after the admission to prove EXLIB-2Q itself changes none of them')) return false
+    if (!pkgProse.includes('changes exactly its admission surface')) return false
+    if (!pkgProse.includes('BEFORE SET ROLE or the admission call')) return false
+    // the four stale phrases (and the stale comment variants), rejected
+    if (pkg.includes('reviewer-role authority baseline')) return false
+    if (pkgFlat.includes('before SET ROLE and before the review call')) return false
+    if (pkgFlat.includes('does not hold after the review')) return false
+    if (pkgProse.includes('re-digested after the review')) return false
+    if (pkgProse.includes('its review surface')) return false
+    if (pkgProse.includes('SET ROLE or the review call')) return false
+    // narrowness control: the legitimate prior-milestone and schema
+    // references MUST still be present (this check would be too broad
+    // if it forced them out)
+    return pkgProse.includes('the surface the executed EXLIB-2P review left behind')
+      && pkgProse.includes('Codex-approved EXLIB-2O and EXLIB-2P packages carried')
+      && pkgFlat.includes("c.reviewed_by = $p_rev$Nick Tkacz$p_rev$".replace(/\$/g, '$'))
+  })())
 check('B9: the dual-identity and non-superuser gates run before any authority change, and every gate failure message names the refusal',
   pkgFlat.includes("current_user <> 'postgres' OR session_user <> 'postgres'")
   && pkgFlat.includes('the invoker is a superuser')
@@ -397,23 +420,35 @@ check('F2: the live one-use and race proofs key on the UNADMITTED-CONTENT gate, 
 
 console.log('\nG. Phase topology (two-state)')
 const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
+// The original preparation commit, PRESERVED untouched: the Codex
+// round-1 prose correction is one further plain forward commit on top
+// of it, never an amend or rewrite. Its tree is pinned here.
+const PREP = '09d49b86143ee85059952f70dfa039af861baba8'
+const PREP_TREE = '985d2f2f551f7ce07459dc6b4d5ea45e2564a926'
+const CORRECTED = [PKG, RECORD, VERIFIER, LIVE].map((p) => `M\t${p}`).sort()
 if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges',
+  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, PRESERVED with its exact tree, and the Codex round-1 prose correction), 2 ahead / 0 behind, zero merges',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
+        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        for (const [child, parent] of [['HEAD', PREP], [PREP, SRC]]) {
+          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== parent) return false
+        }
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }
     })())
-  check('G2: exact phase inventory — the commit carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite) and nothing else',
+  check('G2: exact phase inventory — the range carries exactly the five disclosed paths (4 additions, 1 labeled retargeted suite), and the correction commit modifies exactly the four corrected phase files',
     (() => {
       const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
-      return JSON.stringify(status) === JSON.stringify(PHASE)
+      if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
+      const corr = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      return JSON.stringify(corr) === JSON.stringify(CORRECTED)
     })())
 } else {
   check('G1-G2 (uncommitted authoring state): every worktree change lies inside the five phase paths — nothing outside this phase is touched',

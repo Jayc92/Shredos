@@ -106,12 +106,12 @@ ADMIT_SQL="SELECT c.import_admitted::text||'|'||(c.admitted_source_sha256 = '$AR
 ADMIT_OK="true|true|true|true|true"
 ADMIT_PRE="false|<n>|<n>|<n>|<n>"
 ADMIT_PRE_SQL="SELECT c.import_admitted::text||'|'||coalesce((c.admitted_source_sha256 = '$ART_SHA')::text,'<n>')||'|'||coalesce((c.admitted_fingerprint ~ '^[0-9a-f]{64}\$')::text,'<n>')||'|'||'<n>'||'|'||coalesce((c.admitted_at = CURRENT_DATE)::text,'<n>') FROM exercise_catalog_content c WHERE c.id='$CV'"
-# every surface the review must NOT change, digested as one line
+# every surface the admission must NOT change, digested as one line
 NEUTRAL_SQL="SELECT md5((SELECT coalesce(string_agg(e::text,'|' ORDER BY e.logical_id),'-') FROM exercise_catalog e) || (SELECT coalesce(string_agg(m::text,'|' ORDER BY m.catalog_id, m.muscle),'-') FROM exercise_catalog_muscles m) || (SELECT coalesce(string_agg(a::text,'|' ORDER BY a.logical_id, a.alias),'-') FROM exercise_catalog_aliases a) || (SELECT coalesce(string_agg(n::text,'|' ORDER BY n.normalized_name),'-') FROM exercise_catalog_name_claims n) || (SELECT coalesce(string_agg(x::text,'|' ORDER BY x.relation, x.to_logical_id),'-') FROM exercise_catalog_content_expected_relationships x))"
 TENANT_DIGEST_SQL="SELECT count(*)::text || ':' || md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM exercises t"
 # durable per-function invocation counts (NON-transactional): the
 # instrument that proves which schema's function actually ran and that
-# refused runs never reached the review function at all
+# refused runs never reached the admission function at all
 CALLS_PUB="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.proname='admit_catalog_content' AND n.nspname='public'),0)::text"
 CALLS_DEC="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.proname='admit_catalog_content' AND n.nspname='exlib2q_decoy'),0)::text"
 CALLS_PROBE="SELECT coalesce((SELECT sum(s.calls) FROM pg_stat_user_functions s JOIN pg_proc p ON p.oid=s.funcid WHERE p.proname='exlib2q_stat_probe'),0)::text"

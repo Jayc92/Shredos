@@ -183,7 +183,7 @@ BEGIN
   IF (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
     RAISE EXCEPTION 'exlib2q admission: the invoker is a superuser; this package is bound to the hosted non-superuser postgres posture';
   END IF;
-  -- the exact reviewer-role authority baseline, grantor included
+  -- the exact admission-role authority baseline, grantor included
   IF (SELECT count(*) FROM pg_catalog.pg_auth_members am
         JOIN pg_roles r ON r.oid = am.roleid
        WHERE r.rolname = 'exlib_catalog_admission') <> 1
@@ -366,9 +366,10 @@ BEGIN
   -- whole-row digests of every surface this package must NOT change
   -- — all three snapshot families, anatomy, aliases, claims,
   -- expected relationships, and the ENTIRE tenant exercises table —
-  -- captured now and re-digested after the review to prove EXLIB-2P
-  -- itself changes none of them. The CONTENT row is deliberately
-  -- absent here: this package changes exactly its review surface,
+  -- captured now and re-digested after the admission to prove
+  -- EXLIB-2Q itself changes none of them. The CONTENT row is
+  -- deliberately absent here: this package changes exactly its
+  -- admission surface,
   -- and the postconditions bind that change (and the frozen payload)
   -- by exact value instead. These digests are md5, used ONLY to
   -- detect a change between two readings inside this one transaction
@@ -396,8 +397,8 @@ $pre$;
 --    whole transaction on ANY failure) ─────────────────────────────
 GRANT exlib_catalog_admission TO postgres WITH SET TRUE, INHERIT FALSE;
 
--- ── Structural two-grantor proof, BEFORE SET ROLE or the review
---    call: exactly two membership rows — the untouched
+-- ── Structural two-grantor proof, BEFORE SET ROLE or the
+--    admission call: exactly two membership rows — the untouched
 --    supabase_admin-granted baseline plus the postgres-granted
 --    temporary SET row ─────────────────────────────────────────────
 DO $auth$
@@ -421,7 +422,7 @@ BEGIN
         WHERE r.rolname = 'exlib_catalog_admission' AND m.rolname = 'postgres'
           AND g.rolname = 'postgres'
           AND NOT am.admin_option AND NOT am.inherit_option AND am.set_option) THEN
-    RAISE EXCEPTION 'exlib2q admission: the two-grantor membership shape after the temporary grant is not exact (supabase_admin-granted baseline row plus postgres-granted SET row); aborting before SET ROLE and before the review call';
+    RAISE EXCEPTION 'exlib2q admission: the two-grantor membership shape after the temporary grant is not exact (supabase_admin-granted baseline row plus postgres-granted SET row); aborting before SET ROLE and before the admission call';
   END IF;
 END
 $auth$;
@@ -560,7 +561,7 @@ BEGIN
   SELECT orphaned_claims, unclaimed_bearers
     INTO v_orphaned, v_unclaimed FROM public.exlib_verify_catalog_claims();
   IF v_orphaned <> 0 OR v_unclaimed <> 0 THEN
-    RAISE EXCEPTION 'exlib2q admission: the catalog claims invariant does not hold after the review (orphaned=%, unclaimed=%); rolling back everything', v_orphaned, v_unclaimed;
+    RAISE EXCEPTION 'exlib2q admission: the catalog claims invariant does not hold after the admission (orphaned=%, unclaimed=%); rolling back everything', v_orphaned, v_unclaimed;
   END IF;
   -- the admission surface stays locked away from ordinary clients
   IF has_function_privilege('anon', 'public.admit_catalog_content(uuid,uuid,text)', 'EXECUTE')
