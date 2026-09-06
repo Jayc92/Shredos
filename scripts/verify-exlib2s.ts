@@ -2,7 +2,7 @@
 // delivery-activation change set — the coordinated seed-module edit
 // and the inventory seed_link_compatible flip (the promoted
 // activation design's SEED-FLIP EVENT, state S7) — its preparation
-// record, and the thirty mechanically necessary labeled historical
+// record, and the thirty-one mechanically necessary labeled historical
 // retargets.
 //
 // Proves: the promoted EXLIB-2R evidence source (tag object, peel,
@@ -22,9 +22,9 @@
 // citation, the design's verbatim invalid-ordering rejection and
 // post-S7 fail-closed rule, the blocked-release statement, and the
 // migration-026 P2 predicate citation); the no-delivery-claim
-// hygiene; the thirty-suite retarget census (label + anchored
+// hygiene; the thirty-one-suite retarget census (label + anchored
 // delivery-predecessor constant in every retargeted file); two-state
-// phase topology over the thirty-four-path inventory; and hygiene.
+// phase topology over the thirty-five-path inventory; and hygiene.
 // Performs NO hosted contact and NO database work itself.
 //
 // Fail-closed: any mismatch fails the suite.
@@ -67,6 +67,7 @@ const RETARGETED = [
   'scripts/verify-exlib2l.ts', 'scripts/verify-exlib2m.ts',
   'scripts/verify-exlib2m-application.ts', 'scripts/verify-exlib2n-r6-admission.ts',
   'scripts/verify-exlib2o.ts', 'scripts/verify-exlib2o-application.ts',
+  'scripts/verify-exlib2o-live.sh',
   'scripts/verify-exlib2p.ts', 'scripts/verify-exlib2p-application.ts',
   'scripts/verify-exlib2q.ts', 'scripts/verify-exlib2q-application.ts',
   'scripts/verify-exlib2r.ts', 'scripts/verify-exlib2r-application.ts',
@@ -237,7 +238,7 @@ check('C3: hosted state untouched — the record states every database fact is c
   recFlat.includes('remains exactly as the promoted EXLIB-2R evidence left it'))
 
 console.log('\nD. The retarget census')
-check('D1: exactly the THIRTY enumerated suites carry the label — every retargeted file contains the exact label AND the anchored delivery-predecessor commit constant, NO other script carries the label, and the record enumerates the same thirty suites with the 41-check mechanical-enumeration story and the count-neutral totals',
+check('D1: exactly the THIRTY-ONE enumerated suites carry the label — every retargeted file contains the exact label AND the anchored delivery-predecessor commit constant, NO other script carries the label, and the record enumerates the same thirty-one suites with the 42-check mechanical-enumeration story (41 battery checks by simulated commit, plus the one live-suite check found by direct live-suite inspection) and the count-neutral totals',
   (() => {
     const labelled = execSync(`grep -rl 'RETARGET (EXLIB-2S delivery-activation preparation)' scripts/ | sort`, { encoding: 'utf8' })
       .split('\n').filter(Boolean).filter((p) => p !== VERIFIER).sort()
@@ -247,7 +248,9 @@ check('D1: exactly the THIRTY enumerated suites carry the label — every retarg
       if (!t.includes(LABEL)) return false
       if (!t.includes('5f7e182f3027b3640514e06d642693f4018c03e2')) return false
     }
-    if (!recFlat.includes('exactly FORTY-ONE checks across THIRTY suites failed; nothing else did')) return false
+    if (!recFlat.includes('exactly FORTY-ONE checks across THIRTY battery suites failed; nothing else in the battery did')) return false
+    if (!recFlat.includes('ONE further live-suite check')) return false
+    if (!recFlat.includes('FORTY-TWO checks across THIRTY-ONE suites')) return false
     if (!recFlat.includes('88 suites / 7,063 checks / 0 failures at the simulated commit both ways')) return false
     return recFlat.includes('DELIVERY-ACTIVATION PREDECESSOR')
   })())
@@ -258,25 +261,33 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges',
+  check('E1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the preparation commit, PRESERVED with its exact tree, and the live-suite-retarget forward correction), 2 ahead / 0 behind, zero merges',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
+        const PREP = '7e6f70cb80be22c7de55cb4f5f8303eb019c7e78'
+        const PREP_TREE = '105495c5ba5013e4a56ee09ea94270f10014c447'
+        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        for (const [child, parent] of [['HEAD', PREP], [PREP, SRC]]) {
+          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== parent) return false
+        }
+        const corr = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        if (JSON.stringify(corr) !== JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`, 'M\tscripts/verify-exlib2o-live.sh'].sort())) return false
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }
     })())
-  check('E2: exact phase inventory — the range carries exactly the THIRTY-FOUR disclosed paths (2 additions, the 2 product files, and the 30 labeled retargeted suites)',
+  check('E2: exact phase inventory — the range carries exactly the THIRTY-FIVE disclosed paths (2 additions, the 2 product files, and the 31 labeled retargeted suites)',
     (() => {
       const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       return JSON.stringify(status) === JSON.stringify(PHASE)
     })())
 } else {
-  check('E1-E2 (uncommitted authoring state): every worktree change lies inside the thirty-four phase paths — nothing outside this phase is touched',
+  check('E1-E2 (uncommitted authoring state): every worktree change lies inside the thirty-five phase paths — nothing outside this phase is touched',
     CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
 }
 check('E3: two-state lifecycle — the record and this verifier are absent at the promoted source tip, the seed and inventory at the tip still carry the OLD state (bodyweight Plank, flip false), and the live phase carries the new state',

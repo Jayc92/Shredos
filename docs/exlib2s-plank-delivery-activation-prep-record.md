@@ -178,7 +178,7 @@ repository bytes, stated plainly and without deviation:
 
 ## 4. What this milestone changes (the exact inventory)
 
-Exactly THIRTY-FOUR paths in ONE plain commit on the promoted tip:
+Exactly THIRTY-FIVE paths on the promoted tip (one preparation commit plus one same-branch forward correction that landed the live-suite retarget; both plain, single-parent, and preserved):
 
 - M src/lib/supabase/seed-exercises.ts (the Plank entry + the
   documentation comment).
@@ -186,8 +186,9 @@ Exactly THIRTY-FOUR paths in ONE plain commit on the promoted tip:
 - A docs/exlib2s-plank-delivery-activation-prep-record.md (this
   record).
 - A scripts/verify-exlib2s.ts (the dedicated verifier).
-- M thirty committed historical verifiers, each carrying ONLY the
-  mechanically necessary labeled retarget described in section 5.
+- M thirty-one committed historical verifiers (thirty battery
+  suites plus one live suite), each carrying ONLY the mechanically
+  necessary labeled retarget described in section 5.
 
 No runtime, API, UI, dependency, configuration, migration, or hosted
 change of any kind; no push, promotion, tag, or deployment.
@@ -201,8 +202,13 @@ the entire EXLIB series — goes stale at this commit. The stale set
 was enumerated MECHANICALLY, not assumed: the full battery was run
 against a temporary never-referenced simulated commit carrying only
 the two product changes, and exactly FORTY-ONE checks across THIRTY
-suites failed; nothing else did. Each was retargeted under the exact
-label `RETARGET (EXLIB-2S delivery-activation preparation)` with ONE
+battery suites failed; nothing else in the battery did. Because the
+live suites are not battery members, every live suite referencing
+the two delivery files was then inspected directly, which found
+exactly ONE further live-suite check (verify-exlib2o-live.sh D16,
+whose seed grep matches this milestone's new documentation comment)
+— FORTY-TWO checks across THIRTY-ONE suites in total, and nothing
+else. Each was retargeted under the exact label `RETARGET (EXLIB-2S delivery-activation preparation)` with ONE
 uniform, strength-preserving mechanism: the seed/inventory reads,
 byte pins, and boundary ranges those checks make are ANCHORED AT THE
 PROMOTED EXLIB-2R EVIDENCE TIP 5f7e182f3027b3640514e06d642693f4018c03e2
@@ -217,14 +223,15 @@ deleted, and the battery totals are IDENTICAL before and after the
 retargets (88 suites / 7,063 checks / 0 failures at the simulated
 commit both ways — count-neutral).
 
-The thirty retargeted suites: verify-exlib1a, verify-exlib2a2b,
+The thirty-one retargeted suites: verify-exlib1a, verify-exlib2a2b,
 verify-exlib2c-batch01 through batch06, verify-exlib2d,
 verify-exlib2e, verify-exlib2f, verify-exlib2f-application,
 verify-exlib2g, verify-exlib2h, verify-exlib2i, verify-exlib2j,
 verify-exlib2k, verify-exlib2k-application, verify-exlib2l,
 verify-exlib2m, verify-exlib2m-application,
 verify-exlib2n-r6-admission, verify-exlib2o,
-verify-exlib2o-application, verify-exlib2p,
+verify-exlib2o-application, verify-exlib2o-live (the one live
+suite), verify-exlib2p,
 verify-exlib2p-application, verify-exlib2q,
 verify-exlib2q-application, verify-exlib2r, and
 verify-exlib2r-application.
@@ -245,9 +252,9 @@ relationship expression appeared); the published-side citations; the
 ordering-gate disclosures (zero src delivery references, the
 zero-runs citation, the design quotes, the blocked-release
 statement, the P2 predicate citation); the no-delivery-claim
-hygiene; the thirty-suite retarget census (every retargeted file
+hygiene; the thirty-one-suite retarget census (every retargeted file
 carries the label and the anchored predecessor constant); two-state
-phase topology over the thirty-four-path inventory; and byte
+phase topology over the thirty-five-path inventory; and byte
 hygiene.
 
 ## 7. Stop condition

@@ -255,9 +255,14 @@ NAME_TO_UUID=$(Q "SELECT (SELECT e.logical_id::text FROM exercise_catalog e WHER
 [ "$(Q "SELECT (SELECT count(*) FROM exercise_catalog_relationships)::text||'/'||(SELECT count(*) FROM exercise_catalog_import_runs)::text||'/'||(SELECT count(*) FROM exercise_catalog_run_items)::text||'/'||(SELECT count(*) FROM exercise_catalog_review_events)::text")" = "0/0/0/0" ] \
   && ok "D15: zero relationship projection, zero import runs, zero run items, zero review events - external defense-in-depth over the same facts the package now proves internally" \
   || bad "D15: forbidden state appeared"
-SEED_REF=$(grep -c 'seed_link_compatible.*true' src/lib/supabase/seed-exercises.ts 2>/dev/null || true)
+# RETARGET (EXLIB-2S delivery-activation preparation): the seed is
+# anchored at the promoted EXLIB-2R evidence tip (the
+# delivery-activation predecessor), where this milestone's claim was
+# and remains true; EXLIB-2S later edits the seed as its own
+# reviewed act.
+SEED_REF=$(git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts 2>/dev/null | grep -c 'seed_link_compatible.*true' || true)
 [ "$SEED_REF" = "0" ] \
-  && ok "D16: no seed or compatibility change (the package touches no repository file; seed_link_compatible stays false in the frozen inventory)" \
+  && ok "D16: no seed or compatibility change through this milestone (anchored at the delivery predecessor; the package touches no repository file and seed_link_compatible stayed false there)" \
   || bad "D16: unexpected seed reference"
 [ "$(Q "SELECT orphaned_claims::text||'/'||unclaimed_bearers::text FROM exlib_verify_catalog_claims()")" = "0/0" ] \
   && ok "D17: the catalog claims invariant holds EXACTLY (0/0) after the load" \
