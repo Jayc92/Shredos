@@ -32,13 +32,26 @@
 --     never invoked; those names appear in this package only in this
 --     refusal sentence.
 --   - DATABASE PUBLICATION IS NOT PRODUCT DELIVERY: the catalog
---     tables keep RLS enabled with zero policies and zero client
---     privileges, so a published version remains invisible to every
---     ordinary client role. Delivery activation (the seed module edit
---     and the inventory seed_link_compatible flip) is a separate,
---     later, separately authorized repository act; this package
---     proves the tenant exercises table and the client-denial posture
---     are untouched.
+--     tables keep RLS enabled with ZERO policies, and migrations
+--     023/027 uniformly strip their table privileges from PUBLIC,
+--     anon, and authenticated — so a published version remains
+--     invisible to anon and authenticated, the ORDINARY CLIENT
+--     roles. service_role sits OUTSIDE that table-visibility
+--     boundary BY DELIBERATE SCHEMA DESIGN: it is the platform's
+--     server-side authority (never shipped to clients), it appears
+--     in NO catalog-table REVOKE or GRANT anywhere in the
+--     migrations, and its table privileges are platform-bootstrap
+--     facts this package neither creates, revokes, nor gates — a
+--     bootstrap-dependent table gate would be false in the lawful
+--     fixture and unevidenced on hosted, breaking the accepted
+--     fixture-portability boundary. Its FUNCTION posture is
+--     unambiguous and IS gated: EXECUTE on publish_catalog_content
+--     is denied to anon, authenticated, AND service_role in both
+--     the preconditions and the postconditions. Delivery activation
+--     (the seed module edit and the inventory seed_link_compatible
+--     flip) is a separate, later, separately authorized repository
+--     act; this package proves the tenant exercises table and the
+--     anon/authenticated denial posture are untouched.
 --   - REVIEW-EVENT SCOPING (unchanged from the accepted EXLIB-2P/2Q
 --     derivation): the exercise_catalog_review_events log is
 --     SNAPSHOT-scoped — its catalog_id references
@@ -418,16 +431,21 @@ BEGIN
   IF v_orphaned <> 0 OR v_unclaimed <> 0 THEN
     RAISE EXCEPTION 'exlib2r publication: the catalog claims invariant is already violated (orphaned=%, unclaimed=%); refusing', v_orphaned, v_unclaimed;
   END IF;
-  -- the publication surface stays locked away from ordinary clients,
-  -- function AND projection table
+  -- the publication surface stays locked away: EXECUTE on the
+  -- function is denied to anon, authenticated, AND service_role;
+  -- SELECT on the protected projection is denied to anon and
+  -- authenticated — the ORDINARY CLIENT roles, the exact boundary
+  -- migrations 023/027 enforce. service_role's TABLE posture is a
+  -- platform-bootstrap fact deliberately outside this gate (see the
+  -- header); its FUNCTION denial is asserted above.
   IF has_function_privilege('anon', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE')
      OR has_function_privilege('service_role', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'exlib2r publication: the publication function is executable by an ordinary client role; refusing before any write or authority change';
+    RAISE EXCEPTION 'exlib2r publication: the publication function is executable by a client role; refusing before any write or authority change';
   END IF;
   IF has_table_privilege('anon', 'public.exercise_catalog_relationships', 'SELECT')
      OR has_table_privilege('authenticated', 'public.exercise_catalog_relationships', 'SELECT') THEN
-    RAISE EXCEPTION 'exlib2r publication: the protected projection table is readable by an ordinary client role; refusing before any write or authority change';
+    RAISE EXCEPTION 'exlib2r publication: the protected projection table is readable by an ordinary client role (anon or authenticated); refusing before any write or authority change';
   END IF;
   -- TRANSITION-NEUTRALITY EVIDENCE (not a pre-state authority: the
   -- authoritative pre-state is proven by the exact gates above):
@@ -675,17 +693,20 @@ BEGIN
   IF v_orphaned <> 0 OR v_unclaimed <> 0 THEN
     RAISE EXCEPTION 'exlib2r publication: the catalog claims invariant does not hold after the publication (orphaned=%, unclaimed=%); rolling back everything', v_orphaned, v_unclaimed;
   END IF;
-  -- the publication surface stays locked away from ordinary clients,
-  -- function AND projection table: DATABASE PUBLICATION IS NOT
-  -- PRODUCT DELIVERY (see header)
+  -- the publication surface stays locked away: the three-way
+  -- function denial and the anon/authenticated projection-table
+  -- denial — the ordinary-client boundary — both hold after the
+  -- publication. DATABASE PUBLICATION IS NOT PRODUCT DELIVERY, and
+  -- service_role's table posture remains a platform-bootstrap fact
+  -- deliberately outside this gate (see header).
   IF has_function_privilege('anon', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE')
      OR has_function_privilege('service_role', 'public.publish_catalog_content(uuid,uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'exlib2r publication: the publication function is executable by an ordinary client role; rolling back everything';
+    RAISE EXCEPTION 'exlib2r publication: the publication function is executable by a client role; rolling back everything';
   END IF;
   IF has_table_privilege('anon', 'public.exercise_catalog_relationships', 'SELECT')
      OR has_table_privilege('authenticated', 'public.exercise_catalog_relationships', 'SELECT') THEN
-    RAISE EXCEPTION 'exlib2r publication: the protected projection table is readable by an ordinary client role; rolling back everything';
+    RAISE EXCEPTION 'exlib2r publication: the protected projection table is readable by an ordinary client role (anon or authenticated); rolling back everything';
   END IF;
 END
 $post$;
@@ -700,9 +721,12 @@ COMMIT;
 -- "projected_relationships": 2}, and the post-state read-backs.
 -- DELIVERY REMAINS SEPARATELY BLOCKED: publishing the content does
 -- NOT deliver it — the catalog tables keep RLS with zero policies
--- and zero client privileges, the tenant exercises table is
--- untouched, and the seed module and inventory compatibility flags
--- are repository artifacts this package cannot and does not touch.
+-- and no anon/authenticated privileges (service_role's table
+-- posture is a platform-bootstrap fact outside this package's
+-- gates; its function EXECUTE stays denied), the tenant exercises
+-- table is untouched, and the seed module and inventory
+-- compatibility flags are repository artifacts this package cannot
+-- and does not touch.
 -- The later delivery activation has its own reviewed change and its
 -- own explicit instruction.
 -- ============================================================

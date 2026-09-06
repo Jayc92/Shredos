@@ -212,9 +212,16 @@ check('B7: the review-event SCOPING is enforced and disclosed — the package as
   && pkgProse.includes('catalog_id references exercise_catalog(id)')
   && pkgProse.includes('pg_trigger_depth >= 2')
   && pkgProse.includes('writes ZERO rows there BY SCHEMA DESIGN'))
-check('B8: ordinary clients stay locked out, function AND projection table — has_function_privilege is checked for anon, authenticated, AND service_role and has_table_privilege for anon AND authenticated on the protected projection, each in BOTH the preconditions and the postconditions (database publication is not product delivery)',
+check('B8: the denial posture is exact AND honestly scoped — has_function_privilege is checked for anon, authenticated, AND service_role and has_table_privilege for anon AND authenticated (the ORDINARY CLIENT roles, the exact boundary migrations 023/027 enforce), each in BOTH the preconditions and the postconditions; the package carries NO service_role table gate (a platform-bootstrap-dependent value, deliberately ungated — fixture portability) and documents that boundary in its header',
   (pkg.match(new RegExp(`has_function_privilege\\('(anon|authenticated|service_role)', 'public\\.publish_catalog_content\\(${PUB_SIG}\\)', 'EXECUTE'\\)`, 'g')) || []).length === 6
-  && (pkg.match(/has_table_privilege\('(anon|authenticated)', 'public\.exercise_catalog_relationships', 'SELECT'\)/g) || []).length === 4)
+  && (pkg.match(/has_table_privilege\('(anon|authenticated)', 'public\.exercise_catalog_relationships', 'SELECT'\)/g) || []).length === 4
+  && (pkg.match(/has_table_privilege\('service_role'/g) || []).length === 0
+  && pkgProse.includes('service_role sits OUTSIDE that table-visibility boundary BY DELIBERATE SCHEMA DESIGN')
+  && pkgProse.includes('it appears in NO catalog-table REVOKE or GRANT anywhere in the migrations')
+  && pkgProse.includes('a bootstrap-dependent table gate would be false in the lawful fixture and unevidenced on hosted')
+  && pkgFlat.includes('readable by an ordinary client role (anon or authenticated)')
+  && !pkgProse.includes('zero client privileges')
+  && !pkgProse.includes('every ordinary client role'))
 check('B9: the dual-identity and non-superuser gates run before any authority change, and every gate failure message names the refusal',
   pkgFlat.includes("current_user <> 'postgres' OR session_user <> 'postgres'")
   && pkgFlat.includes('the invoker is a superuser')
@@ -351,10 +358,28 @@ check('D2: the lifecycle distinction is explicit — human review done (2I), dat
   && recFlat.includes('delivery activation') && recFlat.includes('remains separately blocked')
   && recFlat.includes('publish_catalog_content') && recFlat.includes('exlib_catalog_admin')
   && recFlat.includes('ONE ATOMIC act') && recFlat.includes('transaction-local sentinel'))
-check('D3: publication-versus-delivery precision — the record states DATABASE PUBLICATION IS NOT PRODUCT DELIVERY with the mechanism (RLS with zero policies and zero client privileges; the tenant table and seed/inventory artifacts untouched), and never claims the exercise becomes visible in the application',
+check('D3: publication-versus-delivery precision, honestly scoped — the record states DATABASE PUBLICATION IS NOT PRODUCT DELIVERY with the mechanism (RLS with zero policies; table privileges stripped from the ORDINARY CLIENT roles anon/authenticated), documents the derived service_role boundary (zero catalog-table REVOKE/GRANT mentions across the migrations; platform-bootstrap table posture, deliberately ungated for fixture portability; function EXECUTE still denied), carries the dated round-1 correction disclosure with the preserved original commit, and never claims the exercise becomes visible in the application or repeats the retired broad claims',
   recFlat.includes('DATABASE PUBLICATION IS NOT PRODUCT DELIVERY')
-  && recFlat.includes('zero policies') && recFlat.includes('zero client privileges')
+  && recFlat.includes('zero policies')
+  && recFlat.includes('invisible to anon and authenticated')
+  && recFlat.includes('service_role sits OUTSIDE the table-visibility boundary BY DELIBERATE SCHEMA DESIGN')
+  && recFlat.includes('ZERO catalog-table REVOKE or GRANT statements')
+  && recFlat.includes('PLATFORM-BOOTSTRAP fact')
+  && recFlat.includes('false in the lawful bare fixture')
+  && recFlat.includes('disclosed fixture-posture observation')
   && recFlat.includes('seed_link_compatible') && recFlat.includes('remains false')
+  && recFlat.includes('Codex correction round 1 (2026-09-05)')
+  && recFlat.includes('neither rejected nor measured')
+  && recFlat.includes('is PRESERVED untouched; this correction is exactly ONE plain forward commit on top of it')
+  && recFlat.includes('NO hosted contact of any kind occurred during this correction')
+  // the retired broad claims are GONE from the factual body; the
+  // section-10 disclosure references each exactly twice — once
+  // quoting the original defect, once describing the narrowing —
+  // which is the supersession record
+  && !recFlat.slice(0, recFlat.indexOf('## 10.')).includes('zero client privileges')
+  && !recFlat.slice(0, recFlat.indexOf('## 10.')).includes('every ordinary client role')
+  && (recFlat.slice(recFlat.indexOf('## 10.')).match(/zero client privileges/g) || []).length === 2
+  && (recFlat.slice(recFlat.indexOf('## 10.')).match(/every ordinary client role/g) || []).length === 2
   && !recFlat.includes('becomes visible in the app')
   && !recFlat.includes('visible to users'))
 check('D4: the fingerprint-portability derivation is recorded — WHY the hosted-computed admission fingerprint is a lawful precondition literal (the manifest binds only portable state; the live suite proves the fixture reproduces it) while hosted surrogate snapshot UUIDs remain non-preconditions under the accepted fixture-portability rule',
@@ -420,6 +445,11 @@ check('F1: the live verifier exists, targets only disposable socket-only cluster
     if (!l.includes('UPDATE pg_auth_members SET grantor=')) return false
     if (!l.includes('ALL FOUR cluster-wide role baselines')) return false
     if (!l.includes('=== I. Cluster-wide restoration and fixture containment')) return false
+    // the service_role FIXTURE-POSTURE measurement (Codex round 1):
+    // measured in the bare fixture, labeled bootstrap-dependent,
+    // never presented as hosted evidence
+    if (!l.includes('FIXTURE-POSTURE measurement')) return false
+    if (!l.includes("has_table_privilege('service_role','public.exercise_catalog_relationships','SELECT')")) return false
     return !/supabase\.co|vercel\./.test(l)
   })())
 check('F2: the live one-use and race proofs key on the VECTOR gate — the script states why (a publication moves the count vector, unlike the review and admission packages) and greps for that refusal in both places',
@@ -431,23 +461,36 @@ check('F2: the live one-use and race proofs key on the VECTOR gate — the scrip
 
 console.log('\nG. Phase topology (two-state)')
 const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
+// The original preparation commit, PRESERVED untouched: the Codex
+// round-1 client-privilege-boundary correction is one further plain
+// forward commit on top of it, never an amend or rewrite. Its tree
+// is pinned here.
+const PREP = 'c6d1eee6ac1960970b55f968e45f2d86c6626ecf'
+const PREP_TREE = '1587488e251cedbfb57670a1769768a38a9999ab'
+const CORRECTED = [PKG, RECORD, VERIFIER, LIVE].map((p) => `M\t${p}`).sort()
 if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges',
+  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, PRESERVED with its exact tree, and the Codex round-1 boundary correction), 2 ahead / 0 behind, zero merges',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
+        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        for (const [child, parent] of [['HEAD', PREP], [PREP, SRC]]) {
+          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+          if (parents.length !== 2 || parents[1] !== parent) return false
+        }
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }
     })())
-  check('G2: exact phase inventory — the range carries exactly the four disclosed additions (package, record, static verifier, live verifier)',
+  check('G2: exact phase inventory — the range carries exactly the four disclosed additions (package, record, static verifier, live verifier), and the correction commit modifies exactly the four corrected phase files',
     (() => {
       const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
-      return JSON.stringify(status) === JSON.stringify(PHASE)
+      if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
+      const corr = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      return JSON.stringify(corr) === JSON.stringify(CORRECTED)
     })())
 } else {
   check('G1-G2 (uncommitted authoring state): every worktree change lies inside the four phase paths — nothing outside this phase is touched',

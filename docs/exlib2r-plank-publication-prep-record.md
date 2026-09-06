@@ -132,7 +132,8 @@ The ten questions the instruction requires answered, answered:
    draft; zero projected relationships anywhere; both target
    snapshots bound and unswapped; zero review events; zero
    runs/items; the 0/0 claims invariant; the exact admin-role
-   baseline; client denials.
+   baseline; the three-way function denial and the
+   anon/authenticated projection-table denial.
 5. THE SUCCESS POST-STATE: the content row published with every
    other field byte-identical and the fingerprint STILL fresh; the
    projection exactly the expected set in both directions; the
@@ -156,7 +157,8 @@ The ten questions the instruction requires answered, answered:
    relationships; the review-events log (zero); import runs and run
    items (zero); the tenant exercises table (84 rows,
    digest-identical); every seed and inventory repository artifact;
-   the claims invariant (0/0); the client-denial posture.
+   the claims invariant (0/0); the function and
+   ordinary-client-table denial posture.
 8. REVIEW EVENTS: a publication creates NONE. The
    exercise_catalog_review_events log is SNAPSHOT-scoped
    (catalog_id references exercise_catalog(id); its guard trigger
@@ -167,15 +169,36 @@ The ten questions the instruction requires answered, answered:
    plus the protected projection itself.
 9. DELIVERY: publication does NOT activate product delivery.
    DATABASE PUBLICATION IS NOT PRODUCT DELIVERY: the catalog tables
-   keep RLS enabled with zero policies and zero client privileges
-   (the package re-proves the function EXECUTE denials and the
-   projection-table SELECT denials at both ends), the tenant table
-   is untouched, and the delivery surface — the seed module and the
-   inventory seed_link_compatible flag, which remains false — is a
-   set of repository artifacts a SQL package cannot and does not
-   touch. This record never claims the exercise is deliverable or
-   client-readable after publication, because the committed schema
-   proves it is not.
+   keep RLS enabled with zero policies, and migrations 023/027
+   uniformly strip their table privileges from PUBLIC, anon, and
+   authenticated — the ORDINARY CLIENT roles — so a published
+   version remains invisible to anon and authenticated (the package
+   re-proves the three-way function EXECUTE denials and the
+   anon/authenticated projection-table SELECT denials at both
+   ends), the tenant table is untouched, and the delivery surface —
+   the seed module and the inventory seed_link_compatible flag,
+   which remains false — is a set of repository artifacts a SQL
+   package cannot and does not touch. THE service_role BOUNDARY,
+   derived from the committed migration bytes: service_role sits
+   OUTSIDE the table-visibility boundary BY DELIBERATE SCHEMA
+   DESIGN — it appears in ZERO catalog-table REVOKE or GRANT
+   statements across migrations 001-027 (every catalog-table REVOKE
+   names exactly PUBLIC, anon, authenticated), the repository
+   defines no default privileges for it, and it is the platform's
+   server-side authority, never shipped to clients. Its actual
+   table privilege is therefore a PLATFORM-BOOTSTRAP fact: false in
+   the lawful bare fixture (the live suite measures exactly that as
+   a disclosed fixture-posture observation), bootstrap-granted on
+   the hosted platform where service_role is the RLS-bypassing
+   server key. The package deliberately does NOT gate it — a
+   bootstrap-dependent table gate would be false in the fixture and
+   unevidenced on hosted, breaking the accepted fixture-portability
+   boundary — while service_role's FUNCTION posture is unambiguous
+   and IS gated: EXECUTE on publish_catalog_content is denied to it
+   in both the preconditions and the postconditions. This record
+   never claims the exercise is deliverable or client-readable
+   after publication, because the committed schema proves the
+   anon/authenticated boundary holds.
 10. SCHEMA CONTRADICTIONS: none found. Publication and relationship
     projection are ONE ATOMIC act by schema design (the swap happens
     inside publish_catalog_content; the freeze trigger structurally
@@ -227,7 +250,8 @@ pinned AND the complete promoted admission surface pinned — the
 fingerprint by promoted literal AND fresh recompute, the source SHA
 by promoted literal, admitted_at present — still draft, ZERO
 projected Plank relationships, zero review events, the 0/0 claims
-invariant, and client function AND projection-table denial);
+invariant, and the denial posture — three-way function EXECUTE,
+anon/authenticated projection-table SELECT);
 transaction-contained elevation with the structural two-grantor
 proof; EXACTLY ONE schema-qualified public.publish_catalog_content
 call captured into v_result with the ENTIRE returned JSONB asserted
@@ -238,7 +262,7 @@ value and the admission fingerprint STILL fresh, the exact
 projection in BOTH directions with the whole table at exactly two
 rows, the MOVED vector 3/3/5/3/6/1/2/2/0/0/0, zero review events,
 digest-identical untouched surfaces including the tenant table, the
-0/0 claims invariant, and the client denials again).
+0/0 claims invariant, and the same denial posture again).
 Transition-neutrality digests are md5 and are DISCLAIMED as
 change-detection between two readings inside one transaction, never
 a source binding; the content row and the relationships table are
@@ -361,8 +385,8 @@ becomes SPENT at its first successful hosted execution.
 
 - docs/exlib2r-plank-publication-package.sql — the exact byte count
   and SHA-256 are stated below and re-verified mechanically:
-  47,309 bytes, SHA-256
-  3a4089c9a821dba0cf136c940bdb2fa444f547e6b37411b4c3663d21dea18218.
+  48,913 bytes, SHA-256
+  96ade4887320df83a3032fbb3afcf9566ecc4436276ebe6a54e2af07727f68de.
 - Constructed values: NONE. Every literal in the package is
   re-derived from a promoted artifact (sections 1-3); the only new
   prose is gate wording and refusal messages.
@@ -374,3 +398,60 @@ promoted, not tagged; no hosted contact; no publication, projection,
 run, delivery, seed, or seed_link_compatible change (the flag
 remains false); no runtime, API, UI, dependency, or configuration
 change.
+
+## 10. Codex correction round 1 (2026-09-05) — the client-privilege
+## boundary
+
+Codex verified the bundle, topology, four-path inventory, and
+fingerprints exactly, and found ONE internal mismatch in the original
+preparation commit c6d1eee6ac1960970b55f968e45f2d86c6626ecf: the
+package and this record claimed the catalog tables retain "zero
+client privileges" and remain invisible to "every ordinary client
+role", while the projection-table SELECT denial gates covered only
+anon and authenticated — service_role's table posture was neither
+rejected nor measured, and both verifiers preserved the omission.
+
+The required derivation was performed FIRST, from the committed
+migration bytes: every catalog-table REVOKE in migrations 023 and 027
+names exactly PUBLIC, anon, authenticated (ten tables, uniformly);
+service_role appears in ZERO catalog-table REVOKE or GRANT statements
+anywhere in migrations 001-027; and the repository defines no default
+privileges. service_role's actual table privilege is therefore a
+PLATFORM-BOOTSTRAP fact — false in the lawful bare fixture,
+bootstrap-granted on the hosted platform where service_role is the
+RLS-bypassing server-side key — so adding a service_role
+table-denial gate to the package (the verdict's first path) would
+bind a bootstrap-dependent value that is false in the fixture and
+unevidenced on hosted, breaking the accepted fixture-portability
+boundary and risking a false hosted refusal. The verdict's second
+path was taken instead: every "zero client privileges" and "every
+ordinary client role" claim in the package and this record is
+NARROWED to anon/authenticated (the ordinary client roles — the
+exact boundary the migrations enforce), the service_role boundary is
+documented explicitly (section 3, answer 9, and the package header),
+the live verifier now MEASURES the fixture's service_role table
+posture as a disclosed fixture-posture observation (false in the
+bare fixture, labeled as bootstrap-dependent and never hosted
+evidence), and the static verifier enforces the narrowed language,
+the boundary documentation, and the deliberate ABSENCE of any
+service_role table gate. service_role's FUNCTION posture was always
+gated and remains gated: EXECUTE on publish_catalog_content is
+denied to anon, authenticated, AND service_role in both the
+preconditions and the postconditions.
+
+The EXECUTABLE GATE LOGIC IS UNCHANGED in scope: no lock, argument,
+vector pin, payload literal, admission pin, projection assertion, or
+authority statement changed; the only executable-text changes are
+the two projection-table refusal-message literals (now naming anon
+or authenticated) and the function-denial refusal messages (now
+saying "a client role"), plus comment and prose corrections. The
+original preparation commit c6d1eee6... (tree 1587488e...) is
+PRESERVED untouched; this correction is exactly ONE plain forward
+commit on top of it, touching exactly the four phase files (package,
+this record, both verifiers). The package fingerprint in section 8
+is refreshed to the corrected bytes; the static totals are unchanged
+(33/0 committed) and the live suite gains exactly ONE disclosed
+fixture-posture measurement check (117/0 becomes 118/0). NO hosted
+contact of any kind occurred during this correction; the package
+remains PREPARED — NOT EXECUTED and its one-use semantics are
+unchanged.

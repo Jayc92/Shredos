@@ -307,8 +307,21 @@ printf '%s' "$D3OUT" | grep -q 'permission denied to set role' \
   || bad "D13: forbidden run state appeared"
 PRIV=$(Q "SELECT has_function_privilege('anon','public.publish_catalog_content($PUB_SIG)','EXECUTE')::text||'/'||has_function_privilege('authenticated','public.publish_catalog_content($PUB_SIG)','EXECUTE')::text||'/'||has_function_privilege('service_role','public.publish_catalog_content($PUB_SIG)','EXECUTE')::text||'/'||has_table_privilege('anon','public.exercise_catalog_relationships','SELECT')::text||'/'||has_table_privilege('authenticated','public.exercise_catalog_relationships','SELECT')::text")
 [ "$PRIV" = "false/false/false/false/false" ] \
-  && ok "D14: the publication function AND the protected projection table remain locked away from every ordinary client role - a published version is still invisible to clients (delivery is a separate, later act)" \
-  || bad "D14: client posture wrong ($PRIV)"
+  && ok "D14: the denial posture holds after publication - the function EXECUTE is denied to anon, authenticated, AND service_role, and the protected projection stays unreadable by anon and authenticated, the ORDINARY CLIENT roles (the exact boundary migrations 023/027 enforce) - a published version is still invisible to ordinary clients (delivery is a separate, later act)" \
+  || bad "D14: denial posture wrong ($PRIV)"
+# FIXTURE-POSTURE measurement (Codex round 1, disclosed): the bare
+# fixture defines no default privileges and grants service_role
+# nothing, so its projection-table SELECT reads FALSE here. This is
+# a FIXTURE fact, measured and disclosed - NOT hosted evidence: on
+# the hosted platform service_role's table privileges are
+# bootstrap-granted (the RLS-bypassing server-side key), which is
+# exactly why the package deliberately carries NO service_role table
+# gate (fixture portability) while still denying it EXECUTE on the
+# publication function above.
+SRV_TBL=$(Q "SELECT has_table_privilege('service_role','public.exercise_catalog_relationships','SELECT')::text")
+[ "$SRV_TBL" = "false" ] \
+  && ok "D14b: FIXTURE-POSTURE measurement - service_role's projection-table SELECT reads false in this bare fixture (no bootstrap grants exist here); measured and disclosed as a fixture fact, never as hosted evidence, and deliberately NOT a package gate" \
+  || bad "D14b: fixture service_role table posture unexpected ($SRV_TBL)"
 grep -q 'exlib2r publication result:' "$TMP/2r.out" \
   && grep -q '"projected_relationships"[[:space:]]*:[[:space:]]*2' "$TMP/2r.out" \
   && grep -q '"retired"[[:space:]]*:[[:space:]]*null' "$TMP/2r.out" \
