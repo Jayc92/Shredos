@@ -82,10 +82,17 @@ async function main(): Promise<void> {
         return r.review_status === 'proposed' &&
           !Object.keys(r).some((k) => k.includes('publication'))
       })())
-    check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; RETARGET (EXLIB-2M migration-027 apply-prep): the migrations-exactly-26-with-NO-027 inventory is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027; zero src delivery references remain live',
+    check('A3: product boundary — seed and inventory anchored at the delivery predecessor, review ledger and eligibility artifacts blob-identical to the source tip; RETARGET (EXLIB-2M migration-027 apply-prep): the migrations-exactly-26-with-NO-027 inventory is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027; zero src delivery references remain live',
       (() => {
-        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
-          'docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare source-blob vs the anchored
+        // delivery-predecessor blob; the rest stay live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of ['docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
           const now = execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim()
           const tip = execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim()
           if (now !== tip) return false

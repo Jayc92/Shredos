@@ -227,18 +227,28 @@ async function main(): Promise<void> {
       recFlat.includes('Two initial post-execution verification queries used incorrect INFERRED table/column names and failed READ-ONLY') &&
       recFlat.includes('They performed no mutation of any kind') &&
       recFlat.includes('corrected verification queries were derived from the committed package and migration-027 schema and passed'))
-    check('D5: boundaries hold — the frozen set is blob-identical to the promoted correction tip, the Plank inventory row stays seed_link_compatible false, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D5: boundaries held through this milestone — the frozen set (delivery paths anchored at the delivery predecessor), the Plank inventory row seed_link_compatible false at the anchor, and the range through the anchored predecessor touching only docs/ and scripts/verify-* paths',
       (() => {
-        for (const p of [ARTIFACT, 'src/lib/supabase/seed-exercises.ts',
-          'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare source-blob vs the anchored
+        // delivery-predecessor blob (the promoted EXLIB-2R evidence
+        // tip), where this claim was and remains true; every other
+        // frozen path stays live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of [ARTIFACT, 'docs/exlib1b1-review-ledger.jsonl',
           'docs/exlib1c0a-equipment-resolution.jsonl', 'package.json',
           'docs/exlib2j-plank-import-eligibility-admission-record.md']) {
           if (!frozenVsSource(p)) return false
         }
-        const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+          .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${DELIVERY_PRED}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p)) &&
           recFlat.includes('seed_link_compatible remains false') &&

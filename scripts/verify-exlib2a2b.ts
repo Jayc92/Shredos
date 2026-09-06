@@ -41,7 +41,14 @@ const BASELINE = 'c42ce05ac085ccf78b570aba8b81fd3d1060ea93'
 const rec = read(RECORD)
 const recFlat = rec.replace(/\s+/g, ' ')
 const matrix = read(MATRIX)
-const inv = parseJsonl(INVENTORY)
+// RETARGET (EXLIB-2S delivery-activation preparation): this suite's
+// inventory analysis is anchored at the promoted EXLIB-2R evidence
+// tip (the delivery-activation predecessor) — byte-identical to the
+// inventory this milestone created and analyzed; EXLIB-2S later
+// flips exactly the Plank seed_link_compatible field as its own
+// reviewed act.
+const inv = execSync(`git show 5f7e182f3027b3640514e06d642693f4018c03e2:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const schema = JSON.parse(read(SCHEMA))
 
 async function main(): Promise<void> {
@@ -338,9 +345,12 @@ async function main(): Promise<void> {
     // REVISED (EXLIB-2A/2B review correction): name coverage and
     // link compatibility are distinct, both recomputed from the LIVE
     // seed module (name + tracking_mode + equipment).
-    check('D4: seed analysis is exact and mechanical — all 15 seed names covered exactly once, but only 14 are link-compatible (name+tracking+equipment agree with the live seed); Plank is the sole incompatible entry (seed bodyweight vs catalog timed), and every inventory compatibility flag matches the recomputation',
+    check('D4: seed analysis is exact and mechanical (anchored at the delivery predecessor) — all 15 seed names covered exactly once, but only 14 were link-compatible then (name+tracking+equipment agreement); Plank is the sole incompatible entry (seed bodyweight vs catalog timed), and every inventory compatibility flag matches the recomputation',
       (() => {
-        const seedSrc = read('src/lib/supabase/seed-exercises.ts')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // is anchored at the delivery predecessor, where this
+        // milestone's analysis was and remains true.
+        const seedSrc = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts', { encoding: 'utf8', maxBuffer: 1 << 26 })
         const seedFacts = new Map<string, { equipment: string; tracking: string }>()
         Array.from(seedSrc.matchAll(
           /\{ name: "([^"]+)",\s*category: "[^"]*",\s*primary_muscle: "[^"]*",\s*equipment: "([^"]*)",\s*tracking_mode: "([^"]*)"/g))

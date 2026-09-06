@@ -218,11 +218,15 @@ check('E3: no UUID swap — the completed forms bind Dead bug to ...0002 and Ab 
     return db.intended_logical_uuid === DB_UUID && aw.intended_logical_uuid === AW_UUID
       && rec.includes(`Dead bug = ${DB_UUID}`) && rec.includes(`rollout = ${AW_UUID}`)
   })())
-check('E4: Plank is a separate, untouched population — the admitted Plank artifact stays byte-frozen with its own promoted admission, and the frozen inventory and ledger are untouched',
+check('E4: Plank is a separate, untouched population — the admitted Plank artifact stays byte-frozen with its own promoted admission, and the frozen inventory (anchored at the delivery predecessor) and ledger are untouched',
   (() => {
     const a = bytesOf('docs/exlib2g-plank-content.jsonl')
     if (a.length !== 2928 || sha256(a) !== 'd82078490efa9ef13e128e7b7b742fbda8ea9e74e32382252d96c326c679d752') return false
-    if (sha256(bytesOf('docs/exlib2b-release1-inventory.jsonl')) !== 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5') return false
+    // RETARGET (EXLIB-2S delivery-activation preparation): the
+    // inventory is anchored at the promoted EXLIB-2R evidence tip
+    // (the delivery-activation predecessor), where its pinned bytes
+    // were and remain exactly this fingerprint.
+    if (sha256(blobAt('5f7e182f3027b3640514e06d642693f4018c03e2', 'docs/exlib2b-release1-inventory.jsonl')) !== 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5') return false
     return sha256(bytesOf('docs/exlib1b1-review-ledger.jsonl')) === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b'
   })())
 

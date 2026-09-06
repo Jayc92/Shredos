@@ -533,10 +533,16 @@ check('E1: the R6 admission verifier carries the exact EXLIB-2O retarget label w
     return bytesOf('scripts/verify-exlib2n-application.ts')
       .equals(blobAt(SRC, 'scripts/verify-exlib2n-application.ts'))
   })())
-check('E2: upstream authorities untouched — the admitted Plank artifact, both batch files, both forms, the schema, the inventory, and the ledger are byte-identical to the promoted source tip',
+check('E2: upstream authorities untouched — the admitted Plank artifact, both batch files, both forms, the schema, the inventory (anchored at the delivery predecessor), and the ledger byte-identical to the promoted source tip',
   (() => {
+    // RETARGET (EXLIB-2S delivery-activation preparation): the
+    // inventory is compared source-blob vs the anchored
+    // delivery-predecessor blob (the promoted EXLIB-2R evidence tip),
+    // where this claim was and remains true; the rest stay live.
+    const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+    if (!blobAt(DELIVERY_PRED, 'docs/exlib2b-release1-inventory.jsonl').equals(blobAt(SRC, 'docs/exlib2b-release1-inventory.jsonl'))) return false
     for (const p of ['docs/exlib2g-plank-content.jsonl', B02, B04, DB_FORM.path, AW_FORM.path,
-      'docs/exlib2c-authoring-schema.json', 'docs/exlib2b-release1-inventory.jsonl',
+      'docs/exlib2c-authoring-schema.json',
       'docs/exlib1b1-review-ledger.jsonl']) {
       if (!bytesOf(p).equals(blobAt(SRC, p))) return false
     }

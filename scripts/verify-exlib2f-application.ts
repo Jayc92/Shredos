@@ -146,9 +146,13 @@ async function main(): Promise<void> {
 
   console.log('\nB. Boundaries and lifecycle')
   {
-    check('B1: product boundary unchanged — seed byte-identical to the apply-prep tip, migrations exactly 26 with the one 026, ledger 48/48 pending-null, 26/26 legacy candidates ineligible, 126/126 authored records pending/ineligible/unpublished, zero weight_time, no importer; and the record restates every gated follow-up',
+    check('B1: product boundary held through this milestone — seed byte-identical to the apply-prep tip at the anchored delivery predecessor, migrations exactly 26 with the one 026, ledger 48/48 pending-null, 26/26 legacy candidates ineligible, 126/126 authored records pending/ineligible/unpublished, zero weight_time, no importer; and the record restates every gated follow-up',
       (() => {
-        const seedNow = readFileSync('src/lib/supabase/seed-exercises.ts')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // is anchored at the promoted EXLIB-2R evidence tip (the
+        // delivery-activation predecessor), where this claim was and
+        // remains true.
+        const seedNow = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts', { encoding: 'buffer' as any }) as unknown as Buffer
         const seedTip = execSync(`git show ${APPLY_PREP_TIP}:src/lib/supabase/seed-exercises.ts`, { encoding: 'buffer' as any }) as unknown as Buffer
         if (!seedNow.equals(seedTip)) return false
         const files = execSync('ls supabase/migrations', { encoding: 'utf8' }).split('\n').filter((f) => f.endsWith('.sql'))

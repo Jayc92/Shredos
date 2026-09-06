@@ -429,10 +429,20 @@ check('H1: no phase file contains credential material, hosted connection strings
     }
     return true
   })())
-check('H2: the frozen product surface is untouched — seed module, inventory, review ledger, package.json, and the batch artifacts are blob-identical to the promoted source tip',
+check('H2: the frozen product surface held through this milestone (delivery paths anchored at the delivery predecessor) — seed module, inventory, review ledger, package.json, and the batch artifacts are blob-identical to the promoted source tip',
   (() => {
-    for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
-      'docs/exlib1b1-review-ledger.jsonl', 'package.json',
+    // RETARGET (EXLIB-2S delivery-activation preparation): the Plank
+    // delivery activation legitimately changes the seed module and
+    // the inventory Plank row AFTER this suite's milestone; those two
+    // paths compare SRC-blob vs the anchored delivery-predecessor
+    // blob (the promoted EXLIB-2R evidence tip), where this claim was
+    // and remains true; every other frozen path stays live.
+    const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+    for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+      if (execSync(`git rev-parse "${SRC}:${p}"`, { encoding: 'utf8' }).trim() !==
+          execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+    }
+    for (const p of ['docs/exlib1b1-review-ledger.jsonl', 'package.json',
       'docs/exlib2c-release1-batch02-content.jsonl', 'docs/exlib2c-release1-batch04-content.jsonl']) {
       const live = execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim()
       const at = execSync(`git rev-parse "${SRC}:${p}"`, { encoding: 'utf8' }).trim()

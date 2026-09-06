@@ -423,11 +423,19 @@ async function main(): Promise<void> {
           'exlib_revoke_run_delivery', 'exlib_approve_and_seal_run', 'exlib_block_delivered_exercise_delete']
           .every((n) => !prop.includes(`FUNCTION ${n}`))
       })())
-    check('F3: the activation state machine is untouched — seed byte-frozen (bodyweight Plank), inventory byte-frozen with seed_link_compatible false, and the proposal states why 026 behavior is unchanged (also live-proven by post-application delivery/rollback)',
+    check('F3: the activation state machine held through this milestone — seed byte-frozen (bodyweight Plank) and inventory byte-frozen with seed_link_compatible false at the anchored delivery predecessor, and the proposal states why 026 behavior is unchanged (also live-proven by post-application delivery/rollback)',
       (() => {
-        if (!frozenVsSource('src/lib/supabase/seed-exercises.ts')) return false
-        if (!frozenVsSource('docs/exlib2b-release1-inventory.jsonl')) return false
-        const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths are anchored at the promoted EXLIB-2R
+        // evidence tip (the delivery-activation predecessor), where
+        // this milestone's claim was and remains true.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+          .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         return propProse.includes('Migration 026 behavior is untouched: no 026 object is modified') &&

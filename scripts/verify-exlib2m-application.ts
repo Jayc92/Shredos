@@ -192,14 +192,24 @@ async function main(): Promise<void> {
 
   console.log('\nC. Boundaries, retarget lifecycle, and phase inventory')
   {
-    check('C1: product boundary unchanged — seed, inventory (Plank seed_link_compatible false), ledger 48/48 pending-null, legacy eligibility 26/26 false, and the admitted Plank artifact (2,928 B / d8207849..., approved by Nick Tkacz, import_eligible true, review_status proposed) all blob-identical to the apply-prep tip',
+    check('C1: product boundary held through this milestone — seed and inventory anchored at the delivery predecessor (Plank seed_link_compatible false at the anchor), ledger 48/48 pending-null, legacy eligibility 26/26 false, and the admitted Plank artifact (2,928 B / d8207849..., approved by Nick Tkacz, import_eligible true, review_status proposed) all blob-identical to the apply-prep tip',
       (() => {
-        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
-          'docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl',
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare apply-prep-tip blob vs the anchored
+        // delivery-predecessor blob (the promoted EXLIB-2R evidence
+        // tip), where this claim was and remains true; every other
+        // frozen path stays live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${APPLY_PREP_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of ['docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl',
           'docs/exlib2g-plank-content.jsonl', 'package.json']) {
           if (!frozenVsTip(p)) return false
         }
-        const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+          .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         const led = parseJsonl('docs/exlib1b1-review-ledger.jsonl')

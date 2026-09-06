@@ -217,21 +217,31 @@ async function main(): Promise<void> {
 
   console.log('\nD. Boundaries, posture, and lifecycle (proofs 11-13)')
   {
-    check('D1: no seed, inventory, eligibility, ledger, runtime, or config change — the frozen set is blob-identical to the promoted tip, and the phase touches only docs/ and scripts/verify-* paths (proof 11)',
+    check('D1: no seed, inventory, eligibility, ledger, runtime, or config change through this milestone — the frozen set held (delivery paths anchored at the delivery predecessor), and the range through the anchored predecessor touches only docs/ and scripts/verify-* paths (proof 11)',
       (() => {
-        for (const p of [ARTIFACT, 'src/lib/supabase/seed-exercises.ts',
-          'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare source-blob vs the anchored
+        // delivery-predecessor blob (the promoted EXLIB-2R evidence
+        // tip), where this claim was and remains true; every other
+        // frozen path stays live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of [ARTIFACT, 'docs/exlib1b1-review-ledger.jsonl',
           'docs/exlib1c0a-equipment-resolution.jsonl', 'package.json',
           'docs/exlib2j-plank-import-eligibility-admission-record.md']) {
           if (!frozenVsSource(p)) return false
         }
-        const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+          .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         if (art.import_eligible !== true || art.content_review.status !== 'approved' ||
           art.content_review.reviewer !== 'Nick Tkacz' || art.review_status !== 'proposed') return false
         if (Object.keys(art).some((k) => k.includes('publication'))) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${DELIVERY_PRED}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())

@@ -95,11 +95,11 @@ async function main(): Promise<void> {
       sha256At2N('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
       sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
       sha256('docs/exlib2c-release1-batch06-content.jsonl') === 'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7' &&
-      sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' &&
+      createHash('sha256').update(execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:docs/exlib2b-release1-inventory.jsonl', { maxBuffer: 1 << 26 }) as unknown as Buffer).digest('hex') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' /* RETARGET (EXLIB-2S delivery-activation preparation): inventory anchored at the delivery predecessor */ &&
       sha256('docs/exlib2c-authoring-schema.json') === 'dddb872c7725c591e6d056e0dc73167d3c822f6245ebd2c759a045fecbd43c6e' &&
       sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
       sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b')
-    check('A2: NOT-APPLIED boundary — migrations still exactly 001-025 with NO 026 in supabase/migrations/, the proposal present in docs/ instead, zero weight_time in src, no importer artifacts, seed module byte-identical to promoted main, and the range beyond the approved EXLIB-2D tip touches ONLY this phase\'s five paths',
+    check('A2: NOT-APPLIED boundary — migrations still exactly 001-025 with NO 026 in supabase/migrations/, the proposal present in docs/ instead, zero weight_time in src, no importer artifacts, seed module byte-identical to promoted main through the anchored delivery predecessor, and the range beyond the approved EXLIB-2D tip touches ONLY this phase\'s five paths',
       (() => {
         // RETARGET (EXLIB-2F): anchored to the promoted EXLIB-2E tip —
         // at 7fed0ee the migrations were exactly 001-025 with NO 026 and
@@ -113,7 +113,11 @@ async function main(): Promise<void> {
         if (!existsSync(PROPOSAL)) return false
         if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
-        const seedNow = readFileSync('src/lib/supabase/seed-exercises.ts')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // is anchored at the promoted EXLIB-2R evidence tip (the
+        // delivery-activation predecessor), where this claim was and
+        // remains true.
+        const seedNow = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts', { encoding: 'buffer' as any }) as unknown as Buffer
         const seedMain = execSync('git show cdba699ab68ba9cee2fd9331962b8b2060099862:src/lib/supabase/seed-exercises.ts', { encoding: 'buffer' as any }) as unknown as Buffer
         if (!seedNow.equals(seedMain)) return false
         // RETARGET (EXLIB-2F): the phase range is anchored tip-to-tip

@@ -76,6 +76,15 @@ const CANON_ORDER = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_c
   'exercise_catalog_aliases', 'exercise_catalog_name_claims', 'exercise_catalog_content',
   'exercise_catalog_content_expected_relationships', 'exercise_catalog_relationships',
   'exercise_catalog_import_runs', 'exercise_catalog_run_items', 'exercise_catalog_review_events']
+// RETARGET (EXLIB-2S delivery-activation preparation): the Plank
+// delivery activation legitimately changes the seed module and the
+// inventory Plank row AFTER this suite's own milestone; this suite's
+// seed/inventory claims and its live-range boundary are therefore
+// anchored to the promoted EXLIB-2R evidence tip (the
+// delivery-activation predecessor), where they were and remain true.
+// Assertion strength is unchanged: the bytes at the anchor are
+// exactly what the live bytes were before the delivery activation.
+const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
 
 const rec = read(RECORD)
 const recFlat = rec.replace(/\s+/g, ' ')
@@ -337,18 +346,25 @@ async function main(): Promise<void> {
       recFlat.includes('publish_catalog_content (role exlib_catalog_admin) was never invoked') &&
       recFlat.includes('relationship projection and delivery activation likewise remain separately gated') &&
       recFlat.includes('This record itself approves NOTHING further'))
-    check('D4: boundaries hold — the frozen set is blob-identical to the promoted tip (seed module, inventory, ledger, package.json, both batch artifacts), the Plank inventory row stays seed_link_compatible false, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D4: boundaries hold — the frozen set is blob-identical to the promoted tip (seed module, inventory, ledger, package.json, both batch artifacts), the Plank inventory row stayed seed_link_compatible false through this milestone, and the phase range through the anchored delivery predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2S delivery-activation preparation))',
       (() => {
-        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
-          'docs/exlib1b1-review-ledger.jsonl', 'package.json',
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare SRC-blob vs the anchored
+        // delivery-predecessor blob; every other frozen path stays live.
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of ['docs/exlib1b1-review-ledger.jsonl', 'package.json',
           'docs/exlib2c-release1-batch02-content.jsonl', 'docs/exlib2c-release1-batch04-content.jsonl']) {
           if (!frozenVsSource(p)) return false
         }
-        const inv = read('docs/exlib2b-release1-inventory.jsonl').split('\n')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`,
+          { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
           .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${DELIVERY_PRED}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())

@@ -34,6 +34,19 @@ import type { MuscleTarget } from "@/lib/exercise-validation"
 //                             example refinement)
 //   - Plank:                  primary core -> abs; secondary
 //                             obliques added
+//
+// EXLIB-2S delivery activation (the promoted activation design's
+// seed-flip event): the Plank seed entry now carries the PUBLISHED
+// catalog identity — tracking_mode timed (derived exercise_type
+// mobility, migration 010's map) and the approved anatomy
+// {(obliques, secondary), (lower_back, tertiary)} — matching the
+// hosted-published Plank content version exactly at every field this
+// module expresses. The seed delivers the identity only: the
+// published instructional payload and the two projected
+// relationships (progression -> Ab wheel rollout, substitution ->
+// Dead bug) are catalog facts, not expressible as seed rows.
+// seed_link_compatible flips to true in the SAME commit (the
+// design's same-commit rule).
 //   - Chest fly / Leg press / Leg curl / Leg extension / Biceps curl
 //     / Triceps pushdown:     unchanged (no fabricated precision)
 export const SEED_EXERCISES: ReadonlyArray<{
@@ -73,8 +86,8 @@ export const SEED_EXERCISES: ReadonlyArray<{
     muscle_targets: [] },
   { name: "Triceps pushdown",       category: "isolation", primary_muscle: "triceps",     equipment: "cable",      tracking_mode: "weight_reps", unilateral: false,
     muscle_targets: [] },
-  { name: "Plank",                  category: "isolation", primary_muscle: "abs",         equipment: "bodyweight", tracking_mode: "bodyweight",  unilateral: false,
-    muscle_targets: [{ muscle: "obliques", role: "secondary" }] },
+  { name: "Plank",                  category: "isolation", primary_muscle: "abs",         equipment: "bodyweight", tracking_mode: "timed",       unilateral: false,
+    muscle_targets: [{ muscle: "obliques", role: "secondary" }, { muscle: "lower_back", role: "tertiary" }] },
 ] as const
 
 /**

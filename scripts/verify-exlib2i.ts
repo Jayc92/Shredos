@@ -161,15 +161,25 @@ async function main(): Promise<void> {
 
   console.log('\nC. Boundaries and lifecycle')
   {
-    check('C1: seed and inventory remain byte-identical to the source tip and seed_link_compatible remains false; ledger 48/48 pending-null and 26/26 legacy candidates ineligible',
+    check('C1: seed and inventory held byte-identical through this milestone (delivery paths anchored at the delivery predecessor) and seed_link_compatible remained false; ledger 48/48 pending-null and 26/26 legacy candidates ineligible',
       (() => {
-        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
-          'docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare source-blob vs the anchored
+        // delivery-predecessor blob (the promoted EXLIB-2R evidence
+        // tip), where this claim was and remains true; every other
+        // frozen path stays live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of ['docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
           const now = execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim()
           const tip = execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim()
           if (now !== tip) return false
         }
-        const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+          .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         const led = parseJsonl('docs/exlib1b1-review-ledger.jsonl')

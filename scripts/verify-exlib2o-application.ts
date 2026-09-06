@@ -329,14 +329,21 @@ async function main(): Promise<void> {
       recFlat.includes('preserved precisely, not "fixed"') &&
       recFlat.includes('UNADJUDICATED and OUTSIDE EXLIB-2O') &&
       recFlat.includes('NOT introduced by this load, NOT fixed by it, and NOT accepted by this record'))
-    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row stays seed_link_compatible false, tenant 84 unchanged, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row seed_link_compatible false at the anchored delivery predecessor, tenant 84 unchanged, and the range through the anchored predecessor touching only docs/ and scripts/verify-* paths',
       (() => {
-        for (const p of [PREP_RECORD, LIVE, 'src/lib/supabase/seed-exercises.ts',
-          'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
+        // RETARGET (EXLIB-2S delivery-activation preparation): the two
+        // delivery-surface paths compare source-blob vs the anchored
+        // delivery-predecessor blob; every other frozen path stays live.
+        const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+          if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
+              execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
+        }
+        for (const p of [PREP_RECORD, LIVE, 'docs/exlib1b1-review-ledger.jsonl',
           'package.json', 'docs/exlib2k-hosted-load-application-record.md']) {
           if (!frozenVsSource(p)) return false
         }
-        const inv = read('docs/exlib2b-release1-inventory.jsonl').split('\n')
+        const inv = execSync(`git show ${DELIVERY_PRED}:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
           .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
@@ -345,7 +352,7 @@ async function main(): Promise<void> {
         if (!recFlat.includes('ZERO projected relationships')) return false
         if (!recFlat.includes('exercises table remained exactly 84 rows, unchanged')) return false
         if (!recFlat.includes('seed_link_compatible remains false')) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..${DELIVERY_PRED}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p)) &&
           recFlat.includes('Zero import runs, zero run items, zero review events')

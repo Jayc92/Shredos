@@ -57,7 +57,13 @@ const PHASE_NEW = [RECORD, CONTENT, VERIFIER].sort()
 
 const rec = read(RECORD)
 const recFlat = rec.replace(/\s+/g, ' ')
-const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+// RETARGET (EXLIB-2S delivery-activation preparation): this suite's
+// inventory analysis is anchored at the promoted EXLIB-2R evidence
+// tip (the delivery-activation predecessor) — byte-identical to the
+// inventory this milestone analyzed; EXLIB-2S later flips exactly
+// the Plank seed_link_compatible field as its own reviewed act.
+const inv = execSync(`git show 5f7e182f3027b3640514e06d642693f4018c03e2:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 const corpus: any[] = []
 // RETARGET (EXLIB-2N review-decision application): corpus batches 2
 // and 4 anchored to the promoted 2N tip (pending there); the other
@@ -107,13 +113,16 @@ async function main(): Promise<void> {
           sha256At2N('docs/exlib2c-release1-batch04-content.jsonl') === 'e7def375e9b9560863796bff90746dc6ff2b2f7c4bd7735a3d53fc2cc9750568' &&
           sha256('docs/exlib2c-release1-batch05-content.jsonl') === '404722f1211e45c3b89ac8a32cceb617b958388c034b797dd2bba009aa127e5d' &&
           sha256('docs/exlib2c-release1-batch06-content.jsonl') === 'ec0760be401bb1d4c479d340369d6b6b690acf57f2f7a0f7fbeeaa2cf40ab5d7' &&
-          sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' &&
+          createHash('sha256').update(execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:docs/exlib2b-release1-inventory.jsonl', { maxBuffer: 1 << 26 }) as unknown as Buffer).digest('hex') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' /* RETARGET (EXLIB-2S delivery-activation preparation): inventory anchored at the delivery predecessor */ &&
           sha256('docs/exlib2c-authoring-schema.json') === 'dddb872c7725c591e6d056e0dc73167d3c822f6245ebd2c759a045fecbd43c6e' &&
           sha256('docs/exlib1b1-review-ledger.jsonl') === 'aa4fe77c0c633510661eede94b40e9bae4aca90a7d8c2794abde92c83c6f7b7b'
       })())
-    check('A2: the current seed Plank is UNCHANGED — the seed module is byte-identical to the source tip, and the Plank entry still reads tracking_mode bodyweight with anatomy exactly {(obliques, secondary)}',
+    check('A2: the seed Plank was UNCHANGED through this milestone (anchored at the delivery predecessor) — byte-identical to the source tip, the Plank entry reading tracking_mode bodyweight with anatomy exactly {(obliques, secondary)}',
       (() => {
-        const seedNow = readFileSync('src/lib/supabase/seed-exercises.ts')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // is anchored at the delivery predecessor, where this claim
+        // was and remains true.
+        const seedNow = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts', { encoding: 'buffer' as any }) as unknown as Buffer
         const seedTip = execSync(`git show ${SOURCE_TIP}:src/lib/supabase/seed-exercises.ts`, { encoding: 'buffer' as any }) as unknown as Buffer
         if (!seedNow.equals(seedTip)) return false
         const seed = seedNow.toString('utf8')
@@ -124,11 +133,11 @@ async function main(): Promise<void> {
           block.includes('muscle_targets: [{ muscle: "obliques", role: "secondary" }]') &&
           !block.includes('lower_back') && !block.includes('"timed"')
       })())
-    check('A3: seed_link_compatible remains FALSE in the authoritative inventory, which is byte-frozen (so no other inventory identity changed either)',
+    check('A3: seed_link_compatible remained FALSE through this milestone in the authoritative inventory (anchored at the delivery predecessor), which is byte-frozen there (so no other inventory identity changed either)',
       (() => {
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
-        return sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5'
+        return createHash('sha256').update(execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:docs/exlib2b-release1-inventory.jsonl', { maxBuffer: 1 << 26 }) as unknown as Buffer).digest('hex') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' /* RETARGET (EXLIB-2S delivery-activation preparation): inventory anchored at the delivery predecessor */
       })())
     check('A4: no runtime delivery wiring (zero src references to deliver_catalog_exercises), and the seeding call sites are unchanged — RETARGET (EXLIB-2M migration-027 apply-prep): the no-migration-027/exactly-26 inventory is anchored to the promoted EXLIB-2G tip (b9af2a4), where it was true; EXLIB-2M later prepares (never applies) 027',
       (() => {

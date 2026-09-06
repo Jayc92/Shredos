@@ -58,7 +58,13 @@ const SEED = 'src/lib/supabase/seed-exercises.ts'
 const recDoc = read(RECORD)
 const recFlat = recDoc.replace(/\s+/g, ' ')
 const matrixDoc = read(MATRIX)
-const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
+// RETARGET (EXLIB-2S delivery-activation preparation): this suite's
+// inventory analysis is anchored at the promoted EXLIB-2R evidence
+// tip (the delivery-activation predecessor) — byte-identical to the
+// inventory this milestone analyzed; EXLIB-2S later flips exactly
+// the Plank seed_link_compatible field as its own reviewed act.
+const inv = execSync(`git show 5f7e182f3027b3640514e06d642693f4018c03e2:"docs/exlib2b-release1-inventory.jsonl"`, { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n')
+  .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
 
 async function main(): Promise<void> {
   console.log('EXLIB-2D verification (Plank reconciliation design, planning only)')
@@ -75,7 +81,7 @@ async function main(): Promise<void> {
       sha256('docs/exlib2c-release1-batch01-style-standard.md') === '3bdf2f71a0be8aa41ce1a7b6ca149a1d33342b7ff8ea381c8e92686c030a75f1' &&
       sha256('docs/exlib2a-catalog-architecture-record.md') === 'de825ddf18260a877651e426c8436709257c9100e3dfcbd994e3b9e2496191d8' &&
       sha256('docs/exlib2b-release1-coverage-matrix.md') === 'c32b7b9e9d3aafab39a9a6d77db09349dd604457274767fe4c880c6bf1fb2fb0' &&
-      sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' &&
+      createHash('sha256').update(execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:docs/exlib2b-release1-inventory.jsonl', { maxBuffer: 1 << 26 }) as unknown as Buffer).digest('hex') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5' /* RETARGET (EXLIB-2S delivery-activation preparation): inventory anchored at the delivery predecessor */ &&
       sha256('docs/exlib2c-authoring-schema.json') === 'dddb872c7725c591e6d056e0dc73167d3c822f6245ebd2c759a045fecbd43c6e' &&
       sha256('supabase/migrations/025_exlib_equipment_vocabulary_support.sql') === 'fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c' &&
       sha256('docs/exlib1a-discovery-manifest.jsonl') === '336cd4253f747cdb3ba73ffa2af5a63e255c7c87cc452d4c43ed59a654673dfa' &&
@@ -162,9 +168,12 @@ async function main(): Promise<void> {
 
   console.log('\nB. Mismatch facts and contract reconciliation')
   {
-    check('B1: the LIVE seed Plank remains bodyweight/bodyweight, the seed module is byte-identical to promoted main, and the idempotent count-guard seeding model is unchanged',
+    check('B1: the seed Plank remained bodyweight/bodyweight through this milestone (anchored at the delivery predecessor), the seed module byte-identical to promoted main, and the idempotent count-guard seeding model is unchanged',
       (() => {
-        const seed = read(SEED)
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // is anchored at the delivery predecessor, where this claim
+        // was and remains true.
+        const seed = execSync(`git show 5f7e182f3027b3640514e06d642693f4018c03e2:${SEED}`, { encoding: 'utf8' })
         const plankLine = seed.split('\n').find((l) => l.includes('"Plank"'))
         if (!plankLine) return false
         if (!/tracking_mode:\s*"bodyweight"/.test(plankLine)) return false
@@ -174,7 +183,7 @@ async function main(): Promise<void> {
         const promoted = execSync(`git show ${BATCH6_TIP}:${SEED}`, { encoding: 'utf8' })
         return promoted === seed
       })())
-    check('B2: the promoted catalog Plank remains bodyweight/timed with seed_link_compatible:false, Plank is unauthored, ordinary authoring stays exactly 126/126, and the eight weight_time entries stay deferred',
+    check('B2: the promoted catalog Plank at this milestone reads bodyweight/timed with seed_link_compatible:false (anchored at the delivery predecessor), Plank is unauthored, ordinary authoring stays exactly 126/126, and the eight weight_time entries stay deferred',
       (() => {
         const plank = inv.find((r) => r.normalized_name === 'plank')
         if (!plank || plank.deferred !== false) return false

@@ -283,9 +283,13 @@ async function main() {
       notes.includes('exlib1a-norm-v1') &&
       notes.includes('Unicode NFKD') &&
       notes.includes('(source_category, source_name)'))
-    check('E3: comparison-target seed inventory pinned by canonical-serialization SHA-256',
+    check('E3: comparison-target seed inventory pinned by canonical-serialization SHA-256 (anchored at the delivery predecessor)',
       (() => {
-        const seedsSrc = read('src/lib/supabase/seed-exercises.ts')
+        // RETARGET (EXLIB-2S delivery-activation preparation): the seed
+        // comparison target is anchored at the promoted EXLIB-2R
+        // evidence tip (the delivery-activation predecessor), where
+        // this pinned serialization was and remains exact.
+        const seedsSrc = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:src/lib/supabase/seed-exercises.ts', { encoding: 'utf8', maxBuffer: 1 << 26 })
         const rows = SEED_NAMES.map((name) => {
           const m = seedsSrc.match(new RegExp(
             'name: "' + name + '",\\s*category: "([a-z_]+)",\\s*primary_muscle: "([a-z_]+)",\\s*equipment: "([a-z_]+)",\\s*tracking_mode: "([a-z_]+)",\\s*unilateral: (true|false)'))
