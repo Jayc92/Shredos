@@ -460,7 +460,18 @@ check('F2: the live one-use and race proofs key on the VECTOR gate — the scrip
   })())
 
 console.log('\nG. Phase topology (two-state)')
-const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
+// RETARGET (EXLIB-2R hosted-publication evidence): this suite proves
+// the PREPARATION milestone, which was promoted as main = TIP; the
+// EXLIB-2R application-evidence milestone then legitimately advances
+// HEAD, so the phase-topology proofs below are anchored to the
+// promoted preparation tip — where they were and remain true —
+// instead of HEAD. The tip's tree is pinned so a rewrite still fails
+// here, and the tip must remain an ancestor of HEAD. The former
+// uncommitted-state authoring-scope branch is superseded by the
+// application verifier's own phase-boundary check; G1 and G2 now run
+// in both states, so the committed-state totals are unchanged (33/0).
+const TIP = 'f36ba7545584a813db0fa5e1c7cb389852fca5ae'
+const TIP_TREE = 'ef38c1af0647584158ee4b1f24dc969a17e4947f'
 // The original preparation commit, PRESERVED untouched: the Codex
 // round-1 client-privilege-boundary correction is one further plain
 // forward commit on top of it, never an amend or rewrite. Its tree
@@ -468,34 +479,31 @@ const PHASE_PATHS = PHASE.map((s) => s.split('\t')[1]).sort()
 const PREP = 'c6d1eee6ac1960970b55f968e45f2d86c6626ecf'
 const PREP_TREE = '1587488e251cedbfb57670a1769768a38a9999ab'
 const CORRECTED = [PKG, RECORD, VERIFIER, LIVE].map((p) => `M\t${p}`).sort()
-if (committed) {
-  check('G1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, PRESERVED with its exact tree, and the Codex round-1 boundary correction), 2 ahead / 0 behind, zero merges',
-    (() => {
-      try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
-        for (const [child, parent] of [['HEAD', PREP], [PREP, SRC]]) {
-          const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
-          if (parents.length !== 2 || parents[1] !== parent) return false
-        }
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
-          && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
-          && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
-      } catch { return false }
-    })())
-  check('G2: exact phase inventory — the range carries exactly the four disclosed additions (package, record, static verifier, live verifier), and the correction commit modifies exactly the four corrected phase files',
-    (() => {
-      const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
-        .split('\n').filter(Boolean).sort()
-      if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
-      const corr = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
-        .split('\n').filter(Boolean).sort()
-      return JSON.stringify(corr) === JSON.stringify(CORRECTED)
-    })())
-} else {
-  check('G1-G2 (uncommitted authoring state): every worktree change lies inside the four phase paths — nothing outside this phase is touched',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
-}
+check('G1: phase topology — RETARGET (EXLIB-2R hosted-publication evidence): anchored to the promoted preparation tip (tree pinned, ancestor of HEAD); the merge base of the tip and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the original preparation, PRESERVED with its exact tree, and the Codex round-1 boundary correction), 2 ahead / 0 behind, zero merges',
+  (() => {
+    try {
+      if (execSync(`git rev-parse ${TIP}^{tree}`, { encoding: 'utf8' }).trim() !== TIP_TREE) return false
+      execSync(`git merge-base --is-ancestor ${TIP} HEAD`, { stdio: 'pipe' })
+      if (execSync(`git merge-base ${SRC} ${TIP}`, { encoding: 'utf8' }).trim() !== SRC) return false
+      if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+      for (const [child, parent] of [[TIP, PREP], [PREP, SRC]]) {
+        const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (parents.length !== 2 || parents[1] !== parent) return false
+      }
+      return execSync(`git rev-list --count ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '2'
+        && execSync(`git rev-list --count ${TIP}..${SRC}`, { encoding: 'utf8' }).trim() === '0'
+        && execSync(`git rev-list --count --merges ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '0'
+    } catch { return false }
+  })())
+check('G2: exact phase inventory — RETARGET (EXLIB-2R hosted-publication evidence): the promoted range carries exactly the four disclosed additions (package, record, static verifier, live verifier), and the correction commit modifies exactly the four corrected phase files',
+  (() => {
+    const status = execSync(`git diff --name-status ${SRC}..${TIP}`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean).sort()
+    if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
+    const corr = execSync(`git diff --name-status ${PREP}..${TIP}`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean).sort()
+    return JSON.stringify(corr) === JSON.stringify(CORRECTED)
+  })())
 check('G3: two-state lifecycle — the package, record, and both verifiers are absent at the promoted source tip and present in this phase',
   (() => {
     const srcDocs = execSync(`git ls-tree ${SRC} docs/ --name-only`, { encoding: 'utf8' })
