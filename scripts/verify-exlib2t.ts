@@ -15,13 +15,24 @@
 // reference the seed zero times and the entry point once each; in
 // src/ the seed function is referenced only by its own module and
 // the entry-point module); the RPC integration shape against the
-// migration bytes (function name, p_run_key argument, authenticated
-// grant, summary validation demanding the run_key echo and integer
-// counters); the timeout machinery (default 10000, validated
-// positive-integer knob, cleared timer); the behavioral test
-// suite's shape and its 12-check totals; the sixteen-suite retarget
-// census (label + anchored predecessor in every retargeted file and
-// nowhere else); two-state phase topology over the twenty-three-path
+// migration bytes — as corrected in Codex round 1, the COMPLETE
+// fourteen-key migration-026 summary contract (the key set and the
+// seven-value plank_disposition enum are EXTRACTED MECHANICALLY from
+// the migration bytes and compared with the module's constants; the
+// validator's exact-key-set check, run_key echo, ten non-negative
+// integer counters, string-array and UUID-array checks, disposition
+// enum check, and all three loop invariants are pinned); the timeout
+// machinery including the round-1 UNKNOWN-eventual-outcome
+// classification (default 10000, validated positive-integer knob,
+// cleared timer, unknownDeliveryOutcome: true); the round-1
+// NO-COUNT-GUARD structural proof (the fail-closed region never
+// queries a table — existing users always reach the delivery
+// function); the behavioral test suite's shape and its 12-check
+// totals (fifteen malformed shapes, the existing-seeded-tenant
+// negative control); the sixteen-suite retarget census (label +
+// anchored predecessor in every retargeted file and nowhere else);
+// two-commit phase topology (the preserved preparation commit plus
+// ONE forward round-1 correction commit) over the twenty-three-path
 // inventory; and hygiene. Performs NO hosted contact and NO network
 // activity of any kind.
 //
@@ -52,6 +63,11 @@ const SRC = '5f7e182f3027b3640514e06d642693f4018c03e2'
 const SRC_TREE = '902a2b4b1bf76ca5d75fc8d20b62062411c95cc5'
 const SRC_TAG = 'exlib2r-hosted-publication-application-evidence-stable'
 const SRC_TAG_OBJ = 'e1922ea29f76f43be17f0dd3a7f3d36bcfa8381b'
+// The preserved preparation commit (Codex round-1 correction lands
+// as ONE plain forward commit on top of it; the prep bytes are
+// byte-frozen history).
+const PREP = '3ab5ae060888e3cf65441b2b1e35f3bff43ca6a4'
+const PREP_TREE = 'd997b381d4966d3bb6dd27d3ec8bd6b1d34df1e3'
 const LABEL = 'RETARGET (EXLIB-2T delivery-runtime preparation)'
 const RETARGETED = [
   'scripts/verify-exlib2d.ts', 'scripts/verify-exlib2e.ts', 'scripts/verify-exlib2g.ts',
@@ -141,18 +157,63 @@ check('B3: single-entry-point routing — each of the three call sites imports i
       .split('\n').filter(Boolean).sort()
     return JSON.stringify(refs) === JSON.stringify([MODULE, SEED].sort())
   })())
-check('B4: the RPC integration matches the migration contract — exactly one rpc call site invoking deliver_catalog_exercises with the p_run_key argument; the migration declares that exact signature RETURNS JSONB with EXECUTE granted to authenticated; and the response validator demands the run_key echo plus non-negative integer eligible/inserted counters',
+check('B4: the response validator enforces the COMPLETE migration-026 summary contract (Codex round 1) — the FOURTEEN-key set and the SEVEN-value plank_disposition enum are extracted MECHANICALLY from the migration bytes and equal the module\'s constants; the validator demands the exact key set (no more, no fewer), the run_key echo, non-negative integer values for all TEN counter keys, a string-array collision_names, a well-formed-UUID array inserted_catalog_logical_ids, an enum-checked plank_disposition, and ALL THREE loop invariants; and the single rpc call site invokes the exact granted signature',
   (() => {
     if ((mod.match(/supabase\.rpc\(/g) || []).length !== 1) return false
     if (!mod.includes('supabase.rpc("deliver_catalog_exercises", { p_run_key: runKey })')) return false
-    const mig = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
-    if (!mig.includes('CREATE OR REPLACE FUNCTION deliver_catalog_exercises(p_run_key TEXT)')) return false
-    if (!mig.includes('GRANT EXECUTE ON FUNCTION deliver_catalog_exercises(TEXT) TO authenticated;')) return false
+    const mig023 = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+    if (!mig023.includes('CREATE OR REPLACE FUNCTION deliver_catalog_exercises(p_run_key TEXT)')) return false
+    if (!mig023.includes('GRANT EXECUTE ON FUNCTION deliver_catalog_exercises(TEXT) TO authenticated;')) return false
+    // MECHANICAL key extraction: the deliver function's RETURN
+    // jsonb_build_object block in migration 026 (the block that
+    // carries plank_disposition) yields exactly the key set the
+    // module's SUMMARY_KEYS constant must equal.
+    const mig026 = read('supabase/migrations/026_exlib_plank_seed_reconciliation.sql')
+    const retStart = mig026.lastIndexOf('RETURN jsonb_build_object(', mig026.indexOf("'plank_disposition',"))
+    if (retStart < 0) return false
+    const retEnd = mig026.indexOf(');', retStart)
+    if (retEnd < 0) return false
+    const retBlock = mig026.slice(retStart, retEnd)
+    const migKeys = Array.from(retBlock.matchAll(/'([a-z_]+)',/g)).map((m) => m[1]).sort()
+    if (migKeys.length !== 14) return false
+    const keysSrc = mod.slice(mod.indexOf('const SUMMARY_KEYS = ['), mod.indexOf('] as const'))
+    const modKeys = Array.from(keysSrc.matchAll(/"([a-z_]+)"/g)).map((m) => m[1]).sort()
+    if (JSON.stringify(modKeys) !== JSON.stringify(migKeys)) return false
+    // the counter subset = the fourteen keys minus the echo, the
+    // two arrays, and the disposition
+    const expectedCounters = migKeys.filter((k) =>
+      !['run_key', 'collision_names', 'inserted_catalog_logical_ids', 'plank_disposition'].includes(k))
+    const countersStart = mod.indexOf('const SUMMARY_COUNTERS = [')
+    const countersSrc = mod.slice(countersStart, mod.indexOf('] as const', countersStart))
+    const modCounters = Array.from(countersSrc.matchAll(/"([a-z_]+)"/g)).map((m) => m[1]).sort()
+    if (expectedCounters.length !== 10) return false
+    if (JSON.stringify(modCounters) !== JSON.stringify(expectedCounters)) return false
+    // MECHANICAL disposition extraction: every value the migration
+    // ever assigns (or declares as the default) for
+    // v_plank_disposition
+    const migDispositions = Array.from(new Set(
+      Array.from(mig026.matchAll(/v_plank_disposition\s+(?:TEXT\s+)?:=\s+'([a-z_]+)'/g)).map((m) => m[1]),
+    )).sort()
+    if (migDispositions.length !== 7) return false
+    const dispStart = mod.indexOf('const PLANK_DISPOSITIONS = [')
+    const dispSrc = mod.slice(dispStart, mod.indexOf('] as const', dispStart))
+    const modDispositions = Array.from(dispSrc.matchAll(/"([a-z_]+)"/g)).map((m) => m[1]).sort()
+    if (JSON.stringify(modDispositions) !== JSON.stringify(migDispositions)) return false
+    // the validator's pinned enforcement lines
+    if (!mod.includes('function parseDeliverySummary(')) return false
+    if (!mod.includes('if (JSON.stringify(keys) !== JSON.stringify([...SUMMARY_KEYS].sort())) return null')) return false
     if (!mod.includes('if (obj.run_key !== expectedRunKey) return null')) return false
-    if (!mod.includes("if (typeof inserted !== 'number' || !Number.isInteger(inserted) || inserted < 0) return null".replace(/'/g, '"'))) return false
-    return mod.includes('function parseDeliverySummary(')
+    if (!mod.includes('if (!isNonNegativeInt(obj[k])) return null')) return false
+    if (!mod.includes('return typeof v === "number" && Number.isInteger(v) && v >= 0')) return false
+    if (!mod.includes('!collisions.every((n) => typeof n === "string")) return null')) return false
+    if (!mod.includes('!logicalIds.every((id) => typeof id === "string" && UUID_RE.test(id))) return null')) return false
+    if (!mod.includes('const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/')) return false
+    if (!mod.includes('!(PLANK_DISPOSITIONS as readonly string[]).includes(obj.plank_disposition)) return null')) return false
+    if (!mod.includes('if (inserted + skippedExisting + skippedCollision !== eligible) return null')) return false
+    if (!mod.includes('if (logicalIds.length !== inserted) return null')) return false
+    return mod.includes('if (collisions.length !== skippedCollision) return null')
   })())
-check('B5: the missing-configuration and timeout machinery are exact — a null run key fails closed BEFORE the RPC (the null check precedes the rpc call in the fail-closed region), the timeout default is 10,000ms behind a positive-integer-validated knob, and the race clears its timer',
+check('B5: the missing-configuration and timeout machinery are exact — a null run key fails closed BEFORE the RPC (the null check precedes the rpc call in the fail-closed region), the timeout default is 10,000ms behind a positive-integer-validated knob, the race clears its timer, and the timeout outcome is classified honestly (Codex round 1): unknownDeliveryOutcome: true with a reason stating the eventual delivery outcome is UNKNOWN because the wait, not the database transaction, was abandoned',
   (() => {
     const region = mod.slice(mod.indexOf('FAIL-CLOSED REGION'))
     const keyIdx = region.indexOf('if (runKey === null)')
@@ -161,6 +222,9 @@ check('B5: the missing-configuration and timeout machinery are exact — a null 
     if (!mod.includes('const DEFAULT_DELIVERY_TIMEOUT_MS = 10_000')) return false
     if (!mod.includes('if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return DEFAULT_DELIVERY_TIMEOUT_MS')) return false
     if (!mod.includes('clearTimeout(timer)')) return false
+    if (!mod.includes('unknownDeliveryOutcome?: true')) return false
+    if (!mod.includes('unknownDeliveryOutcome: true,')) return false
+    if (!mod.includes('eventual delivery outcome UNKNOWN (the wait was abandoned, not the database transaction); no seeding occurred')) return false
     return mod.includes('return failClosed("delivery is enabled but CATALOG_DELIVERY_RUN_KEY is not configured")')
   })())
 check('B6: fail-closed is a RETURN, never a throw or a fallback — failClosed logs "no seeding occurred", returns the failed_closed outcome, the delivery path is wrapped in a catch boundary that also fails closed, and the record carries the design\'s fail-closed rule verbatim',
@@ -170,15 +234,46 @@ check('B6: fail-closed is a RETURN, never a throw or a fallback — failClosed l
   mod.includes('} catch (e) {') &&
   recFlat.includes('PROVE that delivery failure, a rejected run, a revoked run, a timeout, or a malformed response CANNOT call seedExercisesIfNeeded while the timed seed definition is live') &&
   read('docs/exlib2g-plank-content-activation-design.md').replace(/\s+/g, ' ').includes('PROVE that delivery failure, a rejected run, a revoked run, a timeout, or a malformed response CANNOT call seedExercisesIfNeeded while the timed seed definition is live'))
+check('B7: NO CLIENT-SIDE COUNT GUARD on the flag-ON path (Codex round 1) — the fail-closed region never queries any table (no from(), no select, no count option: its only database surface is the single rpc call), so existing seeded tenants ALWAYS reach the delivery function; the module\'s header carries the EXISTING-USERS and TIMEOUT-AMBIGUITY sections, the delivery function carries the no-count-guard comment, and the record states the corrected contract',
+  (() => {
+    const region = mod.slice(mod.indexOf('FAIL-CLOSED REGION'))
+    if (region.includes('.from(')) return false
+    if (region.includes('select(')) return false
+    if (region.includes('count:')) return false
+    if ((region.match(/supabase\./g) || []).length !== 1) return false
+    if (!mod.includes('EXISTING USERS GET DELIVERY TOO (Codex round 1)')) return false
+    if (!mod.includes('TIMEOUT AMBIGUITY, stated honestly (Codex round 1)')) return false
+    if (!region.includes('NO client-side count guard here (Codex round 1)')) return false
+    if (!recFlat.includes('carries NO client-side count guard (Codex round 1')) return false
+    return recFlat.includes('a timeout means UNKNOWN eventual delivery outcome')
+  })())
 
 console.log('\nC. The behavioral test suite')
-check('C1: the runtime test suite exists with the design-named coverage — the strict-OFF sweep (nine non-exact values), the missing run key failing closed before any RPC, the rejection/thrown/timeout/malformed classes (seven malformed shapes), the healthy branches, and the cross-cutting zero-seed-inserts tally — driven through the REAL entry point against a fake client with no network',
+check('C1: the runtime test suite exists with the CORRECTED design-named coverage — the strict-OFF sweep (nine non-exact values), the missing run key failing closed before any RPC, the rejection/thrown/timeout/malformed classes (FIFTEEN malformed shapes spanning partial objects, missing and extra keys, a wrong run_key echo, non-integer and negative counters, invalid array members, an invalid UUID, an invalid disposition, and all three broken invariants), the timeout asserting the UNKNOWN classification, the EXISTING-SEEDED-TENANT-STILL-INVOKES-DELIVERY negative control with a zero-count-query assertion, the healthy delivered branch, and the cross-cutting zero-seed-inserts tally — driven through the REAL entry point against a fake client with no network',
   (() => {
     if (!tests.includes("import { initializeExercisesIfNeeded } from '../src/lib/supabase/deliver-catalog'")) return false
     if (!tests.includes("['false', '1', 'TRUE', 'True', ' true', 'true ', 'yes', 'on', '']")) return false
     if (!tests.includes('rpcNeverResolves')) return false
-    if (!tests.includes('CATALOG_DELIVERY_TIMEOUT_MS: \'50\''.replace(/'/g, "'"))) return false
-    if ((tests.match(/\['[a-z -]+', /g) || []).length >= 0 && !tests.includes("['wrong run_key echo'")) return false
+    if (!tests.includes("CATALOG_DELIVERY_TIMEOUT_MS: '50'")) return false
+    if (!tests.includes("['wrong run_key echo'")) return false
+    if (!tests.includes("['PARTIAL SUCCESS object (three keys only)'")) return false
+    if (!tests.includes("['MISSING key (no plank_disposition)'")) return false
+    if (!tests.includes("['EXTRA key added'")) return false
+    if (!tests.includes("['INVALID collision_names member (number)'")) return false
+    if (!tests.includes("['INVALID UUID in inserted_catalog_logical_ids'")) return false
+    if (!tests.includes("['INVALID plank_disposition value'")) return false
+    if (!tests.includes("['BROKEN SUM invariant (inserted+skips != eligible)'")) return false
+    if (!tests.includes("['BROKEN ids-length invariant (24 ids for 25 inserts)'")) return false
+    if (!tests.includes("['BROKEN collision-length invariant (name without skip)'")) return false
+    if ((tests.match(/^      \['/gm) || []).length !== 15) return false
+    if (!tests.includes('EXISTING SEEDED TENANT STILL INVOKES DELIVERY (Codex round 1 negative control)')) return false
+    if (!tests.includes('fake.log.countQueries === 0')) return false
+    if (!tests.includes('out.unknownDeliveryOutcome === true')) return false
+    if (!tests.includes("out.reason.includes('UNKNOWN')")) return false
+    if (!tests.includes('existingUserSummary')) return false
+    if (!tests.includes("out.plankDisposition === 'already_valid_idempotent'")) return false
+    if (!tests.includes("out.plankDisposition === 'corrected_and_linked_pristine_seed'")) return false
+    if (!tests.includes('malformedUnknownFlagged === 0')) return false
     if (!tests.includes('onPathSeedInserts === 0')) return false
     if (!tests.includes('fails closed BEFORE any RPC attempt')) return false
     return !tests.includes('createClient') && !/https?:\/\//.test(tests.replace(/\/\/[^\n]*/g, ''))
@@ -209,13 +304,20 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly ONE plain single-parent commit, 1 ahead / 0 behind, zero merges',
+  check('E1: phase topology — TWO plain single-parent commits: the PRESERVED preparation commit (exact id, byte-frozen tree) plus exactly ONE forward Codex-round-1 correction commit whose diff touches exactly the four correction paths (module, record, both suites); 2 ahead / 0 behind the promoted source, zero merges, history never rewritten',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '1'
+        const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (headParents.length !== 2 || headParents[1] !== PREP) return false
+        const prepParents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
+        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+        const correction = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const expected = [MODULE, RECORD, VERIFIER, RUNTIME_TESTS].map((p) => `M\t${p}`).sort()
+        if (JSON.stringify(correction) !== JSON.stringify(expected)) return false
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }

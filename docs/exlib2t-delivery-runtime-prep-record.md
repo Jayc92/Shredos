@@ -56,20 +56,45 @@ existence.
   pre-existing seedExercisesIfNeeded and nothing else — the seed
   module is byte-identical to the promoted tip, and the seeded
   behavior for every current and new user is UNCHANGED.
-- FLAG ON: delivery-first with THE FAIL-CLOSED LAW. The path runs
-  the same idempotent count guard, requires
+- FLAG ON: delivery-first with THE FAIL-CLOSED LAW. The path
+  carries NO client-side count guard (Codex round 1): existing
+  seeded tenants MUST reach the database function too — the
+  function owns idempotence (skipped_already_delivered), per-user
+  collision handling, and migration 026's pristine-Plank
+  reconciliation, and a client-side row-count short-circuit would
+  starve exactly the tenants that reconciliation exists for. The
+  legacy count guard belongs only to the flag-OFF seed path, inside
+  seedExercisesIfNeeded itself. The path requires
   CATALOG_DELIVERY_RUN_KEY (missing configuration fails closed
-  BEFORE any database call), invokes the schema-qualified
+  BEFORE any database call), invokes the
   deliver_catalog_exercises RPC under a timeout
   (CATALOG_DELIVERY_TIMEOUT_MS, defaulting to 10,000ms; a
   positive-integer-validated operational knob, never a behavior
-  flag), validates the JSONB summary (run_key echo and non-negative
-  integer counters; anything else is malformed), and on ANY failure
-  — rejection, thrown client, timeout, malformed response, missing
-  configuration, unexpected exception — logs and returns
-  failed_closed WITHOUT SEEDING. A temporary inability to
-  initialize exercises is the design-accepted safe outcome; a
-  fallback seed row is not.
+  flag), validates the COMPLETE migration-026 JSONB summary
+  contract (Codex round 1) — exactly the FOURTEEN keys, no more
+  and no fewer; the run_key echo; non-negative integer values for
+  all TEN counter keys; collision_names a string array;
+  inserted_catalog_logical_ids an array of well-formed UUIDs;
+  plank_disposition one of the SEVEN schema-produced values; and
+  the three loop invariants (inserted + skipped_already_delivered
+  + skipped_name_collision = eligible; one logical id per insert;
+  one collision name per collision skip); anything else is
+  malformed — and on ANY failure — rejection, thrown client,
+  timeout, malformed response, missing configuration, unexpected
+  exception — logs and returns failed_closed WITHOUT SEEDING. A
+  temporary inability to initialize exercises is the
+  design-accepted safe outcome; a fallback seed row is not.
+- TIMEOUT AMBIGUITY, stated honestly (Codex round 1): the timeout
+  abandons the WAIT, not the database transaction — supabase-js
+  RPC carries no supported cancellation, so the already-started
+  transaction may still commit after this request stops listening.
+  So a timeout means UNKNOWN eventual delivery outcome, never
+  proven non-delivery, and the outcome object says so
+  (unknownDeliveryOutcome: true, with a reason stating the wait
+  was abandoned). What the fail-closed law guarantees is
+  unchanged: the timed-out request NEVER seeds, and the next
+  initialization attempt reconciles safely because the database
+  function is idempotent per user.
 - THE STRUCTURAL PROOF: the module carries an explicit FAIL-CLOSED
   REGION marker; the seed identifier appears exactly twice ABOVE it
   (the import and the flag-OFF branch) and ZERO times below it —
@@ -94,11 +119,21 @@ failure class failing closed with ZERO seed inserts — the missing
 run key (failing closed before any RPC), the database rejection
 (including the function's own no-sealed-run and not-authenticated
 refusals), the thrown client, the timeout (a never-settling RPC
-resolved by the race within the configured budget), and seven
-malformed-response shapes — plus the healthy delivered and
-already-initialized branches, and a CROSS-CUTTING tally proving the
-fake observed zero seed-signature inserts across every flag-ON
-scenario in the suite.
+resolved by the race within the configured budget, asserted to be
+classified unknownDeliveryOutcome: true with an UNKNOWN-outcome
+reason), and FIFTEEN malformed-response shapes against the complete
+fourteen-key contract (null/array/string data, a PARTIAL success
+object, a MISSING key, an EXTRA key, a wrong run_key echo,
+non-integer and negative counters, an invalid collision_names
+member, an invalid UUID, an invalid plank_disposition, and all
+three broken arithmetic invariants — none of them misclassified as
+an unknown-outcome timeout) — plus the healthy delivered branch,
+the EXISTING-SEEDED-TENANT negative control (Codex round 1: with
+the flag ON a tenant that already has seeded rows performs ZERO
+count queries, still invokes the RPC exactly once, and accepts the
+database's skipped-as-already-delivered summary), and a
+CROSS-CUTTING tally proving the fake observed zero seed-signature
+inserts across every flag-ON scenario in the suite.
 
 ## 4. What this milestone changes (the exact inventory)
 
@@ -167,14 +202,22 @@ seed-remains-bodyweight requirement); the strict-OFF flag mechanics;
 the FAIL-CLOSED REGION split (the seed identifier counted above and
 below the marker); the single-entry-point routing census (zero
 direct seed references in the call sites; the src-wide reference
-census); the RPC integration shape against the migration bytes (the
-exact function name and argument, the authenticated grant, the
-summary validation); the timeout machinery; the no-enablement proof
-(no tracked file assigns the flag; no .env file changed); the
-runtime test suite's shape and totals; the sixteen-suite retarget
-census (label + anchored predecessor constant in every retargeted
-file, and nowhere else); two-state phase topology over the
-twenty-three-path inventory; and byte hygiene.
+census); the RPC integration shape against the migration bytes —
+including, per Codex round 1, the COMPLETE fourteen-key summary
+contract with the key set and the seven-value plank_disposition
+enum EXTRACTED MECHANICALLY from migration 026's bytes and compared
+with the module's constants, every validator enforcement line
+pinned, and all three loop invariants; the timeout machinery
+including the UNKNOWN-eventual-outcome classification; the
+NO-COUNT-GUARD structural proof (the fail-closed region's only
+database surface is the single rpc call — it never queries a
+table); the no-enablement proof (no tracked file assigns the flag;
+no .env file changed); the runtime test suite's shape and totals;
+the sixteen-suite retarget census (label + anchored predecessor
+constant in every retargeted file, and nowhere else); two-commit
+phase topology (the preserved preparation commit plus one forward
+round-1 correction commit) over the twenty-three-path inventory;
+and byte hygiene.
 
 ## 7. Stop condition
 
@@ -186,3 +229,59 @@ migration, dependency, or configuration change. The live product's
 behavior is UNCHANGED anywhere this branch is not deployed — and
 even where it IS eventually deployed, behavior remains unchanged
 until the S6 flag event, which stays separately gated.
+
+## 8. Codex round-1 correction (2026-09-06)
+
+Codex review of the preparation commit
+(3ab5ae060888e3cf65441b2b1e35f3bff43ca6a4, tree
+d997b381d4966d3bb6dd27d3ec8bd6b1d34df1e3 — PRESERVED, never
+rewritten) found TWO release blockers, corrected here as ONE plain
+forward commit touching exactly four paths (the runtime module,
+this record, and both dedicated suites):
+
+- BLOCKER 1 — the flag-ON path carried a client-side count guard
+  that short-circuited delivery for any tenant with existing
+  exercise rows. That prevented delivery to EXISTING USERS
+  entirely: an existing tenant with the original bodyweight seed
+  could never reach migration 026's pristine-Plank reconciliation,
+  which exists precisely for such tenants. The guard was REMOVED;
+  idempotence, collision handling, and reconciliation are the
+  database function's job (that is what skipped_already_delivered
+  and plank_disposition report). The prior C2 runtime test had
+  enshrined the incorrect behavior (asserting an
+  already_initialized outcome with zero RPC calls); it is REPLACED
+  by the existing-seeded-tenant negative control asserting the
+  opposite: zero count queries, exactly one RPC call, and the
+  skipped-as-already-delivered summary accepted. The
+  already_initialized outcome no longer exists in the type.
+- BLOCKER 2 — the response validator accepted any object carrying
+  integer eligible/inserted and the run_key echo, i.e. a subset of
+  the migration-026 contract. It now validates the COMPLETE
+  contract as described in sections 2 and 6 (exact fourteen-key
+  set, ten non-negative integer counters, string-array
+  collision_names, UUID-array inserted_catalog_logical_ids,
+  enum-checked plank_disposition, and the three loop invariants),
+  with the key set and disposition enum extracted mechanically
+  from the migration bytes by the static verifier rather than
+  restated by hand.
+- Also tightened per the same review: the timeout is now
+  explicitly classified as an UNKNOWN eventual delivery outcome
+  (unknownDeliveryOutcome: true) because Promise.race abandons the
+  wait, not the database transaction; correctness relies on the
+  function's per-user idempotence, and the outcome object no
+  longer reads like a proven non-delivery.
+
+Sections 2, 3, and 6 above were corrected in place so this record
+states only true things; section 5's quoted battery figures
+(89 suites / 7,075 checks and the sixteen-failure enumeration)
+describe the ORIGINAL preparation's simulated-commit battery and
+remain historical fact. The correction's own simulated-commit
+battery (the corrected worktree committed against the preserved
+preparation commit) showed ZERO stale historical checks — the
+correction touches only files introduced by this milestone — and
+the corrected committed totals are 90 suites / 7,091 checks /
+0 failures (the static suite grew by one check, B7; the runtime
+suite remains 12 checks). Nothing in this correction changes the
+retarget set, the call sites, the seed module, any migration, or
+any configuration; the stop condition of section 7 is unchanged
+and this branch remains LOCAL-ONLY, awaiting re-review.

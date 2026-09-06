@@ -36,6 +36,30 @@ import { seedExercisesIfNeeded } from "./seed-exercises"
 //     key names WHICH sealed run to deliver and comes from
 //     CATALOG_DELIVERY_RUN_KEY; with the flag ON and no key the path
 //     fails closed without calling the database.
+//
+//   - EXISTING USERS GET DELIVERY TOO (Codex round 1): the flag-ON
+//     path carries NO client-side count guard. The database function
+//     owns idempotence (skipped_already_delivered), per-user
+//     collision handling, AND migration 026's pristine-Plank
+//     reconciliation — an existing tenant with the original
+//     bodyweight seed MUST reach the function for P2 correction to
+//     ever run. Client-side short-circuiting on row count would
+//     starve exactly those users; the legacy count guard belongs
+//     only to the flag-OFF seed path (inside seedExercisesIfNeeded
+//     itself).
+//
+//   - TIMEOUT AMBIGUITY, stated honestly (Codex round 1): the
+//     timeout below abandons the WAIT — supabase-js RPC carries no
+//     supported cancellation, so the already-started database
+//     transaction may still commit after this request stops
+//     listening. A timeout therefore means UNKNOWN EVENTUAL DELIVERY
+//     OUTCOME, never proof that delivery did not occur. What the
+//     fail-closed law guarantees is unchanged and is what matters:
+//     the timed-out request NEVER seeds, and the next initialization
+//     attempt reconciles safely because the database function is
+//     idempotent per user. The timeout outcome is classified with
+//     unknownDeliveryOutcome: true so callers and evidence never
+//     misread it as a proven non-delivery.
 
 export function isCatalogDeliveryEnabled(): boolean {
   return process.env.CATALOG_DELIVERY_ENABLED === "true"
@@ -62,9 +86,8 @@ export function catalogDeliveryTimeoutMs(): number {
 
 export type InitializeOutcome =
   | { path: "seeded" }
-  | { path: "already_initialized" }
-  | { path: "delivered"; inserted: number; eligible: number }
-  | { path: "failed_closed"; reason: string }
+  | { path: "delivered"; inserted: number; eligible: number; plankDisposition: string }
+  | { path: "failed_closed"; reason: string; unknownDeliveryOutcome?: true }
 
 /**
  * The single initialization entry point. Flag OFF (the strict
@@ -90,18 +113,12 @@ export async function initializeExercisesIfNeeded(
 
 async function deliverCatalogFirst(
   supabase: SupabaseClient,
-  userId: string,
+  _userId: string,
 ): Promise<InitializeOutcome> {
   try {
-    const { count, error: countError } = await supabase
-      .from("exercises")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-    if (countError) {
-      return failClosed(`initialization count guard failed: ${countError.message}`)
-    }
-    if (count && count > 0) return { path: "already_initialized" }
-
+    // NO client-side count guard here (Codex round 1): existing
+    // users must reach the database function — it is idempotent per
+    // user and performs the pristine-Plank reconciliation.
     const runKey = catalogDeliveryRunKey()
     if (runKey === null) {
       return failClosed("delivery is enabled but CATALOG_DELIVERY_RUN_KEY is not configured")
@@ -112,7 +129,15 @@ async function deliverCatalogFirst(
       catalogDeliveryTimeoutMs(),
     )
     if (attempt.timedOut) {
-      return failClosed(`delivery timed out after ${catalogDeliveryTimeoutMs()}ms`)
+      // UNKNOWN EVENTUAL OUTCOME: the wait was abandoned, not the
+      // database transaction (no supported cancellation). No seeding
+      // happened and none will; database idempotence reconciles the
+      // next attempt.
+      return {
+        path: "failed_closed",
+        reason: `delivery timed out after ${catalogDeliveryTimeoutMs()}ms; eventual delivery outcome UNKNOWN (the wait was abandoned, not the database transaction); no seeding occurred`,
+        unknownDeliveryOutcome: true,
+      }
     }
 
     const { data, error } = attempt.value as {
@@ -126,7 +151,12 @@ async function deliverCatalogFirst(
     if (summary === null) {
       return failClosed("delivery returned a malformed response")
     }
-    return { path: "delivered", inserted: summary.inserted, eligible: summary.eligible }
+    return {
+      path: "delivered",
+      inserted: summary.inserted,
+      eligible: summary.eligible,
+      plankDisposition: summary.plankDisposition,
+    }
   } catch (e) {
     return failClosed(`delivery threw: ${e instanceof Error ? e.message : String(e)}`)
   }
@@ -137,21 +167,72 @@ function failClosed(reason: string): InitializeOutcome {
   return { path: "failed_closed", reason }
 }
 
-// The migration-026 delivery summary is a JSONB object whose
-// run_key echoes the argument and whose counters are non-negative
-// integers; anything else is malformed and fails closed.
+// The COMPLETE migration-026 delivery summary contract (Codex
+// round 1: validate the whole shape, not a subset). Derived
+// mechanically from the function's RETURN jsonb_build_object:
+// exactly these FOURTEEN keys, no more and no fewer; the run_key
+// echoes the argument; every counter is a non-negative integer;
+// collision_names is a string array; inserted_catalog_logical_ids
+// is an array of well-formed UUIDs; plank_disposition is one of the
+// seven schema-produced values; and the loop's own arithmetic
+// invariants hold (each eligible member lands in exactly one of
+// inserted / skipped_already_delivered / skipped_name_collision;
+// every insert appends one logical id; every name-collision skip
+// appends one collision name). Anything else is malformed and
+// fails closed.
+const SUMMARY_KEYS = [
+  "run_key", "eligible", "inserted", "skipped_already_delivered",
+  "skipped_name_collision", "collision_names", "alias_inserted",
+  "alias_added_to_existing", "alias_already_delivered",
+  "alias_skipped_no_exercise", "alias_skipped_inactive_exercise",
+  "alias_skipped_collision", "inserted_catalog_logical_ids",
+  "plank_disposition",
+] as const
+const SUMMARY_COUNTERS = [
+  "eligible", "inserted", "skipped_already_delivered",
+  "skipped_name_collision", "alias_inserted", "alias_added_to_existing",
+  "alias_already_delivered", "alias_skipped_no_exercise",
+  "alias_skipped_inactive_exercise", "alias_skipped_collision",
+] as const
+const PLANK_DISPOSITIONS = [
+  "not_in_run", "already_valid_idempotent",
+  "corrected_and_linked_pristine_seed", "delivered_canonical_timed_plank",
+  "precondition_failure_preserved_legacy_plus_distinguished_delivery",
+  "delivered_distinguished_timed_plank",
+  "skipped_canonical_and_distinguished_collision",
+] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+function isNonNegativeInt(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0
+}
 function parseDeliverySummary(
   data: unknown,
   expectedRunKey: string,
-): { inserted: number; eligible: number } | null {
+): { inserted: number; eligible: number; plankDisposition: string } | null {
   if (typeof data !== "object" || data === null || Array.isArray(data)) return null
   const obj = data as Record<string, unknown>
+  const keys = Object.keys(obj).sort()
+  if (JSON.stringify(keys) !== JSON.stringify([...SUMMARY_KEYS].sort())) return null
   if (obj.run_key !== expectedRunKey) return null
-  const inserted = obj.inserted
-  const eligible = obj.eligible
-  if (typeof inserted !== "number" || !Number.isInteger(inserted) || inserted < 0) return null
-  if (typeof eligible !== "number" || !Number.isInteger(eligible) || eligible < 0) return null
-  return { inserted, eligible }
+  for (const k of SUMMARY_COUNTERS) {
+    if (!isNonNegativeInt(obj[k])) return null
+  }
+  const collisions = obj.collision_names
+  if (!Array.isArray(collisions) || !collisions.every((n) => typeof n === "string")) return null
+  const logicalIds = obj.inserted_catalog_logical_ids
+  if (!Array.isArray(logicalIds) ||
+    !logicalIds.every((id) => typeof id === "string" && UUID_RE.test(id))) return null
+  if (typeof obj.plank_disposition !== "string" ||
+    !(PLANK_DISPOSITIONS as readonly string[]).includes(obj.plank_disposition)) return null
+  const eligible = obj.eligible as number
+  const inserted = obj.inserted as number
+  const skippedExisting = obj.skipped_already_delivered as number
+  const skippedCollision = obj.skipped_name_collision as number
+  // the loop invariants, derivable from the migration bytes
+  if (inserted + skippedExisting + skippedCollision !== eligible) return null
+  if (logicalIds.length !== inserted) return null
+  if (collisions.length !== skippedCollision) return null
+  return { inserted, eligible, plankDisposition: obj.plank_disposition }
 }
 
 async function withTimeout<T>(
