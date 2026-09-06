@@ -329,7 +329,7 @@ async function main(): Promise<void> {
       recFlat.includes('preserved precisely, not "fixed"') &&
       recFlat.includes('UNADJUDICATED and OUTSIDE EXLIB-2O') &&
       recFlat.includes('NOT introduced by this load, NOT fixed by it, and NOT accepted by this record'))
-    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row stays seed_link_compatible false, tenant 84 unchanged, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row stays seed_link_compatible false, tenant 84 unchanged, and the phase range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2T delivery-runtime preparation))',
       (() => {
         for (const p of [PREP_RECORD, LIVE, 'src/lib/supabase/seed-exercises.ts',
           'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
@@ -345,7 +345,10 @@ async function main(): Promise<void> {
         if (!recFlat.includes('ZERO projected relationships')) return false
         if (!recFlat.includes('exercises table remained exactly 84 rows, unchanged')) return false
         if (!recFlat.includes('seed_link_compatible remains false')) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        // RETARGET (EXLIB-2T delivery-runtime preparation): the live-range
+        // boundary is anchored at the delivery-runtime predecessor, where
+        // this milestone's claim was and remains true.
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..5f7e182f3027b3640514e06d642693f4018c03e2`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p)) &&
           recFlat.includes('Zero import runs, zero run items, zero review events')

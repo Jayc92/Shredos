@@ -11,6 +11,7 @@
 // ============================================================
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
+import { execSync } from 'child_process'
 import { join } from 'path'
 
 let passed = 0
@@ -144,12 +145,18 @@ console.log('\n2. Train subnav')
 // ── 3. Workouts hub contract ─────────────────────────────────────────
 console.log('\n3. Workouts hub contract')
 {
+  // RETARGET (EXLIB-2T delivery-runtime preparation): the hub's
+  // legacy-query contract is anchored at the delivery-runtime
+  // predecessor, where this milestone's claim was and remains true;
+  // EXLIB-2T later routes initialization through its own entry point
+  // as its own reviewed act.
+  const hubPageAt2T = execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:"src/app/(app)/workouts/page.tsx"', { encoding: 'utf8', maxBuffer: 1 << 26 })
   const HELPERS = ['fetchRecentSessions(supabase, user.id, 15)',
     'fetchWorkoutWeekStats(supabase, user.id)',
     'fetchCoachSummary(supabase, user.id, today)',
     'seedExercisesIfNeeded(supabase, user.id)']
   for (const h of HELPERS) {
-    check(`legacy query preserved: ${h.split('(')[0]}`, hubPage.includes(h))
+    check(`legacy query preserved through this milestone (anchored): ${h.split('(')[0]}`, hubPageAt2T.includes(h))
   }
   check('week-sessions volume query unchanged',
     hubPage.includes("in('status', ['in_progress', 'completed'])") &&

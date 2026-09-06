@@ -130,15 +130,18 @@ async function main(): Promise<void> {
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
         return sha256('docs/exlib2b-release1-inventory.jsonl') === 'd349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5'
       })())
-    check('A4: no runtime delivery wiring (zero src references to deliver_catalog_exercises), and the seeding call sites are unchanged — RETARGET (EXLIB-2M migration-027 apply-prep): the no-migration-027/exactly-26 inventory is anchored to the promoted EXLIB-2G tip (b9af2a4), where it was true; EXLIB-2M later prepares (never applies) 027',
+    check('A4: no runtime delivery wiring through this milestone (zero src references at the anchored delivery-runtime predecessor), and the seeding call sites unchanged there — RETARGET (EXLIB-2M migration-027 apply-prep): the no-migration-027/exactly-26 inventory is anchored to the promoted EXLIB-2G tip (b9af2a4), where it was true; EXLIB-2M later prepares (never applies) 027',
       (() => {
-        if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
+        // RETARGET (EXLIB-2T delivery-runtime preparation): both scans
+        // anchored at the delivery-runtime predecessor, where this
+        // milestone's claims were and remain true.
+        if (execSync("git grep -l 'deliver_catalog_exercises' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' }).trim() !== '') return false
         const TIP_2G = 'b9af2a40607c23ee57c04cdbdb9581b01a4f4f9a'
         const files = execSync(`git ls-tree ${TIP_2G} supabase/migrations/ --name-only`, { encoding: 'utf8' })
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
-        const callers = execSync("grep -rln 'seedExercisesIfNeeded' src/ || true", { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
+        const callers = execSync("git grep -l 'seedExercisesIfNeeded' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' })
+          .split('\n').filter(Boolean).map((l) => l.replace(/^[0-9a-f]+:/, '')).sort()
         return JSON.stringify(callers) === JSON.stringify([
           'src/app/(app)/workouts/exercises/page.tsx', 'src/app/(app)/workouts/page.tsx',
           'src/app/api/exercises/route.ts', 'src/lib/supabase/seed-exercises.ts'])

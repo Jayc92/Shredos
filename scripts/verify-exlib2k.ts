@@ -217,7 +217,7 @@ async function main(): Promise<void> {
 
   console.log('\nD. Boundaries, posture, and lifecycle (proofs 11-13)')
   {
-    check('D1: no seed, inventory, eligibility, ledger, runtime, or config change — the frozen set is blob-identical to the promoted tip, and the phase touches only docs/ and scripts/verify-* paths (proof 11)',
+    check('D1: no seed, inventory, eligibility, ledger, runtime, or config change — the frozen set is blob-identical to the promoted tip, and the range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (proof 11)',
       (() => {
         for (const p of [ARTIFACT, 'src/lib/supabase/seed-exercises.ts',
           'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
@@ -231,7 +231,8 @@ async function main(): Promise<void> {
         if (art.import_eligible !== true || art.content_review.status !== 'approved' ||
           art.content_review.reviewer !== 'Nick Tkacz' || art.review_status !== 'proposed') return false
         if (Object.keys(art).some((k) => k.includes('publication'))) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        /* RETARGET (EXLIB-2T delivery-runtime preparation): the live-range boundary is anchored at the delivery-runtime predecessor, where this milestone's claim was and remains true */
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..5f7e182f3027b3640514e06d642693f4018c03e2`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())

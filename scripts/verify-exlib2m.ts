@@ -223,7 +223,7 @@ async function main(): Promise<void> {
           live.includes('A5: DRIFT GATE') &&
           live.includes('A7: this suite sources the docs proposal EXACTLY ONCE')
       })())
-    check('C2: no Plank content, review, eligibility, seed, inventory, ledger, runtime, API, UI, dependency, or configuration change — the frozen set is blob-identical to the promoted tip and the phase touches only migrations-027/docs/scripts paths (proof 15)',
+    check('C2: no Plank content, review, eligibility, seed, inventory, ledger, runtime, API, UI, dependency, or configuration change — the frozen set is blob-identical to the promoted tip and the range through the anchored delivery-runtime predecessor touches only migrations-027/docs/scripts paths (proof 15)',
       (() => {
         for (const p of ['docs/exlib2g-plank-content.jsonl',
           'docs/exlib2h-plank-content-review-form-completed.json',
@@ -237,7 +237,8 @@ async function main(): Promise<void> {
         const cur = parseJsonl('docs/exlib2g-plank-content.jsonl')[0]
         if (!(cur.import_eligible === true && cur.content_review.status === 'approved' &&
           cur.review_status === 'proposed')) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        /* RETARGET (EXLIB-2T delivery-runtime preparation): the live-range boundary is anchored at the delivery-runtime predecessor, where this milestone's claim was and remains true */
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..5f7e182f3027b3640514e06d642693f4018c03e2`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         if (range.some((p) => !/^(docs\/|scripts\/verify-|supabase\/migrations\/027_)/.test(p))) return false
         return !execSync('git status --porcelain', { encoding: 'utf8' })

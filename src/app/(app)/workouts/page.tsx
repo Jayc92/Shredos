@@ -7,7 +7,7 @@ import {
   fetchWorkoutWeekStats,
   findActiveTrainingSession,
 } from '@/lib/supabase/server'
-import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
+import { initializeExercisesIfNeeded } from '@/lib/supabase/deliver-catalog'
 import { weeklyMuscleVolume } from '@/lib/workout'
 import { SessionCard } from '@/components/workout/SessionCard'
 import { MuscleVolumeSummary } from '@/components/workout/MuscleVolumeSummary'
@@ -55,7 +55,7 @@ export default async function WorkoutsPage() {
   const profile = await fetchUserProfile(supabase, user.id)
   if (!profile) redirect('/onboarding')
 
-  await seedExercisesIfNeeded(supabase, user.id)
+  await initializeExercisesIfNeeded(supabase, user.id)
 
   // Local-date fix: the user's calendar day (timezone cookie), not
   // the server's UTC day.

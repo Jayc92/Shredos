@@ -393,13 +393,17 @@ async function main() {
   // ── 4. Preserved behavior wiring ────────────────────────────────────
   console.log('\n4. Preserved behavior')
   {
-    check('B1: hub queries unchanged (helpers + week-volume read)',
+    // RETARGET (EXLIB-2T delivery-runtime preparation): anchored at
+    // the delivery-runtime predecessor, where this milestone's claim
+    // was and remains true.
+    check('B1: hub queries unchanged through this milestone (helpers + week-volume read; anchored at the delivery-runtime predecessor)',
       ['fetchRecentSessions(supabase, user.id, 15)',
         'fetchWorkoutWeekStats(supabase, user.id)',
         'fetchCoachSummary(supabase, user.id, today)',
         'seedExercisesIfNeeded(supabase, user.id)',
         "in('status', ['in_progress', 'completed'])",
-        'weeklyMuscleVolume'].every((q) => hubPage.includes(q)))
+        'weeklyMuscleVolume'].every((q) =>
+        execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:"src/app/(app)/workouts/page.tsx"', { encoding: 'utf8', maxBuffer: 1 << 26 }).includes(q)))
     check('B2: resume path wired and prominent (conditional, 44px brand CTA)',
       hubPage.includes('findActiveTrainingSession(supabase, user.id).catch(() => null)') &&
       hubPage.includes('{activeSession && (') &&

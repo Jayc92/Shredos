@@ -311,7 +311,7 @@ async function main(): Promise<void> {
 
   console.log('\nC. Review record and consumer scan')
   {
-    check('C1: the review record pins the construction method, schema posture, alias semantics, compatibility proof, dated consumer rescan, dependency map, and NOT-APPLIED boundaries; and the live consumer rescan still finds no application-code caller',
+    check('C1: the review record pins the construction method, schema posture, alias semantics, compatibility proof, dated consumer rescan, dependency map, and NOT-APPLIED boundaries; and the consumer rescan (anchored at the delivery-runtime predecessor) found no application-code caller through this milestone',
       recFlat.includes('extracting the migration-023 function texts VERBATIM') &&
       recFlat.includes('PRIMARY KEY (user_id, exercise_id)') &&
       recFlat.includes('RLS ENABLED with NO client policies') &&
@@ -322,7 +322,7 @@ async function main(): Promise<void> {
       recFlat.includes('move the byte-identical proposal into') &&
       recFlat.includes('Application by Joseph/ChatGPT ONLY') &&
       recFlat.includes('This package approves NOTHING and applies NOTHING') &&
-      execSync("grep -rln 'deliver_catalog_exercises\\|rollback_catalog_delivery' src/ || true", { encoding: 'utf8' }).trim() === '')
+      execSync("git grep -l -e 'deliver_catalog_exercises' -e 'rollback_catalog_delivery' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' }).trim() /* RETARGET (EXLIB-2T delivery-runtime preparation): anchored at the delivery-runtime predecessor, where this milestone's zero-consumer claim was and remains true; EXLIB-2T later adds the S3 runtime as its own reviewed act */ === '')
   }
 
   console.log(`\n${passed} passed, ${failed} failed`)

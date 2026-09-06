@@ -13,6 +13,7 @@
 // ============================================================
 
 import { readFileSync, existsSync, readdirSync } from 'fs'
+import { execSync } from 'child_process'
 import {
   workoutStatusLabel,
   validateManualWorkoutMetadata,
@@ -551,9 +552,13 @@ console.log('\n15. Live surface regression')
     read('src/components/workout/ActiveWorkoutConflictModal.tsx').includes('role="dialog"'))
   check('StartWorkoutButton untouched (routine live start UI)',
     read('src/components/routine/StartWorkoutButton.tsx').includes('/start'))
-  check('hub queries unchanged',
+  // RETARGET (EXLIB-2T delivery-runtime preparation): anchored at
+  // the delivery-runtime predecessor, where this milestone's claim
+  // was and remains true.
+  check('hub queries unchanged through this milestone (anchored at the delivery-runtime predecessor)',
     ['fetchRecentSessions(supabase, user.id, 15)', 'fetchWorkoutWeekStats(supabase, user.id)',
-      'seedExercisesIfNeeded(supabase, user.id)'].every((q) => hubPage.includes(q)))
+      'seedExercisesIfNeeded(supabase, user.id)'].every((q) =>
+      execSync('git show 5f7e182f3027b3640514e06d642693f4018c03e2:"src/app/(app)/workouts/page.tsx"', { encoding: 'utf8', maxBuffer: 1 << 26 }).includes(q)))
   check('Train subnav untouched on the hub', hubPage.includes('<WorkoutsSubNav />'))
   check('detail page props contract unchanged',
     read('src/app/(app)/workouts/[id]/page.tsx').includes('<WorkoutDetailClient') &&

@@ -409,7 +409,7 @@ async function main(): Promise<void> {
       recFlat.includes('DELIVERY ACTIVATION — NOT performed') &&
       recFlat.includes('seed_link_compatible flip remain facts of the later coordinated delivery-activation release') &&
       recFlat.includes('This record itself approves NOTHING further'))
-    check('D4: boundaries hold — the frozen product surface is blob-identical to the promoted tip (seed module, inventory, ledger, package.json, both batch artifacts), the Plank inventory row stays seed_link_compatible false, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D4: boundaries hold — the frozen product surface is blob-identical to the promoted tip (seed module, inventory, ledger, package.json, both batch artifacts), the Plank inventory row stays seed_link_compatible false, and the phase range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2T delivery-runtime preparation))',
       (() => {
         for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
           'docs/exlib1b1-review-ledger.jsonl', 'package.json',
@@ -421,7 +421,10 @@ async function main(): Promise<void> {
         const plank = inv.filter((r: { proposed_canonical_name: string; seed_link_compatible: boolean }) =>
           r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        // RETARGET (EXLIB-2T delivery-runtime preparation): the live-range
+        // boundary is anchored at the delivery-runtime predecessor, where
+        // this milestone's claim was and remains true.
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..5f7e182f3027b3640514e06d642693f4018c03e2`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p))
       })())

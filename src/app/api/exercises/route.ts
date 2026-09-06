@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
+import { initializeExercisesIfNeeded } from '@/lib/supabase/deliver-catalog'
 import { normalizeExerciseCreatePayload, deriveLegacyExerciseType } from '@/lib/exercise-validation'
 
 export async function GET(request: NextRequest) {
@@ -8,8 +8,10 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Seed on first request if needed
-  await seedExercisesIfNeeded(supabase, user.id)
+  // Initialize on first request if needed (EXLIB-2T: the single
+  // entry point — seed path while the delivery flag is OFF, which
+  // is the strict default; delivery-first, fail-closed when ON)
+  await initializeExercisesIfNeeded(supabase, user.id)
 
   const activeOnly = request.nextUrl.searchParams.get('active') !== 'false'
   // Phase 5A.6B: exercise_muscles (secondary/tertiary roles) is the

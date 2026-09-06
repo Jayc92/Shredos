@@ -508,7 +508,7 @@ async function main(): Promise<void> {
 
   console.log('\nF. Review-4 report compatibility and no-op qualification')
   {
-    check('F1: ADMISSION (EXLIB-2D review 4) — the existing deliver_catalog_exercises JSONB key set is extracted mechanically from the 023 RETURN and matches the matrix exactly; no application-code consumer exists (scan reproduced); and NO sentence in either artifact states a linked-row no-op without the full-validation qualification, under a wording-resistant sentence scan rather than one exact negative phrase',
+    check('F1: ADMISSION (EXLIB-2D review 4) — the existing deliver_catalog_exercises JSONB key set is extracted mechanically from the 023 RETURN and matches the matrix exactly; no application-code consumer existed through this milestone (scan reproduced at the anchored delivery-runtime predecessor); and NO sentence in either artifact states a linked-row no-op without the full-validation qualification, under a wording-resistant sentence scan rather than one exact negative phrase',
       (() => {
         const sql = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
         const start = sql.indexOf('CREATE OR REPLACE FUNCTION deliver_catalog_exercises')
@@ -528,8 +528,12 @@ async function main(): Promise<void> {
         for (const k of EXPECTED) {
           if (!recFlat.includes(k)) return false
         }
+        // RETARGET (EXLIB-2T delivery-runtime preparation): the
+        // zero-consumer scan is anchored at the delivery-runtime
+        // predecessor, where this milestone's claim was and remains
+        // true; EXLIB-2T later adds the S3 runtime as its own act.
         const consumers = execSync(
-          "grep -rln 'deliver_catalog_exercises\\|rollback_catalog_delivery' src/ || true",
+          "git grep -l -e 'deliver_catalog_exercises' -e 'rollback_catalog_delivery' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true",
           { encoding: 'utf8' }).trim()
         if (consumers !== '') return false
         const matFlat = matrixDoc.replace(/\s+/g, ' ')

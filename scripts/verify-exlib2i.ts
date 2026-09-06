@@ -177,7 +177,7 @@ async function main(): Promise<void> {
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)
         return cands.length === 26 && cands.every((c: any) => c.import_eligible === false)
       })())
-    check('C2: no runtime, migration, catalog-loading, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2I tip (73231e9), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src, no load-payload artifact, and the no-hosted-contact claim remain live',
+    check('C2: no runtime, migration, catalog-loading, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2I tip (73231e9), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src through this milestone (anchored at the delivery-runtime predecessor), no load-payload artifact, and the no-hosted-contact claim remain proven',
       (() => {
         const range = execSync(`git diff --name-only ${SOURCE_TIP}..${TIP_2I}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
@@ -185,7 +185,7 @@ async function main(): Promise<void> {
         const files = execSync(`git ls-tree ${TIP_2I} supabase/migrations/ --name-only`, { encoding: 'utf8' })
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
-        if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
+        if (execSync("git grep -l 'deliver_catalog_exercises' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' }).trim() !== '') return false /* RETARGET (EXLIB-2T delivery-runtime preparation): anchored at the delivery-runtime predecessor */
         // RETARGET (EXLIB-2K catalog-load preparation): the
         // no-load-payload/load-package claim is anchored to the
         // promoted EXLIB-2I tip, where it was true; EXLIB-2K later

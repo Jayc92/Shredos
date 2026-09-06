@@ -82,7 +82,7 @@ async function main(): Promise<void> {
         return r.review_status === 'proposed' &&
           !Object.keys(r).some((k) => k.includes('publication'))
       })())
-    check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; RETARGET (EXLIB-2M migration-027 apply-prep): the migrations-exactly-26-with-NO-027 inventory is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027; zero src delivery references remain live',
+    check('A3: product boundary — seed, inventory, review ledger, and eligibility artifacts blob-identical to the source tip; RETARGET (EXLIB-2M migration-027 apply-prep): the migrations-exactly-26-with-NO-027 inventory is anchored to the promoted EXLIB-2H tip (e6a98f2), where it was true; EXLIB-2M later prepares (never applies) 027; zero src delivery references through this milestone (anchored at the delivery-runtime predecessor)',
       (() => {
         for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl',
           'docs/exlib1b1-review-ledger.jsonl', 'docs/exlib1c0a-equipment-resolution.jsonl']) {
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
         const files = execSync(`git ls-tree ${TIP_2H} supabase/migrations/ --name-only`, { encoding: 'utf8' })
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
-        return execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() === ''
+        return execSync("git grep -l 'deliver_catalog_exercises' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' }).trim() === '' /* RETARGET (EXLIB-2T delivery-runtime preparation): anchored at the delivery-runtime predecessor */
       })())
   }
 

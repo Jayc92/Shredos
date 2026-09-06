@@ -182,7 +182,7 @@ async function main(): Promise<void> {
         }
         return true
       })())
-    check('C2: no load package, hosted mutation, runtime delivery, migration 027, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2J tip (2a0465e), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src and no load-package artifact remain live claims',
+    check('C2: no load package, hosted mutation, runtime delivery, migration 027, API, UI, dependency, or configuration change — RETARGET (EXLIB-2M migration-027 apply-prep): the phase range and the migrations-exactly-26-with-no-027 inventory are anchored to the promoted EXLIB-2J tip (2a0465e), where they were true; EXLIB-2M later prepares (never applies) 027. Zero deliver_catalog_exercises references in src through this milestone (anchored at the delivery-runtime predecessor) and no load-package artifact remain proven',
       (() => {
         const TIP_2J = '2a0465e8be5ec2e33a41fde8f30d5fcd5a2de738'
         const range = execSync(`git diff --name-only ${SOURCE_TIP}..${TIP_2J}`, { encoding: 'utf8' })
@@ -191,7 +191,7 @@ async function main(): Promise<void> {
         const files = execSync(`git ls-tree ${TIP_2J} supabase/migrations/ --name-only`, { encoding: 'utf8' })
           .split('\n').filter((f) => f.endsWith('.sql'))
         if (files.length !== 26 || files.some((f) => f.includes('/027'))) return false
-        if (execSync("grep -rln 'deliver_catalog_exercises' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
+        if (execSync("git grep -l 'deliver_catalog_exercises' 5f7e182f3027b3640514e06d642693f4018c03e2 -- src/ || true", { encoding: 'utf8' }).trim() !== '') return false /* RETARGET (EXLIB-2T delivery-runtime preparation): anchored at the delivery-runtime predecessor */
         // RETARGET (EXLIB-2K catalog-load preparation): the
         // no-load-payload/load-package claim is anchored to the
         // promoted EXLIB-2J tip, where it was true; EXLIB-2K later

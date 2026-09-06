@@ -227,7 +227,7 @@ async function main(): Promise<void> {
       recFlat.includes('Two initial post-execution verification queries used incorrect INFERRED table/column names and failed READ-ONLY') &&
       recFlat.includes('They performed no mutation of any kind') &&
       recFlat.includes('corrected verification queries were derived from the committed package and migration-027 schema and passed'))
-    check('D5: boundaries hold — the frozen set is blob-identical to the promoted correction tip, the Plank inventory row stays seed_link_compatible false, and the phase range touches only docs/ and scripts/verify-* paths',
+    check('D5: boundaries hold — the frozen set is blob-identical to the promoted correction tip, the Plank inventory row stays seed_link_compatible false, and the phase range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2T delivery-runtime preparation))',
       (() => {
         for (const p of [ARTIFACT, 'src/lib/supabase/seed-exercises.ts',
           'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
@@ -238,7 +238,10 @@ async function main(): Promise<void> {
         const inv = parseJsonl('docs/exlib2b-release1-inventory.jsonl')
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')
         if (plank.length !== 1 || plank[0].seed_link_compatible !== false) return false
-        const range = execSync(`git diff --name-only ${SOURCE_TIP}..HEAD`, { encoding: 'utf8' })
+        // RETARGET (EXLIB-2T delivery-runtime preparation): the live-range
+        // boundary is anchored at the delivery-runtime predecessor, where
+        // this milestone's claim was and remains true.
+        const range = execSync(`git diff --name-only ${SOURCE_TIP}..5f7e182f3027b3640514e06d642693f4018c03e2`, { encoding: 'utf8' })
           .split('\n').filter(Boolean)
         return !range.some((p) => !/^(docs\/|scripts\/verify-)/.test(p)) &&
           recFlat.includes('seed_link_compatible remains false') &&

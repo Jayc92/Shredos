@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { fetchUserProfile } from '@/lib/supabase/server'
-import { seedExercisesIfNeeded } from '@/lib/supabase/seed-exercises'
+import { initializeExercisesIfNeeded } from '@/lib/supabase/deliver-catalog'
 import { ExercisesClient } from '@/components/workout/ExercisesClient'
 import type { Metadata } from 'next'
 import type { Exercise } from '@/types/database'
@@ -16,7 +16,7 @@ export default async function ExercisesPage() {
   const profile = await fetchUserProfile(supabase, user.id)
   if (!profile) redirect('/onboarding')
 
-  await seedExercisesIfNeeded(supabase, user.id)
+  await initializeExercisesIfNeeded(supabase, user.id)
 
   // Phase 5A.6B: embed the authoritative exercise_muscles rows so the
   // library list displays secondary/tertiary targets and the edit
