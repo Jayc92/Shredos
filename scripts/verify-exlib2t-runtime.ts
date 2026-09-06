@@ -22,8 +22,18 @@
 //     and every malformed-response class against the COMPLETE
 //     migration-026 fourteen-key contract (partial objects, missing
 //     and extra keys, invalid arrays, invalid UUIDs, invalid
-//     plank_disposition values, non-integer counters, and broken
-//     arithmetic invariants are all rejected);
+//     plank_disposition values, non-integer counters, broken
+//     accounting/length invariants, a corrected disposition without
+//     its accounting offset, and a non-correction disposition with
+//     an unexplained offset are all rejected);
+//   - the accounting accepts the LAWFUL reconciliation summaries
+//     (Codex round 2): the P2 pristine-seed correction CONTINUEs in
+//     migration 026 without incrementing any of the three counters,
+//     so corrected_and_linked_pristine_seed — and only it — explains
+//     an offset of exactly 1 against eligible; the Plank-only
+//     correction, the mixed delivery with one correction, and the
+//     already-linked retry are all accepted (round 1's offset-free
+//     sum invariant wrongly rejected the first two);
 //   - across EVERY flag-ON scenario in this suite, the fake client
 //     records ZERO seed-signature inserts (the cross-cutting proof
 //     that no failure class can fall through to a seed row).
@@ -119,9 +129,14 @@ const RUN_KEY = 'release1-fixture-run-key'
 const uuidAt = (i: number): string =>
   `00000000-0000-4000-a000-${String(i + 1).padStart(12, '0')}`
 
-// A COMPLETE, invariant-satisfying migration-026 summary: exactly
-// the fourteen keys; 25 eligible = 25 inserted + 0 + 0; 25 logical
+// A COMPLETE, accounting-satisfying migration-026 summary for a
+// FRESH tenant (no rows, no name claims): exactly the fourteen
+// keys; 25 eligible = 25 inserted + 0 + 0 (offset 0); 25 logical
 // ids for 25 inserts; 0 collision names for 0 collision skips.
+// Plank is INSERTED via the canonical branch on a fresh tenant, so
+// the schema-valid disposition is delivered_canonical_timed_plank —
+// NOT corrected_and_linked_pristine_seed, which the round-1 fixture
+// impossibly combined with full insertion (Codex round 2).
 const freshUserSummary = (): RpcResult => ({
   data: {
     run_key: RUN_KEY, eligible: 25, inserted: 25,
@@ -129,7 +144,7 @@ const freshUserSummary = (): RpcResult => ({
     alias_inserted: 3, alias_added_to_existing: 0, alias_already_delivered: 0,
     alias_skipped_no_exercise: 0, alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0,
     inserted_catalog_logical_ids: Array.from({ length: 25 }, (_, i) => uuidAt(i)),
-    plank_disposition: 'corrected_and_linked_pristine_seed',
+    plank_disposition: 'delivered_canonical_timed_plank',
   },
   error: null,
 })
@@ -140,6 +155,48 @@ const existingUserSummary = (): RpcResult => ({
     run_key: RUN_KEY, eligible: 25, inserted: 0,
     skipped_already_delivered: 25, skipped_name_collision: 0, collision_names: [],
     alias_inserted: 0, alias_added_to_existing: 0, alias_already_delivered: 3,
+    alias_skipped_no_exercise: 0, alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0,
+    inserted_catalog_logical_ids: [],
+    plank_disposition: 'already_valid_idempotent',
+  },
+  error: null,
+})
+// The lawful P2 pristine-Plank corrections (Codex round 2): the
+// migration's correction branch UPDATEs the seed row in place, sets
+// corrected_and_linked_pristine_seed, and CONTINUEs WITHOUT
+// incrementing inserted or either skip counter (and appends no
+// logical id) — while eligible has already counted the row. So the
+// committed success carries an accounting offset of EXACTLY 1.
+const plankOnlyCorrectionSummary = (): RpcResult => ({
+  data: {
+    run_key: RUN_KEY, eligible: 1, inserted: 0,
+    skipped_already_delivered: 0, skipped_name_collision: 0, collision_names: [],
+    alias_inserted: 0, alias_added_to_existing: 0, alias_already_delivered: 0,
+    alias_skipped_no_exercise: 0, alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0,
+    inserted_catalog_logical_ids: [],
+    plank_disposition: 'corrected_and_linked_pristine_seed',
+  },
+  error: null,
+})
+const mixedCorrectionSummary = (): RpcResult => ({
+  data: {
+    run_key: RUN_KEY, eligible: 25, inserted: 24,
+    skipped_already_delivered: 0, skipped_name_collision: 0, collision_names: [],
+    alias_inserted: 2, alias_added_to_existing: 1, alias_already_delivered: 0,
+    alias_skipped_no_exercise: 0, alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0,
+    inserted_catalog_logical_ids: Array.from({ length: 24 }, (_, i) => uuidAt(i)),
+    plank_disposition: 'corrected_and_linked_pristine_seed',
+  },
+  error: null,
+})
+// The retry AFTER a prior correction: the already-linked Plank is
+// validated and skipped-as-already-delivered (offset 0 — that
+// CONTINUE path DOES increment skipped_already_delivered).
+const alreadyLinkedRetrySummary = (): RpcResult => ({
+  data: {
+    run_key: RUN_KEY, eligible: 1, inserted: 0,
+    skipped_already_delivered: 1, skipped_name_collision: 0, collision_names: [],
+    alias_inserted: 0, alias_added_to_existing: 0, alias_already_delivered: 0,
     alias_skipped_no_exercise: 0, alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0,
     inserted_catalog_logical_ids: [],
     plank_disposition: 'already_valid_idempotent',
@@ -239,6 +296,8 @@ async function main(): Promise<void> {
       ['BROKEN SUM invariant (inserted+skips != eligible)', { ...freshUserSummary().data as object, skipped_already_delivered: 1 }],
       ['BROKEN ids-length invariant (24 ids for 25 inserts)', { ...freshUserSummary().data as object, inserted_catalog_logical_ids: Array.from({ length: 24 }, (_, i) => uuidAt(i)) }],
       ['BROKEN collision-length invariant (name without skip)', { ...freshUserSummary().data as object, collision_names: ['Plank'] }],
+      ['CORRECTED disposition WITHOUT the accounting offset (the impossible round-1 fixture shape: full insertion + corrected_and_linked_pristine_seed)', { ...freshUserSummary().data as object, plank_disposition: 'corrected_and_linked_pristine_seed' }],
+      ['NON-CORRECTION disposition with an unexplained offset (24 of 25 accounted, disposition explains nothing)', { ...freshUserSummary().data as object, inserted: 24, inserted_catalog_logical_ids: Array.from({ length: 24 }, (_, i) => uuidAt(i)) }],
     ]
     for (const [label, data] of malformedCases) {
       setEnv(onEnv)
@@ -251,7 +310,7 @@ async function main(): Promise<void> {
         console.log(`        malformed case not failed closed: ${label} -> ${JSON.stringify(out)}`)
       }
     }
-    check('B5: MALFORMED RESPONSE against the COMPLETE fourteen-key contract — all FIFTEEN malformed shapes fail closed with zero seed inserts: null/array/string data, a PARTIAL success object, a MISSING key, an EXTRA key, a wrong run_key echo, non-integer and negative counters, an invalid collision_names member, an invalid UUID, an invalid plank_disposition, and all three broken arithmetic invariants — and none of them is misclassified as an unknown-outcome timeout',
+    check('B5: MALFORMED RESPONSE against the COMPLETE fourteen-key contract — all SEVENTEEN malformed shapes fail closed with zero seed inserts: null/array/string data, a PARTIAL success object, a MISSING key, an EXTRA key, a wrong run_key echo, non-integer and negative counters, an invalid collision_names member, an invalid UUID, an invalid plank_disposition, all three broken accounting/length invariants, a CORRECTED disposition WITHOUT the accounting offset (the impossible round-1 fixture shape), and a NON-CORRECTION disposition with an unexplained offset — and none of them is misclassified as an unknown-outcome timeout',
       allMalformed && malformedUnknownFlagged === 0)
 
     setEnv(onEnv)
@@ -270,9 +329,9 @@ async function main(): Promise<void> {
     let fake = makeFake({ existingCount: 0, rpc: freshUserSummary })
     let out = await initializeExercisesIfNeeded(fake.client, 'user-1')
     onPathSeedInserts += fake.log.exerciseInserts
-    check('C1: SUCCESSFUL DELIVERY (fresh user) — outcome "delivered" with the summary\'s counters and plank disposition (inserted 25 of eligible 25, corrected_and_linked_pristine_seed), exactly one RPC call carrying the configured p_run_key, zero seed inserts',
+    check('C1: SUCCESSFUL DELIVERY (fresh user) — outcome "delivered" with the summary\'s counters and the schema-valid fresh-insertion disposition (inserted 25 of eligible 25, delivered_canonical_timed_plank — the round-1 fixture\'s corrected_and_linked_pristine_seed was impossible alongside full insertion), exactly one RPC call carrying the configured p_run_key, zero seed inserts',
       out.path === 'delivered' && out.inserted === 25 && out.eligible === 25 &&
-      out.plankDisposition === 'corrected_and_linked_pristine_seed' &&
+      out.plankDisposition === 'delivered_canonical_timed_plank' &&
       fake.log.rpcCalls.length === 1 &&
       JSON.stringify(fake.log.rpcCalls[0]) === JSON.stringify({ fn: 'deliver_catalog_exercises', args: { p_run_key: RUN_KEY } }) &&
       fake.log.exerciseInserts === 0)
@@ -287,7 +346,33 @@ async function main(): Promise<void> {
       fake.log.countQueries === 0 &&
       fake.log.rpcCalls.length === 1 && fake.log.exerciseInserts === 0)
 
-    check('C3: CROSS-CUTTING FAIL-CLOSED PROOF — across EVERY flag-ON scenario in this suite (all failure classes and both healthy branches), the fake client observed ZERO seed-signature exercise inserts: no path with the flag ON can fall through to a seed row',
+    // Codex round 2: the lawful reconciliation summaries the round-1
+    // invariant wrongly rejected as malformed.
+    let reconOk = true
+    const reconCases: Array<[string, () => RpcResult, { inserted: number; eligible: number; disposition: string }]> = [
+      ['Plank-only P2 correction (eligible 1, all counters 0, corrected disposition — the committed success round 1 rejected)',
+        plankOnlyCorrectionSummary, { inserted: 0, eligible: 1, disposition: 'corrected_and_linked_pristine_seed' }],
+      ['mixed delivery containing the one P2 correction (24 inserted + 1 corrected in place = 25 eligible)',
+        mixedCorrectionSummary, { inserted: 24, eligible: 25, disposition: 'corrected_and_linked_pristine_seed' }],
+      ['already-linked retry (the post-correction idempotent revisit: skipped_already_delivered 1 of eligible 1, offset 0)',
+        alreadyLinkedRetrySummary, { inserted: 0, eligible: 1, disposition: 'already_valid_idempotent' }],
+    ]
+    for (const [label, summary, expect] of reconCases) {
+      setEnv(onEnv)
+      fake = makeFake({ existingCount: 0, rpc: summary })
+      out = await initializeExercisesIfNeeded(fake.client, 'user-1')
+      onPathSeedInserts += fake.log.exerciseInserts
+      if (!(out.path === 'delivered' && out.inserted === expect.inserted &&
+        out.eligible === expect.eligible && out.plankDisposition === expect.disposition &&
+        fake.log.rpcCalls.length === 1 && fake.log.exerciseInserts === 0)) {
+        reconOk = false
+        console.log(`        reconciliation case not accepted: ${label} -> ${JSON.stringify(out)}`)
+      }
+    }
+    check('C3: RECONCILIATION ACCOUNTING ACCEPTED (Codex round 2) — all three lawful migration-026 reconciliation summaries are accepted as delivered: the Plank-only P2 correction (eligible 1, all three counters 0, corrected_and_linked_pristine_seed — exactly the committed success the round-1 invariant wrongly labeled malformed), the mixed delivery containing one P2 correction (24 + offset 1 = 25), and the already-linked retry (offset 0 via skipped_already_delivered) — each with one RPC call and zero seed inserts',
+      reconOk)
+
+    check('C4: CROSS-CUTTING FAIL-CLOSED PROOF — across EVERY flag-ON scenario in this suite (all failure classes and every healthy branch), the fake client observed ZERO seed-signature exercise inserts: no path with the flag ON can fall through to a seed row',
       onPathSeedInserts === 0)
   }
 

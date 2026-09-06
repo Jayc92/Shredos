@@ -15,26 +15,32 @@
 // reference the seed zero times and the entry point once each; in
 // src/ the seed function is referenced only by its own module and
 // the entry-point module); the RPC integration shape against the
-// migration bytes — as corrected in Codex round 1, the COMPLETE
-// fourteen-key migration-026 summary contract (the key set and the
-// seven-value plank_disposition enum are EXTRACTED MECHANICALLY from
-// the migration bytes and compared with the module's constants; the
-// validator's exact-key-set check, run_key echo, ten non-negative
-// integer counters, string-array and UUID-array checks, disposition
-// enum check, and all three loop invariants are pinned); the timeout
-// machinery including the round-1 UNKNOWN-eventual-outcome
-// classification (default 10000, validated positive-integer knob,
-// cleared timer, unknownDeliveryOutcome: true); the round-1
-// NO-COUNT-GUARD structural proof (the fail-closed region never
-// queries a table — existing users always reach the delivery
-// function); the behavioral test suite's shape and its 12-check
-// totals (fifteen malformed shapes, the existing-seeded-tenant
-// negative control); the sixteen-suite retarget census (label +
-// anchored predecessor in every retargeted file and nowhere else);
-// two-commit phase topology (the preserved preparation commit plus
-// ONE forward round-1 correction commit) over the twenty-three-path
-// inventory; and hygiene. Performs NO hosted contact and NO network
-// activity of any kind.
+// migration bytes — as corrected in Codex rounds 1 AND 2, the
+// COMPLETE fourteen-key migration-026 summary contract (the key set
+// and the seven-value plank_disposition enum are EXTRACTED
+// MECHANICALLY from the migration bytes and compared with the
+// module's constants; the validator's exact-key-set check, run_key
+// echo, ten non-negative integer counters, string-array and
+// UUID-array checks, disposition enum check, the round-2 CORRECTED
+// accounting — the P2 correction branch proven counter-free from
+// the migration control flow, so corrected_and_linked_pristine_seed
+// alone explains an offset of exactly 1 against eligible, which
+// round 1's offset-free sum wrongly forbade — and both length
+// invariants are pinned); the timeout machinery including the
+// round-1 UNKNOWN-eventual-outcome classification (default 10000,
+// validated positive-integer knob, cleared timer,
+// unknownDeliveryOutcome: true); the round-1 NO-COUNT-GUARD
+// structural proof (the fail-closed region never queries a table —
+// existing users always reach the delivery function); the
+// behavioral test suite's shape and its 13-check totals (seventeen
+// malformed shapes, the existing-seeded-tenant negative control,
+// the three accepted reconciliation summaries); the sixteen-suite
+// retarget census (label + anchored predecessor in every retargeted
+// file and nowhere else); three-commit phase topology (the
+// preserved preparation and round-1 commits plus ONE forward
+// round-2 correction commit) over the twenty-three-path inventory;
+// and hygiene. Performs NO hosted contact and NO network activity
+// of any kind.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -63,11 +69,14 @@ const SRC = '5f7e182f3027b3640514e06d642693f4018c03e2'
 const SRC_TREE = '902a2b4b1bf76ca5d75fc8d20b62062411c95cc5'
 const SRC_TAG = 'exlib2r-hosted-publication-application-evidence-stable'
 const SRC_TAG_OBJ = 'e1922ea29f76f43be17f0dd3a7f3d36bcfa8381b'
-// The preserved preparation commit (Codex round-1 correction lands
-// as ONE plain forward commit on top of it; the prep bytes are
-// byte-frozen history).
+// The preserved preparation commit and the preserved round-1
+// correction commit (each Codex correction lands as ONE plain
+// forward commit; every predecessor's bytes are byte-frozen
+// history, never rewritten).
 const PREP = '3ab5ae060888e3cf65441b2b1e35f3bff43ca6a4'
 const PREP_TREE = 'd997b381d4966d3bb6dd27d3ec8bd6b1d34df1e3'
+const R1 = 'd3db56316592aae3f93fb76e21971d64c477a615'
+const R1_TREE = '0224818afb62af05cc5cab194037006219c7960f'
 const LABEL = 'RETARGET (EXLIB-2T delivery-runtime preparation)'
 const RETARGETED = [
   'scripts/verify-exlib2d.ts', 'scripts/verify-exlib2e.ts', 'scripts/verify-exlib2g.ts',
@@ -157,7 +166,7 @@ check('B3: single-entry-point routing — each of the three call sites imports i
       .split('\n').filter(Boolean).sort()
     return JSON.stringify(refs) === JSON.stringify([MODULE, SEED].sort())
   })())
-check('B4: the response validator enforces the COMPLETE migration-026 summary contract (Codex round 1) — the FOURTEEN-key set and the SEVEN-value plank_disposition enum are extracted MECHANICALLY from the migration bytes and equal the module\'s constants; the validator demands the exact key set (no more, no fewer), the run_key echo, non-negative integer values for all TEN counter keys, a string-array collision_names, a well-formed-UUID array inserted_catalog_logical_ids, an enum-checked plank_disposition, and ALL THREE loop invariants; and the single rpc call site invokes the exact granted signature',
+check('B4: the response validator enforces the COMPLETE migration-026 summary contract (Codex rounds 1 and 2) — the FOURTEEN-key set and the SEVEN-value plank_disposition enum are extracted MECHANICALLY from the migration bytes and equal the module\'s constants; the validator demands the exact key set (no more, no fewer), the run_key echo, non-negative integer values for all TEN counter keys, a string-array collision_names, a well-formed-UUID array inserted_catalog_logical_ids, an enum-checked plank_disposition, and the CORRECTED loop accounting — derived from the migration\'s CONTROL FLOW: eligible increments at the loop top before the Plank dispatch, the successful P2 correction block (IF v_p2_ok THEN ... CONTINUE) mutates NO counter and appends NO logical id while every other Plank CONTINUE path increments its counter first, so corrected_and_linked_pristine_seed alone explains an offset of exactly 1 (round 1\'s offset-free sum was WRONG); plus both length invariants; and the single rpc call site invokes the exact granted signature',
   (() => {
     if ((mod.match(/supabase\.rpc\(/g) || []).length !== 1) return false
     if (!mod.includes('supabase.rpc("deliver_catalog_exercises", { p_run_key: runKey })')) return false
@@ -209,7 +218,35 @@ check('B4: the response validator enforces the COMPLETE migration-026 summary co
     if (!mod.includes('!logicalIds.every((id) => typeof id === "string" && UUID_RE.test(id))) return null')) return false
     if (!mod.includes('const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/')) return false
     if (!mod.includes('!(PLANK_DISPOSITIONS as readonly string[]).includes(obj.plank_disposition)) return null')) return false
-    if (!mod.includes('if (inserted + skippedExisting + skippedCollision !== eligible) return null')) return false
+    // MECHANICAL accounting derivation (Codex round 2) from the
+    // migration control flow: (a) eligible counts every row at the
+    // loop top, BEFORE the Plank dispatch; (b) the successful P2
+    // correction block sets the corrected disposition and CONTINUEs
+    // without mutating any counter or the logical-id array; (c) the
+    // other two Plank CONTINUE paths increment their counter (and
+    // the collision path appends its name) BEFORE continuing.
+    const loopTop = mig026.indexOf('v_eligible := v_eligible + 1')
+    const dispatch = mig026.indexOf('Plank dispatch')
+    if (loopTop < 0 || dispatch < 0 || loopTop > dispatch) return false
+    const p2Start = mig026.indexOf('IF v_p2_ok THEN')
+    if (p2Start < 0) return false
+    const p2End = mig026.indexOf('CONTINUE;', p2Start)
+    if (p2End < 0) return false
+    const p2Block = mig026.slice(p2Start, p2End)
+    if (!p2Block.includes("v_plank_disposition := 'corrected_and_linked_pristine_seed'")) return false
+    if (/v_inserted|v_skipped_existing|v_skipped_collision/.test(p2Block)) return false
+    const validIdx = mig026.indexOf("v_plank_disposition := 'already_valid_idempotent'")
+    if (validIdx < 0) return false
+    if (!mig026.slice(Math.max(0, validIdx - 200), validIdx).includes('v_skipped_existing := v_skipped_existing + 1')) return false
+    const collIdx = mig026.indexOf("v_plank_disposition := 'skipped_canonical_and_distinguished_collision'")
+    if (collIdx < 0) return false
+    const beforeColl = mig026.slice(Math.max(0, collIdx - 300), collIdx)
+    if (!beforeColl.includes('v_skipped_collision := v_skipped_collision + 1')) return false
+    if (!beforeColl.includes('array_append(v_collision_names')) return false
+    // the module's corrected accounting and length invariants
+    if (!mod.includes('obj.plank_disposition === "corrected_and_linked_pristine_seed" ? 1 : 0')) return false
+    if (!mod.includes('if (inserted + skippedExisting + skippedCollision + correctedInPlace !== eligible) return null')) return false
+    if (mod.includes('skippedCollision !== eligible) return null')) return false
     if (!mod.includes('if (logicalIds.length !== inserted) return null')) return false
     return mod.includes('if (collisions.length !== skippedCollision) return null')
   })())
@@ -249,7 +286,7 @@ check('B7: NO CLIENT-SIDE COUNT GUARD on the flag-ON path (Codex round 1) — th
   })())
 
 console.log('\nC. The behavioral test suite')
-check('C1: the runtime test suite exists with the CORRECTED design-named coverage — the strict-OFF sweep (nine non-exact values), the missing run key failing closed before any RPC, the rejection/thrown/timeout/malformed classes (FIFTEEN malformed shapes spanning partial objects, missing and extra keys, a wrong run_key echo, non-integer and negative counters, invalid array members, an invalid UUID, an invalid disposition, and all three broken invariants), the timeout asserting the UNKNOWN classification, the EXISTING-SEEDED-TENANT-STILL-INVOKES-DELIVERY negative control with a zero-count-query assertion, the healthy delivered branch, and the cross-cutting zero-seed-inserts tally — driven through the REAL entry point against a fake client with no network',
+check('C1: the runtime test suite exists with the CORRECTED design-named coverage — the strict-OFF sweep (nine non-exact values), the missing run key failing closed before any RPC, the rejection/thrown/timeout/malformed classes (SEVENTEEN malformed shapes spanning partial objects, missing and extra keys, a wrong run_key echo, non-integer and negative counters, invalid array members, an invalid UUID, an invalid disposition, the broken accounting/length invariants, a corrected disposition WITHOUT its offset, and a non-correction disposition WITH an unexplained offset), the timeout asserting the UNKNOWN classification, the EXISTING-SEEDED-TENANT-STILL-INVOKES-DELIVERY negative control with a zero-count-query assertion, the healthy fresh-insertion branch (delivered_canonical_timed_plank — the impossible round-1 fixture replaced), the THREE accepted reconciliation summaries (Plank-only correction, mixed with one correction, already-linked retry), and the cross-cutting zero-seed-inserts tally — driven through the REAL entry point against a fake client with no network',
   (() => {
     if (!tests.includes("import { initializeExercisesIfNeeded } from '../src/lib/supabase/deliver-catalog'")) return false
     if (!tests.includes("['false', '1', 'TRUE', 'True', ' true', 'true ', 'yes', 'on', '']")) return false
@@ -265,14 +302,24 @@ check('C1: the runtime test suite exists with the CORRECTED design-named coverag
     if (!tests.includes("['BROKEN SUM invariant (inserted+skips != eligible)'")) return false
     if (!tests.includes("['BROKEN ids-length invariant (24 ids for 25 inserts)'")) return false
     if (!tests.includes("['BROKEN collision-length invariant (name without skip)'")) return false
-    if ((tests.match(/^      \['/gm) || []).length !== 15) return false
+    if (!tests.includes("['CORRECTED disposition WITHOUT the accounting offset")) return false
+    if (!tests.includes("['NON-CORRECTION disposition with an unexplained offset")) return false
+    const mcBlock = tests.slice(tests.indexOf('const malformedCases'), tests.indexOf('for (const [label, data] of malformedCases)'))
+    if ((mcBlock.match(/^      \['/gm) || []).length !== 17) return false
+    const rcBlock = tests.slice(tests.indexOf('const reconCases'), tests.indexOf('for (const [label, summary, expect] of reconCases)'))
+    if ((rcBlock.match(/^      \['/gm) || []).length !== 3) return false
     if (!tests.includes('EXISTING SEEDED TENANT STILL INVOKES DELIVERY (Codex round 1 negative control)')) return false
+    if (!tests.includes('RECONCILIATION ACCOUNTING ACCEPTED (Codex round 2)')) return false
+    if (!tests.includes('plankOnlyCorrectionSummary')) return false
+    if (!tests.includes('mixedCorrectionSummary')) return false
+    if (!tests.includes('alreadyLinkedRetrySummary')) return false
     if (!tests.includes('fake.log.countQueries === 0')) return false
     if (!tests.includes('out.unknownDeliveryOutcome === true')) return false
     if (!tests.includes("out.reason.includes('UNKNOWN')")) return false
     if (!tests.includes('existingUserSummary')) return false
     if (!tests.includes("out.plankDisposition === 'already_valid_idempotent'")) return false
-    if (!tests.includes("out.plankDisposition === 'corrected_and_linked_pristine_seed'")) return false
+    if (!tests.includes("out.plankDisposition === 'delivered_canonical_timed_plank'")) return false
+    if (!tests.includes("disposition: 'corrected_and_linked_pristine_seed'")) return false
     if (!tests.includes('malformedUnknownFlagged === 0')) return false
     if (!tests.includes('onPathSeedInserts === 0')) return false
     if (!tests.includes('fails closed BEFORE any RPC attempt')) return false
@@ -304,20 +351,23 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E1: phase topology — TWO plain single-parent commits: the PRESERVED preparation commit (exact id, byte-frozen tree) plus exactly ONE forward Codex-round-1 correction commit whose diff touches exactly the four correction paths (module, record, both suites); 2 ahead / 0 behind the promoted source, zero merges, history never rewritten',
+  check('E1: phase topology — THREE plain single-parent commits: the PRESERVED preparation commit and the PRESERVED round-1 correction commit (exact ids, byte-frozen trees) plus exactly ONE forward Codex-round-2 correction commit whose diff touches exactly the four correction paths (module, record, both suites); 3 ahead / 0 behind the promoted source, zero merges, history never rewritten',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
         const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (headParents.length !== 2 || headParents[1] !== PREP) return false
+        if (headParents.length !== 2 || headParents[1] !== R1) return false
+        const r1Parents = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (r1Parents.length !== 2 || r1Parents[1] !== PREP) return false
         const prepParents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
         if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
-        const correction = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-parse ${R1}^{tree}`, { encoding: 'utf8' }).trim() !== R1_TREE) return false
+        const correction = execSync(`git diff --name-status ${R1}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [MODULE, RECORD, VERIFIER, RUNTIME_TESTS].map((p) => `M\t${p}`).sort()
         if (JSON.stringify(correction) !== JSON.stringify(expected)) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '3'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }

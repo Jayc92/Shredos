@@ -168,18 +168,31 @@ function failClosed(reason: string): InitializeOutcome {
 }
 
 // The COMPLETE migration-026 delivery summary contract (Codex
-// round 1: validate the whole shape, not a subset). Derived
-// mechanically from the function's RETURN jsonb_build_object:
-// exactly these FOURTEEN keys, no more and no fewer; the run_key
-// echoes the argument; every counter is a non-negative integer;
-// collision_names is a string array; inserted_catalog_logical_ids
-// is an array of well-formed UUIDs; plank_disposition is one of the
-// seven schema-produced values; and the loop's own arithmetic
-// invariants hold (each eligible member lands in exactly one of
-// inserted / skipped_already_delivered / skipped_name_collision;
-// every insert appends one logical id; every name-collision skip
-// appends one collision name). Anything else is malformed and
-// fails closed.
+// round 1: validate the whole shape, not a subset; Codex round 2:
+// the accounting below is derived from the FULL function body, not
+// just the RETURN). Derived mechanically from the function's RETURN
+// jsonb_build_object: exactly these FOURTEEN keys, no more and no
+// fewer; the run_key echoes the argument; every counter is a
+// non-negative integer; collision_names is a string array;
+// inserted_catalog_logical_ids is an array of well-formed UUIDs;
+// plank_disposition is one of the seven schema-produced values; and
+// the loop's own accounting holds. THE ACCOUNTING (Codex round 2):
+// each eligible member lands in exactly one of inserted /
+// skipped_already_delivered / skipped_name_collision, EXCEPT the
+// successful P2 pristine-seed correction — that branch performs an
+// in-place UPDATE, sets plank_disposition =
+// 'corrected_and_linked_pristine_seed', and CONTINUEs WITHOUT
+// incrementing any of the three counters (and without appending a
+// logical id, so ids.length === inserted is unaffected), while
+// v_eligible has already counted the row. Exactly one disposition
+// value therefore carries an accounting offset of 1; every other
+// CONTINUE path increments a counter first (already_valid_idempotent
+// increments skipped_already_delivered; the collision skip
+// increments skipped_name_collision and appends the name). Round 1
+// asserted the sum WITHOUT this offset, which wrongly rejected a
+// lawful committed Plank correction; corrected in round 2. Every
+// insert appends one logical id; every name-collision skip appends
+// one collision name. Anything else is malformed and fails closed.
 const SUMMARY_KEYS = [
   "run_key", "eligible", "inserted", "skipped_already_delivered",
   "skipped_name_collision", "collision_names", "alias_inserted",
@@ -228,8 +241,13 @@ function parseDeliverySummary(
   const inserted = obj.inserted as number
   const skippedExisting = obj.skipped_already_delivered as number
   const skippedCollision = obj.skipped_name_collision as number
-  // the loop invariants, derivable from the migration bytes
-  if (inserted + skippedExisting + skippedCollision !== eligible) return null
+  // The loop accounting, derived from the FULL function body (Codex
+  // round 2): the successful P2 correction CONTINUEs without
+  // touching the three counters, so that one disposition — and only
+  // that one — explains an offset of exactly 1 against eligible.
+  const correctedInPlace =
+    obj.plank_disposition === "corrected_and_linked_pristine_seed" ? 1 : 0
+  if (inserted + skippedExisting + skippedCollision + correctedInPlace !== eligible) return null
   if (logicalIds.length !== inserted) return null
   if (collisions.length !== skippedCollision) return null
   return { inserted, eligible, plankDisposition: obj.plank_disposition }

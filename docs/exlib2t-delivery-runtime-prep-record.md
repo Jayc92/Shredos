@@ -71,15 +71,23 @@ existence.
   (CATALOG_DELIVERY_TIMEOUT_MS, defaulting to 10,000ms; a
   positive-integer-validated operational knob, never a behavior
   flag), validates the COMPLETE migration-026 JSONB summary
-  contract (Codex round 1) — exactly the FOURTEEN keys, no more
-  and no fewer; the run_key echo; non-negative integer values for
-  all TEN counter keys; collision_names a string array;
+  contract (Codex rounds 1 and 2) — exactly the FOURTEEN keys, no
+  more and no fewer; the run_key echo; non-negative integer values
+  for all TEN counter keys; collision_names a string array;
   inserted_catalog_logical_ids an array of well-formed UUIDs;
-  plank_disposition one of the SEVEN schema-produced values; and
-  the three loop invariants (inserted + skipped_already_delivered
-  + skipped_name_collision = eligible; one logical id per insert;
-  one collision name per collision skip); anything else is
-  malformed — and on ANY failure — rejection, thrown client,
+  plank_disposition one of the SEVEN schema-produced values; the
+  loop ACCOUNTING as the full function body actually produces it
+  (Codex round 2): inserted + skipped_already_delivered +
+  skipped_name_collision + correctedInPlace = eligible, where
+  correctedInPlace is 1 exactly when plank_disposition is
+  corrected_and_linked_pristine_seed and 0 otherwise — because the
+  successful P2 pristine-seed correction UPDATEs the seed row in
+  place and CONTINUEs without incrementing any of the three
+  counters (and without appending a logical id), while eligible
+  has already counted the row; plus the two length invariants (one
+  logical id per insert; one collision name per collision skip);
+  anything else is malformed — and on ANY failure — rejection,
+  thrown client,
   timeout, malformed response, missing configuration, unexpected
   exception — logs and returns failed_closed WITHOUT SEEDING. A
   temporary inability to initialize exercises is the
@@ -112,7 +120,7 @@ existence.
 ## 3. The dedicated tests (behavioral, no network, no hosted contact)
 
 scripts/verify-exlib2t-runtime.ts drives the REAL entry point
-against a fake in-memory Supabase client (12 checks): the strict-OFF
+against a fake in-memory Supabase client (13 checks): the strict-OFF
 default across nine non-exact flag values with the seed path
 verbatim and zero RPC calls; and, flag ON, every design-named
 failure class failing closed with ZERO seed inserts — the missing
@@ -121,19 +129,26 @@ run key (failing closed before any RPC), the database rejection
 refusals), the thrown client, the timeout (a never-settling RPC
 resolved by the race within the configured budget, asserted to be
 classified unknownDeliveryOutcome: true with an UNKNOWN-outcome
-reason), and FIFTEEN malformed-response shapes against the complete
-fourteen-key contract (null/array/string data, a PARTIAL success
-object, a MISSING key, an EXTRA key, a wrong run_key echo,
+reason), and SEVENTEEN malformed-response shapes against the
+complete fourteen-key contract (null/array/string data, a PARTIAL
+success object, a MISSING key, an EXTRA key, a wrong run_key echo,
 non-integer and negative counters, an invalid collision_names
-member, an invalid UUID, an invalid plank_disposition, and all
-three broken arithmetic invariants — none of them misclassified as
-an unknown-outcome timeout) — plus the healthy delivered branch,
-the EXISTING-SEEDED-TENANT negative control (Codex round 1: with
-the flag ON a tenant that already has seeded rows performs ZERO
-count queries, still invokes the RPC exactly once, and accepts the
-database's skipped-as-already-delivered summary), and a
-CROSS-CUTTING tally proving the fake observed zero seed-signature
-inserts across every flag-ON scenario in the suite.
+member, an invalid UUID, an invalid plank_disposition, the broken
+accounting and both broken length invariants, a CORRECTED
+disposition WITHOUT its accounting offset — the impossible round-1
+fixture shape — and a NON-CORRECTION disposition with an
+unexplained offset; none of them misclassified as an
+unknown-outcome timeout) — plus the healthy fresh-insertion branch
+(delivered_canonical_timed_plank), the EXISTING-SEEDED-TENANT
+negative control (Codex round 1: with the flag ON a tenant that
+already has seeded rows performs ZERO count queries, still invokes
+the RPC exactly once, and accepts the database's
+skipped-as-already-delivered summary), the THREE accepted
+reconciliation summaries (Codex round 2: the Plank-only P2
+correction with eligible 1 and all three counters 0, the mixed
+delivery containing one P2 correction, and the already-linked
+retry), and a CROSS-CUTTING tally proving the fake observed zero
+seed-signature inserts across every flag-ON scenario in the suite.
 
 ## 4. What this milestone changes (the exact inventory)
 
@@ -203,11 +218,16 @@ the FAIL-CLOSED REGION split (the seed identifier counted above and
 below the marker); the single-entry-point routing census (zero
 direct seed references in the call sites; the src-wide reference
 census); the RPC integration shape against the migration bytes —
-including, per Codex round 1, the COMPLETE fourteen-key summary
-contract with the key set and the seven-value plank_disposition
-enum EXTRACTED MECHANICALLY from migration 026's bytes and compared
-with the module's constants, every validator enforcement line
-pinned, and all three loop invariants; the timeout machinery
+including, per Codex rounds 1 and 2, the COMPLETE fourteen-key
+summary contract with the key set and the seven-value
+plank_disposition enum EXTRACTED MECHANICALLY from migration 026's
+bytes and compared with the module's constants, every validator
+enforcement line pinned, and the CORRECTED accounting derived from
+the migration's CONTROL FLOW (the P2 correction block proven
+counter-free between IF v_p2_ok THEN and its CONTINUE, the other
+Plank CONTINUE paths proven to increment their counters first, and
+eligible proven to count at the loop top before the Plank
+dispatch) plus both length invariants; the timeout machinery
 including the UNKNOWN-eventual-outcome classification; the
 NO-COUNT-GUARD structural proof (the fail-closed region's only
 database surface is the single rpc call — it never queries a
@@ -282,6 +302,77 @@ correction touches only files introduced by this milestone — and
 the corrected committed totals are 90 suites / 7,091 checks /
 0 failures (the static suite grew by one check, B7; the runtime
 suite remains 12 checks). Nothing in this correction changes the
+retarget set, the call sites, the seed module, any migration, or
+any configuration; the stop condition of section 7 is unchanged
+and this branch remains LOCAL-ONLY, awaiting re-review.
+
+## 9. Codex round-2 correction (2026-09-06)
+
+Codex re-review of the round-1 commit
+(d3db56316592aae3f93fb76e21971d64c477a615, tree
+0224818afb62af05cc5cab194037006219c7960f — PRESERVED, never
+rewritten) found ONE remaining blocker, corrected here as ONE plain
+forward commit touching the same four paths. THE ROUND-1 INVARIANT
+WAS WRONG, AND THE ROUND-1 FIXTURE HID IT:
+
+- THE INCORRECT ROUND-1 INVARIANT: round 1 asserted inserted +
+  skipped_already_delivered + skipped_name_collision = eligible
+  with no offset. The finding was VERIFIED against the committed
+  migration bytes before any edit: v_eligible increments at the
+  loop top (line 259) for every run row, and the successful P2
+  pristine-seed correction branch (IF v_p2_ok THEN, lines 336-358)
+  performs the in-place UPDATE, the anatomy replacement, and the
+  correction record, sets plank_disposition =
+  corrected_and_linked_pristine_seed, and CONTINUEs — incrementing
+  NONE of the three counters and appending NO logical id. So the
+  lawful Plank-only correction returns eligible 1 with all three
+  counters 0, and round 1's validator labeled that COMMITTED
+  SUCCESS malformed — the delivery would have been rolled into a
+  failed_closed outcome by the client for exactly the tenant the
+  whole pristine-Plank reconciliation exists to serve. The
+  corrected accounting adds correctedInPlace (1 for that one
+  disposition, 0 otherwise), because every OTHER continue path
+  increments a counter first: already_valid_idempotent increments
+  skipped_already_delivered (both at its main-path CONTINUE and in
+  the raced-idempotency exception handler), and the collision skip
+  increments skipped_name_collision and appends the name. The two
+  length invariants are unaffected (the correction branch appends
+  no logical id and no collision name) and are preserved verbatim,
+  as are the complete key/type validation, the round-1 count-guard
+  removal, and the round-1 timeout-ambiguity classification.
+- THE IMPOSSIBLE ROUND-1 FIXTURE: the round-1 "fresh user" success
+  fixture combined inserted 25 / eligible 25 with
+  corrected_and_linked_pristine_seed — a summary the database
+  cannot produce (the corrected disposition requires the offset,
+  so full insertion alongside it would need eligible 26). Because
+  the fixture satisfied round 1's offset-free sum, the suite
+  PASSED while the validator rejected the real committed success:
+  the wrong fixture hid the wrong invariant. It is REPLACED by the
+  schema-valid fresh-insertion disposition
+  delivered_canonical_timed_plank (a fresh tenant has no name
+  claims, so Plank inserts through the canonical branch and is
+  counted by inserted). The old impossible shape is now itself a
+  REJECTED malformed case.
+- NEW BEHAVIORAL COVERAGE (the suite grows 12 -> 13 checks): the
+  three lawful reconciliation summaries are accepted (the
+  Plank-only P2 correction, the mixed delivery containing one P2
+  correction, and the already-linked retry), and two accounting
+  rejections join the malformed matrix (a corrected disposition
+  WITHOUT its offset — the old fixture shape — and a
+  non-correction disposition with an unexplained offset), taking
+  it to SEVENTEEN shapes. The static verifier now derives the
+  accounting from the migration's control flow itself (the
+  counter-free P2 block, the counter-incrementing other CONTINUE
+  paths, and the loop-top eligible increment) instead of trusting
+  a hand-stated formula.
+
+The correction's simulated-commit battery (the corrected worktree
+committed against the preserved round-1 commit) again showed ZERO
+stale historical checks, and the corrected committed totals are
+90 suites / 7,092 checks / 0 failures (the runtime suite grew by
+one check; the static suite remains 16 checks). Section 8's quoted
+round-1 totals (90 suites / 7,091 checks) remain historical fact
+about the round-1 battery. Nothing in this correction changes the
 retarget set, the call sites, the seed module, any migration, or
 any configuration; the stop condition of section 7 is unchanged
 and this branch remains LOCAL-ONLY, awaiting re-review.
