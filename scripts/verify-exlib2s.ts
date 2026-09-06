@@ -261,21 +261,23 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly TWO plain single-parent commits (the preparation commit, PRESERVED with its exact tree, and the live-suite-retarget forward correction), 2 ahead / 0 behind, zero merges',
+  check('E1: phase topology — the merge base of HEAD and the promoted source IS the source; the phase is exactly THREE plain single-parent commits (the preparation commit, PRESERVED with its exact tree; the live-suite-retarget correction, PRESERVED; and its one second-order-pin correction), 3 ahead / 0 behind, zero merges, with the combined correction range touching exactly the record, this verifier, the retargeted live suite, and the 2O application verifier',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
         const PREP = '7e6f70cb80be22c7de55cb4f5f8303eb019c7e78'
         const PREP_TREE = '105495c5ba5013e4a56ee09ea94270f10014c447'
+        const CORR1 = '9ba7b437e8df9caa2f0e906bfec6d3633f561b27'
         if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
-        for (const [child, parent] of [['HEAD', PREP], [PREP, SRC]]) {
+        for (const [child, parent] of [['HEAD', CORR1], [CORR1, PREP], [PREP, SRC]]) {
           const parents = execSync(`git rev-list --parents -n 1 ${child}`, { encoding: 'utf8' }).trim().split(/\s+/)
           if (parents.length !== 2 || parents[1] !== parent) return false
         }
         const corr = execSync(`git diff --name-status ${PREP}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
-        if (JSON.stringify(corr) !== JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`, 'M\tscripts/verify-exlib2o-live.sh'].sort())) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '2'
+        if (JSON.stringify(corr) !== JSON.stringify([`M\t${RECORD}`, `M\t${VERIFIER}`,
+          'M\tscripts/verify-exlib2o-application.ts', 'M\tscripts/verify-exlib2o-live.sh'].sort())) return false
+        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '3'
           && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
           && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
       } catch { return false }

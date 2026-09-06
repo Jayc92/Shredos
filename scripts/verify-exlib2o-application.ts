@@ -335,11 +335,14 @@ async function main(): Promise<void> {
         // delivery-surface paths compare source-blob vs the anchored
         // delivery-predecessor blob; every other frozen path stays live.
         const DELIVERY_PRED = '5f7e182f3027b3640514e06d642693f4018c03e2'
-        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl']) {
+        // (the 2O live verifier itself joins the anchored pair: the
+        // EXLIB-2S live-suite retarget legitimately edits its D16
+        // seed check after this suite's milestone)
+        for (const p of ['src/lib/supabase/seed-exercises.ts', 'docs/exlib2b-release1-inventory.jsonl', LIVE]) {
           if (execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim() !==
               execSync(`git rev-parse "${DELIVERY_PRED}:${p}"`, { encoding: 'utf8' }).trim()) return false
         }
-        for (const p of [PREP_RECORD, LIVE, 'docs/exlib1b1-review-ledger.jsonl',
+        for (const p of [PREP_RECORD, 'docs/exlib1b1-review-ledger.jsonl',
           'package.json', 'docs/exlib2k-hosted-load-application-record.md']) {
           if (!frozenVsSource(p)) return false
         }

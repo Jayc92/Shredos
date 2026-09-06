@@ -178,7 +178,7 @@ repository bytes, stated plainly and without deviation:
 
 ## 4. What this milestone changes (the exact inventory)
 
-Exactly THIRTY-FIVE paths on the promoted tip (one preparation commit plus one same-branch forward correction that landed the live-suite retarget; both plain, single-parent, and preserved):
+Exactly THIRTY-FIVE paths on the promoted tip (one preparation commit plus two same-branch plain forward corrections: the live-suite retarget, then its one second-order consequence — the 2O application verifier pins the 2O live verifier's bytes, so its pin joins the same anchor; every commit single-parent and preserved):
 
 - M src/lib/supabase/seed-exercises.ts (the Plank entry + the
   documentation comment).
@@ -207,7 +207,9 @@ live suites are not battery members, every live suite referencing
 the two delivery files was then inspected directly, which found
 exactly ONE further live-suite check (verify-exlib2o-live.sh D16,
 whose seed grep matches this milestone's new documentation comment)
-— FORTY-TWO checks across THIRTY-ONE suites in total, and nothing
+— FORTY-TWO checks across THIRTY-ONE suites in total — plus the ONE
+second-order pin that edit itself exposed (the 2O application
+verifier's frozen-set entry for the 2O live verifier), and nothing
 else. Each was retargeted under the exact label `RETARGET (EXLIB-2S delivery-activation preparation)` with ONE
 uniform, strength-preserving mechanism: the seed/inventory reads,
 byte pins, and boundary ranges those checks make are ANCHORED AT THE
