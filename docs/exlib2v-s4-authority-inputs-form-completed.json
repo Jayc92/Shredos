@@ -1,0 +1,39 @@
+{
+  "form": "EXLIB-2V S4 authority inputs (staged-run preparation prerequisites)",
+  "form_version": 1,
+  "prepared_at": "2026-09-07",
+  "milestone_branch": "exlib2v-snapshot-review-decision-prep",
+  "source_commit": "fc3e6cce5afcf03f0552d65a2de7e7c796646a25",
+  "purpose": "The promoted activation design's S4 staged posture requires the run row to carry complete product and legal approval evidence BEFORE the S5 seal (the seal transition validates the evidence but never populates it), a stable unique run key, and a membership set. None of these values exists in promoted bytes; all are human decisions. This form requests them EXPLICITLY so the S4 package can be authored without fabricating anything. Filling this form approves nothing and changes nothing; the values feed the separately reviewed EXLIB-2U staged-run package.",
+  "requested_inputs": {
+    "product_approver_identity": {
+      "value": "Joseph Carfagno",
+      "constraint": "a real human identity (non-blank after btrim); recorded on the run row as product_approved_by with a product_approved_at timestamp the approver supplies",
+      "product_approved_at": "2026-09-07T11:05:00-04:00"
+    },
+    "legal_approver_identity": {
+      "value": "Joseph Carfagno",
+      "constraint": "a real human identity (non-blank after btrim); recorded as legal_approved_by with a legal_approved_at timestamp the approver supplies",
+      "legal_approved_at": "2026-09-07T11:05:00-04:00"
+    },
+    "approval_rationale": {
+      "value": "Approved for staged delivery validation of Plank and its reviewed progression and substitution targets. This does not authorize sealing, production delivery, or enabling the delivery flag; those remain separately gated.",
+      "constraint": "non-blank after btrim; frozen forever at the S5 seal together with the identities and timestamps"
+    },
+    "run_key_literal": {
+      "value": "exlib2u-plank-release1-staged-v1",
+      "constraint": "8 to 200 characters after btrim; UNIQUE across exercise_catalog_import_runs forever; the SAME string is later bound by the S5 seal call exlib_approve_and_seal_run(run_key) and by the S6 runtime delivery configuration - choose it as a permanent, meaningful release identifier"
+    },
+    "run_membership": {
+      "value": "ALL_THREE_IDENTITIES",
+      "choices": [
+        "PLANK_ONLY",
+        "ALL_THREE_IDENTITIES"
+      ],
+      "constraint": "see the preparation record's membership-consequences section; the schema and the promoted design do NOT determine this choice unambiguously, so it is a human product decision. PLANK_ONLY = exercise member Plank plus its two catalog aliases as alias members; ALL_THREE_IDENTITIES = exercise members Plank, Dead bug, Ab wheel rollout plus all three catalog aliases (Front plank, Forearm plank, Ab roller rollout) as alias members."
+    }
+  },
+  "no_effect_statement": "Blank or null NEVER reads as a decision. This form has no mechanical effect; its values are inputs to a later, separately reviewed, one-use S4 package prepared on the reserved exlib2u-staged-run-prep branch and executed hosted only by Joseph/ChatGPT.",
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate any requested input: identities, timestamps, rationale, the run key, and the membership choice are human decisions.",
+  "voiding_rule": "Any byte change to this form voids the recorded inputs."
+}

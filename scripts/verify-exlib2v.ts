@@ -106,7 +106,15 @@ check('A3: the naming derivation holds — the EXLIB-2 series at the source comm
   (() => {
     const atSrc = execSync(`git ls-tree -r --name-only ${SRC}`, { encoding: 'utf8' })
     if (/exlib2v/i.test(atSrc)) return false
+    // RETARGET (EXLIB-2W human-decision artifacts): the derivation
+    // claim is a DERIVATION-TIME fact — this milestone's own
+    // closure later created its stable tag lawfully, which is the
+    // recurring completed-phase pattern (a finished milestone's own
+    // artifacts falsify its authoring-time self-censuses). The
+    // census excludes exactly that one post-closure tag by name;
+    // every OTHER namespace remains fully censused.
     const tags = execSync('git tag', { encoding: 'utf8' }).split('\n').filter(Boolean)
+      .filter((t) => t !== 'exlib2v-snapshot-review-decision-prep-stable')
     if (tags.some((t) => /exlib2v/i.test(t))) return false
     const phase2u = tags.filter((t) => t.startsWith('phase2u'))
     if (phase2u.length > 0 && !phase2u.includes('phase2u-cardio-timed-progression-stable')) return false
@@ -304,30 +312,33 @@ check('D2: the record derives BOTH membership options\' consequences from the de
   })())
 
 console.log('\nE. No package, no mutation surface, truthful boundary')
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('E1: phase topology — THREE plain single-parent commits on the promoted source: the preparation commit and the authoring correction (exact pinned ids, byte-frozen) plus ONE forward Codex-round-1 correction touching exactly the FIVE correction paths (the three review forms, the record, this verifier — the authority-inputs form deliberately untouched); the RANGE still carries exactly EIGHT paths (the SIX added phase paths plus the TWO labeled retargeted suites as modifications), nothing deleted, no .sql path anywhere in the phase',
+// RETARGET (EXLIB-2W human-decision artifacts): this phase
+// COMPLETED — reviewed, published, promoted, production-deployed,
+// and tagged — so its topology claims are anchored at the phase's
+// own promoted tip (below) instead of HEAD, where they held and
+// hold forever; the HEAD-relative form went stale at the first
+// successor commit, the same completed-phase pattern as before.
+const TIP2V = '0d4dad415a40c8b4baf042651e3f748f3c8c9f5e'
+{
+  check('E1: phase topology — THREE plain single-parent commits at the promoted phase tip: the preparation commit and the authoring correction (exact pinned ids, byte-frozen) plus ONE forward Codex-round-1 correction touching exactly the FIVE correction paths (the three review forms, the record, this verifier — the authority-inputs form deliberately untouched); the RANGE still carries exactly EIGHT paths (the SIX added phase paths plus the TWO labeled retargeted suites as modifications), nothing deleted, no .sql path anywhere in the phase',
     (() => {
       try {
         const PREP1 = '96c3bbbb6d9b4487d21684a891eab72458416ca5'
         const CORR1 = 'd37dd1b2dfcd00c58d4873d3e4b45f808617918f'
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2V}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const headParents = execSync(`git rev-list --parents -n 1 ${TIP2V}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (headParents.length !== 2 || headParents[1] !== CORR1) return false
         const c1Parents = execSync(`git rev-list --parents -n 1 ${CORR1}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (c1Parents.length !== 2 || c1Parents[1] !== PREP1) return false
         const prepParents = execSync(`git rev-list --parents -n 1 ${PREP1}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
-        if (execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        const corr = execSync(`git diff --name-status ${CORR1}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-list --count ${SRC}..${TIP2V}`, { encoding: 'utf8' }).trim() !== '3') return false
+        if (execSync(`git rev-list --count --merges ${SRC}..${TIP2V}`, { encoding: 'utf8' }).trim() !== '0') return false
+        const corr = execSync(`git diff --name-status ${CORR1}..${TIP2V}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const corrExpected = [...FORMS.map((p) => `M\t${p}`), `M\t${RECORD}`, `M\t${VERIFIER}`].sort()
         if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2V}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_PATHS.map((p) => `A\t${p}`),
@@ -337,9 +348,6 @@ if (committed) {
         return !PHASE_PATHS.some((p) => p.endsWith('.sql'))
       } catch { return false }
     })())
-} else {
-  check('E1 (uncommitted authoring state): every worktree change lies inside the six phase paths plus the two labeled retargeted suites, and none is a .sql file',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p) || RETARGETED.includes(p)) && !CHANGED.some((p) => p.endsWith('.sql')))
 }
 check('E2: NO mutation surface exists in this phase — no phase file carries SQL package markers (transaction begin/commit statements, LOCK TABLE, SET ROLE, or an INSERT/UPDATE/DELETE statement head), and no phase file names the runtime flag or run-key ENVIRONMENT variables (the census-protected literals appear nowhere in the phase)',
   (() => {
