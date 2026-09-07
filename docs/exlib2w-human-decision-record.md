@@ -82,6 +82,24 @@ classifications, and source fingerprints — is IDENTICAL to the
 approved template. Per the templates' own lifecycle, any further
 byte change to a completed form voids that decision.
 
+NON-OPERATIVE (Codex round 1): exactly BECAUSE the lifecycle bytes
+are identical to the template's, each round-0 completed copy still
+DECLARES the present-tense fixed state "PREPARED_BLANK_TEMPLATE -
+this prepared blank form is an approved template, NOT a decision"
+while carrying a populated APPROVE decision — a semantic
+self-contradiction. The three round-0 completed snapshot forms are
+therefore NON-OPERATIVE: they record the transcription faithfully
+as history, but NO VALID SNAPSHOT DECISION IS CURRENTLY CLAIMED by
+this repository. Their own contract forbids repairing them in
+place (only the initial six-field completion transition is lawful,
+and any subsequent byte change voids the decision), so the
+correction supersedes them with fresh v2 blank templates — see
+section 7a — and a FRESH human review with a NEW timestamp is
+required. The completed S4 AUTHORITY-INPUTS form is UNAFFECTED by
+this finding (its blank template never carried a fixed
+state declaration), remains byte-identical to its round-0
+transcription, and stays RESERVED EVIDENCE ONLY.
+
 ## 4. The completed S4 authority inputs (supplied verbatim)
 
 docs/exlib2v-s4-authority-inputs-form-completed.json differs from
@@ -156,7 +174,14 @@ executable lifecycle action introduced; W13 this record claims no
 snapshot review, review event, S4 staging, approval, sealing, or
 delivery occurred (the not-yet statements present, no
 contrary claim); W14 topology and inventory exact; W15 hygiene and
-credential boundaries. Each of the six instructed NEGATIVE CONTROLS
+credential boundaries; and W16 (Codex round 1) derives each form's
+status MECHANICALLY from its six human fields (all null =
+PREPARED_BLANK_TEMPLATE; all non-null = COMPLETED_HUMAN_DECISION;
+mixed = INVALID) and rejects any form whose declared lifecycle
+semantics conflict with that derived status — the three enumerated
+round-0 completed forms are the only tolerated incoherent
+artifacts, and only because this record declares them
+non-operative. Each of the six instructed NEGATIVE CONTROLS
 was run before committing: a scratch mutation (altered non-human
 template field; a re-nulled human field; a changed decision; an
 incorrect timestamp; an unauthorized authority-form field change; a
@@ -182,11 +207,86 @@ claim was true at derivation time and remains true of every OTHER
 namespace. verify-exlib2v B1 (every human field null in the three
 review forms it reads) stays TRUE because it reads the BLANK
 template paths, which this phase never modifies — no retarget
-needed there. With the retarget in place the simulated-commit
-battery and the committed battery both read 92 suites /
-7,128 checks / 0 failures — the promoted baseline 91/7,113 plus
-exactly this milestone's new 15-check static suite and nothing
-else, count-neutral everywhere.
+needed there. With the retarget in place the round-0
+simulated-commit battery and committed battery both read 92 suites
+/ 7,128 checks / 0 failures — the promoted baseline 91/7,113 plus
+the then-15-check static suite, count-neutral everywhere. After the
+Codex round-1 correction added W16, the corrected simulated-commit
+battery and committed battery both read 92 suites / 7,129 checks /
+0 failures — the same baseline plus exactly this milestone's
+16-check static suite and nothing else.
+
+## 7a. Codex round-1 correction (2026-09-07)
+
+Codex re-review found, and verification against the committed
+candidate 28ec4aebc4796317bb2a3fde663fc80b859773cd confirmed, that
+all three round-0 completed snapshot forms declare the fixed
+present-tense PREPARED_BLANK_TEMPLATE / NOT-a-decision state while
+holding complete APPROVE decisions, and that verify-exlib2w proved
+the six-leaf structural difference without ever proving
+lifecycle-state coherence (its W8 in fact REQUIRED the completed
+lifecycle bytes to equal the blank template's, locking the
+contradiction in). The completed forms were NOT repaired in place
+and their wording was NOT reinterpreted: their own contract permits
+only the initial six-field completion transition and voids any
+later byte change, and the 2026-09-07T11:05:00-04:00 timestamp was
+NOT reused. Instead, ONE plain forward correction commit (the
+round-0 candidate and all earlier commits preserved, history never
+rewritten) adds three superseding BLANK v2 templates —
+docs/exlib2w-plank-snapshot-review-form-v2.json,
+docs/exlib2w-dead-bug-snapshot-review-form-v2.json,
+docs/exlib2w-ab-wheel-rollout-snapshot-review-form-v2.json — that
+copy the governed snapshot facts and the seventeen preserved values
+EXACTLY from the accepted EXLIB-2V forms (created_at sentinel and
+truthful scope preserved), keep all six human fields null, keep the
+six-fields-only completion rule, post-completion immutability, and
+every independent source/hosted-state voiding rule, and REPLACE the
+fixed state declaration with the state-neutral mechanical rule
+(all six null = PREPARED_BLANK_TEMPLATE, not a decision; all six
+non-null human-supplied in the single lawful transition =
+COMPLETED_HUMAN_DECISION; any mixed state = INVALID). NO completed
+v2 forms were created and NO former human values were copied
+forward: fresh human review with a new timestamp is required after
+these corrected templates are themselves reviewed. The dedicated
+W16 coherence check was added with a negative control (a populated
+scratch copy carrying the old fixed blank-only declaration made
+W16 fail alone, and the corrected bytes were restored byte-exact).
+No review application, event, run, approval, seal, or delivery act
+occurred, and the correction was made without hosted contact.
+
+## 7b. Worktree-contamination disclosure and quarantine (2026-09-07)
+
+While the round-1 correction was in progress (authored but not yet
+committed), an EXTERNAL actor — not this preparation session; the
+folder is also open in another session, and both round-0 sweeps and
+the round-0 committed battery had been clean minutes earlier —
+moved 748 loose files (250,459,899 bytes; old scratch sources,
+historical exlib export sets, review bundles, and even this
+milestone's own round-0 export set) from the Downloads folder into
+the repository root, with timestamps preserved. The contamination
+touched NO tracked byte (HEAD stayed at the round-0 candidate, the
+index and stash stayed empty, and the only tracked modifications
+remained this record and the verifier), but it invalidated
+worktree-scanning checks and simulated-commit sweeps until removed.
+Under explicit operator instruction the 748 mechanically classified
+foreign files — every one a plain file at the repository root,
+overlapping no tracked path and no authorized correction path —
+were RELOCATED (never deleted, never overwritten, git clean never
+used) into the non-overwriting quarantine directory
+shredos-repo-contamination-quarantine-20260907 in the Downloads
+folder, preserving relative paths and metadata. Complete source and
+destination inventories (relative path, byte size, SHA-256) are
+retained inside the quarantine; every file arrived byte-identical,
+source and destination counts are both exactly 748, the total bytes
+reconcile exactly, none of those paths remains inside the
+repository, and the repository afterward contained exactly the five
+authorized correction changes. The prior round-0 export paths
+reported for review are therefore STALE (the round-0 exports now
+live in the quarantine); this correction ships a fresh
+non-overwriting export set. The simulated-commit sweep for this
+correction builds its probe tree from the intended phase paths
+EXPLICITLY rather than a blanket add, so a recurrence of external
+contamination cannot silently enter a probe tree.
 
 ## 8. Stop condition
 

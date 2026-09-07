@@ -12,8 +12,16 @@
 // the seven-leaf authority completion, run-key freshness and
 // bounds, the ALL_THREE_IDENTITIES membership, the
 // no-mutation-surface boundary, the record's truthful
-// nothing-applied claims, topology, and hygiene. Performs NO
-// hosted contact and NO network activity of any kind.
+// nothing-applied claims, topology, and hygiene — PLUS the Codex
+// round-1 W16 lifecycle-state coherence rule: a form's status is
+// DERIVED from its six human fields, never trusted from a fixed
+// declaration; the three round-0 completed forms are the only
+// tolerated incoherent artifacts (populated decisions still
+// declaring the blank-template state), and ONLY because the record
+// declares them NON-OPERATIVE — no valid snapshot decision is
+// currently claimed, and the superseding v2 BLANK templates await
+// fresh human review. Performs NO hosted contact and NO network
+// activity of any kind.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -220,26 +228,39 @@ const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split
 const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
+const V2_FORMS = SLUGS.map((s) => `docs/exlib2w-${s}-snapshot-review-form-v2.json`)
 if (committed) {
-  check('W14: topology and inventory exact — ONE plain single-parent commit on the promoted source; the range carries exactly the SIX added phase paths (four completed forms, the record, this verifier) plus ONLY the labeled retargets the sweep enumerated; nothing deleted',
+  check('W14: topology and inventory exact — TWO plain single-parent commits on the promoted source: the PRESERVED round-0 transcription commit (exact pinned id) plus ONE forward Codex-round-1 correction adding the three superseding v2 blank templates and touching only the record and this verifier; the full range carries exactly TEN paths; nothing deleted',
     (() => {
       try {
+        const PREP_W = '28ec4aebc4796317bb2a3fde663fc80b859773cd'
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (headParents.length !== 2 || headParents[1] !== PREP_W) return false
+        const prepParents = execSync(`git rev-list --parents -n 1 ${PREP_W}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
+        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
+        if (execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
+        const corr = execSync(`git diff --name-status ${PREP_W}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [
+          ...V2_FORMS.map((p) => `A\t${p}`),
+          `M\t${RECORD}`, `M\t${VERIFIER}`,
+        ].sort()
+        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
+          ...V2_FORMS.map((p) => `A\t${p}`),
           'M\tscripts/verify-exlib2v.ts',
         ].sort()
         return JSON.stringify(status) === JSON.stringify(expected)
       } catch { return false }
     })())
 } else {
-  check('W14 (uncommitted authoring state): every worktree change lies inside the six phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || p === 'scripts/verify-exlib2v.ts'))
+  check('W14 (uncommitted authoring state): every worktree change lies inside the phase paths (round-0 adds + the three v2 templates) plus the labeled retargeted suite',
+    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || V2_FORMS.includes(p) || p === 'scripts/verify-exlib2v.ts'))
 }
 check('W15: hygiene and credential boundaries — all four completed forms are pure ASCII, the record\'s non-ASCII is the em-dash only, and no phase file contains endpoint or credential material',
   (() => {
@@ -258,6 +279,51 @@ check('W15: hygiene and credential boundaries — all four completed forms are p
       '--db' + '-url', '--lin' + 'ked', 'db ' + 'push',
     ]
     return !bads.some((b) => payload.includes(b))
+  })())
+
+check('W16: LIFECYCLE-STATE COHERENCE (Codex round 1) — every snapshot-review form artifact\'s status is DERIVED mechanically from its six human fields (all null = blank template; all non-null = completed decision; mixed = INVALID and rejected outright); a populated form carrying the fixed present-tense blank-template declaration is INCOHERENT, and exactly the three enumerated round-0 completed forms are tolerated as such — only because the record declares them NON-OPERATIVE with no valid snapshot decision currently claimed; the three v2 templates carry the state-neutral mechanical rule (no fixed state declaration), derive as blank, copy the governed facts exactly, and keep every other lifecycle rule verbatim',
+  (() => {
+    const FIXED_BLANK_DECL = 'PREPARED_BLANK_TEMPLATE - this prepared blank form is an approved template, NOT a decision'
+    const derive = (h: Record<string, unknown>): string => {
+      const nulls = HUMAN_KEYS.filter((k) => h[k] === null).length
+      if (nulls === HUMAN_KEYS.length) return 'BLANK'
+      if (nulls === 0) return 'COMPLETED'
+      return 'INVALID'
+    }
+    const incoherent: string[] = []
+    const all = [...SLUGS.map(blankOf), ...SLUGS.map(doneOf), ...V2_FORMS]
+    for (const p of all) {
+      const f = JSON.parse(read(p))
+      const status = derive(f.human_fields)
+      if (status === 'INVALID') return false
+      const fixedDecl = typeof f.lifecycle.state === 'string' && f.lifecycle.state.startsWith(FIXED_BLANK_DECL)
+      if (status === 'COMPLETED' && fixedDecl) incoherent.push(p)
+      if (status === 'BLANK' && typeof f.lifecycle.state === 'string' && !fixedDecl) return false
+    }
+    if (JSON.stringify(incoherent.sort()) !== JSON.stringify(SLUGS.map(doneOf).sort())) return false
+    if (!recFlat.includes('NON-OPERATIVE')) return false
+    if (!recFlat.includes('NO VALID SNAPSHOT DECISION IS CURRENTLY CLAIMED')) return false
+    for (const p of V2_FORMS) {
+      const f = JSON.parse(read(p))
+      if (f.lifecycle.state !== undefined) return false
+      const rule = String(f.lifecycle.state_rule)
+      if (!rule.includes('DERIVED MECHANICALLY FROM THE SIX human_fields')) return false
+      if (!rule.includes('COMPLETED_HUMAN_DECISION')) return false
+      if (!rule.includes('INVALID')) return false
+      if (derive(f.human_fields) !== 'BLANK') return false
+      if (f.form_version !== 2) return false
+      if (!String(f.supersedes).includes('NON-OPERATIVE')) return false
+      const slug = p.replace('docs/exlib2w-', '').replace('-snapshot-review-form-v2.json', '')
+      const blank = JSON.parse(read(blankOf(slug)))
+      if (JSON.stringify(f.governed_field_set) !== JSON.stringify(blank.governed_field_set)) return false
+      if (JSON.stringify(f.reviewed_object) !== JSON.stringify(blank.reviewed_object)) return false
+      if (f.verbatim_scope !== blank.verbatim_scope) return false
+      for (const k of ['lawful_completion_transition', 'post_completion_immutability', 'external_voiding', 'no_database_effect']) {
+        if (f.lifecycle[k] !== blank.lifecycle[k]) return false
+      }
+      if (f.governed_field_set.created_at.value !== 'UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED') return false
+    }
+    return true
   })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
