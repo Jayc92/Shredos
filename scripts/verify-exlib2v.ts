@@ -3,16 +3,24 @@
 // forms, one S4 authority-inputs form, and the preparation record.
 //
 // Proves: the promoted source and the preserved EXLIB-2U stop; the
-// mechanical naming derivation; that every governed value the forms
-// display re-derives from promoted committed bytes (load-package
-// literals, preserved hosted UUIDs, trigger-governed field set);
-// that the reuse classifications' quoted evidence exists
+// mechanical naming derivation; that every PRESERVED governed value
+// the forms display re-derives from promoted committed bytes
+// (load-package literals, preserved hosted UUIDs, trigger-governed
+// field set — seventeen of the eighteen trigger-frozen fields
+// verbatim, with created_at represented ONLY as an explicit
+// UNKNOWN/NOT-PRESERVED sentinel because its non-null hosted value
+// is not preserved anywhere in promoted evidence, per Codex round
+// 1); that the reuse classifications' quoted evidence exists
 // byte-for-byte in the promoted artifacts; that NO approval is
 // preselected and NO identity, timestamp, rationale, run key, or
-// membership choice is fabricated; that the phase contains NO SQL
-// package and NO database-mutation surface; that the S3/S4 boundary
-// is stated truthfully; phase topology; and hygiene. Performs NO
-// hosted contact and NO network activity of any kind.
+// membership choice is fabricated; the round-1 form LIFECYCLE
+// contract (the blank form is an approved TEMPLATE; exactly one
+// lawful human-completion transition over the six human fields;
+// post-completion immutability; external voiding; no database
+// effect); that the phase contains NO SQL package and NO
+// database-mutation surface; that the S3/S4 boundary is stated
+// truthfully; phase topology; and hygiene. Performs NO hosted
+// contact and NO network activity of any kind.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -65,7 +73,7 @@ function extractCallArgs(block: string): Array<string | null> {
   return out
 }
 const gv = (form: Record<string, any>, field: string): unknown =>
-  form.governed_field_set_verbatim[field]?.value
+  form.governed_field_set[field]?.value
 
 console.log('EXLIB-2V snapshot-review decision preparation verification (LOCAL-ONLY; documents and verifier only; nothing applied anywhere)')
 
@@ -204,7 +212,7 @@ check('B5: the forms\' review contract matches the OPERATIVE migration-027 trigg
     const trigFields = new Set(Array.from(block.matchAll(/NEW\.([a-z_]+)/g)).map((m) => m[1]))
     if (trigFields.size !== 18) return false
     for (const f of forms) {
-      const keys = Object.keys(f.governed_field_set_verbatim).filter((k) => !k.startsWith('_'))
+      const keys = Object.keys(f.governed_field_set).filter((k) => !k.startsWith('_'))
       if (keys.length !== 18) return false
       for (const k of keys) if (!trigFields.has(k)) return false
     }
@@ -301,20 +309,23 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E1: phase topology — TWO plain single-parent commits on the promoted source: the preparation commit (exact pinned id) plus ONE forward authoring correction that made this verifier\'s naming probe reconstruction-safe; the RANGE carries exactly EIGHT paths (the SIX added phase paths plus the TWO labeled retargeted suites as modifications), nothing deleted, no .sql path anywhere in the phase',
+  check('E1: phase topology — THREE plain single-parent commits on the promoted source: the preparation commit and the authoring correction (exact pinned ids, byte-frozen) plus ONE forward Codex-round-1 correction touching exactly the FIVE correction paths (the three review forms, the record, this verifier — the authority-inputs form deliberately untouched); the RANGE still carries exactly EIGHT paths (the SIX added phase paths plus the TWO labeled retargeted suites as modifications), nothing deleted, no .sql path anywhere in the phase',
     (() => {
       try {
         const PREP1 = '96c3bbbb6d9b4487d21684a891eab72458416ca5'
+        const CORR1 = 'd37dd1b2dfcd00c58d4873d3e4b45f808617918f'
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
         const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (headParents.length !== 2 || headParents[1] !== PREP1) return false
+        if (headParents.length !== 2 || headParents[1] !== CORR1) return false
+        const c1Parents = execSync(`git rev-list --parents -n 1 ${CORR1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (c1Parents.length !== 2 || c1Parents[1] !== PREP1) return false
         const prepParents = execSync(`git rev-list --parents -n 1 ${PREP1}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
+        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
         if (execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        const corr = execSync(`git diff --name-status ${PREP1}..HEAD`, { encoding: 'utf8' })
+        const corr = execSync(`git diff --name-status ${CORR1}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
-        const corrExpected = [`M\t${VERIFIER}`, `M\t${RECORD}`].sort()
+        const corrExpected = [...FORMS.map((p) => `M\t${p}`), `M\t${RECORD}`, `M\t${VERIFIER}`].sort()
         if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
@@ -373,9 +384,9 @@ check('F1: hygiene — all four forms are pure ASCII; the record\'s non-ASCII is
     ]
     return !bads.some((b) => payload.includes(b))
   })())
-check('F2: reconciliation — the record\'s battery claim names 91 suites / 7,111 checks / 0 failures (the promoted 90/7,092 baseline plus exactly this suite\'s NINETEEN checks, count-neutral retargets), tells the TRUE sweep story (exactly THREE stale checks across TWO suites), and the EXLIB-2V retarget label appears in EXACTLY the two enumerated retargeted suites and nowhere else',
+check('F2: reconciliation — the record\'s battery claim names 91 suites / 7,113 checks / 0 failures (the promoted 90/7,092 baseline plus exactly this suite\'s MEASURED TWENTY-ONE checks, count-neutral retargets), tells the TRUE sweep story (exactly THREE stale checks across TWO suites), and the EXLIB-2V retarget label appears in EXACTLY the two enumerated retargeted suites and nowhere else',
   (() => {
-    if (!recFlat.includes('91 suites / 7,111 checks / 0 failures')) return false
+    if (!recFlat.includes('91 suites / 7,113 checks / 0 failures')) return false
     if (!recFlat.includes('exactly THREE checks across TWO suites failed; nothing else did')) return false
     const labelled = execSync("grep -rl 'RETARGET (EXLIB-2V' scripts/ || true", { encoding: 'utf8' })
       .split('\n').filter(Boolean).filter((p) => p !== VERIFIER)
@@ -385,6 +396,60 @@ check('F2: reconciliation — the record\'s battery claim names 91 suites / 7,11
       if (!read(p).includes('RETARGET (EXLIB-2V snapshot-review decision preparation)')) return false
     }
     return true
+  })())
+
+console.log('\nG. Round-1 corrected form contract')
+check('G1: the LIFECYCLE is explicit and lawful in all three review forms (Codex round 1) — the blank form is an approved TEMPLATE and not a decision; EXACTLY ONE lawful human-completion transition exists (only the six named human fields change from null to complete human-supplied values, no field may remain null in a completed decision, no machine or preparer may fill or preselect, no other byte may change); AFTER completion any further byte change voids the decision; source-byte and hosted-row-state changes void it independently; filling still has no database effect; the self-voiding round-0 rule is GONE; and the authority-inputs form is deliberately byte-identical to its preparation-commit blob (its "recorded inputs" voiding target exists only after completion, so it carries no equivalent contradiction)',
+  (() => {
+    for (const f of forms) {
+      if (f.voiding_rule !== undefined) return false
+      const lc = f.lifecycle
+      if (!lc) return false
+      if (!String(lc.state).includes('PREPARED_BLANK_TEMPLATE')) return false
+      if (!String(lc.state).includes('NOT a decision')) return false
+      const t = String(lc.lawful_completion_transition)
+      if (!t.includes('EXACTLY ONE lawful transition')) return false
+      for (const k of ['decision', 'reviewer', 'reviewer_role_or_credential', 'reviewed_at', 'rationale', 'evidence']) {
+        if (!t.includes(k)) return false
+      }
+      if (!t.includes('from null to complete human-supplied values')) return false
+      if (!t.includes('NO field may remain null in a completed decision')) return false
+      if (!t.includes('NO machine or preparer may fill or preselect')) return false
+      if (!t.includes('NO OTHER BYTE of the form may change')) return false
+      if (!String(lc.post_completion_immutability).includes('any further byte change to the completed form voids the decision')) return false
+      if (!String(lc.external_voiding).includes('hosted row state')) return false
+      if (!String(lc.external_voiding).includes('voids the decision')) return false
+      if (!String(lc.no_database_effect).includes('one-use application package')) return false
+    }
+    const prepBlob = execSync(`git rev-parse "96c3bbbb6d9b4487d21684a891eab72458416ca5:${AUTH_FORM}"`, { encoding: 'utf8' }).trim()
+    const liveBlob = execSync(`git hash-object "${AUTH_FORM}"`, { encoding: 'utf8' }).trim()
+    if (prepBlob !== liveBlob) return false
+    if (authForm.voiding_rule !== 'Any byte change to this form voids the recorded inputs.') return false
+    return recFlat.includes('carries no equivalent contradiction')
+  })())
+check('G2: created_at is represented TRUTHFULLY (Codex round 1) — it remains one of the 18 trigger-frozen governed keys in every form, its value is the explicit UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED sentinel string (never JSON null and never a claimed-known timestamp), the forms state the database value is NON-NULL quoting the real schema constraint (proven against the migration bytes), classify it as operational metadata rather than a human content-review input while trigger-frozen, require application-time row-identity/state verification, and every verbatim/completeness claim is narrowed to SEVENTEEN preserved values (the round-0 every-field-verbatim claim is gone from forms and record)',
+  (() => {
+    for (const f of forms) {
+      const keys = Object.keys(f.governed_field_set).filter((k) => !k.startsWith('_'))
+      if (keys.length !== 18 || !keys.includes('created_at')) return false
+      const ca = f.governed_field_set.created_at
+      if (ca.value !== 'UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED') return false
+      if (typeof ca.value !== 'string') return false
+      if (/\d{4}-\d{2}-\d{2}/.test(String(ca.value))) return false
+      if (ca.database_value_is_non_null !== true) return false
+      if (!String(ca.database_constraint).includes('TIMESTAMPTZ NOT NULL DEFAULT NOW()')) return false
+      if (!String(ca.value_representation_note).includes('NOT a JSON null')) return false
+      if (!String(ca.classification).includes('NOT a human content-review input')) return false
+      if (!String(ca.classification).includes('trigger-frozen')) return false
+      if (!String(ca.application_time_rule).includes('row identity and state at application')) return false
+      if (!String(f.verbatim_scope).includes('seventeen of the eighteen')) return false
+      if (JSON.stringify(f).includes('governed_field_set_verbatim')) return false
+    }
+    const mig023 = gitShow('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+    const catBlock = mig023.slice(mig023.indexOf('CREATE TABLE exercise_catalog ('), mig023.indexOf('CREATE UNIQUE INDEX exercise_catalog_logical_version_unique_idx'))
+    if (!catBlock.includes('created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()')) return false
+    if (recFlat.includes('EVERY governed snapshot field verbatim')) return false
+    return recFlat.includes('SEVENTEEN preserved values verbatim and created_at explicitly UNKNOWN')
   })())
 
 console.log(`\n${passed} passed, ${failed} failed`)

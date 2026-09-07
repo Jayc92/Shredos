@@ -159,11 +159,16 @@ c715d840-944b-4019-b984-1687accffcf4 from the EXLIB-2O application
 record; for Plank the hosted surrogate was never preserved, the
 form says so, and the later application package must resolve the
 row by logical_id + is_active under the one-active-row-per-logical
-unique index); EVERY governed snapshot field verbatim with its
-source (dollar-quoted load-package literals; NULL source fields
-lawful under 027's conditional provenance CHECK for
-forgefitos_original; schema defaults; created_at marked as a
-hosted-generated fact promoted evidence does not preserve); the
+unique index); every governed snapshot field with its source — the
+SEVENTEEN preserved values verbatim and created_at explicitly UNKNOWN
+(the sentinel string UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED, never a
+JSON null: the real database value is NON-NULL under TIMESTAMPTZ NOT
+NULL DEFAULT NOW(), it is operational row metadata rather than a
+human content-review input while remaining trigger-frozen, and the
+application package must verify row identity and state at
+application time) — with dollar-quoted load-package literals, NULL
+source fields lawful under 027's conditional provenance CHECK for
+forgefitos_original, and schema defaults cited per field; the
 category and discovery posture (category, movement_pattern,
 training_role, difficulty, availability, provenance — all governed
 row fields); the explicit not-governed scope statement (anatomy,
@@ -175,12 +180,23 @@ approved; reject -> rejected, terminal; correct -> revised,
 terminal, with the correction requiring a NEW catalog version row);
 completely NULL human fields (decision, reviewer, credential,
 timestamp, rationale, evidence); the applicable
-prior-decision-not-reused classification; the no-effect,
-preparer-boundary, and byte-change-voiding statements; and git
-blob-SHA fingerprints (at the promoted source commit) of every
-promoted file the form displays values from. NOTHING is
-preselected; NO reviewer, timestamp, or rationale exists anywhere
-in the forms.
+prior-decision-not-reused classification; the no-effect and
+preparer-boundary statements; the EXPLICIT LIFECYCLE (Codex round
+1): the prepared blank form is an approved TEMPLATE and not a
+decision, exactly ONE lawful human-completion transition exists
+(only the six human fields change, from null to complete
+human-supplied values, no field left null, nothing filled or
+preselected by any machine or preparer, no other byte changed),
+any further byte change AFTER completion voids the decision, and
+source-byte or hosted-row-state changes void it independently —
+completing the form is therefore lawful and filling it still has
+no database effect; and git blob-SHA fingerprints (at the promoted
+source commit) of every promoted file the form displays values
+from. NOTHING is preselected; NO reviewer, timestamp, or rationale
+exists anywhere in the forms. The S4 authority-inputs form is
+deliberately unchanged by the round-1 correction: its voiding
+target ("the recorded inputs") exists only after completion, so it
+carries no equivalent contradiction.
 
 ## 6. The S4 authority-inputs form and the membership consequences
 
@@ -259,12 +275,21 @@ the verifier; none is .sql; no transaction, table-locking, role-
 switching, or statement-head package markers appear in any of
 them);
 that the S3/S4 boundary is stated truthfully (S3 tag bytes; the
-zero-runs hosted pins quoted from the 2P/2R records); phase
-topology (TWO plain forward commits: the preparation commit
-carrying exactly SIX added paths plus the TWO labeled retargeted
-suites as modifications, then ONE authoring correction — see the
-disclosure in section 8a — touching only this verifier and this
-record); and hygiene (no hosted endpoint or credential material;
+zero-runs hosted pins quoted from the 2P/2R records); the round-1
+form contract (one dedicated check proving the lawful
+null-template-to-completed-form lifecycle with post-completion
+immutability and the deliberately-unchanged authority form; one
+dedicated check proving created_at stays in the mechanically
+derived 18-field trigger-frozen set while represented only as the
+explicit UNKNOWN sentinel — never an actual null or a claimed-known
+timestamp — with the NOT NULL schema constraint proven from the
+migration bytes and every completeness claim truthfully narrowed);
+phase topology (THREE plain forward commits: the preparation
+commit carrying exactly SIX added paths plus the TWO labeled
+retargeted suites as modifications, then ONE authoring correction
+— see section 8a — then ONE Codex-round-1 correction — see
+section 8b — touching exactly the three review forms, this record,
+and this verifier); and hygiene (no hosted endpoint or credential material;
 ASCII-only forms; record non-ASCII limited to the em-dash).
 
 ## 8. Stale-claim sweep and battery reconciliation
@@ -296,9 +321,11 @@ strength-preserving, count-neutral retarget under the exact label
 
 Assertion strength is unchanged everywhere, and the retargets are
 count-neutral: with them in place the simulated-commit battery and
-the committed battery both read 91 suites / 7,111 checks /
+the committed battery both read 91 suites / 7,113 checks /
 0 failures — the promoted baseline 90/7,092 plus exactly this
-milestone's new 19-check static suite and nothing else.
+milestone's static suite (19 checks at preparation, 21 after the
+round-1 correction added its two dedicated checks) and nothing
+else.
 
 ## 8a. Authoring-correction disclosure (caught by the bundle proof)
 
@@ -321,6 +348,61 @@ established the corrected policy carried forward here — the
 EXHAUSTIVELY DERIVED annotated-tag set, mechanically all 46
 annotated exlib-namespace tags (a strict superset of the
 predecessor bundles' 30-tag subset), plus main and this branch.
+
+## 8b. Codex round-1 correction (2026-09-07)
+
+Codex review of the reconstructed bundle found the structure sound
+(all 46 tags genuine annotated objects, complete history, exact
+topology) and TWO form-contract blockers, corrected here as ONE
+plain forward commit touching exactly five paths (the three review
+forms, this record, the verifier; the S4 authority-inputs form
+deliberately untouched — its "recorded inputs" voiding target
+exists only after completion, verified against the committed bytes,
+so it carries no equivalent contradiction):
+
+- BLOCKER 1 — COMPLETION SELF-VOIDED THE FORM. The round-0 voiding
+  rule read "any byte change to this form ... voids the decision"
+  while the form ships deliberately blank, so the one thing the
+  form exists for — a human completing it — was itself a voiding
+  byte change. REPLACED by an explicit lifecycle: the blank form is
+  an approved TEMPLATE, not a decision; exactly ONE lawful
+  human-completion transition exists (only the six human fields
+  change, from null to complete human-supplied values, no field
+  left null in a completed decision, no machine or preparer filling
+  or preselecting, no other byte changing); AFTER completion any
+  further byte change voids the decision; changes to the
+  fingerprinted source bytes or to the described hosted row state
+  void it independently of completion state; and filling the form
+  still has no database effect (application stays a separately
+  prepared, reviewed, one-use hosted act). NO human field was
+  filled during this correction; all six remain null in all three
+  forms.
+- BLOCKER 2 — UNKNOWN created_at WAS REPRESENTED AS NULL. The
+  operative trigger mechanically freezes EIGHTEEN fields including
+  created_at, and the database column is TIMESTAMPTZ NOT NULL
+  DEFAULT NOW() — but the round-0 forms displayed created_at as a
+  JSON null under a key claiming every governed field verbatim.
+  That null was not the hosted value; it meant NOT PRESERVED. No
+  hosted timestamp was obtained BECAUSE this milestone is
+  LOCAL-ONLY with no hosted contact authorized, and none was
+  invented. created_at now carries the explicit sentinel
+  UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED (a string that cannot be
+  mistaken for SQL NULL), states that the real database value is
+  non-null, classifies the field as operational row metadata rather
+  than a human content-review input while remaining trigger-frozen,
+  and defers to application-time row-identity/state verification.
+  It REMAINS in the mechanically derived 18-field immutable set,
+  and every verbatim/completeness claim in the forms, this record,
+  and the verifier is narrowed to the SEVENTEEN preserved values.
+
+The verifier gained two dedicated checks (G1 lifecycle, G2
+truthful created_at), each proven able to fire by a negative
+control run before committing (a scratch mutation reintroducing
+each round-0 defect made exactly the new check fail, and the
+corrected bytes were restored and re-verified). No hosted or
+lifecycle act occurred; no review was applied, no run created,
+nothing approved, sealed, delivered, configured, published, or
+pushed.
 
 ## 9. Stop condition
 
