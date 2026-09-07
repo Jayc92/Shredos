@@ -238,16 +238,23 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 const V2_FORMS = SLUGS.map((s) => `docs/exlib2w-${s}-snapshot-review-form-v2.json`)
-if (committed) {
-  check('W14: topology and inventory exact — THREE plain single-parent commits on the promoted source: the PRESERVED round-0 transcription commit and the PRESERVED round-1 correction (exact pinned ids AND trees) plus ONE forward Codex-round-2 correction touching exactly the FIVE round-2 paths (the three v2 templates, the record, this verifier); the full range carries exactly TEN paths; nothing deleted',
+// RETARGET (EXLIB-2X v2 decision transcription): this phase
+// COMPLETED — reviewed, published, promoted, production-deployed,
+// and tagged — so its topology claims are anchored at the phase's
+// own promoted tip (below) instead of HEAD, where they held and
+// hold forever; the HEAD-relative form went stale at the first
+// successor commit, the same completed-phase pattern as before.
+const TIP2W = '02bb9c462be99af128fc288cb59d4197b261faaf'
+{
+  check('W14: topology and inventory exact — THREE plain single-parent commits at the promoted phase tip: the PRESERVED round-0 transcription commit and the PRESERVED round-1 correction (exact pinned ids AND trees) plus ONE forward Codex-round-2 correction touching exactly the FIVE round-2 paths (the three v2 templates, the record, this verifier); the full range carries exactly TEN paths; nothing deleted',
     (() => {
       try {
         const W0 = '28ec4aebc4796317bb2a3fde663fc80b859773cd'
         const W0_TREE = '6972c99c0dad1da09ee893c3175f8fd4ae042b18'
         const W1 = '373b97acff103f24d1f3c6fbf651000a6b7e9fbf'
         const W1_TREE = '6cec33caf09f642365071f560fbf75ac1df7b348'
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2W}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const headParents = execSync(`git rev-list --parents -n 1 ${TIP2W}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (headParents.length !== 2 || headParents[1] !== W1) return false
         const w1Parents = execSync(`git rev-list --parents -n 1 ${W1}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (w1Parents.length !== 2 || w1Parents[1] !== W0) return false
@@ -255,16 +262,16 @@ if (committed) {
         if (w0Parents.length !== 2 || w0Parents[1] !== SRC) return false
         if (execSync(`git rev-parse ${W0}^{tree}`, { encoding: 'utf8' }).trim() !== W0_TREE) return false
         if (execSync(`git rev-parse ${W1}^{tree}`, { encoding: 'utf8' }).trim() !== W1_TREE) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
-        if (execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        const corr = execSync(`git diff --name-status ${W1}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-list --count ${SRC}..${TIP2W}`, { encoding: 'utf8' }).trim() !== '3') return false
+        if (execSync(`git rev-list --count --merges ${SRC}..${TIP2W}`, { encoding: 'utf8' }).trim() !== '0') return false
+        const corr = execSync(`git diff --name-status ${W1}..${TIP2W}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const corrExpected = [
           ...V2_FORMS.map((p) => `M\t${p}`),
           `M\t${RECORD}`, `M\t${VERIFIER}`,
         ].sort()
         if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2W}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
@@ -274,9 +281,6 @@ if (committed) {
         return JSON.stringify(status) === JSON.stringify(expected)
       } catch { return false }
     })())
-} else {
-  check('W14 (uncommitted authoring state): every worktree change lies inside the phase paths (round-0 adds + the three v2 templates) plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || V2_FORMS.includes(p) || p === 'scripts/verify-exlib2v.ts'))
 }
 check('W15: hygiene and credential boundaries — all four completed forms are pure ASCII, the record\'s non-ASCII is the em-dash only, and no phase file contains endpoint or credential material',
   (() => {

@@ -1,0 +1,152 @@
+{
+  "form": "EXLIB-2W hosted snapshot review decision (v2 template)",
+  "form_version": 2,
+  "prepared_at": "2026-09-07",
+  "milestone_branch": "exlib2w-human-decision-artifacts",
+  "source_commit": "0d4dad415a40c8b4baf042651e3f748f3c8c9f5e",
+  "source_tag": "exlib2v-snapshot-review-decision-prep-stable",
+  "source_tag_object": "2ad1b44fc20af79d3aa5d9674a0ecc6502386da7",
+  "supersedes": "This v2 template supersedes docs/exlib2v-plank-snapshot-review-form.json for DECISION purposes, and the round-0 completed copy docs/exlib2v-plank-snapshot-review-form-completed.json is NON-OPERATIVE (its fixed blank-state declaration contradicts its populated decision fields, so it records no valid decision). The governed snapshot facts and the seventeen preserved values below are copied EXACTLY from the accepted EXLIB-2V form; a FRESH human review with a NEW timestamp is required on this template - former human values are never copied forward.",
+  "reviewed_object": {
+    "class": "hosted public.exercise_catalog SNAPSHOT ROW - the database row itself. This is NOT the authored artifact record (the EXLIB-2N reviewed object) and NOT the exercise_catalog_content row (the EXLIB-2I/2P reviewed object); those are different reviewed-object classes whose decisions were classified NOT REUSABLE here.",
+    "canonical_name": "Plank",
+    "logical_uuid": "e21b2c00-0000-4000-a000-000000000001",
+    "hosted_snapshot_uuid": null,
+    "hosted_snapshot_uuid_provenance": "hosted-generated (gen_random_uuid) and NOT preserved in promoted evidence; the later application package must resolve the row by logical_id + is_active = true (exactly one active row can exist per logical identity under exercise_catalog_one_active_logical_idx)",
+    "catalog_version": 1
+  },
+  "governed_field_set": {
+    "logical_id": {
+      "value": "e21b2c00-0000-4000-a000-000000000001",
+      "source": "intended UUID literal in the promoted load package call (authority: the admitted Plank artifact chain)"
+    },
+    "canonical_name": {
+      "value": "Plank",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "category": {
+      "value": "isolation",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "primary_muscle": {
+      "value": "abs",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "equipment": {
+      "value": "bodyweight",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "laterality": {
+      "value": "bilateral",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "tracking_mode": {
+      "value": "timed",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "source_url": {
+      "value": null,
+      "source": "NULL literal in the load call; lawful under migration 027's conditional provenance CHECK for forgefitos_original provenance"
+    },
+    "source_page": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "retrieved_at": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "import_confidence": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "provenance": {
+      "value": "forgefitos_original",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "movement_pattern": {
+      "value": "core_anti_extension",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "training_role": {
+      "value": "core",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "difficulty": {
+      "value": "beginner",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "availability": {
+      "value": "minimal",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "catalog_version": {
+      "value": 1,
+      "source": "schema default (migration 023: catalog_version INTEGER NOT NULL DEFAULT 1), confirmed loaded as 1 by the application record"
+    },
+    "created_at": {
+      "value": "UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED",
+      "value_representation_note": "This sentinel string means the exact hosted value is UNKNOWN HERE because promoted evidence does not preserve it and this LOCAL-ONLY milestone performs no hosted contact. It is deliberately NOT a JSON null, because the database value is NOT SQL NULL.",
+      "database_value_is_non_null": true,
+      "database_constraint": "TIMESTAMPTZ NOT NULL DEFAULT NOW() (migration 023, exercise_catalog)",
+      "classification": "Operational row metadata (the hosted INSERT instant), trigger-frozen like the other seventeen fields but NOT a human content-review input: the review decision approves the snapshot's CONTENT, and no promoted contract makes the creation instant a review criterion.",
+      "application_time_rule": "The later application package must verify row identity and state at application time (logical identity, active row, pending status, NULL audit tuple, governed content) fail-closed; the creation instant participates as part of that hosted row state, not as a value this form asserts."
+    },
+    "_anatomy_and_alias_context": "Not governed by this review (see not_governed_by_this_review); frozen separately at load time."
+  },
+  "verbatim_scope": "VERBATIM SCOPE: seventeen of the eighteen trigger-frozen fields are displayed VERBATIM from promoted committed bytes with per-field source citations. The eighteenth, created_at, is trigger-frozen but its exact hosted value is NOT preserved in promoted evidence and is represented only as an explicit UNKNOWN/NOT-PRESERVED sentinel (the real database value is non-null). No other completeness is claimed.",
+  "not_governed_by_this_review": "Anatomy rows (exercise_catalog_muscles), alias rows (exercise_catalog_aliases), name claims (exercise_catalog_name_claims), and expected/projected relationships are SEPARATE surfaces with their own freeze triggers and contracts; this snapshot review transition does not read or write them, so per the preparation instruction they are not displayed here as governed content. (For delivery, migration 026 additionally pins the Plank member's anatomy multiset at deliver time - a DELIVERY contract, not part of this review transition.)",
+  "current_hosted_review_state": {
+    "review_status": "pending",
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "review_rationale": null,
+    "review_events_for_this_row": 0,
+    "evidence": "loaded state preserved in docs/exlib2k-hosted-load-application-record.md; the EXLIB-2P application record's eleven-table vector pins exercise_catalog_review_events = 0 and the EXLIB-2R application record confirms the post-publication vector 3/3/5/3/6/1/2/2/0/0/0 (review events still 0)."
+  },
+  "review_contract": {
+    "mechanism": "There is NO dedicated snapshot-review function and NO role grant that reaches public.exercise_catalog (migration 023 section 11 REVOKEs ALL from PUBLIC, anon, authenticated and grants nothing back on this table; the four migration-027 NOLOGIN roles hold EXECUTE on load/review/admit/publish CONTENT functions only). The lawful transition surface is therefore ONE direct privileged UPDATE, in the hosted operator context, that sets review_status AND the complete fresh audit tuple (reviewed_by, reviewed_at, review_rationale) in the SAME statement. The operative BEFORE trigger (exlib_freeze_catalog_snapshot, REPLACED by migration 027) validates the transition and ITSELF appends the immutable exercise_catalog_review_events row (which is why that events table's own guard accepts inserts only at trigger depth >= 2).",
+    "allowed_transitions": "pending -> approved | revised | rejected; approved -> revised | rejected; revised and rejected are TERMINAL; review_status can never return to pending; re-approval after a non-approved decision requires a NEW catalog version row.",
+    "fresh_audit_tuple_rule": "EVERY transition requires a complete, non-blank audit tuple, and the tuple must DIFFER from the row's prior tuple (a status-only flip or evidence reuse fails: 'a review transition must carry FRESH evidence'). Audit fields may never change except together with an allowed transition.",
+    "governed_content_immutable": "The snapshot's identity/content field set is IMMUTABLE (any change requires a new catalog version row): logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence, provenance, movement_pattern, training_role, difficulty, availability, catalog_version, created_at. The review decision therefore approves or refuses EXACTLY this frozen content; the transition writes ONLY review_status plus the audit tuple.",
+    "seal_scope": "Sealing a delivery run validates ONLY that run's MEMBERS (every exercise member must be approved, active, and fully review-audited, and membership must be non-empty); snapshots outside the run's membership do not block sealing.",
+    "one_use": "One-way status machine plus the fresh-tuple rule: each transition happens at most once per (from,to) pair per row, every transition is appended forever to exercise_catalog_review_events, and deactivation/reactivation can never relaunder a decision (reactivation is forbidden outright)."
+  },
+  "proposed_transition": {
+    "from": "pending",
+    "on_APPROVE": "approved (one direct privileged UPDATE carrying a complete fresh audit tuple; the trigger appends the immutable review event)",
+    "on_REJECT": "rejected (TERMINAL; delivering this content would then require a NEW catalog version row and a new review)",
+    "on_CORRECT": "revised (TERMINAL for this row; the correction itself requires a NEW catalog version row carrying the corrected content, then its own review)"
+  },
+  "decision_choices": [
+    "APPROVE",
+    "REJECT",
+    "CORRECT"
+  ],
+  "human_fields": {
+    "decision": "APPROVE",
+    "reviewer": "Joseph Carfagno",
+    "reviewer_role_or_credential": "Product owner",
+    "reviewed_at": "2026-09-07T19:06:00-04:00",
+    "rationale": "Approved as an accurate timed, bilateral bodyweight core exercise.",
+    "evidence": "Reviewed the complete EXLIB-2W corrected Plank snapshot-review v2 template."
+  },
+  "prior_decisions_not_reused": "The EXLIB-2I human decision (applied hosted by EXLIB-2P) reviewed the exercise_catalog_content row (content_status), a DIFFERENT reviewed-object class: the 2I record itself states the decision involved no catalog snapshot, and the 2P record shows the applied fields were content_status/reviewed_by/reviewed_at/review_rationale on the CONTENT row while the snapshot stayed pending with NULL reviewer fields. Classification: NOT REUSABLE for this snapshot review; a new snapshot-scoped human decision is required (this form).",
+  "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Even a filled, approved form changes nothing by itself: applying the decision to the hosted row is a later, separately prepared, separately reviewed, one-use application package executed by Joseph/ChatGPT - never by Claude.",
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate the human fields (decision, reviewer, reviewer_role_or_credential, reviewed_at, rationale, evidence). A fabricated or preselected value voids the form.",
+  "promoted_source_fingerprints_git_blob_sha1_at_source_commit": {
+    "docs/exlib2k-plank-catalog-load-package.sql": "c320b40ee1721d5591df339ec6537b099345cf79",
+    "docs/exlib2k-hosted-load-application-record.md": "670c0f50113170fb7be6eae1a191f6d4f9a00f12",
+    "docs/exlib2p-hosted-review-application-record.md": "362599ab578135ce5f66c1d1470a9cab347f08ab",
+    "docs/exlib2r-hosted-publication-application-record.md": "344f0b9afebb028e29c3f03229f5d4af2d3db68c",
+    "supabase/migrations/023_exlib_catalog_and_delivery_contract.sql": "11e4dd9a0345d52d3b856d8e7c82d48c96574ab3",
+    "supabase/migrations/027_exlib_catalog_content_schema.sql": "48722966736e98e11ba83692c6a1af1c2d207dcf"
+  },
+  "lifecycle": {
+    "state_rule": "FORM STATUS IS DERIVED MECHANICALLY FROM THE SIX human_fields AND IS NEVER A FIXED DECLARATION: when ALL SIX human_fields are null this form is PREPARED_BLANK_TEMPLATE (an approved template, not a decision; blank or null NEVER reads as approval); when ALL SIX hold non-null human-supplied values written in the single lawful completion transition it is COMPLETED_HUMAN_DECISION; ANY mixed null/non-null state is INVALID (neither template nor decision - it must not be used, applied, or counted as evidence).",
+    "lawful_completion_transition": "EXACTLY ONE lawful transition exists: the HUMAN reviewer supplies ALL SIX human_fields values (decision, reviewer, reviewer_role_or_credential, reviewed_at, rationale, evidence) EXPLICITLY. The human may either enter them directly or EXPRESSLY INSTRUCT a mechanical transcriber to copy the supplied strings character-for-character into this form; mechanical transcription after explicit human instruction is lawful, but a transcriber may NOT infer, select, preselect, normalize, rewrite, summarize, supplement, or invent any value - every decision is authored by the human alone, and this clause is not permission for any machine to make, infer, or complete a human decision. Every field must be supplied: if no evidence exists, the HUMAN supplies the explicit no-evidence statement (never the transcriber). The completion transition changes exactly these six human_fields leaves and NO OTHER BYTE of the form.",
+    "post_completion_immutability": "AFTER human completion, any further byte change to the completed form voids the decision.",
+    "external_voiding": "Independently of completion state, any change to the promoted source files fingerprinted below, or to the hosted row state this form describes (a review event appearing, the row deactivating, or any governed field differing at application time), voids the decision; the application package must re-verify all of it fail-closed before applying anything.",
+    "no_database_effect": "Filling the form has NO database effect. Applying the completed decision to the hosted row remains a separately prepared, separately reviewed, one-use application package executed by Joseph/ChatGPT - never by Claude."
+  }
+}
