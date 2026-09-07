@@ -239,8 +239,16 @@ async function main() {
     // byte-frozen PRE-implementation record; suites created BY the
     // later authorized implementation phase it proposed cannot be
     // named in it and are excluded from the must-be-named set.
+    // RETARGET (EXLIB-2V snapshot-review decision preparation): the
+    // same byte-frozen-audit rule — the EXLIB-2V preparation suite
+    // compares promoted-byte-anchored load-package literals against
+    // its blank review forms (both sides anchored at the promoted
+    // tip), so it post-dates and cannot be named in the frozen
+    // pre-implementation audit and is excluded from the
+    // must-be-named set by name, exactly like the 1c0b3 suites.
     const missingSuites = suitePins.filter((n) => !audit.includes(n) &&
-      !n.startsWith('verify-exlib1c0b3'))
+      !n.startsWith('verify-exlib1c0b3') &&
+      !n.startsWith('verify-exlib2v'))
     check(`D2: EVERY committed verifier suite carrying vocabulary pins (${suitePins.length} suites) is named in the audit — none missing`,
       suitePins.length >= 12 && missingSuites.length === 0,
       missingSuites.length ? `missing: ${missingSuites.join(', ')}` : undefined)

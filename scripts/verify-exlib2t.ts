@@ -345,44 +345,42 @@ check('D2: the EXLIB-2S sequencing disclosure is present — the parked seed-fli
   recFlat.includes('whichever lands second will need a reviewed reconciliation of the overlapping retargets') &&
   recFlat.includes('nothing about this milestone changes the EXLIB-2S branch or its S7 block'))
 
-console.log('\nE. Phase topology (two-state) and hygiene')
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('E1: phase topology — THREE plain single-parent commits: the PRESERVED preparation commit and the PRESERVED round-1 correction commit (exact ids, byte-frozen trees) plus exactly ONE forward Codex-round-2 correction commit whose diff touches exactly the four correction paths (module, record, both suites); 3 ahead / 0 behind the promoted source, zero merges, history never rewritten',
-    (() => {
-      try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (headParents.length !== 2 || headParents[1] !== R1) return false
-        const r1Parents = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (r1Parents.length !== 2 || r1Parents[1] !== PREP) return false
-        const prepParents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
-        if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
-        if (execSync(`git rev-parse ${R1}^{tree}`, { encoding: 'utf8' }).trim() !== R1_TREE) return false
-        const correction = execSync(`git diff --name-status ${R1}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [MODULE, RECORD, VERIFIER, RUNTIME_TESTS].map((p) => `M\t${p}`).sort()
-        if (JSON.stringify(correction) !== JSON.stringify(expected)) return false
-        return execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '3'
-          && execSync(`git rev-list --count HEAD..${SRC}`, { encoding: 'utf8' }).trim() === '0'
-          && execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() === '0'
-      } catch { return false }
-    })())
-  check('E2: exact phase inventory — the range carries exactly the TWENTY-THREE disclosed paths (4 additions, the 3 call sites, and the 16 labeled retargeted suites), and NO .env or configuration path appears',
-    (() => {
-      const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+console.log('\nE. Phase topology (anchored) and hygiene')
+// RETARGET (EXLIB-2V snapshot-review decision preparation): this
+// phase COMPLETED — reviewed twice, accepted, promoted to main, and
+// production-deployed under the S3 tag — so its topology claims are
+// anchored at the phase's own promoted tip (below) instead of HEAD,
+// where they held and hold forever. HEAD-relative forms of E1/E2
+// went stale the moment any successor phase committed.
+const TIP = 'fc3e6cce5afcf03f0552d65a2de7e7c796646a25'
+check('E1: phase topology — THREE plain single-parent commits at the promoted phase tip: the PRESERVED preparation commit and the PRESERVED round-1 correction commit (exact ids, byte-frozen trees) plus exactly ONE forward Codex-round-2 correction commit whose diff touches exactly the four correction paths (module, record, both suites); 3 ahead / 0 behind the promoted source, zero merges, history never rewritten',
+  (() => {
+    try {
+      if (execSync(`git merge-base ${SRC} ${TIP}`, { encoding: 'utf8' }).trim() !== SRC) return false
+      const tipParents = execSync(`git rev-list --parents -n 1 ${TIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (tipParents.length !== 2 || tipParents[1] !== R1) return false
+      const r1Parents = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (r1Parents.length !== 2 || r1Parents[1] !== PREP) return false
+      const prepParents = execSync(`git rev-list --parents -n 1 ${PREP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
+      if (execSync(`git rev-parse ${PREP}^{tree}`, { encoding: 'utf8' }).trim() !== PREP_TREE) return false
+      if (execSync(`git rev-parse ${R1}^{tree}`, { encoding: 'utf8' }).trim() !== R1_TREE) return false
+      const correction = execSync(`git diff --name-status ${R1}..${TIP}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
-      if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
-      return !status.some((s) => /\.env|next\.config|package\.json|tsconfig/.test(s))
-    })())
-} else {
-  check('E1-E2 (uncommitted authoring state): every worktree change lies inside the twenty-three phase paths — nothing outside this phase is touched',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_PATHS.includes(p)))
-}
+      const expected = [MODULE, RECORD, VERIFIER, RUNTIME_TESTS].map((p) => `M\t${p}`).sort()
+      if (JSON.stringify(correction) !== JSON.stringify(expected)) return false
+      return execSync(`git rev-list --count ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '3'
+        && execSync(`git rev-list --count ${TIP}..${SRC}`, { encoding: 'utf8' }).trim() === '0'
+        && execSync(`git rev-list --count --merges ${SRC}..${TIP}`, { encoding: 'utf8' }).trim() === '0'
+    } catch { return false }
+  })())
+check('E2: exact phase inventory — the anchored range carries exactly the TWENTY-THREE disclosed paths (4 additions, the 3 call sites, and the 16 labeled retargeted suites), and NO .env or configuration path appears',
+  (() => {
+    const status = execSync(`git diff --name-status ${SRC}..${TIP}`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean).sort()
+    if (JSON.stringify(status) !== JSON.stringify(PHASE)) return false
+    return !status.some((s) => /\.env|next\.config|package\.json|tsconfig/.test(s))
+  })())
 check('E3: two-state lifecycle — the module, record, and both suites are absent at the promoted source tip, the call sites at the tip still call the seed directly, and the live phase carries the new routing',
   (() => {
     if (execSync(`git ls-tree ${SRC} src/lib/supabase/ --name-only`, { encoding: 'utf8' }).includes('deliver-catalog')) return false

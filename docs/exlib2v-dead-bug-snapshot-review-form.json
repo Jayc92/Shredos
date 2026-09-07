@@ -1,0 +1,140 @@
+{
+  "form": "EXLIB-2V hosted snapshot review decision",
+  "form_version": 1,
+  "prepared_at": "2026-09-07",
+  "milestone_branch": "exlib2v-snapshot-review-decision-prep",
+  "source_commit": "fc3e6cce5afcf03f0552d65a2de7e7c796646a25",
+  "source_tag": "exlib2t-delivery-runtime-s3-deployed-flag-off",
+  "source_tag_object": "ef570b3c9834e346f80c14ca65fe3efbf4486ca9",
+  "reviewed_object": {
+    "class": "hosted public.exercise_catalog SNAPSHOT ROW - the database row itself. This is NOT the authored artifact record (the EXLIB-2N reviewed object) and NOT the exercise_catalog_content row (the EXLIB-2I/2P reviewed object); those are different reviewed-object classes whose decisions were classified NOT REUSABLE here.",
+    "canonical_name": "Dead bug",
+    "logical_uuid": "e21b2c00-0000-4000-a000-000000000002",
+    "hosted_snapshot_uuid": "1ce09c1f-c13d-4231-8e12-6f35cfd761b5",
+    "hosted_snapshot_uuid_provenance": "preserved in the EXLIB-2O hosted load application record (hosted-generated; a hosted fact, not a package literal)",
+    "catalog_version": 1
+  },
+  "governed_field_set_verbatim": {
+    "logical_id": {
+      "value": "e21b2c00-0000-4000-a000-000000000002",
+      "source": "intended UUID literal in the promoted load package call (authority: the admitted Plank artifact chain)"
+    },
+    "canonical_name": {
+      "value": "Dead bug",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "category": {
+      "value": "mobility",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "primary_muscle": {
+      "value": "abs",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "equipment": {
+      "value": "bodyweight",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "laterality": {
+      "value": "alternating",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "tracking_mode": {
+      "value": "bodyweight",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "source_url": {
+      "value": null,
+      "source": "NULL literal in the load call; lawful under migration 027's conditional provenance CHECK for forgefitos_original provenance"
+    },
+    "source_page": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "retrieved_at": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "import_confidence": {
+      "value": null,
+      "source": "NULL literal in the load call (same conditional CHECK)"
+    },
+    "provenance": {
+      "value": "forgefitos_original",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "movement_pattern": {
+      "value": "core_anti_extension",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "training_role": {
+      "value": "core",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "difficulty": {
+      "value": "beginner",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "availability": {
+      "value": "minimal",
+      "source": "dollar-quoted literal in the promoted load package call"
+    },
+    "catalog_version": {
+      "value": 1,
+      "source": "schema default (migration 023: catalog_version INTEGER NOT NULL DEFAULT 1), confirmed loaded as 1 by the application record"
+    },
+    "created_at": {
+      "value": null,
+      "source": "hosted-generated NOW() default; a hosted fact not preserved in promoted evidence and not governed as a decision input"
+    },
+    "_anatomy_and_alias_context": "Not governed by this review (see not_governed_by_this_review); frozen separately at load time."
+  },
+  "not_governed_by_this_review": "Anatomy rows (exercise_catalog_muscles), alias rows (exercise_catalog_aliases), name claims (exercise_catalog_name_claims), and expected/projected relationships are SEPARATE surfaces with their own freeze triggers and contracts; this snapshot review transition does not read or write them, so per the preparation instruction they are not displayed here as governed content. (For delivery, migration 026 additionally pins the Plank member's anatomy multiset at deliver time - a DELIVERY contract, not part of this review transition.)",
+  "current_hosted_review_state": {
+    "review_status": "pending",
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "review_rationale": null,
+    "review_events_for_this_row": 0,
+    "evidence": "loaded state preserved in docs/exlib2o-hosted-load-application-record.md; the EXLIB-2P application record's eleven-table vector pins exercise_catalog_review_events = 0 and the EXLIB-2R application record confirms the post-publication vector 3/3/5/3/6/1/2/2/0/0/0 (review events still 0)."
+  },
+  "review_contract": {
+    "mechanism": "There is NO dedicated snapshot-review function and NO role grant that reaches public.exercise_catalog (migration 023 section 11 REVOKEs ALL from PUBLIC, anon, authenticated and grants nothing back on this table; the four migration-027 NOLOGIN roles hold EXECUTE on load/review/admit/publish CONTENT functions only). The lawful transition surface is therefore ONE direct privileged UPDATE, in the hosted operator context, that sets review_status AND the complete fresh audit tuple (reviewed_by, reviewed_at, review_rationale) in the SAME statement. The operative BEFORE trigger (exlib_freeze_catalog_snapshot, REPLACED by migration 027) validates the transition and ITSELF appends the immutable exercise_catalog_review_events row (which is why that events table's own guard accepts inserts only at trigger depth >= 2).",
+    "allowed_transitions": "pending -> approved | revised | rejected; approved -> revised | rejected; revised and rejected are TERMINAL; review_status can never return to pending; re-approval after a non-approved decision requires a NEW catalog version row.",
+    "fresh_audit_tuple_rule": "EVERY transition requires a complete, non-blank audit tuple, and the tuple must DIFFER from the row's prior tuple (a status-only flip or evidence reuse fails: 'a review transition must carry FRESH evidence'). Audit fields may never change except together with an allowed transition.",
+    "governed_content_immutable": "The snapshot's identity/content field set is IMMUTABLE (any change requires a new catalog version row): logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence, provenance, movement_pattern, training_role, difficulty, availability, catalog_version, created_at. The review decision therefore approves or refuses EXACTLY this frozen content; the transition writes ONLY review_status plus the audit tuple.",
+    "seal_scope": "Sealing a delivery run validates ONLY that run's MEMBERS (every exercise member must be approved, active, and fully review-audited, and membership must be non-empty); snapshots outside the run's membership do not block sealing.",
+    "one_use": "One-way status machine plus the fresh-tuple rule: each transition happens at most once per (from,to) pair per row, every transition is appended forever to exercise_catalog_review_events, and deactivation/reactivation can never relaunder a decision (reactivation is forbidden outright)."
+  },
+  "proposed_transition": {
+    "from": "pending",
+    "on_APPROVE": "approved (one direct privileged UPDATE carrying a complete fresh audit tuple; the trigger appends the immutable review event)",
+    "on_REJECT": "rejected (TERMINAL; delivering this content would then require a NEW catalog version row and a new review)",
+    "on_CORRECT": "revised (TERMINAL for this row; the correction itself requires a NEW catalog version row carrying the corrected content, then its own review)"
+  },
+  "decision_choices": [
+    "APPROVE",
+    "REJECT",
+    "CORRECT"
+  ],
+  "human_fields": {
+    "decision": null,
+    "reviewer": null,
+    "reviewer_role_or_credential": null,
+    "reviewed_at": null,
+    "rationale": null,
+    "evidence": null
+  },
+  "prior_decisions_not_reused": "The EXLIB-2N completed human decision reviewed the AUTHORED ARTIFACT record (byte-bound by its own voiding rule to docs/exlib2c-release1-batch02-content.jsonl record line 12) and was applied to that authored record's content_review fields; its own gate_effect/loading_effect/import_eligible_effect all read none and its no-effect statement says it changes nothing hosted. Classification: NOT REUSABLE for the hosted snapshot row - a different reviewed-object class with a different governed field set; a new snapshot-scoped human decision is required (this form).",
+  "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Even a filled, approved form changes nothing by itself: applying the decision to the hosted row is a later, separately prepared, separately reviewed, one-use application package executed by Joseph/ChatGPT - never by Claude.",
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate the human fields (decision, reviewer, reviewer_role_or_credential, reviewed_at, rationale, evidence). A fabricated or preselected value voids the form.",
+  "voiding_rule": "Any byte change to this form, to the promoted source files fingerprinted below, or to the hosted row state this form describes (a review event appearing, the row deactivating, or any governed field differing at application time) voids the decision; the application package must re-verify all of it fail-closed before applying anything.",
+  "promoted_source_fingerprints_git_blob_sha1_at_source_commit": {
+    "docs/exlib2o-target-snapshot-load-package.sql": "f26da04ace5f82f83efe36c58051939925a3e1b2",
+    "docs/exlib2o-hosted-load-application-record.md": "8f0f9da8d1c76940a5c9124f50ebb1664e81a0a8",
+    "docs/exlib2p-hosted-review-application-record.md": "362599ab578135ce5f66c1d1470a9cab347f08ab",
+    "docs/exlib2r-hosted-publication-application-record.md": "344f0b9afebb028e29c3f03229f5d4af2d3db68c",
+    "supabase/migrations/023_exlib_catalog_and_delivery_contract.sql": "11e4dd9a0345d52d3b856d8e7c82d48c96574ab3",
+    "supabase/migrations/027_exlib_catalog_content_schema.sql": "48722966736e98e11ba83692c6a1af1c2d207dcf"
+  }
+}
