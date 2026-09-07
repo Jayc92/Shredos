@@ -260,10 +260,12 @@ switching, or statement-head package markers appear in any of
 them);
 that the S3/S4 boundary is stated truthfully (S3 tag bytes; the
 zero-runs hosted pins quoted from the 2P/2R records); phase
-topology (ONE plain commit: exactly SIX added paths plus the TWO
-labeled retargeted suites as modifications); and hygiene (no
-hosted endpoint or credential material; ASCII-only forms; record
-non-ASCII limited to the em-dash).
+topology (TWO plain forward commits: the preparation commit
+carrying exactly SIX added paths plus the TWO labeled retargeted
+suites as modifications, then ONE authoring correction — see the
+disclosure in section 8a — touching only this verifier and this
+record); and hygiene (no hosted endpoint or credential material;
+ASCII-only forms; record non-ASCII limited to the em-dash).
 
 ## 8. Stale-claim sweep and battery reconciliation
 
@@ -297,6 +299,28 @@ count-neutral: with them in place the simulated-commit battery and
 the committed battery both read 91 suites / 7,111 checks /
 0 failures — the promoted baseline 90/7,092 plus exactly this
 milestone's new 19-check static suite and nothing else.
+
+## 8a. Authoring-correction disclosure (caught by the bundle proof)
+
+The preparation commit's A3 naming probe demanded the phase2u tag
+unconditionally. That tag belongs to the OTHER (phase2X) namespace
+and is therefore lawfully absent from this milestone's exlib-scoped
+review bundle, so the probe failed inside the bundle's standalone
+clone — caught by the reconstruction battery itself, exactly what
+that proof exists for. ONE plain forward authoring correction
+(history never rewritten; the preparation commit is preserved
+byte-frozen) made the probe reconstruction-safe: a phase2u tag is
+validated WHEN PRESENT and its absence is lawful. The correction
+touches only this verifier and this record; battery totals are
+unchanged at 91 suites / 7,111 checks / 0 failures. Two earlier
+bundle builds were also discarded BEFORE any manifest referenced
+them: the first copied the predecessor bundle's 32-ref name set,
+which predates and therefore omitted the S3 tag this milestone's
+own A1 requires (the clone proof caught that too); the second
+established the corrected policy carried forward here — the
+EXHAUSTIVELY DERIVED annotated-tag set, mechanically all 46
+annotated exlib-namespace tags (a strict superset of the
+predecessor bundles' 30-tag subset), plus main and this branch.
 
 ## 9. Stop condition
 
