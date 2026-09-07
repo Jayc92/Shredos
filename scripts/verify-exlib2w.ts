@@ -1,9 +1,14 @@
-// EXLIB-2W STATIC verification (LOCAL-ONLY): the completed
-// human-decision artifacts — three completed hosted-snapshot
-// review forms and the completed S4 authority-inputs form,
-// transcribed VERBATIM from the human-supplied decisions of
-// 2026-09-07T11:05:00-04:00 into completed copies of the promoted
-// EXLIB-2V blank templates (which remain untouched).
+// EXLIB-2W STATIC verification (LOCAL-ONLY): the human-decision
+// transcription milestone — three round-0 snapshot transcripts
+// (HISTORICAL, NON-OPERATIVE per Codex round 1: they hold populated
+// APPROVE fields under a fixed blank-state declaration, so they
+// record no presently valid decision) plus the completed S4
+// authority-inputs form (unaffected, reserved evidence), the three
+// superseding v2 BLANK templates awaiting fresh human review, and
+// this milestone's record. The round-0 transcripts were transcribed
+// VERBATIM from the human-supplied decisions of
+// 2026-09-07T11:05:00-04:00 into copies of the promoted EXLIB-2V
+// blank templates (which remain untouched).
 //
 // Proves the fifteen instructed families W1-W15: template
 // integrity, leaf-exact completion transitions, non-null and
@@ -20,8 +25,12 @@
 // declaring the blank-template state), and ONLY because the record
 // declares them NON-OPERATIVE — no valid snapshot decision is
 // currently claimed, and the superseding v2 BLANK templates await
-// fresh human review. Performs NO hosted contact and NO network
-// activity of any kind.
+// fresh human review — AND the Codex round-2 W17 transcription-
+// authority boundary: the human authors every decision value and
+// may expressly instruct character-for-character mechanical
+// transcription, but no machine may ever make, infer, preselect,
+// normalize, supplement, or invent one. Performs NO hosted contact
+// and NO network activity of any kind.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -94,7 +103,7 @@ const SUPPLIED: Record<string, Record<string, string>> = {
   },
 }
 
-console.log('EXLIB-2W completed human-decision artifacts verification (LOCAL-ONLY; transcription only; nothing applied anywhere)')
+console.log('EXLIB-2W human-decision transcription verification (LOCAL-ONLY; round-0 transcripts NON-OPERATIVE; v2 templates blank; nothing applied anywhere)')
 
 check('W1: every promoted BLANK template is byte-identical to promoted main — the three snapshot-review templates and the S4 authority-inputs template are untouched by this phase, and the promoted source tag/annotation are exact',
   (() => {
@@ -112,7 +121,7 @@ check('W1: every promoted BLANK template is byte-identical to promoted main — 
       return true
     } catch { return false }
   })())
-check('W2: each completed snapshot form differs from its blank template at EXACTLY the six human_fields leaves — a structural leaf-walk over both parsed documents finds identical key sets and value differences only at /human_fields/{decision,reviewer,reviewer_role_or_credential,reviewed_at,rationale,evidence}',
+check('W2: each round-0 snapshot transcript (HISTORICAL, NON-OPERATIVE) differs from its blank template at EXACTLY the six human_fields leaves — a structural leaf-walk over both parsed documents finds identical key sets and value differences only at /human_fields/{decision,reviewer,reviewer_role_or_credential,reviewed_at,rationale,evidence}',
   (() => {
     for (const s of SLUGS) {
       const diff = leafDiff(JSON.parse(read(blankOf(s))), JSON.parse(read(doneOf(s))))
@@ -121,17 +130,17 @@ check('W2: each completed snapshot form differs from its blank template at EXACT
     }
     return true
   })())
-check('W3: NO completed human field is null or blank — all six fields in all three completed forms are non-null strings with non-zero trimmed length',
+check('W3: NO transcribed human field is null or blank — all six fields in all three round-0 NON-OPERATIVE transcripts are non-null strings with non-zero trimmed length',
   SLUGS.every((s) => {
     const h = JSON.parse(read(doneOf(s))).human_fields
     return HUMAN_KEYS.every((k) => typeof h[k] === 'string' && h[k].trim().length > 0)
   }))
-check('W4: every supplied value is CHARACTER-EXACT — decision, reviewer, credential, timestamp, rationale, and evidence in each completed form equal the instruction-supplied strings verbatim',
+check('W4: every round-0 transcribed value is CHARACTER-EXACT — decision, reviewer, credential, timestamp, rationale, and evidence in each NON-OPERATIVE transcript equal the then-supplied strings verbatim (a historical-fidelity fact, not a claim of present validity)',
   SLUGS.every((s) => {
     const h = JSON.parse(read(doneOf(s))).human_fields
     return HUMAN_KEYS.every((k) => h[k] === SUPPLIED[s][k])
   }))
-check('W5: all three decisions are APPROVE',
+check('W5: all three round-0 transcripts carry APPROVE (historical content of the NON-OPERATIVE transcripts, not a presently valid decision)',
   SLUGS.every((s) => JSON.parse(read(doneOf(s))).human_fields.decision === 'APPROVE'))
 check('W6: the decision timestamp parses and equals the UTC instant 2026-09-07T15:05:00Z — the EDT representation is preserved in every completed form and its timezone conversion is proven, not assumed',
   (() => {
@@ -151,7 +160,7 @@ check('W7: the decision instant FOLLOWS the stable-tag publication — after the
     if (!m) return false
     return edt > Number(m[1]) * 1000
   })())
-check('W8: reviewed-object identities, governed fields, source fingerprints, lifecycle rules, and the created_at UNKNOWN sentinel are UNCHANGED from the approved templates — re-asserted on the key spots of every completed form (the leaf-walk of W2 already bounds the change surface)',
+check('W8: reviewed-object identities, governed fields, source fingerprints, lifecycle rules, and the created_at UNKNOWN sentinel are UNCHANGED from the approved templates in every round-0 NON-OPERATIVE transcript — the identical lifecycle bytes are exactly what makes those transcripts incoherent and non-operative (the leaf-walk of W2 bounds the change surface)',
   SLUGS.every((s) => {
     const b = JSON.parse(read(blankOf(s)))
     const c = JSON.parse(read(doneOf(s)))
@@ -230,21 +239,28 @@ const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 const V2_FORMS = SLUGS.map((s) => `docs/exlib2w-${s}-snapshot-review-form-v2.json`)
 if (committed) {
-  check('W14: topology and inventory exact — TWO plain single-parent commits on the promoted source: the PRESERVED round-0 transcription commit (exact pinned id) plus ONE forward Codex-round-1 correction adding the three superseding v2 blank templates and touching only the record and this verifier; the full range carries exactly TEN paths; nothing deleted',
+  check('W14: topology and inventory exact — THREE plain single-parent commits on the promoted source: the PRESERVED round-0 transcription commit and the PRESERVED round-1 correction (exact pinned ids AND trees) plus ONE forward Codex-round-2 correction touching exactly the FIVE round-2 paths (the three v2 templates, the record, this verifier); the full range carries exactly TEN paths; nothing deleted',
     (() => {
       try {
-        const PREP_W = '28ec4aebc4796317bb2a3fde663fc80b859773cd'
+        const W0 = '28ec4aebc4796317bb2a3fde663fc80b859773cd'
+        const W0_TREE = '6972c99c0dad1da09ee893c3175f8fd4ae042b18'
+        const W1 = '373b97acff103f24d1f3c6fbf651000a6b7e9fbf'
+        const W1_TREE = '6cec33caf09f642365071f560fbf75ac1df7b348'
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
         const headParents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (headParents.length !== 2 || headParents[1] !== PREP_W) return false
-        const prepParents = execSync(`git rev-list --parents -n 1 ${PREP_W}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (prepParents.length !== 2 || prepParents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
+        if (headParents.length !== 2 || headParents[1] !== W1) return false
+        const w1Parents = execSync(`git rev-list --parents -n 1 ${W1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (w1Parents.length !== 2 || w1Parents[1] !== W0) return false
+        const w0Parents = execSync(`git rev-list --parents -n 1 ${W0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (w0Parents.length !== 2 || w0Parents[1] !== SRC) return false
+        if (execSync(`git rev-parse ${W0}^{tree}`, { encoding: 'utf8' }).trim() !== W0_TREE) return false
+        if (execSync(`git rev-parse ${W1}^{tree}`, { encoding: 'utf8' }).trim() !== W1_TREE) return false
+        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
         if (execSync(`git rev-list --count --merges ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0') return false
-        const corr = execSync(`git diff --name-status ${PREP_W}..HEAD`, { encoding: 'utf8' })
+        const corr = execSync(`git diff --name-status ${W1}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const corrExpected = [
-          ...V2_FORMS.map((p) => `A\t${p}`),
+          ...V2_FORMS.map((p) => `M\t${p}`),
           `M\t${RECORD}`, `M\t${VERIFIER}`,
         ].sort()
         if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
@@ -318,12 +334,39 @@ check('W16: LIFECYCLE-STATE COHERENCE (Codex round 1) — every snapshot-review 
       if (JSON.stringify(f.governed_field_set) !== JSON.stringify(blank.governed_field_set)) return false
       if (JSON.stringify(f.reviewed_object) !== JSON.stringify(blank.reviewed_object)) return false
       if (f.verbatim_scope !== blank.verbatim_scope) return false
-      for (const k of ['lawful_completion_transition', 'post_completion_immutability', 'external_voiding', 'no_database_effect']) {
+      // the v2 completion transition LAWFULLY differs from the 2V
+      // blank's (Codex round 2: the human-authorship / mechanical-
+      // transcription boundary); W17 owns its exact text. The other
+      // three rules stay verbatim.
+      for (const k of ['post_completion_immutability', 'external_voiding', 'no_database_effect']) {
         if (f.lifecycle[k] !== blank.lifecycle[k]) return false
       }
       if (f.governed_field_set.created_at.value !== 'UNKNOWN_NOT_PRESERVED_HOSTED_GENERATED') return false
     }
     return true
+  })())
+
+check('W17: TRANSCRIPTION-AUTHORITY COHERENCE (Codex round 2) — all three v2 templates carry the SAME exact human-authorship/mechanical-transcription boundary: the human supplies all six values explicitly and may either enter them directly or EXPRESSLY INSTRUCT a mechanical transcriber to copy them character-for-character; the transcriber may never infer, select, preselect, normalize, rewrite, summarize, supplement, or invent a value; absent evidence needs the HUMAN\'s explicit no-evidence statement; the absolute machine/preparer prohibition is GONE from every v2 template; no wording grants machine judgment; all six human fields remain null; no valid snapshot decision is currently claimed; and fresh explicit human decisions with a new timestamp remain required',
+  (() => {
+    const texts = V2_FORMS.map((p) => JSON.parse(read(p)).lifecycle.lawful_completion_transition as string)
+    if (new Set(texts).size !== 1) return false
+    const t = texts[0]
+    if (!t.includes('supplies ALL SIX human_fields values')) return false
+    if (!t.includes('EXPRESSLY INSTRUCT a mechanical transcriber to copy the supplied strings character-for-character')) return false
+    if (!t.includes('may NOT infer, select, preselect, normalize, rewrite, summarize, supplement, or invent any value')) return false
+    if (!t.includes('authored by the human alone')) return false
+    if (!t.includes('not permission for any machine to make, infer, or complete a human decision')) return false
+    if (!t.includes('the HUMAN supplies the explicit no-evidence statement (never the transcriber)')) return false
+    if (!t.includes('exactly these six human_fields leaves and NO OTHER BYTE')) return false
+    for (const p of V2_FORMS) {
+      const raw = read(p)
+      if (raw.includes('NO machine or preparer may fill')) return false
+      if (/(may|can|is permitted to|allowed to)\s+(infer|select|preselect|normalize|rewrite|summarize|supplement|invent|complete)/.test(raw)) return false
+      const h = JSON.parse(raw).human_fields
+      for (const k of HUMAN_KEYS) if (h[k] !== null) return false
+    }
+    return recFlat.includes('NO VALID SNAPSHOT DECISION IS CURRENTLY CLAIMED')
+      && recFlat.includes('FRESH human review') && recFlat.includes('NEW timestamp')
   })())
 
 console.log(`\n${passed} passed, ${failed} failed`)

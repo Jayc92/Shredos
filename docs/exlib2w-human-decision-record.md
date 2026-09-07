@@ -1,10 +1,15 @@
-# EXLIB-2W — completed human-decision artifacts record
+# EXLIB-2W — human-decision transcription record (round-0 snapshot transcripts NON-OPERATIVE)
 
 Recorded 2026-09-07 (UTC). LOCAL-ONLY milestone, TRANSCRIPTION ONLY:
-this phase records the three completed hosted-snapshot review
-decisions and the completed S4 authority inputs, each supplied
-verbatim by the human decision-maker under explicit operator
-instruction, into completed decision artifacts. It performs NO
+this phase TRANSCRIBED the three human-supplied hosted-snapshot
+review decisions and the S4 authority inputs, each supplied verbatim
+by the human decision-maker under explicit operator instruction,
+into decision artifacts. Per Codex round 1 the three round-0
+snapshot transcripts are HISTORICAL, NON-OPERATIVE records — no
+presently valid snapshot decision exists anywhere in this
+repository — while the completed S4 authority-inputs form remains
+reserved evidence and the superseding v2 BLANK templates await
+fresh human review. It performs NO
 database application of any kind: no snapshot review is applied, no
 review event is created, no S4 run is created, nothing is approved
 or sealed database-side, nothing is delivered, published, pushed,
@@ -52,7 +57,7 @@ after the tag object's own tagger instant 2026-09-07T15:01:04Z
 (read from the raw tag object). The human therefore decided on the
 PROMOTED, TAGGED templates.
 
-## 3. The completed snapshot-review decisions (supplied verbatim)
+## 3. The round-0 snapshot transcripts (HISTORICAL — NON-OPERATIVE)
 
 Each completed form is a NEW tracked file (the EXLIB-2N
 completed-form naming precedent), differing from its promoted blank
@@ -181,7 +186,13 @@ mixed = INVALID) and rejects any form whose declared lifecycle
 semantics conflict with that derived status — the three enumerated
 round-0 completed forms are the only tolerated incoherent
 artifacts, and only because this record declares them
-non-operative. Each of the six instructed NEGATIVE CONTROLS
+non-operative; and W17 (Codex round 2) pins the human-authorship /
+mechanical-transcription boundary in all three v2 templates: the
+human authors every value and may expressly instruct
+character-for-character mechanical transcription, while no wording
+anywhere permits a machine to make, infer, select, preselect,
+normalize, rewrite, summarize, supplement, invent, or complete a
+decision value. Each of the six instructed NEGATIVE CONTROLS
 was run before committing: a scratch mutation (altered non-human
 template field; a re-nulled human field; a changed decision; an
 incorrect timestamp; an unauthorized authority-form field change; a
@@ -213,8 +224,9 @@ simulated-commit battery and committed battery both read 92 suites
 the then-15-check static suite, count-neutral everywhere. After the
 Codex round-1 correction added W16, the corrected simulated-commit
 battery and committed battery both read 92 suites / 7,129 checks /
-0 failures — the same baseline plus exactly this milestone's
-16-check static suite and nothing else.
+0 failures; after the round-2 correction added W17, both read
+92 suites / 7,130 checks / 0 failures — the same baseline plus
+exactly this milestone's 17-check static suite and nothing else.
 
 ## 7a. Codex round-1 correction (2026-09-07)
 
@@ -287,6 +299,44 @@ non-overwriting export set. The simulated-commit sweep for this
 correction builds its probe tree from the intended phase paths
 EXPLICITLY rather than a blanket add, so a recurrence of external
 contamination cannot silently enter a probe tree.
+
+## 7c. Codex round-2 correction (2026-09-07)
+
+Codex re-review found, and verification against the committed
+round-1 candidate 373b97acff103f24d1f3c6fbf651000a6b7e9fbf (tree
+6cec33caf09f642365071f560fbf75ac1df7b348) confirmed, that every v2
+template's lawful completion transition still carried the absolute
+prohibition "NO machine or preparer may fill or preselect any of
+them" — which would have made the PLANNED workflow unlawful: the
+human supplies the renewed decisions, and this repository's
+preparer mechanically transcribes those supplied strings
+character-for-character. ONE plain forward correction commit (the
+round-0 and round-1 commits and trees preserved, history never
+rewritten) replaces that sentence in the three v2 templates with
+the explicit human-authorship / mechanical-transcription boundary:
+the HUMAN supplies all six values explicitly and may either enter
+them directly or EXPRESSLY INSTRUCT a mechanical transcriber to
+copy them character-for-character; the transcriber may never
+infer, select, preselect, normalize, rewrite, summarize,
+supplement, or invent a value (this is not permission for any
+machine to make or complete a human decision); absent evidence
+requires the HUMAN's explicit no-evidence statement; the
+completion transition still changes exactly the six human_fields
+leaves and no other byte; and post-completion immutability and
+every external voiding rule stand unchanged. All six human fields
+remain null in all three v2 templates, the 11:05 EDT timestamp was
+not reused, no governed fact changed, and the record's title,
+opening description, verifier header, console label, and W2-W8
+descriptions were narrowed so the round-0 files read as what they
+are — historical NON-OPERATIVE transcripts, never presently valid
+decisions — without relying on the later supersession disclosure
+alone. The dedicated W17 check enforces the boundary with two
+negative controls (the restored absolute prohibition, and wording
+permitting a transcriber to infer or complete a missing value —
+each made W17 fail alone before committing, with byte-exact
+restoration). No review application, event, run, approval, seal,
+or delivery act occurred; no hosted contact; the quarantine stands
+untouched.
 
 ## 8. Stop condition
 
