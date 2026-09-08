@@ -32,8 +32,13 @@
 #      so the whole vector reads baseline), tampered event surface
 #      (count-camouflaged tuple drift), alias drift, wrong
 #      authority, PARTIAL-STAGING atomicity (tampered copy dropping
-#      one exercise member), and tampered reserved evidence
-#      (tampered copy changing the rationale the act writes);
+#      one exercise member), tampered reserved evidence (tampered
+#      copy changing the rationale the act writes), a DISABLED
+#      run-row freeze trigger, a DECOY-REBOUND membership freeze
+#      trigger (same name and events, different function), and three
+#      COUNT-PRESERVING authority substitutions (member, admin
+#      option, grantor — each restored to the exact five-field
+#      baseline afterward, restoration asserted);
 #   G. a REAL two-session concurrency race proving exactly one
 #      committer.
 #
@@ -118,6 +123,13 @@ NEUTRAL_SQL="SELECT md5((SELECT coalesce(string_agg(m::text,'|' ORDER BY m.catal
 TENANT_SQL="SELECT (SELECT count(*)::text||':'||md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM exercises t) || '+' || (SELECT count(*)::text||':'||md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM exercise_aliases t)"
 DELIVER_PRED_SQL="SELECT count(*) FROM exercise_catalog_import_runs r WHERE r.run_key = '$RUN_KEY' AND r.approved_for_delivery = true AND r.dry_run = false AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL"
 UNREADY_SQL="SELECT count(*) FROM exercise_catalog_run_items ri JOIN exercise_catalog c ON c.id = ri.catalog_id WHERE ri.run_id = (SELECT id FROM exercise_catalog_import_runs WHERE run_key='$RUN_KEY') AND (c.review_status <> 'approved' OR c.is_active = false OR c.reviewed_by IS NULL OR char_length(btrim(c.reviewed_by)) = 0 OR c.review_rationale IS NULL OR char_length(btrim(c.review_rationale)) = 0)"
+TRIG_SQL="SELECT (SELECT count(*) FROM pg_catalog.pg_trigger t WHERE t.tgrelid='public.exercise_catalog_import_runs'::regclass AND t.tgname='exercise_catalog_import_runs_freeze_trigger' AND t.tgfoid='public.exlib_freeze_run_row()'::regprocedure AND t.tgtype=23 AND t.tgenabled='O')::text || '/' || (SELECT count(*) FROM pg_catalog.pg_trigger t WHERE t.tgrelid='public.exercise_catalog_import_runs'::regclass AND NOT t.tgisinternal)::text || '/' || (SELECT count(*) FROM pg_catalog.pg_trigger t WHERE t.tgrelid='public.exercise_catalog_run_items'::regclass AND t.tgname='exercise_catalog_run_items_freeze_trigger' AND t.tgfoid='public.exlib_freeze_run_membership()'::regprocedure AND t.tgtype=31 AND t.tgenabled='O')::text || '/' || (SELECT count(*) FROM pg_catalog.pg_trigger t WHERE t.tgrelid='public.exercise_catalog_run_items'::regclass AND NOT t.tgisinternal)::text"
+TRIG_OK="1/1/1/1"
+AUTH_PIN_SQL="SELECT string_agg(g.rolname||'>'||m.rolname||'@'||gr.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, E'\n' ORDER BY g.rolname, m.rolname, gr.rolname) FROM pg_catalog.pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles gr ON gr.oid=am.grantor WHERE g.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')"
+AUTH_PIN_OK="exlib_catalog_admin>postgres@supabase_admin:true:false:false
+exlib_catalog_admission>postgres@supabase_admin:true:false:false
+exlib_catalog_loader>postgres@supabase_admin:true:false:false
+exlib_catalog_reviewer>postgres@supabase_admin:true:false:false"
 
 echo
 echo "=== A. Package identity, provenance, and shape"
@@ -285,6 +297,9 @@ fi
 grep -q 'EXLIB-2U STAGED' "$TMP/2u.out" \
   && ok "D15: the package surfaced its result line (EXLIB-2U STAGED / 1 run / 6 items / staged_non_deliverable) - display evidence; the rows above are the binding proof" \
   || bad "D15: result line missing"
+[ "$(Q "$TRIG_SQL")" = "$TRIG_OK" ] && [ "$(Q "$AUTH_PIN_SQL")" = "$AUTH_PIN_OK" ] \
+  && ok "D16: the strengthened gates hold on the REAL post-migration database - both freeze triggers are EXACT enabled bindings (promoted name/table/function/event-set, sole non-internal trigger each) and the four-role authority baseline reads exactly member postgres @ grantor supabase_admin with ADMIN TRUE, INHERIT FALSE, SET FALSE" \
+  || bad "D16: strengthened-gate surfaces wrong (trig=$(Q "$TRIG_SQL"))"
 
 echo
 echo "=== E. ONE-USE: the second execution refuses fail-closed"
@@ -511,6 +526,104 @@ expect_refusal "F10: TAMPERED RESERVED EVIDENCE refused - the staged row would c
   "$V" "$EVIDENCE_TAMPERED" "not exactly the selected staged posture with the reserved evidence" "$TMP/f10.out"
 rolled_back_pristine "F10b: rollback proven - zero runs and zero items after the refused evidence-tampered run" "$V"
 
+# F11 DISABLED FREEZE TRIGGER: the run-row freeze trigger exists
+# with its exact promoted binding but is DISABLED (per-database
+# state; the variant is discarded afterwards). The old "some
+# non-internal trigger exists" shape would have PASSED this - the
+# exact-binding gate demands tgenabled='O' and refuses.
+new_variant
+surgery "F11 trigger disabled" "ALTER TABLE exercise_catalog_import_runs DISABLE TRIGGER exercise_catalog_import_runs_freeze_trigger;" \
+  && [ "$(Q "SELECT tgenabled FROM pg_trigger WHERE tgname='exercise_catalog_import_runs_freeze_trigger'" "$V")" = "D" ] \
+  && ok "F11-setup: the run-row freeze trigger is DISABLED in place (exists, correct binding, tgenabled='D')" \
+  || bad "F11-setup: disable not landed"
+expect_refusal "F11: DISABLED FREEZE TRIGGER refused - the exact-binding gate demands the ENABLED promoted binding, not mere trigger existence" \
+  "$V" "$PACKAGE" "not EXACTLY bound and enabled" "$TMP/f11.out"
+no_staging "F11b: the refusal staged NOTHING" "$V"
+
+# F12 DECOY-REBOUND FREEZE TRIGGER: the membership freeze trigger is
+# dropped and recreated with the SAME name and SAME event set but
+# executing an inert decoy function. Name-existence and even
+# name+events checks would PASS this - the gate's tgfoid function
+# binding refuses.
+new_variant
+surgery "F12 decoy rebind" "CREATE FUNCTION exlib2u_decoy() RETURNS trigger LANGUAGE plpgsql AS \$d\$BEGIN RETURN COALESCE(NEW, OLD); END\$d\$;
+  DROP TRIGGER exercise_catalog_run_items_freeze_trigger ON exercise_catalog_run_items;
+  CREATE TRIGGER exercise_catalog_run_items_freeze_trigger
+    BEFORE INSERT OR UPDATE OR DELETE ON exercise_catalog_run_items
+    FOR EACH ROW EXECUTE FUNCTION exlib2u_decoy();" \
+  && [ "$(Q "SELECT count(*) FROM pg_trigger t WHERE t.tgname='exercise_catalog_run_items_freeze_trigger' AND t.tgfoid='exlib2u_decoy()'::regprocedure AND t.tgtype=31 AND t.tgenabled='O'" "$V")" = "1" ] \
+  && ok "F12-setup: the membership freeze trigger is REBOUND to an inert decoy (same name, same BEFORE-ROW event set, enabled - only the function differs)" \
+  || bad "F12-setup: decoy rebind not landed"
+expect_refusal "F12: DECOY-REBOUND FREEZE TRIGGER refused - the exact-binding gate binds the promoted FUNCTION (tgfoid), not the trigger name or event set" \
+  "$V" "$PACKAGE" "not EXACTLY bound and enabled" "$TMP/f12.out"
+no_staging "F12b: the refusal staged NOTHING" "$V"
+
+# F13 COUNT-PRESERVING MEMBER SUBSTITUTION (cluster-wide catalog
+# surgery; restored to the exact five-field baseline afterwards):
+# exlib_catalog_loader revoked from postgres and granted to an
+# impostor - the per-role membership COUNT stays exactly 1, so the
+# old role=count shape would have PASSED; the absolute baseline pin
+# refuses on the member identity.
+new_variant
+surgery "F13 member substitution" "REVOKE exlib_catalog_loader FROM postgres;
+  CREATE ROLE exlib2u_impostor NOLOGIN;
+  GRANT exlib_catalog_loader TO exlib2u_impostor WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;" \
+  && [ "$(Q "SELECT count(*) FROM pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid WHERE g.rolname='exlib_catalog_loader'")" = "1" ] \
+  && [ "$(Q "SELECT m.rolname FROM pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid JOIN pg_roles m ON m.oid=am.member WHERE g.rolname='exlib_catalog_loader'")" = "exlib2u_impostor" ] \
+  && ok "F13-setup: exlib_catalog_loader now held by an IMPOSTOR with identical count, grantor, and options (member is the ONLY differing field)" \
+  || bad "F13-setup: member substitution not landed"
+expect_refusal "F13: COUNT-PRESERVING MEMBER SUBSTITUTION refused - the absolute authority baseline pin binds the member identity, not the membership count" \
+  "$V" "$PACKAGE" "catalog authority baseline is not exactly the promoted shape" "$TMP/f13.out"
+no_staging "F13b: the refusal staged NOTHING" "$V"
+surgery "F13 restore" "REVOKE exlib_catalog_loader FROM exlib2u_impostor;
+  DROP ROLE exlib2u_impostor;
+  GRANT exlib_catalog_loader TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;" \
+  && [ "$(Q "$LDR_B")" = "$BASELINE_OK" ] \
+  && ok "F13c: the loader membership RESTORED to the exact five-field baseline (asserted, not assumed)" \
+  || bad "F13c: restoration failed"
+
+# F14 COUNT-PRESERVING ADMIN-OPTION FLIP (cluster-wide; restored):
+# only the reviewer grant's ADMIN option flips - count, member, and
+# grantor all identical; the absolute pin refuses on the option.
+new_variant
+surgery "F14 admin-option flip" "REVOKE ADMIN OPTION FOR exlib_catalog_reviewer FROM postgres;" \
+  && [ "$(Q "SELECT count(*)::text||'/'||bool_and(am.admin_option)::text FROM pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid WHERE g.rolname='exlib_catalog_reviewer'")" = "1/false" ] \
+  && ok "F14-setup: the reviewer grant's ADMIN option is flipped in place (count 1, member postgres, grantor supabase_admin - the option is the ONLY differing field)" \
+  || bad "F14-setup: option flip not landed"
+expect_refusal "F14: COUNT-PRESERVING ADMIN-OPTION FLIP refused - the absolute authority baseline pin binds every option column" \
+  "$V" "$PACKAGE" "catalog authority baseline is not exactly the promoted shape" "$TMP/f14.out"
+no_staging "F14b: the refusal staged NOTHING" "$V"
+surgery "F14 restore" "GRANT exlib_catalog_reviewer TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;" \
+  && [ "$(Q "$REV_B")" = "$BASELINE_OK" ] \
+  && ok "F14c: the reviewer membership RESTORED to the exact five-field baseline (asserted, not assumed)" \
+  || bad "F14c: restoration failed"
+
+# F15 COUNT-PRESERVING GRANTOR SUBSTITUTION (cluster-wide;
+# restored): only the admission grant's recorded GRANTOR differs -
+# member, count, and every option identical. PG16 records any
+# superuser-without-ADMIN grant as the bootstrap superuser's, so a
+# real GRANT cannot produce this state; it is SIMULATED by direct
+# shared-catalog surgery (the established corruption-simulation
+# precedent - exactly the tamper class the pin must catch).
+new_variant
+surgery "F15 grantor substitution" "CREATE ROLE exlib2u_grantor2 SUPERUSER;
+  UPDATE pg_auth_members SET grantor = (SELECT oid FROM pg_roles WHERE rolname='exlib2u_grantor2')
+   WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname='exlib_catalog_admission')
+     AND member = (SELECT oid FROM pg_roles WHERE rolname='postgres');" \
+  && [ "$(Q "SELECT g.rolname||'>'||m.rolname||'@'||gr.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text FROM pg_auth_members am JOIN pg_roles g ON g.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles gr ON gr.oid=am.grantor WHERE g.rolname='exlib_catalog_admission'")" = "exlib_catalog_admission>postgres@exlib2u_grantor2:true:false:false" ] \
+  && ok "F15-setup: the admission grant's recorded grantor is SUBSTITUTED in place (count 1, member postgres, options identical - grantor is the ONLY differing field)" \
+  || bad "F15-setup: grantor substitution not landed"
+expect_refusal "F15: COUNT-PRESERVING GRANTOR SUBSTITUTION refused - the absolute authority baseline pin binds the grantor identity" \
+  "$V" "$PACKAGE" "catalog authority baseline is not exactly the promoted shape" "$TMP/f15.out"
+no_staging "F15b: the refusal staged NOTHING" "$V"
+surgery "F15 restore" "UPDATE pg_auth_members SET grantor = (SELECT oid FROM pg_roles WHERE rolname='supabase_admin')
+   WHERE roleid = (SELECT oid FROM pg_roles WHERE rolname='exlib_catalog_admission')
+     AND member = (SELECT oid FROM pg_roles WHERE rolname='postgres');
+  DROP ROLE exlib2u_grantor2;" \
+  && [ "$(Q "$ADM_B")" = "$BASELINE_OK" ] \
+  && ok "F15c: the admission membership RESTORED to the exact five-field baseline (asserted, not assumed)" \
+  || bad "F15c: restoration failed"
+
 echo
 echo "=== G. Concurrency: two simultaneous executions - exactly ONE commits"
 new_variant
@@ -534,6 +647,11 @@ QA "DROP DATABASE IF EXISTS exlib2u_prestate" >/dev/null 2>&1
 [ "$(QA "SELECT count(*) FROM pg_database WHERE datname LIKE 'exlib2u%'")" = "0" ] \
   && ok "H1: zero leftover fixture databases" \
   || bad "H1: leftover databases remain"
+[ "$(Q "$LDR_B")" = "$BASELINE_OK" ] && [ "$(Q "$REV_B")" = "$BASELINE_OK" ] && [ "$(Q "$ADM_B")" = "$BASELINE_OK" ] && [ "$(Q "$PUB_B")" = "$BASELINE_OK" ] \
+  && [ "$(Q "$AUTH_PIN_SQL")" = "$AUTH_PIN_OK" ] \
+  && [ "$(QA "SELECT count(*) FROM pg_roles WHERE rolname IN ('exlib2u_impostor','exlib2u_grantor2','exlib2u_intruder')")" = "0" ] \
+  && ok "H2: the cluster-wide authority baseline is byte-identical after every authority control (all three substitutions restored to the exact five-field shape; zero harness roles remain)" \
+  || bad "H2: authority baseline not restored"
 
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

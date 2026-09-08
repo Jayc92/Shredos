@@ -6,7 +6,7 @@
 // IMMUTABLE inputs (any byte change to any of them voids the
 // package and this suite fails).
 //
-// Proves U1-U14: the promoted source and artifact integrity
+// Proves U1-U16: the promoted source and artifact integrity
 // (including the EXLIB-2Y evidence tag bytes); package labels and
 // fingerprint pins; statement shape (exactly ONE run INSERT + TWO
 // run-item INSERTs, ZERO updates/deletes/seal/deliver calls, the
@@ -20,11 +20,17 @@
 // logical-identity resolution with NO hosted surrogate literals;
 // the one-use vector gates; structural non-deliverability and
 // S5-promotability shape; record truthfulness incl. the MEASURED
-// live-suite totals; live-suite presence and coverage; topology;
-// boundary; hygiene; and chronology consistency (the 11:05
-// authority instant vs the 19:06 snapshot-decision instant, each
-// bound to its own decision family). Performs NO hosted contact
-// and NO network activity of any kind.
+// live-suite totals; live-suite presence and coverage; topology
+// (the round-0 candidate plus the ONE plain forward round-1
+// correction commit); boundary; hygiene; chronology consistency
+// (the 11:05 authority instant vs the 19:06 snapshot-decision
+// instant, each bound to its own decision family); the EXACT
+// ENABLED freeze-trigger bindings (round-1: names and functions
+// extracted from the committed migration bytes, never restated);
+// and the strengthened ABSOLUTE authority baseline (round-1:
+// member + grantor + every option column, quoted from the promoted
+// hosted application records; the old role=count shape gone).
+// Performs NO hosted contact and NO network activity of any kind.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -40,6 +46,7 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 
 const SRC = '5fd7890233df728167a8a838a329ff14c04f0044'
 const SRC_TREE = '4b866c203861b066832cc3bd0fc04c0dc247392a'
+const CAND0 = '04654173f1cf393177b857966aa5e30560001285'
 const Y_EV_TAG = 'exlib2y-hosted-application-evidence-stable'
 const Y_EV_TAG_OBJ = 'cf20360fa94cb1c28b1cd6bf9dbefe4d9dad7692'
 const PKG = 'docs/exlib2u-staged-run-package.sql'
@@ -221,26 +228,33 @@ check('U9: structural non-deliverability and S5-promotability — the postcondit
       'legal_approved_by', 'legal_approved_at', 'approval_rationale'].sort()
     return JSON.stringify(names) === JSON.stringify(want)
   })())
-check('U10: the record is truthful and complete — it pins the package fingerprint, states PREPARED — NOT EXECUTED with the hosted one-use boundary, carries the MEASURED live-suite totals, explains the two decision-family instants (the 11:05 authority evidence vs the 19:06 snapshot approvals), discloses the vector-shadowed run-key gate as defense-in-depth, and claims no staging, seal, delivery, or hosted contact occurred',
+check('U10: the record is truthful and complete — it pins the package fingerprint, states PREPARED — NOT EXECUTED with the hosted one-use boundary, carries the MEASURED live-suite totals, explains the two decision-family instants (the 11:05 authority evidence vs the 19:06 snapshot approvals), discloses the vector-shadowed run-key gate as defense-in-depth, documents the ROUND-1 correction (exact enabled trigger bindings; the absolute member/grantor/option authority baseline), and claims no staging, seal, delivery, or hosted contact occurred',
   recFlat.includes('PREPARED — NOT EXECUTED') &&
-  recFlat.includes('80 passed, 0 failed') &&
+  recFlat.includes('100 passed, 0 failed') &&
   recFlat.includes('AUTHORITY-decision instant') &&
   recFlat.includes('2026-09-07T11:05:00-04:00') &&
   recFlat.includes('2026-09-07T23:06:00Z') &&
   recFlat.includes('shadowed defense-in-depth') &&
+  recFlat.includes('Round-1 correction') &&
+  recFlat.includes('exact enabled bindings') &&
+  recFlat.includes('member, grantor, or option substitution') &&
   recFlat.includes('No staged run exists anywhere') &&
   recFlat.includes('no seal') &&
   recFlat.includes('No hosted contact') &&
   recFlat.includes('executed hosted exactly once by Joseph/ChatGPT') &&
   !recFlat.includes('has been executed') &&
   !recFlat.includes('was sealed'))
-check('U11: the LIVE suite exists and covers the instructed classes — happy path with the AUTHENTICATED live delivery-refusal probe, one-use replay, pre-existing reserved-key run, drifted approval tuple, drifted governed field, missing identity, count-camouflaged duplicate identity, tampered event surface, alias drift, wrong authority, partial-staging atomicity, tampered reserved evidence, and the two-session race (the live suite runs on demand against a disposable cluster; it is deliberately outside the TS battery, as every live suite is)',
+check('U11: the LIVE suite exists and covers the instructed classes — happy path with the AUTHENTICATED live delivery-refusal probe, one-use replay, pre-existing reserved-key run, drifted approval tuple, drifted governed field, missing identity, count-camouflaged duplicate identity, tampered event surface, alias drift, wrong authority, partial-staging atomicity, tampered reserved evidence, the round-1 negative controls (disabled freeze trigger, decoy-rebound freeze trigger, and the three count-preserving authority substitutions with asserted five-field restorations), and the two-session race (the live suite runs on demand against a disposable cluster; it is deliberately outside the TS battery, as every live suite is)',
   (() => {
     const live = read(LIVE)
     for (const s of ['LIVE non-deliverability', 'ONE-USE: the second execution',
       'PRE-EXISTING RESERVED-KEY RUN', 'DRIFTED APPROVAL TUPLE', 'DRIFTED GOVERNED FIELD',
       'MISSING IDENTITY', 'DUPLICATE IDENTITY', 'TAMPERED EVENT SURFACE', 'ALIAS DRIFT',
-      'WRONG AUTHORITY', 'PARTIAL STAGING', 'TAMPERED RESERVED EVIDENCE', 'exactly ONE commits']) {
+      'WRONG AUTHORITY', 'PARTIAL STAGING', 'TAMPERED RESERVED EVIDENCE',
+      'DISABLED FREEZE TRIGGER', 'DECOY-REBOUND FREEZE TRIGGER',
+      'COUNT-PRESERVING MEMBER SUBSTITUTION', 'COUNT-PRESERVING ADMIN-OPTION FLIP',
+      'COUNT-PRESERVING GRANTOR SUBSTITUTION', 'RESTORED to the exact five-field baseline',
+      'exactly ONE commits']) {
       if (!live.includes(s)) return false
     }
     if (!live.includes('disposable local PostgreSQL ONLY')) return false
@@ -252,20 +266,26 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('U12: topology and inventory exact — ONE plain single-parent commit on the promoted source carrying exactly the FOUR added phase paths (package, record, this verifier, the live suite) plus ONLY the two labeled retargets the sweep enumerated; nothing deleted',
+  check('U12: topology and inventory exact — the round-0 candidate plus ONE plain forward round-1 correction commit on the promoted source (single-parent chain source -> candidate -> correction), the CUMULATIVE diff carrying exactly the FOUR added phase paths plus ONLY the two labeled retargets, and the correction commit touching ONLY the package, the record, and the two 2U verifiers; nothing deleted anywhere',
     (() => {
       try {
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
+        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p1.length !== 2 || p1[1] !== CAND0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${CAND0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== SRC) return false
         const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
-        return JSON.stringify(status) === JSON.stringify(expected)
+        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${CAND0}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [PKG, RECORD, VERIFIER, LIVE].sort().map((p) => `M\t${p}`)
+        return JSON.stringify(corr) === JSON.stringify(corrExpected)
       } catch { return false }
     })())
 } else {
@@ -307,6 +327,38 @@ check('U14: chronology consistency — the authority instant (11:05 EDT = 15:05Z
     if ((pkg.match(/2026-09-07T19:06:00-04:00/g) || []).length !== 4) return false
     for (const d of decisions) if (d.human_fields.reviewed_at !== TS_DEC) return false
     return auth.requested_inputs.product_approver_identity.product_approved_at === TS_AUTH
+  })())
+check('U15: EXACT ENABLED trigger bindings (round-1) — the package pins each freeze trigger as an exact binding: the promoted trigger NAME on the promoted TABLE executing the promoted FUNCTION (name and function EXTRACTED from the committed migration bytes, never restated) over the promoted BEFORE-ROW event set (tgtype 23 / 31), ENABLED (tgenabled=O), each the SOLE non-internal trigger on its table; the old some-trigger-exists shape appears nowhere',
+  (() => {
+    const mig = read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql')
+    const m1 = mig.match(/CREATE TRIGGER (\w+)\s+BEFORE INSERT OR UPDATE ON exercise_catalog_import_runs\s+FOR EACH ROW EXECUTE FUNCTION (\w+)\(\)/)
+    const m2 = mig.match(/CREATE TRIGGER (\w+)\s+BEFORE INSERT OR UPDATE OR DELETE ON exercise_catalog_run_items\s+FOR EACH ROW EXECUTE FUNCTION (\w+)\(\)/)
+    if (!m1 || !m2) return false
+    if (!pkg.includes(`t.tgname = '${m1[1]}'`)) return false
+    if (!pkg.includes(`t.tgfoid = 'public.${m1[2]}()'::regprocedure`)) return false
+    if (!pkg.includes(`t.tgname = '${m2[1]}'`)) return false
+    if (!pkg.includes(`t.tgfoid = 'public.${m2[2]}()'::regprocedure`)) return false
+    if (!pkg.includes('t.tgtype = 23') || !pkg.includes('t.tgtype = 31')) return false
+    if ((pkg.match(/t\.tgenabled = 'O'/g) || []).length !== 2) return false
+    if ((pkg.match(/NOT t\.tgisinternal/g) || []).length !== 2) return false
+    if (/NOT EXISTS \(SELECT 1 FROM pg_trigger/.test(pkg)) return false
+    return pkg.includes('not EXACTLY bound and enabled')
+  })())
+check('U16: strengthened ABSOLUTE authority baseline (round-1) — the package pins all four catalog-role memberships as complete tuples (member postgres, grantor supabase_admin, ADMIN TRUE, INHERIT FALSE, SET FALSE — the exact shape the promoted EXLIB-2K/2O hosted application records preserved, verified against their bytes) AND captures-and-compares the WHOLE membership rows across the gated interval; the old role=count shape appears nowhere',
+  (() => {
+    const kFlat = read('docs/exlib2k-hosted-load-application-record.md').replace(/\s+/g, ' ')
+    const oFlat = read('docs/exlib2o-hosted-load-application-record.md').replace(/\s+/g, ' ')
+    if (!kFlat.includes('ADMIN TRUE, INHERIT FALSE, SET FALSE')) return false
+    if (!oFlat.includes('ADMIN TRUE, INHERIT FALSE, SET FALSE')) return false
+    if (!kFlat.includes('grantor is supabase_admin') && !kFlat.includes('grantor supabase_admin')) return false
+    for (const role of ['exlib_catalog_admin', 'exlib_catalog_admission', 'exlib_catalog_loader', 'exlib_catalog_reviewer']) {
+      if (!pkg.includes(`'${role}>postgres@supabase_admin:true:false:false'`)) return false
+    }
+    if (!pkg.includes('authority_digest')) return false
+    if ((pkg.match(/string_agg\(am::text, '\|' ORDER BY am\.roleid, am\.member, am\.grantor\)/g) || []).length !== 2) return false
+    if (/rolname \|\| '=' \|\| x\.n::text/.test(pkg)) return false
+    if (!pkg.includes('count-preserving member, grantor, or option substitution')) return false
+    return pkg.includes('member, grantor, and every option column')
   })())
 
 console.log(`\n${passed} passed, ${failed} failed`)

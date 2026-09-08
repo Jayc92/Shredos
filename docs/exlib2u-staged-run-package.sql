@@ -119,6 +119,18 @@
 -- commit. Live tenant surfaces are captured-and-compared inside the
 -- transaction (digest equality), never pinned to absolute counts,
 -- because production signups lawfully change them.
+--
+-- ROUND-1 STRENGTHENED GATES: the two freeze triggers are verified
+-- as EXACT ENABLED BINDINGS (promoted name + table + function +
+-- BEFORE-ROW event set + enabled state, each the sole non-internal
+-- trigger on its table) — never as "some non-internal trigger
+-- exists"; and the catalog authority is verified ABSOLUTELY against
+-- the reviewed hosted baseline the EXLIB-2K/2O application records
+-- preserved (per role: member postgres, grantor supabase_admin,
+-- ADMIN TRUE, INHERIT FALSE, SET FALSE; exactly four rows) plus a
+-- WHOLE-ROW membership digest captured-and-compared across the
+-- gated interval — so a count-preserving member, grantor, or option
+-- substitution refuses.
 -- ============================================================
 
 BEGIN;
@@ -155,11 +167,10 @@ SELECT
   (SELECT md5(coalesce(string_agg(l::text,'|' ORDER BY l.id),'-')) FROM public.exercise_catalog_logical l)                       AS logical_digest,
   (SELECT count(*)::text || ':' || md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM public.exercises t)             AS tenant_digest,
   (SELECT count(*)::text || ':' || md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM public.exercise_aliases t)      AS tenant_alias_digest,
-  (SELECT string_agg(x.rolname || '=' || x.n::text, ',' ORDER BY x.rolname)
-     FROM (SELECT r.rolname, count(*) AS n
-             FROM pg_catalog.pg_auth_members am JOIN pg_roles r ON r.oid = am.roleid
-            WHERE r.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')
-            GROUP BY r.rolname) x)                                                                                               AS authority_shape;
+  (SELECT md5(coalesce(string_agg(am::text, '|' ORDER BY am.roleid, am.member, am.grantor),'-'))
+     FROM pg_catalog.pg_auth_members am
+     JOIN pg_roles g ON g.oid = am.roleid
+    WHERE g.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin'))       AS authority_digest;
 
 -- ── Preconditions (ANY mismatch aborts EVERYTHING) ───────────────
 DO $pre$
@@ -183,11 +194,58 @@ BEGIN
      OR to_regprocedure('public.deliver_catalog_exercises(text)') IS NULL THEN
     RAISE EXCEPTION 'exlib2u staging: the run tables, the S5 seal function, or the delivery function are missing; wrong or unmigrated database';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-                 WHERE c.relname = 'exercise_catalog_import_runs' AND NOT t.tgisinternal)
-     OR NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-                    WHERE c.relname = 'exercise_catalog_run_items' AND NOT t.tgisinternal) THEN
-    RAISE EXCEPTION 'exlib2u staging: the run-row or run-membership freeze trigger is missing; refusing';
+  -- the two freeze triggers this posture depends on must be EXACTLY
+  -- the promoted bindings — the promoted trigger name on the
+  -- promoted table executing the promoted function over the
+  -- promoted BEFORE-ROW event set (tgtype 23 = ROW + BEFORE +
+  -- INSERT + UPDATE; tgtype 31 adds DELETE), ENABLED in the default
+  -- origin mode ('O'), and each the ONLY non-internal trigger on
+  -- its table — so a missing, disabled, decoy-rebound, event-
+  -- narrowed, or shadow-supplemented trigger all refuse
+  IF (SELECT count(*) FROM pg_catalog.pg_trigger t
+       WHERE t.tgrelid = 'public.exercise_catalog_import_runs'::regclass
+         AND t.tgname = 'exercise_catalog_import_runs_freeze_trigger'
+         AND t.tgfoid = 'public.exlib_freeze_run_row()'::regprocedure
+         AND t.tgtype = 23
+         AND t.tgenabled = 'O') <> 1
+     OR (SELECT count(*) FROM pg_catalog.pg_trigger t
+          WHERE t.tgrelid = 'public.exercise_catalog_import_runs'::regclass
+            AND NOT t.tgisinternal) <> 1
+     OR (SELECT count(*) FROM pg_catalog.pg_trigger t
+          WHERE t.tgrelid = 'public.exercise_catalog_run_items'::regclass
+            AND t.tgname = 'exercise_catalog_run_items_freeze_trigger'
+            AND t.tgfoid = 'public.exlib_freeze_run_membership()'::regprocedure
+            AND t.tgtype = 31
+            AND t.tgenabled = 'O') <> 1
+     OR (SELECT count(*) FROM pg_catalog.pg_trigger t
+          WHERE t.tgrelid = 'public.exercise_catalog_run_items'::regclass
+            AND NOT t.tgisinternal) <> 1 THEN
+    RAISE EXCEPTION 'exlib2u staging: the run-row or run-membership freeze trigger is not EXACTLY bound and enabled (promoted name, table, function, event set, enabled state, sole non-internal trigger); refusing';
+  END IF;
+
+  -- the catalog authority baseline must be EXACTLY the reviewed
+  -- hosted shape the EXLIB-2K/2O application records preserved:
+  -- each of the four catalog roles held by postgres ALONE, granted
+  -- by supabase_admin, ADMIN TRUE, INHERIT FALSE, SET FALSE —
+  -- exactly four membership rows in total across the four roles —
+  -- so a count-preserving member, grantor, or option substitution
+  -- refuses (the records observed INHERIT/SET hosted, so the
+  -- option columns exist on the hosted major version)
+  SELECT string_agg(g.rolname || '>' || m.rolname || '@' || gr.rolname
+           || ':' || am.admin_option::text || ':' || am.inherit_option::text || ':' || am.set_option::text,
+           E'\n' ORDER BY g.rolname, m.rolname, gr.rolname)
+    INTO v_line
+    FROM pg_catalog.pg_auth_members am
+    JOIN pg_roles g  ON g.oid  = am.roleid
+    JOIN pg_roles m  ON m.oid  = am.member
+    JOIN pg_roles gr ON gr.oid = am.grantor
+   WHERE g.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin');
+  IF v_line IS DISTINCT FROM
+        'exlib_catalog_admin>postgres@supabase_admin:true:false:false'
+     || E'\n' || 'exlib_catalog_admission>postgres@supabase_admin:true:false:false'
+     || E'\n' || 'exlib_catalog_loader>postgres@supabase_admin:true:false:false'
+     || E'\n' || 'exlib_catalog_reviewer>postgres@supabase_admin:true:false:false' THEN
+    RAISE EXCEPTION 'exlib2u staging: the catalog authority baseline is not exactly the promoted shape (got: %); refusing', coalesce(v_line, '<none>');
   END IF;
 
   -- the exact post-EXLIB-2Y evidence baseline. Runs and run items
@@ -542,12 +600,11 @@ BEGIN
      OR (SELECT count(*)::text || ':' || md5(coalesce(string_agg(t::text,'|' ORDER BY t.id),'-')) FROM public.exercise_aliases t) <> v_cap.tenant_alias_digest THEN
     RAISE EXCEPTION 'exlib2u staging: a tenant surface changed inside the gated interval; rolling back everything';
   END IF;
-  IF (SELECT string_agg(x.rolname || '=' || x.n::text, ',' ORDER BY x.rolname)
-        FROM (SELECT r.rolname, count(*) AS n
-                FROM pg_catalog.pg_auth_members am JOIN pg_roles r ON r.oid = am.roleid
-               WHERE r.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')
-               GROUP BY r.rolname) x) IS DISTINCT FROM v_cap.authority_shape THEN
-    RAISE EXCEPTION 'exlib2u staging: the catalog authority shape changed (this package changes NO authority); rolling back everything';
+  IF (SELECT md5(coalesce(string_agg(am::text, '|' ORDER BY am.roleid, am.member, am.grantor),'-'))
+        FROM pg_catalog.pg_auth_members am
+        JOIN pg_roles g ON g.oid = am.roleid
+       WHERE g.rolname IN ('exlib_catalog_loader','exlib_catalog_reviewer','exlib_catalog_admission','exlib_catalog_admin')) IS DISTINCT FROM v_cap.authority_digest THEN
+    RAISE EXCEPTION 'exlib2u staging: the catalog authority memberships changed inside the gated interval — whole rows compared: member, grantor, and every option column (this package changes NO authority); rolling back everything';
   END IF;
 
   -- the claims invariant still holds

@@ -12,10 +12,12 @@ hosted act by Joseph/ChatGPT after Codex review — never by Claude.
 
 ## 1. What was prepared (the exact bytes)
 
-- Package: docs/exlib2u-staged-run-package.sql, 35,139 bytes,
+- Package: docs/exlib2u-staged-run-package.sql, 38,582 bytes,
   sha256
-  5f64e1eb57e7077b1bf2bb5133324627538d480ab2f5b0c86b671993713c8166,
-  authored on the fresh branch exlib2u-s4-staged-run-prep created at
+  ceb4964f3537f49ef987e77876c3106917abc3edf2fc9bff3991fb644c90722f
+  (the round-1 corrected bytes; the round-0 candidate's package was
+  35,139 B, sha256 5f64e1eb..., superseded by section 11), authored
+  on the fresh branch exlib2u-s4-staged-run-prep created at
   promoted main 5fd7890233df728167a8a838a329ff14c04f0044 (the
   EXLIB-2Y hosted-application evidence tip, tag
   exlib2y-hosted-application-evidence-stable, object
@@ -109,6 +111,29 @@ alias surrogate UUID appears anywhere in the package.
   later, separately gated exlib_approve_and_seal_run call is what
   S5 would be.
 
+EXACT ENABLED TRIGGER BINDINGS (round-1): the machinery gate never
+asks whether "some non-internal trigger exists" — it demands, for
+each of the two freeze triggers, the exact enabled bindings: the
+promoted trigger name on the promoted table executing the promoted
+function (extracted from the committed migration bytes) over the
+promoted BEFORE-ROW event set (tgtype 23 for the run-row trigger,
+31 for the membership trigger), tgenabled = 'O', and each the SOLE
+non-internal trigger on its table — so a missing, disabled,
+decoy-rebound (same name and events, different function),
+event-narrowed, or shadow-supplemented trigger all refuse.
+
+ABSOLUTE AUTHORITY BASELINE (round-1): the authority gate never
+reduces to role=count — the precondition pins all four catalog-role
+memberships as complete tuples (member postgres, grantor
+supabase_admin, ADMIN TRUE, INHERIT FALSE, SET FALSE; exactly four
+rows in total), the exact reviewed hosted shape the EXLIB-2K/2O
+application records preserved — so a count-preserving member,
+grantor, or option substitution refuses — and the postcondition
+additionally captures-and-compares the WHOLE membership rows
+(member, grantor, and every option column) across the gated
+interval. The records observed INHERIT/SET hosted, so the option
+columns exist on the hosted major version.
+
 ONE-USE GATE PAIR, WITH A SHADOWING DISCLOSURE: the precondition
 pins the post-EXLIB-2Y baseline vector 3/3/5/3/6/1/2/2/0/0/3 —
 zero runs and zero run items — and separately refuses if the
@@ -145,31 +170,46 @@ staging fail-closed.
 
 - LIVE (scripts/verify-exlib2u-live.sh, disposable socket-only
   cluster; deliberately outside the TS battery like every live
-  suite): 80 passed, 0 failed. It proves, on the exact chain-built
+  suite): 100 passed, 0 failed. It proves, on the exact chain-built
   post-2Y pre-state (2K+2O+2P+2Q+2R+2Y executed once each over the
   84-exercise tenant fixture): the happy path (the staged run row
   verbatim, the six members, the vector's exact two-position move,
-  snapshots/events/unrelated/tenant/authority all digest-identical);
-  the AUTHENTICATED LIVE delivery refusal — deliver_catalog_exercises
-  called directly on the DISPOSABLE cluster refuses the staged run
-  with the exact committed message and zero state change; the
-  structural S5 member-readiness (3/3, zero unready) with the run
-  still unapproved and unsealed after every probe; ONE-USE (the
-  second execution refuses; nothing drifts); a ten-variant refusal
-  matrix on fresh template copies — pre-existing reserved-key run,
-  drifted approval tuple, drifted governed field, missing identity,
-  COUNT-CAMOUFLAGED duplicate identity (both unique indexes dropped,
-  the vector fully camouflaged including a forged pad event; the
-  package's own per-identity gate still fires 'found 2'), tampered
-  event surface (count-camouflaged), alias drift, wrong authority,
-  PARTIAL-STAGING atomicity (a tampered copy drops one exercise
-  member; the run row and five items roll back whole), and tampered
-  reserved evidence (a tampered copy writes a non-reserved
-  rationale; the postcondition refuses) — with the staged-nothing /
-  rollback proof after every refusal; and the two-session race with
-  exactly one committer.
-- STATIC (scripts/verify-exlib2u.ts, joins the battery): fourteen
-  proofs U1-U14 as described in section 7.
+  snapshots/events/unrelated/tenant/authority all digest-identical,
+  plus both strengthened surfaces read back exactly on the real
+  post-migration database); the AUTHENTICATED LIVE delivery refusal
+  — deliver_catalog_exercises called directly on the DISPOSABLE
+  cluster refuses the staged run with the exact committed message
+  and zero state change; the structural S5 member-readiness (3/3,
+  zero unready) with the run still unapproved and unsealed after
+  every probe; ONE-USE (the second execution refuses; nothing
+  drifts); a fifteen-variant refusal matrix on fresh template
+  copies — pre-existing reserved-key run, drifted approval tuple,
+  drifted governed field, missing identity, COUNT-CAMOUFLAGED
+  duplicate identity (both unique indexes dropped, the vector fully
+  camouflaged including a forged pad event; the package's own
+  per-identity gate still fires 'found 2'), tampered event surface
+  (count-camouflaged), alias drift, wrong authority, PARTIAL-STAGING
+  atomicity (a tampered copy drops one exercise member; the run row
+  and five items roll back whole), tampered reserved evidence (a
+  tampered copy writes a non-reserved rationale; the postcondition
+  refuses), a DISABLED run-row freeze trigger (exists, correct
+  binding, tgenabled='D' — the old existence shape would have
+  passed), a DECOY-REBOUND membership freeze trigger (same name,
+  same event set, enabled, different function — caught by the
+  tgfoid binding), and three COUNT-PRESERVING authority
+  substitutions (member, admin option, grantor — each leaving the
+  per-role count at exactly 1, each refused by the absolute
+  baseline pin, and each RESTORED to the exact five-field baseline
+  with the restoration asserted; the grantor case is simulated by
+  direct shared-catalog surgery because PG16 records any
+  superuser-without-ADMIN grant as the bootstrap superuser's, so no
+  real GRANT can produce it) — with the staged-nothing / rollback
+  proof after every refusal; the two-session race with exactly one
+  committer; and the final cluster-wide proof that all four
+  authority baselines read byte-identical after every control with
+  zero harness roles remaining.
+- STATIC (scripts/verify-exlib2u.ts, joins the battery): sixteen
+  proofs U1-U16 as described in section 7.
 - The package under test in every run above was byte-identical to
   the fingerprint in section 1.
 
@@ -189,8 +229,13 @@ anywhere); the one-use gate pair; the structural non-deliverability
 and S5-promotability shape (including the exact seven-column INSERT
 list — no seal, approval-state, operational, or created_at column
 is ever written); this record's truthfulness; live-suite presence
-and coverage; topology; boundary and hygiene; and the two-family
-chronology.
+and coverage; topology (the round-0 candidate plus the one plain
+forward round-1 correction commit, chain and per-commit inventories
+both pinned); boundary and hygiene; the two-family chronology; the
+exact enabled trigger bindings with names and functions extracted
+from the committed migration bytes (U15); and the strengthened
+absolute authority baseline verified against the promoted 2K/2O
+record bytes, with the old role=count shape proven absent (U16).
 
 ## 8. Stale-claim sweep and battery reconciliation
 
@@ -215,9 +260,9 @@ preparation)`:
   checked live.
 
 With both in place the simulated-commit battery and the committed
-battery both read 96 suites / 7,182 checks / 0 failures — the
+battery both read 96 suites / 7,184 checks / 0 failures — the
 promoted baseline 95/7,168 plus exactly this milestone's new
-14-check static suite and nothing else.
+16-check static suite and nothing else.
 
 ## 9. What did NOT happen (the boundary)
 
@@ -238,3 +283,48 @@ This milestone stops LOCAL-ONLY on its branch for Codex review. Not
 pushed, not promoted, not tagged; the reserved authority artifact
 and the three decision artifacts byte-untouched; the spent EXLIB-2Y
 package byte-untouched.
+
+## 11. Round-1 correction (Codex verdict applied)
+
+Codex reviewed the round-0 candidate
+04654173f1cf393177b857966aa5e30560001285 and did NOT approve it,
+with this correction verdict: replace the loose "some non-internal
+trigger exists" checks with exact, enabled trigger bindings for the
+run-row and membership freeze triggers; strengthen the authority
+proof beyond role=count so a count-preserving member, grantor, or
+option substitution cannot pass; add the corresponding live
+negative controls; update the record, static verifier, live
+verifier, and topology proof in one plain forward correction
+commit; keep everything local-only with a corrected
+reconstruction-proven bundle. No publication, promotion, tag, or
+execution of the round-0 candidate occurred, and no authorization
+was consumed.
+
+Applied, all in ONE plain forward correction commit over the
+round-0 candidate (four files: the package, this record, the static
+verifier, the live suite; the two round-0 retargets untouched):
+
+- The machinery gate now demands the exact enabled bindings
+  described in section 4 (trigger name + table + function + event
+  set extracted from migration 023's bytes, tgenabled='O', sole
+  non-internal trigger per table). The trigger event-set masks
+  (tgtype 23 and 31) were MEASURED on a scratch cluster before
+  being pinned, not derived on paper.
+- The authority proof now pins the absolute four-role baseline
+  (member, grantor, and all three option columns, quoted from the
+  promoted EXLIB-2K/2O hosted application records) and
+  captures-and-compares whole membership rows across the gated
+  interval; the role=count shape is gone from the package entirely.
+- Five live negative controls were added (F11-F15; section 6) plus
+  the happy-path strengthened-surface readback (D16) and the final
+  cluster-wide restoration proof (H2). A finding worth preserving:
+  PG16 records any superuser-without-ADMIN grant as the bootstrap
+  superuser's, so a REAL count-preserving grantor substitution
+  cannot be produced through GRANT — the first F15 attempt
+  reproduced the baseline exactly and the package rightly
+  succeeded; the control therefore simulates the substitution by
+  direct shared-catalog surgery, the same corruption-simulation
+  precedent as the dropped unique indexes.
+- The static verifier gained U15/U16 and the two-commit topology
+  proof (U12); every measured total in this record was re-measured
+  after the correction.
