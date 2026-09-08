@@ -106,21 +106,28 @@ misread later.
 ## 5. Advisors (observed, not modified)
 
 The executor observed both hosted advisor classes and changed
-nothing: 20 security notices and 48 performance notices, all
-pre-existing classes (mutable function search paths, SECURITY
-DEFINER exposure, RLS initialization-plan performance) left
-untouched for separate adjudication. None was introduced by this
-execution and none gates it.
+nothing. The exact hosted observations, enumerated completely:
+20 security notices (13 RLS-enabled/no-policy; 2 mutable search
+paths; 1 anonymous SECURITY DEFINER exposure; 3 authenticated
+SECURITY DEFINER exposures; 1 leaked-password-protection warning)
+and 48 performance notices (6 unindexed foreign keys; 32 RLS
+initialization-plan warnings; 9 unused indexes; 1 absolute Auth
+connection-strategy notice). All were observed only and not
+modified, left untouched for separate adjudication; none was
+introduced by this execution and none gates it.
 
 ## 6. What this changes and what it does not
 
 The hosted database now holds EXACTLY ONE staged import run in the
 Design-S4 SELECTED posture with its six-member frozen-until-seal
 membership — the state one later, separately gated
-exlib_approve_and_seal_run call (S5) can promote, and which the
-delivery runtime cannot touch (structurally non-deliverable; the
-delivery flag variables remain ABSENT everywhere; the runtime
-remains inert). Nothing else changed: no snapshot, event, content,
+exlib_approve_and_seal_run call (S5) can promote. The operator made
+no Vercel or delivery-variable change during this execution. Vercel
+environment-variable posture was not re-observed by this evidence
+pass. Independently of flag posture, this staged run is
+structurally non-deliverable because it remains unapproved and
+unsealed and the database delivery predicate matches zero rows.
+Nothing else changed: no snapshot, event, content,
 publication, projection, claims, anatomy, alias, tenant, authority,
 or environment surface moved; no delivery call, no S5 approval or
 seal, no environment-variable change, no seed or inventory edit, no
@@ -175,3 +182,37 @@ pushed, not promoted, not tagged; no hosted contact by Claude at
 any point; the spent package untouched; no run change, approval,
 seal, delivery, environment, seed, inventory, EXLIB-2S, or
 quarantine change.
+
+## 10. Correction disclosure (2026-09-08, round 1)
+
+Codex reviewed the round-0 evidence commit
+cf30ed4edf7c70ce7fd612a9d0604ea9a088c9a7 and required a NARROW
+correction — the hosted act itself is valid and the package remains
+successfully staged and SPENT. Two evidence-prose defects were
+corrected in ONE plain forward commit touching exactly this record
+and its verifier:
+
+- Section 5's advisor parenthetical read like an exhaustive class
+  list while omitting observed classes. It now enumerates the exact
+  hosted observations completely (the nine classes above, summing
+  to 20 security and 48 performance), preserving that they were
+  observed only and not modified.
+- Section 6 claimed the delivery variables "remain ABSENT
+  everywhere" and the runtime "remains inert" — current-state
+  claims that EXCEEDED the operator evidence, because this
+  execution did not re-observe the Vercel environment
+  configuration. The claims are replaced by exactly what the
+  evidence supports: no Vercel or delivery-variable change was made
+  during this execution, the posture was not re-observed by this
+  evidence pass, and the run's non-deliverability is structural
+  (unapproved, unsealed, delivery predicate zero) independently of
+  flag posture.
+
+E9 was strengthened count-neutrally to enforce the complete advisor
+classification arithmetically (the per-class counts extracted from
+this record's own enumeration must sum to the stated totals) and to
+REJECT the unsupported absent-everywhere claim; E11 now pins the
+preserved round-0 evidence commit plus this one correction commit.
+No Supabase or Vercel contact, package execution, run mutation,
+approval, sealing, delivery, or S5 work occurred in this
+correction.

@@ -139,16 +139,35 @@ check('E8: strengthened-gate consistency — the record\'s trigger and authority
       recFlat.includes('84 exercises and zero tenant aliases') &&
       recFlat.includes('hosted tenant aliases can only arise from delivery or user authoring')
   })())
-check('E9: the record\'s boundary claims are truthful — executed once by the operator path (Claude performed no hosted contact), advisors observed not modified (20 security + 48 performance, left for separate adjudication), no delivery call, no S5 approval or seal, no environment/seed/inventory/Git/Vercel/EXLIB-2S action, and the next gated milestones are named in order',
-  recFlat.includes('WAS EXECUTED ONCE') &&
-  recFlat.includes('operator path (Joseph/ChatGPT)') &&
-  recFlat.includes('Claude performed no hosted contact') &&
-  recFlat.includes('observed both hosted advisor classes and changed nothing') &&
-  recFlat.includes('20 security notices and 48 performance notices') &&
-  recFlat.includes('no delivery call, no S5 approval or seal, no environment-variable change, no seed or inventory edit, no Git action, no Vercel action, and no EXLIB-2S action') &&
-  recFlat.includes('Codex review of this evidence record') &&
-  !recFlat.includes('the run is sealed') &&
-  !recFlat.includes('delivery succeeded'))
+check('E9: the record\'s boundary claims are truthful and evidence-bounded (round-1 strengthened, count-neutral) — executed once by the operator path (Claude performed no hosted contact); the advisor observations are enumerated COMPLETELY, the per-class counts extracted from the record\'s own enumeration summing exactly to the stated security and performance totals, observed only and not modified; section 6 makes NO current-state flag-posture claim (the unsupported absent-everywhere claim is rejected there; the disclosure may quote it) and states exactly what the evidence supports; no delivery call, no S5 approval or seal, no environment/seed/inventory/Git/Vercel/EXLIB-2S action; the dated correction disclosure is present; and the next gated milestones are named in order',
+  (() => {
+    if (!recFlat.includes('WAS EXECUTED ONCE')) return false
+    if (!recFlat.includes('operator path (Joseph/ChatGPT)')) return false
+    if (!recFlat.includes('Claude performed no hosted contact')) return false
+    if (!recFlat.includes('observed both hosted advisor classes and changed nothing')) return false
+    const secm = recFlat.match(/(\d+) security notices \(([^)]+)\)/)
+    const perfm = recFlat.match(/(\d+) performance notices \(([^)]+)\)/)
+    if (!secm || !perfm) return false
+    const sum = (s: string): number => (s.match(/\d+/g) || []).map(Number).reduce((a, b) => a + b, 0)
+    if (sum(secm[2]) !== Number(secm[1]) || sum(perfm[2]) !== Number(perfm[1])) return false
+    for (const cls of ['RLS-enabled/no-policy', 'mutable search paths', 'anonymous SECURITY DEFINER exposure',
+      'authenticated SECURITY DEFINER exposures', 'leaked-password-protection warning',
+      'unindexed foreign keys', 'RLS initialization-plan warnings', 'unused indexes',
+      'absolute Auth connection-strategy notice']) {
+      if (!recFlat.includes(cls)) return false
+    }
+    if (!recFlat.includes('observed only and not modified')) return false
+    const sec6 = rec.slice(rec.indexOf('## 6.'), rec.indexOf('## 7.')).replace(/\s+/g, ' ')
+    if (sec6.includes('remain ABSENT everywhere') || sec6.includes('remains inert')) return false
+    if (!sec6.includes('made no Vercel or delivery-variable change during this execution')) return false
+    if (!sec6.includes('not re-observed by this evidence pass')) return false
+    if (!sec6.includes('Independently of flag posture')) return false
+    if (!sec6.includes('unapproved and unsealed and the database delivery predicate matches zero rows')) return false
+    if (!recFlat.includes('no delivery call, no S5 approval or seal, no environment-variable change, no seed or inventory edit, no Git action, no Vercel action, and no EXLIB-2S action')) return false
+    if (!recFlat.includes('Codex review of this evidence record')) return false
+    if (!recFlat.includes('Correction disclosure (2026-09-08, round 1)')) return false
+    return !recFlat.includes('the run is sealed') && !recFlat.includes('delivery succeeded')
+  })())
 check('E10: hygiene — the record\'s non-ASCII is the em-dash only, and neither phase file carries the delivery environment-variable literals, endpoints, or credential material',
   (() => {
     for (const ch of rec) {
@@ -167,20 +186,27 @@ const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 if (committed) {
-  check('E11: topology and inventory exact — ONE plain single-parent commit on the promoted 2U tip carrying exactly this record and this verifier plus ONLY the labeled retarget; nothing deleted',
+  check('E11: topology and inventory exact — the preserved round-0 evidence commit plus ONE plain forward round-1 correction commit on the promoted 2U tip (single-parent chain tip -> evidence -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled retarget, and the correction commit touching ONLY the record and this verifier; nothing deleted',
     (() => {
       try {
+        const EV0 = 'cf30ed4edf7c70ce7fd612a9d0604ea9a088c9a7'
         if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
+        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p1.length !== 2 || p1[1] !== EV0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== SRC) return false
         const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
-        return JSON.stringify(status) === JSON.stringify(expected)
+        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${EV0}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+        return JSON.stringify(corr) === JSON.stringify(corrExpected)
       } catch { return false }
     })())
 } else {
