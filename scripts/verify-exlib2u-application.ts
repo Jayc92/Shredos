@@ -19,6 +19,19 @@ const read = (p: string): string => readFileSync(p, 'utf8')
 const SRC = 'ea8f6902b7b42a4d7f5a9af8c376900da5533e5c'
 const U_TAG = 'exlib2u-s4-staged-run-prep-reviewed-not-executed'
 const U_TAG_OBJ = '41d8eb3eb3a4ea9f811fbf9d7138158157e03f90'
+// RETARGET (EXLIB-2Z S5 seal preparation): this evidence phase
+// COMPLETED — the Codex-approved durable closeout fast-forwarded
+// main ea8f6902 -> 290f9bbb and tagged the evidence tip stable, so
+// the old E1 pin refs/heads/main == SRC (true at execution time)
+// went stale AT the closeout exactly as the durable-closeout ruling
+// recorded, and E11's HEAD-relative two-commit topology went stale
+// at this milestone's own first successor commit — the recurring
+// completed-phase pattern (tenth instance). Both claims are
+// re-anchored at the phase's own promoted evidence tip and its
+// durable stable tag, where they held and hold forever.
+const EV1 = '290f9bbbfea84ac6bcd2cefb59f7bed2247e2021'
+const EV_TAG = 'exlib2u-hosted-application-evidence-stable'
+const EV_TAG_OBJ = '82e9800765579f15adc127eb4a218982c50425c8'
 const PKG = 'docs/exlib2u-staged-run-package.sql'
 const PKG_SHA = 'ceb4964f3537f49ef987e77876c3106917abc3edf2fc9bff3991fb644c90722f'
 const RECORD = 'docs/exlib2u-hosted-application-record.md'
@@ -36,12 +49,13 @@ const auth = JSON.parse(read(AUTH_FORM))
 
 console.log('EXLIB-2U hosted-application evidence verification (LOCAL-ONLY; the package is SPENT; nothing re-observed, everything cross-checked)')
 
-check('E1: the promoted sources and the SPENT posture — the executed package is byte-identical to its accepted round-1 fingerprint at the promoted tip (live file AND tip blob), the reviewed-not-executed tag object peels to that tip with main still there, and this record states SPENT — DO NOT RERUN with the one-use authority consumed and no retry',
+check('E1: the promoted sources and the SPENT posture — the executed package is byte-identical to its accepted round-1 fingerprint at the promoted tip (live file AND tip blob), the reviewed-not-executed tag object peels to that tip, the evidence tip carrying this record was durably promoted under its stable tag (RETARGET (EXLIB-2Z S5 seal preparation): anchored constants replace the closeout-stale refs/heads/main pin), and this record states SPENT — DO NOT RERUN with the one-use authority consumed and no retry',
   (() => {
     try {
       if (execSync(`git rev-parse refs/tags/${U_TAG}`, { encoding: 'utf8' }).trim() !== U_TAG_OBJ) return false
       if (execSync(`git rev-parse refs/tags/${U_TAG}^{}`, { encoding: 'utf8' }).trim() !== SRC) return false
-      if (execSync('git rev-parse refs/heads/main', { encoding: 'utf8' }).trim() !== SRC) return false
+      if (execSync(`git rev-parse refs/tags/${EV_TAG}`, { encoding: 'utf8' }).trim() !== EV_TAG_OBJ) return false
+      if (execSync(`git rev-parse 'refs/tags/${EV_TAG}^{}'`, { encoding: 'utf8', shell: '/bin/zsh' }).trim() !== EV1) return false
       const atTip = execSync(`git cat-file blob ${SRC}:${PKG} | shasum -a 256`, { encoding: 'utf8', shell: '/bin/zsh' }).split(/\s+/)[0]
       if (atTip !== PKG_SHA) return false
       const live = execSync(`shasum -a 256 "${PKG}"`, { encoding: 'utf8' }).split(/\s+/)[0]
@@ -181,38 +195,37 @@ check('E10: hygiene — the record\'s non-ASCII is the em-dash only, and neither
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('E11: topology and inventory exact — the preserved round-0 evidence commit plus ONE plain forward round-1 correction commit on the promoted 2U tip (single-parent chain tip -> evidence -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled retarget, and the correction commit touching ONLY the record and this verifier; nothing deleted',
-    (() => {
-      try {
-        const EV0 = 'cf30ed4edf7c70ce7fd612a9d0604ea9a088c9a7'
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== EV0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== SRC) return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${EV0}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
-        return JSON.stringify(corr) === JSON.stringify(corrExpected)
-      } catch { return false }
-    })())
-} else {
-  check('E11 (uncommitted authoring state): every worktree change lies inside the two phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
-}
+// RETARGET (EXLIB-2Z S5 seal preparation): the committed branch of
+// this check was HEAD-relative and went stale at this milestone's
+// own first successor commit; the uncommitted authoring branch can
+// no longer describe any lawful state. Both are replaced by ONE
+// anchored form at the promoted evidence tip EV1 (the durably
+// closed, stable-tagged tip), where the chain and both inventories
+// held and hold forever. Count-neutral: the suite still reports
+// eleven checks.
+check('E11: topology and inventory exact (anchored at the promoted evidence tip) — the preserved round-0 evidence commit plus ONE plain forward round-1 correction commit on the promoted 2U tip (single-parent chain tip -> evidence -> correction ending at the stable-tagged evidence tip), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled retarget, and the correction commit touching ONLY the record and this verifier; nothing deleted',
+  (() => {
+    try {
+      const EV0 = 'cf30ed4edf7c70ce7fd612a9d0604ea9a088c9a7'
+      if (execSync(`git merge-base ${SRC} ${EV1}`, { encoding: 'utf8' }).trim() !== SRC) return false
+      if (execSync(`git rev-list --count ${SRC}..${EV1}`, { encoding: 'utf8' }).trim() !== '2') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${EV1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== EV0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== SRC) return false
+      const status = execSync(`git diff --name-status ${SRC}..${EV1}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${EV0}..${EV1}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+      return JSON.stringify(corr) === JSON.stringify(corrExpected)
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
