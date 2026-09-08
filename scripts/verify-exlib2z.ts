@@ -166,17 +166,30 @@ check('Z8: one-use and ambiguity semantics — the package refuses re-execution 
   WHERE run_key = 'exlib2u-plank-release1-staged-v1';`))) return false
     return recFlat.includes('the seal LANDED') && recFlat.includes('the seal did NOT land')
   })())
-check('Z9: expected post-seal state exact — the package binds the seal instant to its own transaction (sealed_at <> now() refuses), validates the function\'s four-field JSONB result, whole-row-digests the membership across the act, and demands the delivery predicate match exactly once with delivered tenant rows ZERO; the record\'s section 6 states each',
+check('Z9: expected post-seal state exact WITH the pre-COMMIT/post-COMMIT distinction (round-1 strengthened) — the package binds the seal instant to its own transaction, validates the four-field JSONB result, whole-row-digests the membership, and demands the predicate match exactly once; section 6 binds the zero-delivery claim TO THE GATED TRANSACTION and requires the after-commit evidence pass to OBSERVE rather than assume, with the STOP-and-report branch that never attributes movement to the package and never continues toward S6; section 9\'s capture item is an OBSERVATION, never an assumption',
   (() => {
     if (!pkg.includes('v_run.sealed_at <> now()')) return false
     if (!norm(pkg).includes("'run_key', 'exlib2u-plank-release1-staged-v1', 'sealed', true, 'exercise_members', 3, 'alias_members', 3")) return false
     if (!pkg.includes('run_items_digest')) return false
     if (!pkg.includes('run_evidence_line')) return false
     if (!pkg.includes("'EXLIB-2Z SEALED' AS result")) return false
-    return recFlat.includes('Vector UNCHANGED')
-      && recFlat.includes('matches EXACTLY ONE row')
-      && recFlat.includes('zero tenant rows carry an import_run_id')
-      && recFlat.includes('asserted equal to now() inside the package transaction')
+    const sec6 = norm(rec.slice(rec.indexOf('## 6.'), rec.indexOf('## 7.')))
+    const sec9 = norm(rec.slice(rec.indexOf('## 9.'), rec.indexOf('## 10.')))
+    if (!sec6.includes('PROVEN INSIDE THE S5 TRANSACTION, BEFORE COMMIT')) return false
+    if (!sec6.includes('B. AFTER COMMIT')) return false
+    // the zero-delivery claim must be BOUND to the gated
+    // transaction, never stated as a free-standing post-COMMIT fact
+    if (!sec6.includes('zero tenant rows carry an import_run_id and both tenant digests are identical THROUGH THE GATED TRANSACTION')) return false
+    if (!sec6.includes('must OBSERVE')) return false
+    if (!sec6.includes('rather than assume')) return false
+    if (!sec6.includes('STOP and report')) return false
+    if (!sec6.includes('do not infer that the seal package itself performed the delivery')) return false
+    if (!sec6.includes('do not continue toward S6 under the existing authorization')) return false
+    if (!sec9.includes('OBSERVATION (never an assumption)')) return false
+    if (!sec9.includes('THROUGH COMMIT')) return false
+    return sec6.includes('Vector UNCHANGED')
+      && sec6.includes('matches EXACTLY ONE row')
+      && sec6.includes('asserted equal to now() inside the package transaction')
   })())
 check('Z10: revocation is documented, bounded, and NEVER exercised — the record quotes the revocation contract from the migration bytes (sealed-only, one-way, idempotent reporting, never reopens), declares it NOT part of S5 and NOT authorized, and BOTH the package and the live suite contain ZERO revocation call sites, with the live suite\'s deliberate-omission flag present',
   (() => {
@@ -206,14 +219,28 @@ check('Z11: the S6 separation and the risk elevation are byte-grounded — migra
       && live.includes("has_function_privilege('authenticated', 'public.exlib_approve_and_seal_run(text)', 'EXECUTE')")
       && recFlat.includes('NO successful delivery probe')
   })())
-check('Z12: the drafted human authorization is PREPARED AND UNSENT — the record carries the complete authorization text marked PREPARED — NOT ISSUED — DELIBERATELY UNSENT, and the text itself demands the spent-check first, the at-the-gate fingerprint re-measure, the surrogate match, single execution, the refusal and ambiguity protocols, the evidence capture, and the full negative boundary',
-  recFlat.includes('PREPARED — NOT ISSUED — DELIBERATELY UNSENT')
-  && recFlat.includes('spent-check FIRST')
-  && recFlat.includes('re-measuring the package file')
-  && recFlat.includes('exactly once against ShredOS ref ttybyljytiwntvorugcv')
-  && recFlat.includes('This authorization is ONE-USE and is consumed by the attempt')
-  && recFlat.includes('no delivery, no revocation, no delivery-variable or environment change, no runtime activation, no S6 work, no EXLIB-2S work, no Git push or tag, and no manual Vercel action')
-  && recFlat.includes('Claude never issues authorizations'))
+check('Z12: the drafted human authorization is PREPARED AND UNSENT and carries the explicit risk acknowledgment IN SECTION 17 ITSELF (round-1 strengthened: the check inspects only the section-17 slice, so a risk statement elsewhere in the record cannot satisfy it) — S5 COMMIT named as the protected DELIVERY-ACTIVATION event with immediate predicate satisfaction and flag-independent authenticated reachability, the no-delivery boundary scoped to the OPERATOR without asserting technical unreachability, the explicit acceptance of that post-COMMIT reachability, plus the spent-check, at-the-gate re-measure, single execution, refusal/ambiguity protocols, observe-not-assume capture, and the full negative boundary',
+  (() => {
+    const s = rec.indexOf('## 17.')
+    if (s < 0) return false
+    const e = rec.indexOf('## 18.', s)
+    const sec17 = norm(rec.slice(s, e > 0 ? e : rec.length))
+    return sec17.includes('PREPARED — NOT ISSUED — DELIBERATELY UNSENT')
+      && sec17.includes('DELIVERY-ACTIVATION event')
+      && sec17.includes('satisfies the database delivery predicate')
+      && sec17.includes("independently of the application's delivery flag")
+      && sec17.includes('constrains the OPERATOR')
+      && sec17.includes('does not mean delivery is technically unreachable from authenticated direct RPC after S5 commits')
+      && sec17.includes('explicitly accepts that post-COMMIT direct-RPC reachability')
+      && sec17.includes('spent-check FIRST')
+      && sec17.includes('re-measuring the package file')
+      && sec17.includes('exactly once against ShredOS ref ttybyljytiwntvorugcv')
+      && sec17.includes('OBSERVING (never assuming)')
+      && sec17.includes('This authorization is ONE-USE and is consumed by the attempt')
+      && sec17.includes('no delivery, no revocation, no delivery-variable or environment change, no runtime activation, no S6 work, no EXLIB-2S work, no Git push or tag, and no manual Vercel action')
+      && sec17.includes('each an OPERATOR boundary; none of these words undoes the database reachability the seal itself activates')
+      && sec17.includes('Claude never issues authorizations')
+  })())
 check('Z13: the hosted-surrogate preflight pins are CROSS-RECORD exact — the run id and database-created instant in this record\'s operator preflight equal the literals preserved in the promoted EXLIB-2U hosted-application record (extracted from those bytes, wrap-safe), and the surrogate appears NOWHERE in the environment-neutral package',
   (() => {
     const idm = urecFlat.match(/hosted id ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/)
@@ -254,20 +281,27 @@ const committed = CHANGED.length === 0
 // retarget, anchored at this phase's own promoted tip — the same
 // pattern as every predecessor.
 if (committed) {
-  check('Z16: topology and inventory exact — ONE plain forward commit over the durably closed EXLIB-2U evidence tip (single parent 290f9bbb...), the diff carrying exactly the package, this record, the live suite, and this verifier as ADDS plus ONLY the labeled EXLIB-2U application-verifier retarget as the sole modification; nothing deleted',
+  check('Z16: topology and inventory exact — the preserved round-0 preparation commit plus ONE plain forward round-1 correction commit over the durably closed EXLIB-2U evidence tip (single-parent chain 290f9bbb -> dc3e83a8 -> correction), the CUMULATIVE diff carrying exactly the four phase adds plus ONLY the labeled EXLIB-2U application-verifier retarget, and the correction commit touching ONLY this record and this verifier; nothing deleted',
     (() => {
       try {
+        const R0 = 'dc3e83a89f086e636e7fe3aefc086872dbfefcb5'
         if (execSync(`git merge-base ${BASE} HEAD`, { encoding: 'utf8' }).trim() !== BASE) return false
-        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
         const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== BASE) return false
+        if (p1.length !== 2 || p1[1] !== R0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== BASE) return false
         const status = execSync(`git diff --name-status ${BASE}..HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
-        return JSON.stringify(status) === JSON.stringify(expected)
+        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${R0}..HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+        return JSON.stringify(corr) === JSON.stringify(corrExpected)
       } catch { return false }
     })())
 } else {

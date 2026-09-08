@@ -271,6 +271,9 @@ proven directly (live controls F18 and P8).
 
 ## 6. The exact expected post-seal state (from a successful ONE call)
 
+A. PROVEN INSIDE THE S5 TRANSACTION, BEFORE COMMIT (the package's
+own postconditions; a failure of any of these rolls the seal back):
+
 - Vector UNCHANGED: 3/3/5/3/6/1/2/2/1/6/3 (the seal creates and
   deletes nothing).
 - The run row: approved_for_delivery = true; sealed_at = the
@@ -283,8 +286,9 @@ proven directly (live controls F18 and P8).
   to the exact ALL_THREE_IDENTITIES member surface.
 - The delivery predicate now matches EXACTLY ONE row — the intended
   irreversible effect, stated and verified, never exercised.
-- Delivery did NOT run: zero tenant rows carry an import_run_id;
-  both tenant digests identical.
+- THE SEAL ACT ITSELF PERFORMED NO DELIVERY: zero tenant rows carry
+  an import_run_id and both tenant digests are identical THROUGH
+  THE GATED TRANSACTION.
 - Every other surface digest-identical (snapshots, events, anatomy,
   aliases, claims, content, expected relationships, projection,
   logical, authority whole-row); claims invariant 0/0.
@@ -294,7 +298,22 @@ proven directly (live controls F18 and P8).
   block; any other result rolls back the seal).
 - The surfaced display row: EXLIB-2Z SEALED / runs 1 / run_items 6
   / approved true / sealed_at / unrevoked true /
-  delivery_predicate_rows 1 / delivered_tenant_rows 0.
+  delivery_predicate_rows 1 / delivered_tenant_rows 0 — every field
+  an IN-TRANSACTION observation.
+
+B. AFTER COMMIT (what may and may not be asserted):
+
+- Authenticated direct-RPC delivery is REACHABLE from the instant
+  of COMMIT (section 3's risk elevation) — COMMIT is the
+  delivery-activation event.
+- Therefore the immediate after-commit evidence pass must OBSERVE
+  the delivered-row and tenant state rather than assume the
+  in-transaction zero remains true.
+- If that pass observes nonzero delivered rows or any other tenant
+  movement: STOP and report the fact as post-activation
+  delivery/state movement — do not infer that the seal package
+  itself performed the delivery (its in-transaction proof stands),
+  and do not continue toward S6 under the existing authorization.
 
 ## 7. Abort conditions
 
@@ -365,9 +384,16 @@ milestone)
    snapshots, review events, publication, projection, claims,
    tenant counts (exercises and tenant aliases), and the four-role
    authority baseline all unchanged.
-8. Proof that no delivery occurred: zero tenant rows carry an
-   import_run_id; tenant aliases unchanged; delivery predicate rows
-   = 1 (eligible) with delivered rows 0 (not exercised).
+8. The delivery-state OBSERVATION (never an assumption): the
+   delivery predicate rows = 1 (eligible), plus the OBSERVED count
+   of tenant rows carrying an import_run_id and the OBSERVED
+   tenant-alias state at capture time. The package's own
+   transaction already proved zero delivery THROUGH COMMIT; the
+   capture pass records what it OBSERVES afterward. If it observes
+   nonzero delivered rows or any other tenant movement: STOP and
+   report post-activation delivery/state movement per section 6B —
+   do not infer the seal package performed it, and do not continue
+   toward S6 under the existing authorization.
 9. The advisor observation (observed only, never modified),
    enumerated completely with per-class counts summing to totals —
    the EXLIB-2U round-1 lesson.
@@ -502,14 +528,24 @@ query shape); the abort semantics (the refusal-message inventory
 and its STOP / DO NOT SEAL and does-not-survive count equalities);
 the one-use and ambiguity protocol (this record's disambiguation
 query and consumed-by-attempt language); the post-seal evidence
-checklist; the revocation section (quotes byte-located in the
+checklist WITH the pre-COMMIT/post-COMMIT distinction (zero
+delivery proven through the gated transaction; the after-commit
+pass OBSERVES rather than assumes, with the STOP-and-report
+branch); the revocation section (quotes byte-located in the
 migration; zero revocation call sites in the package AND the live
 suite); the S6 separation and risk-elevation claims (the grant line
 and ACL-preservation note byte-located in migrations 023/026); the
 hosted-surrogate pins (this record's id and created_at literals
 byte-located in the promoted EXLIB-2U application record); the
-drafted-not-issued authorization (present, marked UNSENT, carrying
-the spent-check and re-measure language); hygiene (ASCII plus
+drafted-not-issued authorization inspected IN SECTION 17 ITSELF (a
+risk statement elsewhere in this record cannot satisfy the check):
+marked UNSENT, carrying the spent-check and re-measure language AND
+the explicit human risk acknowledgment — S5 COMMIT as the
+delivery-activation event, immediate predicate satisfaction,
+flag-independent authenticated reachability, the no-delivery
+boundary scoped to the OPERATOR without asserting technical
+unreachability, and the explicit acceptance of that consequence;
+hygiene (ASCII plus
 em-dash only in this record; no credential or delivery
 environment-variable literals in any phase file); live-suite
 presence and coverage (the control labels and deliberate-omission
@@ -537,9 +573,9 @@ instance) and both were retargeted count-neutral under the exact
 label `RETARGET (EXLIB-2Z S5 seal preparation)`, anchored at
 that phase's own promoted evidence tip
 290f9bbbfea84ac6bcd2cefb59f7bed2247e2021 and its durable stable tag
-(object 82e9800765579f15adc127eb4a218982c50425c8, peel and
-89/98-byte annotation lineage as closed out) — where the claims
-held and hold forever. No substantive hosted-event assertion was
+(object 82e9800765579f15adc127eb4a218982c50425c8, peel and 98-byte
+annotation as closed out) — where the claims held and hold
+forever. No substantive hosted-event assertion was
 weakened or deleted: E1 still proves the SPENT posture, the package
 fingerprints live and at the tip, and the tag lineage; E11 still
 proves the preserved round-0 commit, the single-parent correction
@@ -587,7 +623,22 @@ decision. Nothing in this record issues, requests, or pre-consumes
 it; Claude never issues authorizations.
 
     Authorize the EXLIB-2Z hosted S5 seal execution exactly as
-    reviewed:
+    reviewed, with the following consequence explicitly understood
+    and accepted BEFORE execution:
+    * a successful S5 COMMIT is the protected DELIVERY-ACTIVATION
+      event: immediately upon COMMIT, the reserved run satisfies
+      the database delivery predicate, and an authenticated caller
+      that invokes deliver_catalog_exercises with the run key can
+      then deliver the six members into that caller's own tenant,
+      independently of the application's delivery flag;
+    * the "no delivery" boundary below constrains the OPERATOR —
+      the operator is not authorized to invoke delivery, change
+      delivery configuration, perform S6, or otherwise execute
+      delivery actions — but it does not mean delivery is
+      technically unreachable from authenticated direct RPC after
+      S5 commits; approving this authorization explicitly accepts
+      that post-COMMIT direct-RPC reachability.
+    Execution terms:
     * spent-check FIRST: confirm no prior attempt of any outcome
       (the hosted run must read approved_for_delivery = false,
       sealed_at NULL, revoked_at NULL);
@@ -604,15 +655,78 @@ it; Claude never issues authorizations.
       preparation record's section 8 read-only disambiguation query
       and report which branch obtains;
     * on success: capture the section 9 evidence immediately and
-      completely;
+      completely, OBSERVING (never assuming) the post-COMMIT
+      delivered-row and tenant state;
     * then stop.
     This authorization is ONE-USE and is consumed by the attempt.
     It permits no delivery, no revocation, no delivery-variable or
     environment change, no runtime activation, no S6 work, no
-    EXLIB-2S work, no Git push or tag, and no manual Vercel action.
+    EXLIB-2S work, no Git push or tag, and no manual Vercel action
+    — each an OPERATOR boundary; none of these words undoes the
+    database reachability the seal itself activates.
 
 After a hosted execution, the next gated milestones in order, each
 separately instructed: the EXLIB-2Z hosted-application evidence
 record (section 9), its Codex review, its consolidated closeout —
 and only then any S6 delivery-configuration consideration, which is
 its own proposal, review, and authorization chain.
+
+## 18. Correction disclosure (2026-09-08, round 1)
+
+Codex reviewed the round-0 candidate
+dc3e83a89f086e636e7fe3aefc086872dbfefcb5 and returned CORRECT: the
+S5 SQL package itself was accepted as technically sound with NO
+change required — and it remains byte-identical (42,012 bytes,
+sha256
+701302cb3baa36a510f96163ca5393ac63475d78463607757b02bd46b5015e6a).
+Codex independently reproduced the manifest pins, the one-commit
+topology, the five-file inventory, the 16/0 static suite, and the
+11/0 retargeted EXLIB-2U verifier (changing only an unavailable
+shell path from /bin/zsh to /bin/bash on its Linux host). Four
+narrow evidence/governance corrections were applied in ONE plain
+forward commit over the preserved round-0 candidate, touching
+exactly this record and scripts/verify-exlib2z.ts:
+
+- Section 17's drafted authorization previously ended at 'permits
+  no delivery', which a human could read as 'nothing can deliver
+  yet' — false after a successful S5 COMMIT. The human gate now
+  acknowledges and accepts, BEFORE authorizing: a successful S5
+  COMMIT is the protected delivery-activation event; the run
+  satisfies the delivery predicate immediately upon COMMIT;
+  authenticated direct RPC can then deliver independently of the
+  application flag; the no-delivery boundary constrains the
+  OPERATOR and does not assert technical unreachability; and
+  approving explicitly accepts that post-COMMIT reachability. The
+  operator boundary itself is unweakened.
+- Sections 6 and 9 now distinguish what the package proves INSIDE
+  the transaction before COMMIT (the seal act performed no
+  delivery; delivered rows zero and tenant surfaces unchanged
+  through the gated transaction) from what holds after COMMIT
+  (delivery is reachable; the immediate evidence pass OBSERVES the
+  delivered-row and tenant state rather than assuming zero; any
+  observed movement is STOP-and-report post-activation state
+  movement, never attributed to the package and never a license to
+  continue toward S6). No delivery call or probe was added.
+- Section 14's ambiguous '89/98-byte annotation lineage' now reads
+  the established '98-byte annotation'.
+- scripts/verify-exlib2z.ts was strengthened COUNT-NEUTRALLY
+  (still exactly sixteen checks): Z9 enforces the
+  pre-COMMIT/post-COMMIT distinction against the corrected
+  sections 6 and 9 (the zero-delivery claim must be bound to the
+  gated transaction; the observe-not-assume and STOP-and-report
+  language must be present); Z12 inspects SECTION 17 ITSELF — the
+  slice between the section 17 heading and the next heading — so a
+  risk statement elsewhere in the record cannot satisfy it; Z16
+  pins the preserved round-0 commit plus this one correction
+  commit.
+
+Validation after the correction: the corrected static verifier
+16/0; the retargeted EXLIB-2U application verifier 11/0 (no
+regression); the committed battery and the fresh-clone battery both
+98 suites / 7,211 checks / 0 failures (count-neutral apart from the
+already-counted EXLIB-2Z suite); the live suite was NOT re-run
+because the SQL package and the live suite are both byte-unchanged
+(fingerprints proven), per the standing convention that live suites
+re-run when their subject changes. No Supabase or Vercel contact,
+no seal, no approval flip, no delivery, no revocation, no S6, no
+push, no tag, and no EXLIB-2S action occurred in this correction.
