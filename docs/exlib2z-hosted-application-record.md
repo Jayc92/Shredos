@@ -108,8 +108,12 @@ treated as ambiguity, the seal was NOT retried, and the blocked
 observations were NOT filled in by any other actor (Claude
 performed no hosted contact and did not attempt to).
 
-Read-only Supabase TABLE METADATA remained available immediately
-after COMMIT and observed:
+Read-only Supabase MCP list_tables TABLE METADATA remained
+available immediately after COMMIT. ROUND-2 PROVENANCE CORRECTION:
+the tool's rows field is populated from live_rows_estimate (per
+the official Supabase MCP implementation), so every value below is
+a LIVE-ROW ESTIMATE — a table statistic, not an exact COUNT(*)
+result. The returned estimates were:
 
 - exercise_catalog_logical = 3; exercise_catalog = 3;
   exercise_catalog_muscles = 5; exercise_catalog_aliases = 3;
@@ -119,25 +123,38 @@ after COMMIT and observed:
   exercise_catalog_import_runs = 1;
   exercise_catalog_run_items = 6;
   exercise_catalog_review_events = 3
-- therefore the post-COMMIT observed state vector is EXACTLY
-  3/3/5/3/6/1/2/2/1/6/3 — identical to the staged baseline; the
-  seal moved no counts anywhere.
-- tenant TOTAL counts OBSERVED immediately after COMMIT:
-  public.exercises = 84; public.exercise_aliases = 0.
+- assembled in canonical order, the estimate sequence numerically
+  reads 3/3/5/3/6/1/2/2/1/6/3 — numerically matching the exact
+  in-transaction vector the package proved through COMMIT, without
+  proving exact post-COMMIT cardinality;
+- tenant live-row estimates returned immediately after COMMIT:
+  public.exercises = 84; public.exercise_aliases = 0 — numerically
+  matching the in-transaction tenant invariants, with the same
+  limitation.
 
-WHAT THE POST-COMMIT OBSERVATION ESTABLISHES, PRECISELY (round-1
-correction): no total-count movement was observed on the AVAILABLE
-surfaces — the catalog metadata vector and the 84/0 tenant totals.
-But the specific post-COMMIT delivered-row predicate — the count of
+These estimates are orientation and statistical evidence only,
+estimates, not exact COUNT(*) results: numerical estimate stability
+cannot prove exact no-movement, and the exact post-COMMIT table
+cardinalities were NOT successfully re-observed (raw SQL was
+blocked) — a second, broader observation gap alongside the
+delivered-row gap below. Neither gap may be silently converted into
+a zero or into an unchanged-count proof.
+
+WHAT THE POST-COMMIT OBSERVATION ESTABLISHES, PRECISELY (rounds 1
+and 2): the available live-row estimates were numerically stable
+and consistent with the in-transaction state — which, being
+estimates, cannot prove exact no-movement on any surface. The
+specific post-COMMIT delivered-row predicate — the count of
 public.exercises rows WHERE import_run_id IS NOT NULL — was NOT
 successfully re-observed, because the raw SQL that measures it was
-blocked. The 84/0 total counts MUST NOT be read as equivalent to
-that measurement: the promoted migration-026
-deliver_catalog_exercises implementation contains a guarded
-in-place Plank reconciliation path that UPDATEs an existing
+blocked. The 84/0 estimates MUST NOT be read as equivalent to
+that measurement: even before the estimate limitation, the promoted
+migration-026 deliver_catalog_exercises implementation contains a
+guarded in-place Plank reconciliation path that UPDATEs an existing
 public.exercises row and sets import_run_id = v_run.id, so total
 counts can remain unchanged even if a delivery transition occurred
-after COMMIT. The in-transaction proof stands (the S5 package
+after COMMIT — and the values returned were estimates of those
+totals, not the totals themselves. The in-transaction proof stands (the S5 package
 performed no delivery through COMMIT; surfaced
 delivered_tenant_rows = 0) and no OPERATOR delivery call occurred —
 but the historical post-COMMIT delivered-row state is an EXPLICIT
@@ -148,7 +165,8 @@ post-COMMIT interval, so the gap is preserved as historical fact.
 The corrected preparation record's STOP-and-report branch was
 accordingly neither triggered NOR definitively cleared — the
 observation it needs was unavailable. CONSEQUENCE: S6 remains
-STOPPED pending a separate governance decision on this gap.
+STOPPED pending a separate governance decision on these gaps (the
+delivered-row predicate and the exact post-COMMIT cardinalities).
 
 ## 5. Advisors (observed, not modified)
 
@@ -190,15 +208,21 @@ six members into that caller's own tenant, independently of the
 application's delivery flag. Delivery was NOT performed by the
 S5 transaction — the in-package proof through COMMIT
 (delivered_tenant_rows = 0 in the surfaced row) — and no operator
-delivery call occurred; the immediate post-COMMIT observation read
-TOTAL counts of 84 exercises / 0 tenant aliases with no total-count
-movement on the available surfaces, while the specific post-COMMIT
-delivered-row predicate was NOT re-observed (section 4's explicit
-gap; total-count stability is not equivalent to that measurement,
-per the migration-026 in-place reconciliation path). Nothing else changed: the
-state vector is count-identical, no snapshot, event, content,
-publication, projection, claims, anatomy, alias, tenant, authority,
-or environment surface moved, and the advisor posture is unchanged.
+delivery call occurred; the immediate post-COMMIT live-row
+estimates read 84 exercises / 0 tenant aliases, numerically
+consistent with the in-transaction proof — estimates which cannot
+prove exact post-COMMIT cardinality — while the specific
+post-COMMIT delivered-row predicate was NOT re-observed (section
+4's explicit gaps; estimate stability is not equivalent to those
+measurements, per the estimate provenance and the migration-026
+in-place reconciliation path). Through COMMIT, the package proved
+nothing else changed: the vector held exactly and no snapshot,
+event, content, publication, projection, claims, anatomy, alias,
+tenant, authority, or environment surface moved inside the gated
+transaction. After COMMIT, the advisor posture was observed
+unchanged and the live-row estimates were numerically consistent
+with that state — orientation evidence, not exact-cardinality proof
+(section 4).
 No operator delivery call, no revocation, no delivery-variable or
 environment change, no runtime activation, no S6 action, no
 EXLIB-2S action, no Git push or tag, and no manual Vercel action
@@ -228,18 +252,21 @@ not misread later.
 3. HUMAN-OBSERVED BACKUP UI: the 13:07:48Z PHYSICAL backup and the
    visible prior dailies, read from the Supabase Dashboard by the
    operator.
-4. POST-COMMIT TABLE-METADATA OBSERVATION: the section 4 counts
-   (the vector and the 84/0 tenant TOTALS — totals only, never the
-   delivered-row predicate), read from Supabase table metadata
-   after the SQL endpoint's safety layer blocked raw SELECTs.
+4. POST-COMMIT LIVE-ROW-ESTIMATE OBSERVATION: the section 4 values
+   returned by Supabase MCP list_tables after the SQL endpoint's
+   safety layer blocked raw SELECTs — the rows field is backed by
+   live_rows_estimate, so these are table statistics (orientation
+   evidence only), never exact counts and never the delivered-row
+   predicate.
 5. ADVISOR OBSERVATION: the section 5 enumerations at their
    approximate instants, observed only.
 6. BLOCKED RAW SQL: further raw SELECTs (including SELECT now())
    were blocked by the connector safety layer AFTER the successful
    execution — a disclosed observation gap, not a failure, not
-   retried, and not filled in. The materially blocked measurement
-   is the delivered-row predicate (public.exercises WHERE
-   import_run_id IS NOT NULL) — the standing gap sections 4 and 6
+   retried, and not filled in. The materially blocked measurements
+   are the delivered-row predicate (public.exercises WHERE
+   import_run_id IS NOT NULL) AND every exact post-COMMIT table
+   cardinality (any COUNT(*)) — the standing gaps sections 4 and 6
    preserve.
 
 ## 8. Chronology (every instant parses and orders)
@@ -273,16 +300,24 @@ instant-equality of the transport and ISO forms; the
 EVIDENCE-PRECISION separation (the in-package four-field validation
 is never represented as transport-observed; the six provenance
 classes are all present); the post-COMMIT evidence WITH its
-explicit gap (round-1 strengthened: the metadata vector re-derived
-from the record's own eleven counts; the 84/0 TOTAL-count
-observation; the safety-layer disclosure; the requirement that the
-delivered-row predicate is stated NOT re-observed; the rejection of
-any claim that the delivered-row state was observed after COMMIT,
-that 84/0 proves no post-COMMIT delivery, or that the STOP branch
-was definitively cleared; and the mechanical grounding of WHY total
-counts are insufficient — the migration-026 in-place Plank
-reconciliation UPDATE that sets import_run_id on an existing row,
-located in the migration bytes); the
+explicit gaps (rounds 1 and 2 strengthened: the estimate sequence
+re-derived from the record's own eleven reported values and kept
+mechanically consistent with the operator-supplied numbers; the
+values REQUIRED to be identified as live_rows_estimate-backed
+statistics, estimates and not exact COUNT(*) results, whose
+numerical stability cannot prove exact no-movement; the exact
+post-COMMIT cardinalities and the delivered-row predicate both
+stated NOT successfully re-observed; the safety-layer disclosure;
+the rejection of any factual-section claim that the post-COMMIT
+values were exact counts or an exactly observed vector, that no
+total-count movement was observed, that the state is
+count-identical, that the delivered-row state was observed after
+COMMIT, that 84/0 proves no post-COMMIT delivery, or that the STOP
+branch was definitively cleared; and the mechanical grounding of
+WHY totals are insufficient even as exact values — the
+migration-026 in-place Plank reconciliation UPDATE that sets
+import_run_id on an existing row, located in the migration bytes);
+the
 chronology; the backup rewind horizon INCLUDING its asymmetry (seal
 undone, staging preserved) proven by parse arithmetic; the complete
 advisor enumeration with per-class counts summing to the stated
@@ -339,7 +374,8 @@ of this evidence record, the consolidated EXLIB-2Z closeout
 then any S6 delivery-configuration consideration — its own
 proposal, review, and authorization chain, which additionally
 remains STOPPED pending the operator's separate governance
-resolution of the section 4 delivered-row observation gap.
+resolution of the section 4 observation gaps (the delivered-row
+predicate and the exact post-COMMIT table cardinalities).
 
 ## 13. Correction disclosure (2026-09-08, round 1)
 
@@ -397,3 +433,56 @@ this correction. The operational state is unchanged: S5 sealed and
 SPENT; delivery not performed by the transaction or the operator;
 the post-COMMIT delivered-row predicate an explicit observation
 gap; S6 STOPPED.
+
+## 14. Correction disclosure (2026-09-08, round 2)
+
+Codex re-reviewed the round-1 correction
+8caf777fd0b57d614941755b5dd0cb2cf43f3c03 and ACCEPTED both round-1
+fixes (the hosted seal STANDS VALID AND SPENT), while independently
+discovering one further provenance defect in the evidence as
+handed off: the Supabase MCP list_tables tool's rows field is
+populated from live_rows_estimate — a table statistic — not from an
+exact COUNT(*). The exact-count interpretation of those values
+originated in the operator/Codex evidence handoff, and Codex
+identified and corrected it in this re-review. Consequently the
+round-1 record still overstated the post-COMMIT observation by
+calling the returned values exact counts, an exactly observed
+vector, and proof of no total-count movement. ONE plain forward
+correction commit over the preserved round-1 commit, touching
+exactly this record and its application verifier, applied:
+
+- Sections 4, 6, 7, 9, and 12 now record the post-COMMIT values as
+  LIVE-ROW ESTIMATES (the numerical values are preserved because
+  the tool returned them; their provenance is now accurate): the
+  estimate sequence numerically matched the exact in-transaction
+  vector and the 84/0 tenant invariants, and that numerical
+  agreement is orientation evidence only — it cannot prove exact
+  post-COMMIT cardinality or exact no-movement. The exact
+  post-COMMIT table cardinalities join the delivered-row predicate
+  as EXPLICIT, HISTORICAL observation gaps: neither may be silently
+  converted into a zero or an unchanged-count proof, a later read
+  cannot retroactively prove the interval, and S6 remains STOPPED
+  pending separate governance resolution of these gaps.
+- The exact in-package proof through COMMIT is UNWEAKENED: the
+  vector, the tenant and delivery invariants, and
+  delivered_tenant_rows = 0 were proven exactly by the reviewed
+  fail-closed transaction before COMMIT, and the round-1
+  transport-byte and delivered-row corrections stand unchanged in
+  substance.
+- scripts/verify-exlib2z-application.ts S7 was strengthened
+  COUNT-NEUTRALLY (still exactly twelve checks): it now requires
+  the live_rows_estimate identification, the estimates-not-COUNT
+  statement, the cannot-prove-exact-no-movement statement, and the
+  broadened exact-cardinality gap, and it REJECTS factual-section
+  wording describing the post-COMMIT values as exact counts, an
+  exactly observed vector, no-total-count-movement proof, or a
+  count-identical state — while keeping the round-1 delivered-row
+  requirements, rejections, and migration-026 grounding.
+
+No Supabase or Vercel contact, no S5 rerun, no revocation, no
+restore, no delivery, no S6 action, no push, and no tag occurred in
+this correction. The operative state: S5 SEALED and SPENT; delivery
+exactly zero through COMMIT by in-package proof; no operator
+delivery call; the post-COMMIT exact delivered-row state and exact
+table cardinalities both historical observation gaps (the MCP
+values were estimates); S6 STOPPED.

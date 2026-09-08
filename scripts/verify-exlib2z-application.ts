@@ -133,11 +133,11 @@ check('S5: EVIDENCE PRECISION preserved — the record states the inner four-fie
     if (!s3.includes('every in-package precondition, the exact four-field function-result validation, and every postcondition passed')) return false
     return s3.includes('rolled the whole transaction back, seal included')
   })())
-check('S6: the six-class evidence provenance map is complete and distinct — in-package transaction proof, surfaced transport result, human-observed backup UI, post-COMMIT table-metadata observation, advisor observation, and the blocked raw SQL disclosed as an observation gap',
+check('S6: the six-class evidence provenance map is complete and distinct — in-package transaction proof, surfaced transport result, human-observed backup UI, post-COMMIT LIVE-ROW-ESTIMATE observation (never described as an exact count), advisor observation, and the blocked raw SQL disclosed as the exact-cardinality and delivered-row observation gaps',
   (() => {
     const s7 = sec('## 7.', '## 8.')
     for (const c of ['IN-PACKAGE TRANSACTION PROOF', 'SURFACED TRANSPORT RESULT',
-      'HUMAN-OBSERVED BACKUP UI', 'POST-COMMIT TABLE-METADATA OBSERVATION',
+      'HUMAN-OBSERVED BACKUP UI', 'POST-COMMIT LIVE-ROW-ESTIMATE OBSERVATION',
       'ADVISOR OBSERVATION', 'BLOCKED RAW SQL']) {
       if (!s7.includes(c)) return false
     }
@@ -145,7 +145,7 @@ check('S6: the six-class evidence provenance map is complete and distinct — in
     // heading's own "7." is excluded by the digit range and case)
     return (s7.match(/[1-6]\. [A-Z]{2}/g) || []).length === 6
   })())
-check('S7: the post-COMMIT evidence WITH its explicit gap (round-1 strengthened) — the eleven table-metadata counts DERIVE the stated vector (recomputed here from the record\'s own enumeration), the tenant TOTAL observation reads 84/0, the record states the delivered-row predicate was NOT successfully re-observed with the gap explicit and never converted to a zero, the STOP branch neither triggered nor definitively cleared, S6 STOPPED on the gap, the safety-layer block disclosed as not-a-failure and not retried, the overstated observed/proves/cleared claims REJECTED from the factual sections, and the insufficiency of total counts GROUNDED mechanically in the migration-026 in-place reconciliation UPDATE located in the migration bytes',
+check('S7: the post-COMMIT evidence WITH its explicit gaps (rounds 1 and 2 strengthened) — the eleven reported values DERIVE the stated estimate sequence (recomputed here from the record\'s own enumeration, mechanically consistent with the operator-supplied numbers), the values are identified as live_rows_estimate-backed statistics that are NOT exact COUNT(*) results and whose numerical stability cannot prove exact no-movement, BOTH gaps are explicit (the exact post-COMMIT cardinalities and the delivered-row predicate, neither re-observed, neither converted to a zero), the STOP branch neither triggered nor definitively cleared, S6 STOPPED on the gaps, the safety-layer block disclosed as not-a-failure and not retried, the overstated exact-count/exact-vector/no-movement/count-identical/observed/proves/cleared claims REJECTED from the factual sections, and the insufficiency of totals GROUNDED mechanically in the migration-026 in-place reconciliation UPDATE located in the migration bytes',
   (() => {
     const s4 = sec('## 4.', '## 5.')
     const names = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
@@ -162,9 +162,16 @@ check('S7: the post-COMMIT evidence WITH its explicit gap (round-1 strengthened)
     if (!s4.includes(VEC)) return false
     if (!s4.match(/public\.exercises = 84/)) return false
     if (!s4.match(/public\.exercise_aliases = 0/)) return false
-    // the precise post-COMMIT claims (round-1 corrected)
-    if (!s4.includes('tenant TOTAL counts OBSERVED')) return false
-    if (!s4.includes('no total-count movement was observed on the AVAILABLE surfaces')) return false
+    // the precise post-COMMIT claims (rounds 1 and 2 corrected):
+    // the returned values are live_rows_estimate-backed statistics,
+    // never exact counts, and BOTH exact-observation gaps are open
+    if (!s4.includes('list_tables')) return false
+    if (!s4.includes('live_rows_estimate')) return false
+    if (!s4.includes('LIVE-ROW ESTIMATE')) return false
+    if (!s4.includes('estimates, not exact COUNT(*) results')) return false
+    if (!s4.includes('numerical estimate stability cannot prove exact no-movement')) return false
+    if (!s4.includes('exact post-COMMIT table cardinalities were NOT successfully re-observed')) return false
+    if (!s4.includes('Neither gap may be silently converted')) return false
     if (!s4.includes('WHERE import_run_id IS NOT NULL')) return false
     if (!s4.includes('was NOT successfully re-observed')) return false
     if (!s4.includes('MUST NOT be read as equivalent')) return false
@@ -174,11 +181,16 @@ check('S7: the post-COMMIT evidence WITH its explicit gap (round-1 strengthened)
     if (!s4.includes('S6 remains STOPPED pending a separate governance decision')) return false
     // the rejected overstatements must be ABSENT from the factual
     // sections (the lifecycle and disclosure sections may describe
-    // or quote them)
+    // or quote them): round-1 delivered-row forms AND round-2
+    // exact-count forms
     if (recFactual.includes('delivered-row and tenant state were OBSERVED')) return false
     if (recFactual.includes('branch was therefore NOT triggered')) return false
     if (recFactual.includes('proves no post-activation delivery')) return false
     if (recFactual.includes('NO post-activation delivery or tenant movement was observed')) return false
+    if (recFactual.includes('observed state vector is EXACTLY')) return false
+    if (recFactual.includes('tenant TOTAL counts OBSERVED')) return false
+    if (recFactual.includes('no total-count movement was observed')) return false
+    if (recFactual.includes('count-identical')) return false
     // WHY totals are insufficient, grounded in the migration bytes:
     // the guarded in-place Plank reconciliation UPDATE assigns
     // import_run_id to an EXISTING public.exercises row
@@ -237,7 +249,7 @@ check('S10: the seal semantics and the ASYMMETRIC rewind horizon — the record 
     if (!s6.includes("independently of the application's delivery flag")) return false
     if (!s6.includes('Delivery was NOT performed by the S5 transaction')) return false
     if (!s6.includes('no operator delivery call occurred')) return false
-    if (!s6.includes('TOTAL counts of 84 exercises / 0 tenant aliases')) return false
+    if (!s6.includes('live-row estimates read 84 exercises / 0 tenant aliases')) return false
     if (!s6.includes('delivered-row predicate was NOT re-observed')) return false
     if (!s6.includes('AVAILABLE, NOT AUTHORIZED')) return false
     if (!s6.includes('UNDO THE SEAL')) return false
@@ -271,12 +283,15 @@ const committed = CHANGED.length === 0
 // check goes stale by design and gets the standard labeled
 // retarget, anchored at this phase's own promoted tip.
 if (committed) {
-  check('S12: topology and retarget coverage — the preserved round-0 evidence commit plus ONE plain forward round-1 correction commit over the candidate tip (single-parent chain 3969a98f -> be9b94aa -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, the correction touching ONLY this record and this verifier, and verify-exlib2z.ts carrying the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
+  check('S12: topology and retarget coverage — the preserved round-0 evidence commit plus the preserved round-1 correction plus ONE plain forward round-2 correction over the candidate tip (single-parent chain 3969a98f -> be9b94aa -> 8caf777f -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, each correction touching ONLY this record and this verifier, and verify-exlib2z.ts carrying the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
     (() => {
       try {
         const EV0 = 'be9b94aa999e4a4a4e155c4745b77c07315f6934'
-        if (execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        const R1 = '8caf777fd0b57d614941755b5dd0cb2cf43f3c03'
+        if (execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
+        const p2 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p2.length !== 2 || p2[1] !== R1) return false
+        const p1 = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (p1.length !== 2 || p1[1] !== EV0) return false
         const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (p0.length !== 2 || p0[1] !== TIP2Z) return false
@@ -287,7 +302,7 @@ if (committed) {
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${EV0} HEAD`, { encoding: 'utf8' })
+        const corr = execSync(`git diff --name-status ${R1} HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
         if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
