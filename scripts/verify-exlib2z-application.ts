@@ -52,12 +52,26 @@ const sec = (a: string, b: string): string => {
 
 console.log('EXLIB-2Z hosted S5 seal application evidence verification (LOCAL-ONLY; the authorization is SPENT; nothing re-observed, everything cross-checked)')
 
-check('S1: the executed bytes and the SPENT posture — the seal package is byte-identical to its Codex-accepted fingerprint both live and at the candidate tip, and this record states the one-use authorization CONSUMED AND SPENT with exactly one attempt and no retry',
+// negatives below are scoped to the FACTUAL sections (1-8): the
+// verifier-lifecycle section (9) describes the rejected forms and
+// the dated disclosure (13) legitimately quotes them — the same
+// section-scoping lesson as the EXLIB-2U evidence round.
+const recFactual = norm(rec.slice(0, rec.indexOf('## 9.')))
+check('S1: SOURCE identity, the SPENT posture, and the TRANSPORT-PROVENANCE limitation (round-1 strengthened) — the seal package is byte-identical to its Codex-accepted fingerprint both live and at the candidate tip (mechanical SOURCE identity), the record states that the connector returned no byte echo or hash so raw transport-payload byte identity is not independently mechanically preserved post hoc, the overstated exact-executed-bytes form is REJECTED from the factual sections, and the one-use authorization is CONSUMED AND SPENT with exactly one attempt',
   (() => {
     try {
       if (sha256(PKG) !== PKG_SHA) return false
       const atTip = execSync(`git cat-file blob ${TIP2Z}:${PKG} | shasum -a 256`, { encoding: 'utf8', shell: '/bin/bash' }).split(/\s+/)[0]
       if (atTip !== PKG_SHA) return false
+      const s1 = sec('## 1.', '## 2.')
+      if (!s1.includes('SOURCE IDENTITY IS MECHANICAL')) return false
+      if (!s1.includes('TRANSPORT PROVENANCE IS BOUNDED')) return false
+      if (!s1.includes('returned NO byte-for-byte echo and NO hash')) return false
+      if (!s1.includes('not independently mechanically preserved post hoc')) return false
+      if (!s1.includes('intending the reviewed package')) return false
+      if (!s1.includes('does not invalidate the hosted seal')) return false
+      if (recFactual.includes('What was executed (the exact reviewed bytes)')) return false
+      if (recFactual.includes('execution bytes were reconstructed from the exact uploaded file')) return false
       return recFlat.includes('CONSUMED AND SPENT — DO NOT RERUN THE SEAL PACKAGE')
         && recFlat.includes('Executed exactly once; no retry occurred after any outcome')
         && recFlat.includes('consumed by the attempt and is SPENT')
@@ -131,7 +145,7 @@ check('S6: the six-class evidence provenance map is complete and distinct — in
     // heading's own "7." is excluded by the digit range and case)
     return (s7.match(/[1-6]\. [A-Z]{2}/g) || []).length === 6
   })())
-check('S7: the post-COMMIT observe-not-assume evidence — the eleven table-metadata counts DERIVE the stated vector (recomputed here from the record\'s own enumeration, equal to the staged baseline), the tenant observation reads 84/0, the record states observed-not-assumed with no movement in the capture window and the STOP branch untriggered, and the safety-layer block is disclosed as not-a-failure, not retried, not filled in',
+check('S7: the post-COMMIT evidence WITH its explicit gap (round-1 strengthened) — the eleven table-metadata counts DERIVE the stated vector (recomputed here from the record\'s own enumeration), the tenant TOTAL observation reads 84/0, the record states the delivered-row predicate was NOT successfully re-observed with the gap explicit and never converted to a zero, the STOP branch neither triggered nor definitively cleared, S6 STOPPED on the gap, the safety-layer block disclosed as not-a-failure and not retried, the overstated observed/proves/cleared claims REJECTED from the factual sections, and the insufficiency of total counts GROUNDED mechanically in the migration-026 in-place reconciliation UPDATE located in the migration bytes',
   (() => {
     const s4 = sec('## 4.', '## 5.')
     const names = ['exercise_catalog_logical', 'exercise_catalog', 'exercise_catalog_muscles',
@@ -148,9 +162,29 @@ check('S7: the post-COMMIT observe-not-assume evidence — the eleven table-meta
     if (!s4.includes(VEC)) return false
     if (!s4.match(/public\.exercises = 84/)) return false
     if (!s4.match(/public\.exercise_aliases = 0/)) return false
-    if (!s4.includes('OBSERVED, not assumed')) return false
-    if (!s4.includes('NO post-activation delivery or tenant movement was observed')) return false
-    if (!s4.includes('STOP-and-report branch was therefore NOT triggered')) return false
+    // the precise post-COMMIT claims (round-1 corrected)
+    if (!s4.includes('tenant TOTAL counts OBSERVED')) return false
+    if (!s4.includes('no total-count movement was observed on the AVAILABLE surfaces')) return false
+    if (!s4.includes('WHERE import_run_id IS NOT NULL')) return false
+    if (!s4.includes('was NOT successfully re-observed')) return false
+    if (!s4.includes('MUST NOT be read as equivalent')) return false
+    if (!s4.includes('EXPLICIT EVIDENCE GAP')) return false
+    if (!s4.includes('not filled, not inferred away, and not silently converted into a zero')) return false
+    if (!s4.includes('neither triggered NOR definitively cleared')) return false
+    if (!s4.includes('S6 remains STOPPED pending a separate governance decision')) return false
+    // the rejected overstatements must be ABSENT from the factual
+    // sections (the lifecycle and disclosure sections may describe
+    // or quote them)
+    if (recFactual.includes('delivered-row and tenant state were OBSERVED')) return false
+    if (recFactual.includes('branch was therefore NOT triggered')) return false
+    if (recFactual.includes('proves no post-activation delivery')) return false
+    if (recFactual.includes('NO post-activation delivery or tenant movement was observed')) return false
+    // WHY totals are insufficient, grounded in the migration bytes:
+    // the guarded in-place Plank reconciliation UPDATE assigns
+    // import_run_id to an EXISTING public.exercises row
+    const mig26 = norm(read('supabase/migrations/026_exlib_plank_seed_reconciliation.sql'))
+    if (!mig26.includes("UPDATE public.exercises SET tracking_mode = 'timed', exercise_type = 'mobility', catalog_id = v_cat.id, catalog_logical_id = v_cat.logical_id, import_run_id = v_run.id")) return false
+    if (!recFlat.includes('in-place Plank reconciliation path that UPDATEs an existing public.exercises row and sets import_run_id = v_run.id')) return false
     return s4.includes('blocked further raw SELECTs')
       && s4.includes('SELECT now()')
       && s4.includes('NOT a database failure')
@@ -201,8 +235,10 @@ check('S10: the seal semantics and the ASYMMETRIC rewind horizon — the record 
     if (!s6.includes('DELIVERY-ACTIVATION event')) return false
     if (!s6.includes('satisfies the database delivery predicate')) return false
     if (!s6.includes("independently of the application's delivery flag")) return false
-    if (!s6.includes('Delivery itself was NOT performed')) return false
-    if (!s6.includes('84 exercises / 0 tenant aliases')) return false
+    if (!s6.includes('Delivery was NOT performed by the S5 transaction')) return false
+    if (!s6.includes('no operator delivery call occurred')) return false
+    if (!s6.includes('TOTAL counts of 84 exercises / 0 tenant aliases')) return false
+    if (!s6.includes('delivered-row predicate was NOT re-observed')) return false
     if (!s6.includes('AVAILABLE, NOT AUTHORIZED')) return false
     if (!s6.includes('UNDO THE SEAL')) return false
     if (!s6.includes('PRESERVING the staged run')) return false
@@ -235,12 +271,15 @@ const committed = CHANGED.length === 0
 // check goes stale by design and gets the standard labeled
 // retarget, anchored at this phase's own promoted tip.
 if (committed) {
-  check('S12: topology and retarget coverage — ONE plain forward evidence commit over the candidate tip (single parent 3969a98f...) carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, and verify-exlib2z.ts carries the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
+  check('S12: topology and retarget coverage — the preserved round-0 evidence commit plus ONE plain forward round-1 correction commit over the candidate tip (single-parent chain 3969a98f -> be9b94aa -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, the correction touching ONLY this record and this verifier, and verify-exlib2z.ts carrying the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
     (() => {
       try {
-        if (execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        const EV0 = 'be9b94aa999e4a4a4e155c4745b77c07315f6934'
+        if (execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
         const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== TIP2Z) return false
+        if (p1.length !== 2 || p1[1] !== EV0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== TIP2Z) return false
         const status = execSync(`git diff --name-status ${TIP2Z} HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
@@ -248,6 +287,10 @@ if (committed) {
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${EV0} HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const z = read('scripts/verify-exlib2z.ts')
         if (!z.includes('RETARGET (EXLIB-2Z hosted-application evidence)')) return false
         if (!z.includes(`const TIP2Z = '${TIP2Z}'`)) return false
