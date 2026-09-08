@@ -185,19 +185,24 @@ check('Y10: the LIVE suite exists and covers the instructed classes — happy pa
     }
     return live.includes('disposable local PostgreSQL ONLY') && live.includes(PKG)
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('Y11: topology and inventory exact — ONE plain single-parent commit on the promoted source carrying exactly the FOUR added phase paths (package, record, this verifier, the live suite) plus ONLY the labeled retarget the sweep enumerated; nothing deleted',
+// RETARGET (EXLIB-2Y hosted-application evidence): this phase
+// COMPLETED — accepted by Codex, closed out (published + promoted +
+// tagged reviewed-not-executed), and its package has since been
+// EXECUTED hosted exactly once — so its topology claims are
+// anchored at the phase's own promoted tip, where they held and
+// hold forever; the HEAD-relative form went stale at the first
+// successor commit, the same completed-phase pattern as every
+// predecessor.
+const TIP2Y = '5fc27b8d63e1a6498eb7866136b9f04647b8cab8'
+{
+  check('Y11: topology and inventory exact — ONE plain single-parent commit at the promoted phase tip carrying exactly the FOUR added phase paths (package, record, this verifier, the live suite) plus ONLY the labeled retarget the sweep enumerated; nothing deleted',
     (() => {
       try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2Y}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const parents = execSync(`git rev-list --parents -n 1 ${TIP2Y}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-list --count ${SRC}..${TIP2Y}`, { encoding: 'utf8' }).trim() !== '1') return false
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2Y}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
@@ -206,9 +211,6 @@ if (committed) {
         return JSON.stringify(status) === JSON.stringify(expected)
       } catch { return false }
     })())
-} else {
-  check('Y11 (uncommitted authoring state): every worktree change lies inside the four phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
 }
 check('Y12: the boundary holds — the package lives under docs/ (never supabase/migrations/), no OTHER .sql path enters the phase, no phase file names the delivery environment-variable literals, and the record and verifiers carry no executable package markers',
   (() => {
