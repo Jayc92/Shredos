@@ -90,7 +90,7 @@ check('A1: the promoted source is exact — the S3 tag is the exact annotated ob
       return msg === 'EXLIB-2T S3 delivery runtime — DEPLOYED — FLAG OFF — NO DELIVERY RUN\n'
     } catch { return false }
   })())
-check('A2: the EXLIB-2U stop is preserved — when the reserved staged-run branch exists locally it sits EXACTLY at the source commit with zero commits of its own (absence is lawful in bundle reconstructions), and this phase adds NO run package and NO path under the exlib2u name',
+check('A2: the EXLIB-2U stop is preserved — when the reserved staged-run branch exists locally it sits EXACTLY at the source commit with zero commits of its own (absence is lawful in bundle reconstructions), and THIS PHASE added NO run package and NO path under the exlib2u name (censused at the phase\'s own promoted tip)',
   (() => {
     try {
       const has = execSync('git branch --list exlib2u-staged-run-prep', { encoding: 'utf8' }).trim() !== ''
@@ -98,7 +98,16 @@ check('A2: the EXLIB-2U stop is preserved — when the reserved staged-run branc
         if (execSync('git rev-parse refs/heads/exlib2u-staged-run-prep', { encoding: 'utf8' }).trim() !== SRC) return false
         if (execSync(`git rev-list --count ${SRC}..refs/heads/exlib2u-staged-run-prep`, { encoding: 'utf8' }).trim() !== '0') return false
       }
-      const tracked = execSync('git ls-files', { encoding: 'utf8' })
+      // RETARGET (EXLIB-2U S4 staged-run preparation): the
+      // no-exlib2u-path census was an AUTHORING-TIME self-census of
+      // this 2V phase (live git ls-files). The later, separately
+      // authorized EXLIB-2U milestone lawfully adds exlib2u-named
+      // paths — the recurring completed-phase pattern (a finished
+      // milestone's own claim falsified by its successor's lawful
+      // artifacts) — so the census is anchored at this phase's own
+      // promoted tip, where it held and holds forever.
+      const TIP2V = '0d4dad415a40c8b4baf042651e3f748f3c8c9f5e'
+      const tracked = execSync(`git ls-tree -r --name-only ${TIP2V}`, { encoding: 'utf8' })
       return !/exlib2u/i.test(tracked)
     } catch { return false }
   })())

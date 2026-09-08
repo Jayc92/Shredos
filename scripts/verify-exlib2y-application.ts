@@ -140,19 +140,23 @@ check('A8: the record\'s boundary claims are truthful — executed by ChatGPT on
   recFlat.includes('EXLIB-2U S4 staged-run') &&
   !recFlat.includes('run was created') &&
   !recFlat.includes('was sealed'))
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('A9: topology, inventory, and hygiene — ONE plain single-parent commit on the promoted source carrying exactly this record and this verifier plus ONLY the labeled retarget; the record\'s non-ASCII is the em-dash only; no credential or endpoint material',
+// RETARGET (EXLIB-2U S4 staged-run preparation): this phase
+// COMPLETED — the evidence record was accepted by Codex and closed
+// out (published + promoted + tagged APPLIED — SPENT — NO RUN) — so
+// its topology claims are anchored at the phase's own promoted tip,
+// where they held and hold forever; the HEAD-relative form went
+// stale at the first successor commit, the same completed-phase
+// pattern as every predecessor (seventh instance).
+const TIP2YE = '5fd7890233df728167a8a838a329ff14c04f0044'
+{
+  check('A9: topology, inventory, and hygiene — ONE plain single-parent commit at the promoted phase tip carrying exactly this record and this verifier plus ONLY the labeled retarget; the record\'s non-ASCII is the em-dash only; no credential or endpoint material',
     (() => {
       try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2YE}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const parents = execSync(`git rev-list --parents -n 1 ${TIP2YE}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-list --count ${SRC}..${TIP2YE}`, { encoding: 'utf8' }).trim() !== '1') return false
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2YE}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
@@ -170,9 +174,6 @@ if (committed) {
         return !bads.some((b) => payload.includes(b))
       } catch { return false }
     })())
-} else {
-  check('A9 (uncommitted authoring state): every worktree change lies inside the two phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)
