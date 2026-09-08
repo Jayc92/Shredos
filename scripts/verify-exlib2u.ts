@@ -261,36 +261,38 @@ check('U11: the LIVE suite exists and covers the instructed classes — happy pa
     if (!live.includes(PKG)) return false
     return live.includes('docs/exlib2y-snapshot-review-application-package.sql')
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('U12: topology and inventory exact — the round-0 candidate plus ONE plain forward round-1 correction commit on the promoted source (single-parent chain source -> candidate -> correction), the CUMULATIVE diff carrying exactly the FOUR added phase paths plus ONLY the two labeled retargets, and the correction commit touching ONLY the package, the record, and the two 2U verifiers; nothing deleted anywhere',
+// RETARGET (EXLIB-2U hosted-application evidence): this phase
+// COMPLETED — round 1 was accepted by Codex, closed out (published
+// + promoted + tagged reviewed-not-executed), and its package has
+// since been EXECUTED hosted exactly once — so its topology claims
+// are anchored at the phase's own promoted tip, where they held
+// and hold forever; the HEAD-relative form went stale at the first
+// successor commit, the same completed-phase pattern as every
+// predecessor (ninth instance).
+const TIP2U = 'ea8f6902b7b42a4d7f5a9af8c376900da5533e5c'
+{
+  check('U12: topology and inventory exact — the round-0 candidate plus ONE plain forward round-1 correction commit at the promoted phase tip (single-parent chain source -> candidate -> correction), the CUMULATIVE diff carrying exactly the FOUR added phase paths plus ONLY the two labeled retargets, and the correction commit touching ONLY the package, the record, and the two 2U verifiers; nothing deleted anywhere',
     (() => {
       try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2U}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        if (execSync(`git rev-list --count ${SRC}..${TIP2U}`, { encoding: 'utf8' }).trim() !== '2') return false
+        const p1 = execSync(`git rev-list --parents -n 1 ${TIP2U}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (p1.length !== 2 || p1[1] !== CAND0) return false
         const p0 = execSync(`git rev-list --parents -n 1 ${CAND0}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (p0.length !== 2 || p0[1] !== SRC) return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2U}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${CAND0}..HEAD`, { encoding: 'utf8' })
+        const corr = execSync(`git diff --name-status ${CAND0}..${TIP2U}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const corrExpected = [PKG, RECORD, VERIFIER, LIVE].sort().map((p) => `M\t${p}`)
         return JSON.stringify(corr) === JSON.stringify(corrExpected)
       } catch { return false }
     })())
-} else {
-  check('U12 (uncommitted authoring state): every worktree change lies inside the four phase paths plus the labeled retargeted suites',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
 }
 check('U13: the boundary holds — the package lives under docs/ (never supabase/migrations/), no OTHER .sql path enters the phase, no phase file names the delivery environment-variable literals, the record carries no executable package markers, the package\'s non-ASCII is the em-dash and box-drawing rules only, the record\'s is the em-dash only, and no phase file carries endpoint or credential material',
   (() => {
