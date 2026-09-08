@@ -212,19 +212,23 @@ check('X13: the record claims NOTHING was applied — pending snapshots with zer
   recFlat.includes('ONE-USE hosted snapshot-review APPLICATION package') &&
   !recFlat.includes('review event was created') &&
   !recFlat.includes('has been sealed'))
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-if (committed) {
-  check('X14: topology and inventory exact — ONE plain single-parent commit on the promoted source carrying exactly the FIVE added phase paths (three completed v2 copies, the record, this verifier) plus ONLY the labeled retarget the sweep enumerated; nothing deleted',
+// RETARGET (EXLIB-2Y snapshot-review application preparation): this
+// phase COMPLETED — accepted by operator review and closed out via
+// the consolidated publish+promote+tag instruction — so its topology
+// claims are anchored at the phase's own promoted tip (below)
+// instead of HEAD, where they held and hold forever; the
+// HEAD-relative form went stale at the first successor commit, the
+// same completed-phase pattern as every predecessor.
+const TIP2X = '06d99e2cb3a678836a05a0078cc4f916d30cf462'
+{
+  check('X14: topology and inventory exact — ONE plain single-parent commit at the promoted phase tip carrying exactly the FIVE added phase paths (three completed v2 copies, the record, this verifier) plus ONLY the labeled retarget the sweep enumerated; nothing deleted',
     (() => {
       try {
-        if (execSync(`git merge-base ${SRC} HEAD`, { encoding: 'utf8' }).trim() !== SRC) return false
-        const parents = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
+        if (execSync(`git merge-base ${SRC} ${TIP2X}`, { encoding: 'utf8' }).trim() !== SRC) return false
+        const parents = execSync(`git rev-list --parents -n 1 ${TIP2X}`, { encoding: 'utf8' }).trim().split(/\s+/)
         if (parents.length !== 2 || parents[1] !== SRC) return false
-        if (execSync(`git rev-list --count ${SRC}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        const status = execSync(`git diff --name-status ${SRC}..HEAD`, { encoding: 'utf8' })
+        if (execSync(`git rev-list --count ${SRC}..${TIP2X}`, { encoding: 'utf8' }).trim() !== '1') return false
+        const status = execSync(`git diff --name-status ${SRC}..${TIP2X}`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
           ...PHASE_ADDS.map((p) => `A\t${p}`),
@@ -233,9 +237,6 @@ if (committed) {
         return JSON.stringify(status) === JSON.stringify(expected)
       } catch { return false }
     })())
-} else {
-  check('X14 (uncommitted authoring state): every worktree change lies inside the five phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
 }
 check('X15: hygiene — all three completed v2 copies are pure ASCII, the record\'s non-ASCII is the em-dash only, and no phase file contains endpoint or credential material',
   (() => {
