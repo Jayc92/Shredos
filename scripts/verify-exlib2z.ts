@@ -271,43 +271,40 @@ check('Z15: hygiene — this record\'s non-ASCII is the em-dash only, and no pha
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is
-// closed out and a successor commit exists, this HEAD-relative
-// check goes stale by design and gets the standard labeled
-// retarget, anchored at this phase's own promoted tip — the same
-// pattern as every predecessor.
-if (committed) {
-  check('Z16: topology and inventory exact — the preserved round-0 preparation commit plus ONE plain forward round-1 correction commit over the durably closed EXLIB-2U evidence tip (single-parent chain 290f9bbb -> dc3e83a8 -> correction), the CUMULATIVE diff carrying exactly the four phase adds plus ONLY the labeled EXLIB-2U application-verifier retarget, and the correction commit touching ONLY this record and this verifier; nothing deleted',
-    (() => {
-      try {
-        const R0 = 'dc3e83a89f086e636e7fe3aefc086872dbfefcb5'
-        if (execSync(`git merge-base ${BASE} HEAD`, { encoding: 'utf8' }).trim() !== BASE) return false
-        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== R0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== BASE) return false
-        const status = execSync(`git diff --name-status ${BASE}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${R0}..HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
-        return JSON.stringify(corr) === JSON.stringify(corrExpected)
-      } catch { return false }
-    })())
-} else {
-  check('Z16 (uncommitted authoring state): every worktree change lies inside the four phase paths plus the labeled retargeted suite',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p)))
-}
+// RETARGET (EXLIB-2Z hosted-application evidence): this phase
+// COMPLETED — the corrected candidate was Codex-approved, the
+// operator issued and consumed the one-use S5 authorization, and
+// the seal executed hosted exactly once (SPENT) — so the topology
+// claims are anchored at the phase's own candidate tip, where they
+// held and hold forever; the HEAD-relative form (and its
+// uncommitted authoring branch) went stale at this evidence
+// milestone's own commit, the same completed-phase pattern as every
+// predecessor (eleventh instance). Count-neutral: the suite still
+// reports sixteen checks.
+const TIP2Z = '3969a98fc809cf69fb8a19c411de63d919db3ef7'
+check('Z16: topology and inventory exact (anchored at the candidate tip) — the preserved round-0 preparation commit plus ONE plain forward round-1 correction commit over the durably closed EXLIB-2U evidence tip (single-parent chain 290f9bbb -> dc3e83a8 -> 3969a98f), the CUMULATIVE diff carrying exactly the four phase adds plus ONLY the labeled EXLIB-2U application-verifier retarget, and the correction commit touching ONLY this record and this verifier; nothing deleted',
+  (() => {
+    try {
+      const R0 = 'dc3e83a89f086e636e7fe3aefc086872dbfefcb5'
+      if (execSync(`git merge-base ${BASE} ${TIP2Z}`, { encoding: 'utf8' }).trim() !== BASE) return false
+      if (execSync(`git rev-list --count ${BASE}..${TIP2Z}`, { encoding: 'utf8' }).trim() !== '2') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${TIP2Z}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== R0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== BASE) return false
+      const status = execSync(`git diff --name-status ${BASE}..${TIP2Z}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${R0}..${TIP2Z}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+      return JSON.stringify(corr) === JSON.stringify(corrExpected)
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
