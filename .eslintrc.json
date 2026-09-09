@@ -1,0 +1,32 @@
+{
+  // `next lint` has no config of its own to fall back on: without this file it
+  // drops into its interactive setup wizard and exits 1, which is why lint was
+  // never runnable in this repo. "next/core-web-vitals" is the Strict preset
+  // that wizard recommends.
+  "extends": "next/core-web-vitals",
+
+  "overrides": [
+    {
+      // next/core-web-vitals wires up @typescript-eslint/parser for TS files
+      // but registers only react, react-hooks, jsx-a11y, import and
+      // @next/next as PLUGINS. The @typescript-eslint plugin ships with
+      // eslint-config-next and is installed, yet stays unregistered — so the
+      // 21 `eslint-disable-next-line @typescript-eslint/no-explicit-any`
+      // comments already in src/lib/ referenced a rule ESLint could not
+      // resolve, and each one was reported as a "Definition for rule ... was
+      // not found" ERROR. Registering the plugin here is what makes those
+      // existing suppressions mean what their authors intended.
+      "files": ["**/*.ts", "**/*.tsx"],
+      "plugins": ["@typescript-eslint"],
+      "rules": {
+        // Deliberately "warn", not "error". The 21 suppressions show the
+        // codebase intends this rule to be live, but roughly the same number
+        // of `any` uses elsewhere were never suppressed — because the rule
+        // has never actually run. "warn" keeps that backlog visible for
+        // separate triage without failing lint on pre-existing code; raise it
+        // to "error" once the untriaged uses are resolved.
+        "@typescript-eslint/no-explicit-any": "warn"
+      }
+    }
+  ]
+}

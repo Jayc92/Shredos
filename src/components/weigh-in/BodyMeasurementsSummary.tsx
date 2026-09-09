@@ -31,7 +31,7 @@ export function BodyMeasurementsSummary({
 
       {latestWaistIn !== null && (
         <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-bold tabular-nums">{latestWaistIn.toFixed(1)}"</span>
+          <span className="text-2xl font-bold tabular-nums">{latestWaistIn.toFixed(1)}&quot;</span>
           <span className="text-sm text-ink-muted">Latest waist</span>
         </div>
       )}
@@ -45,14 +45,14 @@ export function BodyMeasurementsSummary({
           {deltaFromPreviousIn !== null && (
             <p className="text-xs text-ink-muted">
               {deltaFromPreviousIn > 0 ? '+' : ''}
-              {deltaFromPreviousIn.toFixed(1)}" vs. last logged
+              {deltaFromPreviousIn.toFixed(1)}&quot; vs. last logged
             </p>
           )}
 
           {waistCountLast28Days >= 2 && delta28DayIn !== null ? (
             <p className="text-xs text-ink-muted">
               {delta28DayIn > 0 ? '+' : ''}
-              {delta28DayIn.toFixed(1)}" over the last 28 days
+              {delta28DayIn.toFixed(1)}&quot; over the last 28 days
             </p>
           ) : waistCountLast28Days === 0 ? (
             <p className="text-xs text-ink-muted">

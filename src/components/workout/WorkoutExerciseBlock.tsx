@@ -92,9 +92,17 @@ export function WorkoutExerciseBlock({
   if (resolvedOverrides.cleared) setApplyState(EMPTY_APPLY_STATE)
 
   const rawSets = we.workout_sets ?? []
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const sets = useMemo(
     () => mergeAppliedSets(rawSets as WorkoutSet[], resolvedOverrides.overrides),
+    // The dependency list is DELIBERATELY narrower than the closure:
+    // `rawSets` and `resolvedOverrides.overrides` are both derived fresh on
+    // every render, so listing them would defeat the memo entirely.
+    // `we.workout_sets` identity plus `applyState` are the only inputs that
+    // can change the merged result, per the override lifetime above.
+    // The suppression must sit on THIS line rather than above the useMemo
+    // call: exhaustive-deps reports at the dependency array, so a disable
+    // directive above `const sets = useMemo(` never applies to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [we.workout_sets, applyState]
   )
   // Phase 2U: cardio/timed use the tracking-aware representative-set
