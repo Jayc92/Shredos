@@ -58,6 +58,7 @@ const BASE_SHA = '5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8'
 // assertions they carry hold at any later HEAD.
 const ECOM = '2ccd5848977202abbdb0707bfa198375c96a1da5'
 const CORR1 = '9e1b3b90f010d2ee96f11b321df164123bdf3286'
+const CORR2 = '11fd92152c0d16c5faa97ab56af361eac385272e'
 const OBSERVED_AT = '2026-09-09 15:54:55.316459+00'
 const BASELINE_AT = '2026-09-09 02:27:31.8287+00'
 const ZEROS = ['delivered_exercises_total', 'delivered_exercises_target_run',
@@ -104,7 +105,7 @@ const sec = (a: string, b: string): string => {
 
 console.log('EXLIB-3A OPTION A hosted-activation evidence verification (LOCAL-ONLY; BOTH authorizations SPENT; nothing re-observed, everything cross-checked)')
 
-check('C1: both one-use grants are recorded SPENT with SEPARATE spent states AND the full governance sequence is explicit — Authorization A consumed by the activation attempt regardless of outcome and ALREADY SPENT at the real-time operator STOP with nothing after that STOP resetting it, Authorization M still UNCONSUMED at that STOP and then independently consumed by exactly one observation attempt with no retry, and the SEPARATE operator recovery approval recorded as a third governance event carrying all FIVE of its negative bounds (no mutation, no additional deployment, no reset of A, no second grant of M, no merged spent states) and pinned against any claim that it authorized or ratified the second redeploy, authorized a mutation, multiplied the single grant of M, or unspent A; plus the two redeploys explicitly inside the SINGLE activation attempt creating no additional authorization, no further deployment authorized, and no hosted contact by Claude in either the activation or this correction',
+check('C1: both one-use grants are recorded SPENT with SEPARATE spent states AND the full governance sequence is explicit — Authorization A consumed by the activation attempt regardless of outcome and ALREADY SPENT at the real-time operator STOP with nothing after that STOP resetting it, Authorization M still UNCONSUMED at that STOP and then independently consumed by exactly one observation attempt with no retry, and the SEPARATE operator recovery approval recorded as a third governance event carrying all FIVE of its negative bounds (no mutation, no additional deployment, no reset of A, no second grant of M, no merged spent states) and pinned against any claim that it authorized or ratified the second redeploy, authorized a mutation, multiplied the single grant of M, or unspent A; plus the two redeploys explicitly inside the SINGLE activation attempt creating no additional authorization, no further deployment authorized, and no hosted contact by Claude in either the activation or this correction — and FAILING CLOSED against an ADDITIVE contradiction, rejecting any claim that the already-issued grant of M sufficed on its own after the declared STOP through THREE LAYERED pins — named literals, pattern families, and a polarity-blind single-sentence co-occurrence rule which ablation confirms is the only one of the three that catches a paraphrase avoiding every named literal, the first two being retained as defense in depth rather than as independent coverage — so appending a no-recovery-approval assertion beside the intact positive narrative can no longer pass',
   (() => {
     const s1 = sec('## 1.', '## 2.')
     if (!s1.includes('CONSUMED BY THE ACTIVATION ATTEMPT REGARDLESS OF OUTCOME')) return false
@@ -151,6 +152,67 @@ check('C1: both one-use grants are recorded SPENT with SEPARATE spent states AND
       'Authorization A was re-authorized', 'Authorization A is no longer spent',
       'their spent states are merged', 'the two grants are merged']) {
       if (govSurface.includes(bad)) return false
+    }
+    // THE ROUND-2 DEFECT, GUARDED IN THREE INDEPENDENT WAYS. The pins
+    // above were defeated in review WITHOUT touching a single one of
+    // them: the reviewer left the whole positive recovery narrative in
+    // place and simply ADDED the sentence "Authorization M was consumed
+    // under its original grant with no recovery approval." to section 1,
+    // and the suite still read 14/0. That is the general lesson —
+    // requiring the positive narrative proves only that it EXISTS, and
+    // says nothing about what the record may assert alongside it, so a
+    // contradiction can be appended rather than substituted. Negative
+    // control 2 could not have caught this either: it DELETES the
+    // positive block, so it exercises the positive pins and not the
+    // contradiction. The class of claim now rejected is "the
+    // already-issued grant of M sufficed on its own after the declared
+    // STOP", and it is rejected three ways so that defeating one arm is
+    // not enough.
+    //
+    // 1) the literal forms named in the round-2 disposition
+    for (const bad of ['Authorization M was consumed under its original grant with no recovery approval',
+      'Authorization M was consumed without recovery approval',
+      'no recovery approval was required',
+      'the recovery approval was unnecessary']) {
+      if (govSurface.includes(bad)) return false
+    }
+    // 2) the same class by PATTERN, so rewording between the literals
+    // does not slip through. Every pattern here has no legitimate
+    // reading in a record whose whole point is that the recovery gate
+    // was the event that permitted consumption.
+    for (const bad of [
+      /\bno\s+recovery\s+approval\b/i,
+      /\brecovery\s+(?:approval|gate)\s+(?:was|is|were)\s+(?:unnecessary|superfluous|redundant|dispensable)\b/i,
+      /\brecovery\s+(?:approval|gate)\s+(?:was|is|were)\s+not\s+(?:required|needed|necessary)\b/i,
+      /\bno\s+(?:separate|second|further|additional|new)\s+(?:operator\s+)?(?:recovery\s+)?approval\s+(?:was|is|were)\s+(?:required|needed|necessary|obtained|given|issued)\b/i,
+      /\b(?:original|existing|initial|already-issued)\s+(?:M\s+)?grant\s+(?:alone|by\s+itself|on\s+its\s+own)\b/i,
+      /\bAuthorization\s+M\s+alone\s+(?:was|is|were)\s+(?:sufficient|enough|adequate)\b/i,
+      /\bunder\s+its\s+original\s+grant\b/i]) {
+      if (bad.test(govSurface)) return false
+    }
+    // 3) the same class by CO-OCCURRENCE within one sentence, which
+    // catches a paraphrase that avoids every literal above: a sentence
+    // that names the M grant, names the recovery event, AND asserts the
+    // recovery event was dispensable is rejected whatever its wording.
+    // DELIBERATELY POLARITY-BLIND, and that direction is the safe one:
+    // it also rejects a legitimate double negative ("M could not have
+    // been consumed without the recovery approval"), so the dependency
+    // must be stated positively — which is how the record already states
+    // it ("became permissible only under a SEPARATE OPERATOR RECOVERY
+    // APPROVAL"). A polarity escape hatch would be a way to smuggle the
+    // contradiction back in, so there is none.
+    const M_SUBJ = /(?:authorization\s+m\b|\bthe\s+m\s+grant\b|\bexisting\s+grant\b|\balready-issued\s+grant\b)/i
+    const RECOVERY_REF = /(?:recovery\s+(?:approval|gate)|separate\s+(?:operator\s+)?approval)/i
+    // "with no" / "with none" are here because ABLATION SHOWED THIS ARM
+    // MISSED THE DISPOSITION'S OWN LITERAL WITHOUT THEM: "consumed under
+    // its original grant WITH NO recovery approval" asserts dispensability
+    // by negated existence rather than by a "without"-class word. Verified
+    // against the real governance surface before being added: of its 221
+    // sentences only THREE name both the M grant and the recovery event,
+    // and none of the three matches any term in this set.
+    const DISPENSABLE = /(?:\bwithout\b|\babsent\b|\bwith\s+no\b|\bwith\s+none\b|\bno\s+need\b|\bneeded\s+no\b|\brequired\s+no\b|\bdid\s+not\s+(?:need|require)\b|\bneed\s+not\b|\bsufficed\b|\b(?:was|is|were)\s+(?:sufficient|enough|adequate)\b|\bunnecessary\b)/i
+    for (const s of govSurface.split(/(?<=[.;])\s+/)) {
+      if (M_SUBJ.test(s) && RECOVERY_REF.test(s) && DISPENSABLE.test(s)) return false
     }
     return recFlat.includes('BOTH AUTHORIZATIONS WERE CONSUMED BY THEIR RESPECTIVE ATTEMPTS AND ARE SPENT')
       && recFlat.includes('NEVER merged')
@@ -477,7 +539,7 @@ check('C13: the boundary and the provenance map are complete and hygiene holds �
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-check('C14: the chronology orders ALL EIGHT supplied instants by parse — staged-run creation < seal < PRE-ACTIVATION deployment creation < pre-activation measurement < advisor < FIRST redeploy creation < SECOND redeploy creation < this measurement — with every instant stated literally in the record, the two redeploy creation instants also stated in the deviation section, and the record still declaring that NO READY-settlement instant was supplied or invented; and topology holds anchored at immutable objects — THREE PLAIN FORWARD commits over 73a2bc8c... (evidence, honest correction, round-1 review correction; every commit single-parent, never an amend or rebase) whose union carries exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with the round-1 correction touching EXACTLY the two authorized paths and scripts/verify-exlib3a-option-a.ts BYTE-IDENTICAL to the evidence commit with its SIXTEEN checks intact',
+check('C14: the chronology orders ALL EIGHT supplied instants by parse — staged-run creation < seal < PRE-ACTIVATION deployment creation < pre-activation measurement < advisor < FIRST redeploy creation < SECOND redeploy creation < this measurement — with every instant stated literally in the record, the two redeploy creation instants also stated in the deviation section, and the record still declaring that NO READY-settlement instant was supplied or invented; and topology holds anchored at immutable objects — FOUR PLAIN FORWARD commits over 73a2bc8c... (evidence, honest correction, governance-provenance correction, verifier-only correction; every commit single-parent, never an amend or rebase) whose union carries exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with the cumulative correction scope still exactly the two authorized paths, the round-2 correction touching EXACTLY this verifier, the RECORD byte-identical between 11fd9215... and HEAD, and scripts/verify-exlib3a-option-a.ts BYTE-IDENTICAL to the evidence commit with its SIXTEEN checks intact',
   (() => {
     // EIGHT instants, one strictly increasing chain. The three
     // deployment CREATION instants were supplied by the round-1 review
@@ -522,26 +584,30 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
       const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
       const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
       if (CHANGED.length > 0) {
-        // AUTHORING STATE: only the two AUTHORIZED paths may differ from
-        // HEAD. The frozen predecessor is deliberately excluded here too,
-        // so a stray edit to it fails rather than being tolerated.
-        return CHANGED.every((p) => PHASE_ADDS.includes(p))
+        // AUTHORING STATE: the round-2 authorization names ONE path, so
+        // only that path may differ from HEAD. The record and the frozen
+        // predecessor are both excluded, so a stray edit to either fails
+        // rather than being tolerated.
+        return CHANGED.length === 1 && CHANGED[0] === VERIFIER
       }
-      // PLAIN FORWARD ONLY: the phase landed as three commits — the
+      // PLAIN FORWARD ONLY: the phase landed as four commits — the
       // evidence commit, one honest correction after the sweep's own
       // control arm showed section 13 had understated the sweep's reds,
-      // and the round-1 review correction that restored the omitted
-      // operator STOP and recovery approval. The standing rule forbids
-      // amend/rebase/squash, so each correction is a successor, never a
-      // rewrite; every commit in the range is asserted single-parent.
+      // the governance-provenance correction that restored the omitted
+      // operator STOP and recovery approval, and this verifier-only
+      // correction closing the additive-contradiction hole C1 had. The
+      // standing rule forbids amend/rebase/squash, so each correction is
+      // a successor, never a rewrite; every commit in the range is
+      // asserted single-parent.
       execSync(`git merge-base --is-ancestor ${PTIP} HEAD`, { encoding: 'utf8' })
       const range = execSync(`git rev-list --parents ${PTIP}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).map((l) => l.trim().split(/\s+/))
-      if (range.length !== 3) return false
+      if (range.length !== 4) return false
       if (!range.every((p) => p.length === 2)) return false
       if (range[range.length - 1][1] !== PTIP) return false
       if (range[range.length - 1][0] !== ECOM) return false
-      if (range[0][1] !== CORR1) return false
+      if (range[1][0] !== CORR2 || range[1][1] !== CORR1) return false
+      if (range[0][1] !== CORR2) return false
       const status = execSync(`git diff --name-status ${PTIP} HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       const expected = [
@@ -549,10 +615,20 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
         ...RETARGETED.map((p) => `M\t${p}`),
       ].sort()
       if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-      // THE ROUND-1 CORRECTION TOUCHED EXACTLY THE TWO AUTHORIZED PATHS
+      // THE CUMULATIVE CORRECTION SCOPE IS STILL EXACTLY THE TWO
+      // AUTHORIZED PATHS — no third path entered at either correction
       const corr = execSync(`git diff --name-status ${CORR1} HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
-      return JSON.stringify(corr) === JSON.stringify(PHASE_ADDS.map((p) => `M\t${p}`).sort())
+      if (JSON.stringify(corr) !== JSON.stringify(PHASE_ADDS.map((p) => `M\t${p}`).sort())) return false
+      // THE ROUND-2 CORRECTION IS VERIFIER-ONLY, AND THE RECORD IS FROZEN
+      // BY THAT AUTHORIZATION. Both asserted against the immutable commit
+      // object, so they hold at any later HEAD.
+      const corr2 = execSync(`git diff --name-status ${CORR2} HEAD`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      if (JSON.stringify(corr2) !== JSON.stringify([`M\t${VERIFIER}`])) return false
+      const recBlob = (c: string): string =>
+        execSync(`git rev-parse ${c}:${RECORD}`, { encoding: 'utf8' }).trim()
+      return recBlob(CORR2) === recBlob('HEAD')
     } catch { return false }
   })())
 
