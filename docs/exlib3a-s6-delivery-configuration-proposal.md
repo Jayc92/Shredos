@@ -63,10 +63,12 @@ strictly as current-state assurance.
   turns delivery on ONLY when the value is exactly the string
   "true"; absent, empty, "false", "1", "TRUE", "yes" — anything
   else — means OFF. The verified 2T census proves NO tracked file
-  assigns the variable, and the repository's environment files
-  (.env.example; the untracked local env file) carry NO delivery
-  variables at all (verified live in this discovery: zero
-  delivery-variable names in either).
+  assigns the variable, and the tracked environment template
+  (.env.example) carries NO delivery variables at the pinned base
+  (round-1 correction: this proposal's durable claims are limited
+  to TRACKED repository state at the base; no untracked local file
+  is relied on, and the hosted Vercel environment posture was NOT
+  observed and remains outside this proposal).
 - The RUN-KEY VARIABLE (read by catalogDeliveryRunKey) supplies the
   p_run_key argument; a missing/blank key with the flag ON fails
   closed BEFORE any database call. The TIMEOUT VARIABLE is an
@@ -258,25 +260,37 @@ DECISION (RECOMMENDED as the immediate next act).
 One read-only hosted measurement package, operator-executed under
 its own one-use authorization, measuring AS OF NOW: (1) exact
 count of public.exercises WHERE import_run_id IS NOT NULL, and the
-same for public.exercise_aliases (delivered-row state today); (2)
+same for public.exercise_aliases (the CURRENT PERSISTENT DELIVERY
+STATE — the provenance-linked tenant rows that exist now); (2)
 the run row posture (approved/sealed/revoked/operational fields)
 and that exactly one run exists; (3) exact COUNT(*) cardinalities
 of the eleven catalog tables and both tenant tables; (4) the
-delivery predicate row count; (5) advisor snapshot (observed
-only). FRAMING, mandatory and explicit: these are CURRENT-STATE
-facts. They provide assurance about NOW (e.g., "zero delivered
-rows exist today" would prove no delivery has occurred to date,
-which SUBSUMES the practical worry behind the historical gaps
-without claiming to observe the past); they CANNOT retroactively
-prove what happened inside the original post-COMMIT interval, and
-the historical gaps remain recorded exactly as closed out. WHY
-THIS FIRST: it is cheap, read-only, reversible, uses the exact
-governed evidence pattern, and produces precisely the facts that
-make A-versus-C decidable (nonzero delivered rows today would
-change the activation conversation entirely; zero delivered rows
-today plus intact posture makes controlled activation
-well-grounded). This proposal DRAFTS the authorization (section
-16) and executes nothing.
+delivery predicate row count; (5) ONE read-only advisor
+observation as part of the same authorized evidence capture
+(observed only; no advisor remediation is permitted by it).
+FRAMING, mandatory and explicit (round-1 corrected): these are
+CURRENT-STATE facts about PERSISTENT STATE. Exact current counts
+of exercises and aliases carrying delivery provenance answer
+whether persistent catalog-delivery tenant state exists NOW. Zero
+provenance-linked rows means no persistent delivery state is
+present now under those measured surfaces — it does NOT prove the
+delivery RPC was never invoked or attempted, because the promoted
+function has lawful idempotent, collision, and skip outcomes that
+can leave no new provenance-linked rows. Nonzero provenance-linked
+rows means delivery-associated tenant state exists now — never
+infer who invoked it, when it occurred, or by which path. Either
+way, these results CANNOT retroactively prove what happened inside
+the original post-COMMIT interval, and the historical gaps remain
+recorded exactly as closed out. WHY THIS FIRST: it is cheap,
+read-only, reversible, uses the exact governed evidence pattern,
+and produces precisely the present-persistent-state facts that
+make A-versus-C decidable — we should know the present persistent
+delivery state before enabling an automatic at-scale application
+rollout (nonzero provenance rows today would change the activation
+conversation entirely; zero provenance rows today plus intact
+posture makes controlled activation well-grounded on present
+facts). This proposal DRAFTS the authorization (section 16) and
+executes nothing.
 
 OPTION C — HOLD S6 INDEFINITELY.
 Operational consequences: the app keeps seeding new users with the
@@ -299,16 +313,18 @@ S4-then-S5 pipeline for any future release of this content.
 OPTION B first, as its own small, separately authorized, read-only
 milestone; then re-decide A versus C with current facts on the
 table. Technical justification: (1) the single decision-relevant
-unknown — whether ANY delivery has occurred to date through the
-standing direct-RPC reachability — is answerable exactly, cheaply,
-and without risk; (2) activation (A) is automatic and at-scale the
-moment the variables land in a deployment, so it should not be
-initiated while the present delivered-row state is unknown even as
-a current fact; (3) holding (C) without measuring leaves a
-growing, unmeasured divergence window; B bounds it. B's framing
-discipline (current-state assurance, never retroactive proof)
-preserves the historical record exactly as the operator and Codex
-closed it.
+measurable — the CURRENT PERSISTENT DELIVERY STATE, whether any
+provenance-linked tenant rows exist NOW — is answerable exactly,
+cheaply, and without risk (it is deliberately NOT a claim about
+whether the RPC was ever invoked, which no persistent-state
+measurement can establish); (2) activation (A) is automatic and
+at-scale the moment the variables land in a deployment, so it
+should not be initiated while the present persistent delivery
+state is unknown even as a current fact; (3) holding (C) without
+measuring leaves a growing, unmeasured divergence window; B bounds
+it. B's framing discipline (current-state assurance, never
+retroactive proof, never invocation-history proof) preserves the
+historical record exactly as the operator and Codex closed it.
 
 ## 10. The proposed next protected act (exact; nothing here
 executes it)
@@ -317,12 +333,15 @@ Under the recommendation, the next protected act is OPTION B's
 read-only hosted measurement, operator-executed. Its package would
 be a SELECT-only script (no BEGIN required beyond a read-only
 transaction; no locks beyond reads; zero writes) over: the two
-delivered-row predicates, the run-row posture, the thirteen exact
-COUNT(*) cardinalities, and the delivery-predicate count — plus
-the operator's advisor observation. Its evidence lands in an
-EXLIB-3A application record on the established pattern,
-provenance-labeled (exact COUNT(*) results this time, from the SQL
-editor, not connector metadata). The eventual OPTION A activation
+provenance-linked persistent-state counts, the run-row posture,
+the thirteen exact COUNT(*) cardinalities, and the
+delivery-predicate count — plus the operator's single read-only
+advisor observation (part of the same authorized capture). Its
+evidence lands in an EXLIB-3A application record on the
+established pattern, provenance-labeled (exact COUNT(*) results
+this time, from the SQL editor, not connector metadata; the
+results describe present persistent state, never invocation
+history). The eventual OPTION A activation
 act — setting the two variables in the hosted platform and
 deploying — is sketched in section 8/A and is NOT proposed for
 authorization in this milestone.
@@ -356,21 +375,29 @@ authorization in this milestone.
   revoked posture, or any posture contradicting the closed S5
   record: STOP / DO NOT PROCEED TOWARD ACTIVATION — report as
   state movement; the governance decision returns to the operator.
-- NONZERO delivered rows today: NOT an error to be fixed —
-  STOP-and-report as post-activation-era delivery having occurred
-  via the standing reachability; do not attribute a mechanism, do
-  not revoke, do not continue toward A under any existing text.
+- NONZERO provenance-linked rows today: NOT an error to be fixed —
+  STOP-and-report as persistent delivery-associated tenant state
+  existing now; never infer who invoked it, when it occurred, or
+  by which path; do not revoke, and do not continue toward A under
+  any existing text.
 
 ## 14. Ambiguity protocol (for the measurement act)
 
-Read-only, so ambiguity is cheap: an interrupted or blocked query
-is simply re-run — EXCEPT that the operator must never substitute
-estimate-backed metadata for a blocked exact count (the round-2
-lesson: the instrument's semantics are part of the evidence). If
-the SQL endpoint blocks exact counts again, the attempt is
-reported exactly so, the gap is recorded as a gap, and no estimate
-is presented as a count. The authorization is consumed by the
-attempt regardless of outcome.
+ONE coherent fail-closed contract (round-1 corrected; the earlier
+draft carried two conflicting rules): the reviewed OPTION B SQL
+measurement package is executed EXACTLY ONCE under the one-use
+authorization, and the authorization is consumed by that attempt
+regardless of outcome. If ANY exact query or result is blocked,
+interrupted, rejected, incomplete, or ambiguous: STOP — record the
+unavailable measurement as a gap. Do NOT substitute the connector
+table-metadata tool, live-row estimates, or any other instrument
+(the round-2 lesson: the instrument's semantics are part of the
+evidence). Do NOT manually re-run an individual SELECT under the
+spent authorization. Any later measurement attempt requires a
+fresh operator decision and, if its bytes differ from the reviewed
+package, fresh review. The single read-only advisor observation is
+part of this same authorized capture and permits no advisor
+remediation.
 
 ## 15. Rollback and shutdown semantics (four distinct paths, never
 conflated)
@@ -408,20 +435,31 @@ pre-consumes it; Claude never issues authorizations.
     * spent-check FIRST: confirm no prior attempt under this
       authorization;
     * verify the reviewed measurement script's sha256 at the gate;
-    * execute it exactly once against ShredOS ref
+    * execute it EXACTLY ONCE against ShredOS ref
       ttybyljytiwntvorugcv as the operator, read-only;
     * capture every result exactly (exact COUNT(*) values; never
       estimate-backed metadata as a substitute — if an exact count
       is blocked, record the block itself);
+    * if any exact query or result is blocked, interrupted,
+      rejected, incomplete, or ambiguous: STOP; record the
+      unavailable measurement as a gap; do NOT substitute another
+      instrument and do NOT manually re-run an individual SELECT
+      under this authorization — a later attempt is a fresh
+      operator decision and, if its bytes differ, fresh review;
     * on any refusal or state contradiction: STOP and report
-      exactly; no repair, no retry beyond re-running a read-only
-      query, no substitution;
+      exactly; no repair, no substitution;
+    * the single read-only advisor observation is part of this
+      same authorized evidence capture and permits no advisor
+      remediation;
     * report the complete result set for the EXLIB-3A evidence
       record;
     * then stop.
-    This authorization is ONE-USE and is consumed by the attempt.
-    It is CURRENT-STATE ASSURANCE ONLY: its results cannot and do
-    not retroactively close the historical post-COMMIT observation
+    This authorization is ONE-USE and is consumed by the attempt
+    regardless of outcome.
+    It is CURRENT-STATE ASSURANCE ONLY: its results describe the
+    present persistent delivery state, cannot prove whether the
+    delivery RPC was ever invoked, and cannot and do not
+    retroactively close the historical post-COMMIT observation
     gaps, which remain recorded exactly as closed out. It permits
     no write of any kind, no delivery, no revocation, no restore,
     no environment or delivery-variable change, no S6 activation,
@@ -451,19 +489,29 @@ gap language CROSS-EXTRACTED from the promoted EXLIB-2Z records
 bytes (the exact-string flag read, the null-key fail-closed, the
 FAIL-CLOSED REGION marker, the single RPC call site) and to the
 three entry points (server-side, authenticated-before-initialize,
-unconditional initialize call); the environment-file census (no
-delivery variables anywhere; needles constructed, never carried
-contiguously — this milestone's files must not join the 2T flag
-census's exact carrier set); the automatic-at-scale statement; the
+unconditional initialize call, and — round-1 strengthened — the
+PINNED-BASE proof that the only src occurrence of the actual
+delivery RPC call is the runtime module's single call site); the
+TRACKED environment census at the pinned base (no delivery
+variables in any tracked file; the tracked carrier set exactly the
+four 2T-era files; no reliance on any untracked local file;
+needles constructed, never carried contiguously); the mechanical
+namespace census (every exlib2 letter a-r and t-z carries at least
+one artifact at the base, 2s absent, no exlib3 artifact at the
+base); the automatic-at-scale statement; the
 not-a-secret run-key fact (a committed-file census at the base);
 the rollback/revocation semantics bound to migration bytes
 (per-user deactivate-only versus one-way permanent); the presence
 and framing of options A/B/C, the threat-model items, and the
 OPTION B recommendation with its cannot-close-historical-gaps
-discipline; the section-16 authorization inspected IN ITS OWN
-SLICE, marked PREPARED — NOT ISSUED — DELIBERATELY UNSENT with the
-consumed-by-attempt, exact-counts-only, and full negative-boundary
-language; hygiene; and topology.
+discipline AND — round-1 strengthened — the CURRENT PERSISTENT
+DELIVERY STATE framing (the invocation-history overstatements
+rejected from the factual sections); the section-16 authorization
+inspected IN ITS OWN SLICE, marked PREPARED — NOT ISSUED —
+DELIBERATELY UNSENT with the consumed-by-attempt-regardless-of-
+outcome, exact-once, no-individual-SELECT-re-run,
+exact-counts-only, and full negative-boundary language (the two
+conflicting retry phrasings rejected); hygiene; and topology.
 
 ## 19. Stale-claim sweep and battery reconciliation
 
@@ -499,3 +547,62 @@ milestone (authoring, review, and the section-16 authorization —
 issued only by the operator); and only after measured
 current-state facts, any reconsideration of A or C. S6 activation
 remains STOPPED throughout.
+
+## 21. Correction disclosure (2026-09-08, round 1)
+
+Codex reviewed the round-0 proposal
+548849c02bfe9052596393712e026e7be36ca4d5 and returned CORRECT: the
+architecture, threat model, A/B/C structure, and the OPTION B
+recommendation were ACCEPTED, with three narrow precision defects
+corrected in ONE plain forward commit touching exactly this
+proposal and scripts/verify-exlib3a.ts (the EXLIB-2Z S12 retarget
+was accepted as-is and is byte-unchanged):
+
+- MEASUREMENT SEMANTICS: the round-0 text said "zero delivered
+  rows exist today" would prove no delivery has occurred to date,
+  and framed the unknown as whether ANY delivery has occurred to
+  date. That conflated persistent tenant state with RPC
+  invocation: the delivery function's lawful idempotent, collision,
+  and skip outcomes mean an invocation can leave no new
+  provenance-linked rows. OPTION B now measures the CURRENT
+  PERSISTENT DELIVERY STATE — zero provenance-linked rows means no
+  persistent delivery state exists now under the measured
+  surfaces, never that the RPC was never invoked; nonzero means
+  such state exists now, with no inference about who, when, or by
+  which path. Sections 8, 9, 10, 13, and 16 corrected; the reason
+  for OPTION B is unchanged (know the present persistent delivery
+  state before an automatic at-scale rollout).
+- DURABLE EVIDENCE ONLY: the round-0 text claimed the untracked
+  local env file was inspected clean — not reconstruction-provable
+  from the bundle and unnecessary to the decision. The proposal's
+  environment claims are now limited to TRACKED repository state
+  at the pinned base (the tracked carrier census and the tracked
+  .env.example), with the hosted environment posture stated as NOT
+  observed. X6 now conditions on nothing untracked.
+- ONE-USE CONTRACT: the round-0 draft carried two conflicting
+  rules ("simply re-run" an interrupted query versus
+  consumed-by-attempt). Sections 14 and 16 now carry one
+  fail-closed contract: the reviewed package executes EXACTLY
+  ONCE; the authorization is consumed by the attempt regardless of
+  outcome; any blocked, interrupted, rejected, incomplete, or
+  ambiguous exact result is a recorded gap; no instrument
+  substitution; no manual re-run of an individual SELECT under the
+  spent authorization; a later attempt is a fresh operator
+  decision with fresh review if the bytes differ; the single
+  advisor observation is part of the same capture and permits no
+  remediation.
+
+verify-exlib3a.ts was strengthened COUNT-NEUTRALLY (still exactly
+fourteen checks): X1 performs the namespace census mechanically at
+the pinned base; X4/X5 additionally prove at the base that the
+runtime module's call is the ONLY src occurrence of the delivery
+RPC call; X6 uses tracked/pinned-base evidence only; X11 requires
+the persistent-state framing and rejects the invocation-history
+overstatements from the factual sections; X12 requires the
+exact-once/no-re-run contract and rejects both conflicting retry
+phrasings; X14 pins the round-0-plus-correction topology. Negative
+controls were run and each intended check failed on the
+reintroduced defect. No hosted contact, no measurement, no
+delivery, no revocation, no S6 action, no push, and no tag
+occurred in this correction; OPTION B remains recommended, its
+authorization remains UNSENT, and S6 remains STOPPED.

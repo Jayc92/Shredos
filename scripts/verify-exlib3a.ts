@@ -7,7 +7,7 @@
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
-import { existsSync, readFileSync } from 'fs'
+import { readFileSync } from 'fs'
 
 let passed = 0
 let failed = 0
@@ -51,14 +51,20 @@ const sec = (a: string, b: string): string => {
 
 console.log('EXLIB-3A S6 delivery-configuration governance proposal verification (LOCAL-ONLY; DISCOVERY AND PROPOSAL ONLY; nothing enabled anywhere)')
 
-check('X1: the durable starting point is exact and the identifier is lawful — the stable tag object peels to the EXLIB-2Z closeout tip named in the proposal, and the exlib3 namespace contains ONLY this milestone\'s artifacts (the exlib2 letters are exhausted with 2s reserved)',
+check('X1: the durable starting point is exact and the identifier is lawful BY MECHANICAL CENSUS (round-1 strengthened) — the stable tag object peels to the EXLIB-2Z closeout tip named in the proposal; at the PINNED BASE every exlib2 letter a-r and t-z carries at least one docs artifact, exlib2s is absent/reserved, and NO exlib3 artifact existed; the live tree\'s exlib3 namespace contains ONLY this milestone\'s proposal',
   (() => {
     try {
       if (execSync(`git rev-parse refs/tags/${TAG}`, { encoding: 'utf8' }).trim() !== TAG_OBJ) return false
       if (execSync(`git rev-parse 'refs/tags/${TAG}^{}'`, { encoding: 'utf8', shell: '/bin/bash' }).trim() !== BASE) return false
+      const docsAtBase = execSync(`git ls-tree --name-only ${BASE} docs/`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean)
+      for (const l of 'abcdefghijklmnopqrstuvwxyz') {
+        const present = docsAtBase.some((p) => p.startsWith(`docs/exlib2${l}`))
+        if (l === 's') { if (present) return false } else if (!present) return false
+      }
+      if (docsAtBase.some((p) => p.startsWith('docs/exlib3'))) return false
       const ex3 = execSync("ls docs | grep '^exlib3' || true", { encoding: 'utf8' }).split('\n').filter(Boolean)
       if (JSON.stringify(ex3) !== JSON.stringify(['exlib3a-s6-delivery-configuration-proposal.md'])) return false
-      if (execSync("ls docs | grep -c '^exlib2s' || true", { encoding: 'utf8' }).trim() !== '0') return false
       return propFlat.includes(BASE) && propFlat.includes(TAG) && propFlat.includes('2s reserved/forbidden')
     } catch { return false }
   })())
@@ -104,17 +110,20 @@ check('X5: the three entry points are exactly as claimed — each imports and ca
     const importers = execSync("grep -rl 'deliver-catalog' src --include='*.ts' --include='*.tsx' | sort", { encoding: 'utf8' })
       .split('\n').filter(Boolean).filter((p) => p !== MODULE).sort()
     if (JSON.stringify(importers) !== JSON.stringify([...ENTRY_POINTS].sort())) return false
+    // round-1 strengthened: at the PINNED BASE, the ONLY src
+    // occurrence of the actual delivery RPC call is the runtime
+    // module's single call site — no second direct call exists
+    const rpcCarriers = execSync(`git grep -l 'rpc("deliver_catalog_exercises"' ${BASE} -- src | sed 's|^${BASE}:||' | sort`, { encoding: 'utf8', shell: '/bin/bash' })
+      .split('\n').filter(Boolean).sort()
+    if (JSON.stringify(rpcCarriers) !== JSON.stringify([MODULE])) return false
     return propFlat.includes('THREE entry points call initializeExercisesIfNeeded')
       && propFlat.includes('authenticates FIRST')
   })())
-check('X6: the no-enablement census holds and THIS milestone does not join the flag-variable carrier set — the environment files carry no delivery variable names, the repository-wide contiguous-flag-name carriers remain EXACTLY the four 2T-era files, and neither of this milestone\'s files carries either variable name contiguously',
+check('X6: the no-enablement census holds on TRACKED/PINNED-BASE evidence only (round-1 strengthened: nothing untracked is consulted) — the tracked environment template at the base carries no delivery variable names, the TRACKED contiguous-flag-name carriers at the base are EXACTLY the four 2T-era files, and neither of this milestone\'s files carries either variable name contiguously',
   (() => {
-    if (read('.env.example').includes(FLAG_VAR) || read('.env.example').includes(KEY_VAR)) return false
-    if (existsSync('.env.local')) {
-      const local = read('.env.local')
-      if (local.includes(FLAG_VAR) || local.includes(KEY_VAR)) return false
-    }
-    const carriers = execSync(`grep -rl '${FLAG_VAR}' --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next . | sed 's|^\\./||' | sort`, { encoding: 'utf8', shell: '/bin/bash' })
+    const envExample = execSync(`git show ${BASE}:.env.example`, { encoding: 'utf8' })
+    if (envExample.includes(FLAG_VAR) || envExample.includes(KEY_VAR)) return false
+    const carriers = execSync(`git grep -l '${FLAG_VAR}' ${BASE} | sed 's|^${BASE}:||' | sort`, { encoding: 'utf8', shell: '/bin/bash' })
       .split('\n').filter(Boolean).sort()
     const expected = ['docs/exlib2t-delivery-runtime-prep-record.md', MODULE,
       'scripts/verify-exlib2t-runtime.ts', 'scripts/verify-exlib2t.ts'].sort()
@@ -170,28 +179,54 @@ check('X10: options A, B, and C are all present with the mandated threat-model i
     }
     return true
   })())
-check('X11: the recommendation is OPTION B with the framing discipline intact — B is current-state assurance that CANNOT retroactively close the historical gaps, recommended first so A-versus-C is decided on measured present facts; the STOP conditions treat nonzero delivered rows as report-not-repair',
+check('X11: the recommendation is OPTION B with BOTH framing disciplines intact (round-1 strengthened) — B measures the CURRENT PERSISTENT DELIVERY STATE (zero provenance rows means no persistent state now, NEVER proof the RPC was never invoked; nonzero means state exists now with no who/when/path inference), it cannot retroactively close the historical gaps, and the invocation-history overstatements are REJECTED from the factual sections',
   (() => {
     const s9 = sec('## 9.', '## 10.')
     if (!s9.includes('OPTION B first')) return false
     if (!s9.includes('re-decide A versus C with current facts')) return false
+    if (!s9.includes('CURRENT PERSISTENT DELIVERY STATE')) return false
     const s8 = sec('## 8.', '## 9.')
     if (!s8.includes('CANNOT retroactively prove what happened inside the original post-COMMIT interval')) return false
+    if (!s8.includes('does NOT prove the delivery RPC was never invoked')) return false
+    if (!s8.includes('never infer who invoked it, when it occurred, or by which path')) return false
     const s13 = sec('## 13.', '## 14.')
-    return s13.includes('NONZERO delivered rows today: NOT an error to be fixed')
-      && s13.includes('do not attribute a mechanism, do not revoke')
+    if (!s13.includes('NONZERO provenance-linked rows today: NOT an error to be fixed')) return false
+    if (!s13.includes('never infer who invoked it, when it occurred')) return false
+    // the rejected invocation-history overstatements must be ABSENT
+    // from the factual sections (the lifecycle and disclosure
+    // sections may describe or quote them)
+    const factual = norm(prop.slice(0, prop.indexOf('## 18.')))
+    if (factual.includes('prove no delivery has occurred to date')) return false
+    if (factual.includes('ANY delivery has occurred to date')) return false
+    return true
   })())
-check('X12: the drafted OPTION B authorization is PREPARED AND UNSENT, inspected in its own section slice — spent-check first, read-only, exact counts only (never estimate-backed metadata as a substitute), consumed by the attempt, the cannot-close-gaps statement inside the authorization text itself, and the full negative boundary',
+check('X12: the drafted OPTION B authorization carries the UNAMBIGUOUS exact-once contract (round-1 strengthened), inspected in its own section slice — PREPARED AND UNSENT; spent-check first; read-only; executed EXACTLY ONCE; consumed by the attempt regardless of outcome; any blocked/incomplete exact result is a recorded gap with NO instrument substitution and NO manual re-run of an individual SELECT under the spent authorization; the advisor observation is one read-only capture permitting no remediation; the conflicting retry phrasings are REJECTED from the factual sections; and the full negative boundary stands',
   (() => {
+    const s14 = sec('## 14.', '## 15.')
+    if (!s14.includes('executed EXACTLY ONCE')) return false
+    if (!s14.includes('consumed by that attempt regardless of outcome')) return false
+    if (!s14.includes('record the unavailable measurement as a gap')) return false
+    if (!s14.includes('Do NOT manually re-run an individual SELECT')) return false
     const s16 = sec('## 16.', '## 17.')
-    return s16.includes('PREPARED — NOT ISSUED — DELIBERATELY UNSENT')
-      && s16.includes('Claude never issues authorizations')
-      && s16.includes('spent-check FIRST')
-      && s16.includes('read-only')
-      && s16.includes('never estimate-backed metadata as a substitute')
-      && s16.includes('This authorization is ONE-USE and is consumed by the attempt')
-      && s16.includes('cannot and do not retroactively close the historical post-COMMIT observation gaps')
-      && s16.includes('no write of any kind, no delivery, no revocation, no restore, no environment or delivery-variable change, no S6 activation, no EXLIB-2S work, no Git push or tag, and no manual Vercel action')
+    if (!s16.includes('PREPARED — NOT ISSUED — DELIBERATELY UNSENT')) return false
+    if (!s16.includes('Claude never issues authorizations')) return false
+    if (!s16.includes('spent-check FIRST')) return false
+    if (!s16.includes('read-only')) return false
+    if (!s16.includes('execute it EXACTLY ONCE')) return false
+    if (!s16.includes('never estimate-backed metadata as a substitute')) return false
+    if (!s16.includes('do NOT manually re-run an individual SELECT')) return false
+    if (!s16.includes('a fresh operator decision and, if its bytes differ, fresh review')) return false
+    if (!s16.includes('consumed by the attempt regardless of outcome')) return false
+    if (!s16.includes('permits no advisor remediation')) return false
+    if (!s16.includes('cannot prove whether the delivery RPC was ever invoked')) return false
+    if (!s16.includes('cannot and do not retroactively close the historical post-COMMIT observation gaps')) return false
+    if (!s16.includes('no write of any kind, no delivery, no revocation, no restore, no environment or delivery-variable change, no S6 activation, no EXLIB-2S work, no Git push or tag, and no manual Vercel action')) return false
+    // the two conflicting retry phrasings must be ABSENT from the
+    // factual sections (the disclosure may quote them)
+    const factual = norm(prop.slice(0, prop.indexOf('## 18.')))
+    if (factual.includes('simply re-run')) return false
+    if (factual.includes('re-running a read-only query')) return false
+    return true
   })())
 check('X13: the milestone boundary and hygiene hold — section 17 lists every prohibited act with S6 remaining STOPPED, the proposal\'s non-ASCII is the em-dash only, and no phase file carries hosted endpoints or credential material',
   (() => {
@@ -216,12 +251,15 @@ const committed = CHANGED.length === 0
 // out and a successor commit exists, this HEAD-relative check goes
 // stale by design and gets the standard labeled retarget.
 if (committed) {
-  check('X14: topology and retarget coverage — ONE plain forward proposal commit over the durable EXLIB-2Z base (single parent 5ed6fd84...) carrying exactly this proposal and this verifier plus ONLY the labeled S12 retarget, and verify-exlib2z-application.ts carries the RETARGET (EXLIB-3A S6 delivery governance) label anchored at the durable tip with its twelve checks intact',
+  check('X14: topology and retarget coverage — the preserved round-0 proposal commit plus ONE plain forward round-1 correction over the durable EXLIB-2Z base (single-parent chain 5ed6fd84 -> 548849c0 -> correction), the CUMULATIVE diff carrying exactly this proposal and this verifier plus ONLY the labeled S12 retarget, the correction touching ONLY this proposal and this verifier, and verify-exlib2z-application.ts carrying the RETARGET (EXLIB-3A S6 delivery governance) label anchored at the durable tip with its twelve checks intact',
     (() => {
       try {
-        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        const R0 = '548849c02bfe9052596393712e026e7be36ca4d5'
+        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
         const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== BASE) return false
+        if (p1.length !== 2 || p1[1] !== R0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== BASE) return false
         const status = execSync(`git diff --name-status ${BASE} HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
@@ -229,6 +267,10 @@ if (committed) {
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${R0} HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [PROPOSAL, VERIFIER].sort().map((p) => `M\t${p}`)
+        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const zapp = read('scripts/verify-exlib2z-application.ts')
         if (!zapp.includes('RETARGET (EXLIB-3A S6 delivery governance)')) return false
         if (!zapp.includes(`const DTIP = '${BASE}'`)) return false
