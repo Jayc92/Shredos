@@ -274,49 +274,45 @@ check('S11: boundary and hygiene — the full negative boundary is stated (one a
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is
-// closed out and a successor commit exists, this HEAD-relative
-// check goes stale by design and gets the standard labeled
-// retarget, anchored at this phase's own promoted tip.
-if (committed) {
-  check('S12: topology and retarget coverage — the preserved round-0 evidence commit plus the preserved round-1 correction plus ONE plain forward round-2 correction over the candidate tip (single-parent chain 3969a98f -> be9b94aa -> 8caf777f -> correction), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, each correction touching ONLY this record and this verifier, and verify-exlib2z.ts carrying the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
-    (() => {
-      try {
-        const EV0 = 'be9b94aa999e4a4a4e155c4745b77c07315f6934'
-        const R1 = '8caf777fd0b57d614941755b5dd0cb2cf43f3c03'
-        if (execSync(`git rev-list --count ${TIP2Z}..HEAD`, { encoding: 'utf8' }).trim() !== '3') return false
-        const p2 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p2.length !== 2 || p2[1] !== R1) return false
-        const p1 = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== EV0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== TIP2Z) return false
-        const status = execSync(`git diff --name-status ${TIP2Z} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${R1} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
-        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const z = read('scripts/verify-exlib2z.ts')
-        if (!z.includes('RETARGET (EXLIB-2Z hosted-application evidence)')) return false
-        if (!z.includes(`const TIP2Z = '${TIP2Z}'`)) return false
-        return (z.match(/^check\(/gm) || []).length === 16
-      } catch { return false }
-    })())
-} else {
-  check('S12 (uncommitted authoring state): every worktree change lies inside the two phase paths plus the labeled retargeted suite, which carries the RETARGET (EXLIB-2Z hosted-application evidence) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
-    && read('scripts/verify-exlib2z.ts').includes('RETARGET (EXLIB-2Z hosted-application evidence)'))
-}
+// RETARGET (EXLIB-3A S6 delivery governance): this evidence phase
+// COMPLETED — round-2 was Codex-APPROVED and the operator's one-use
+// closeout authorization was consumed, promoting the whole chain to
+// main under the stable tag — so the topology claims are anchored
+// at the phase's own durably closed tip, where they held and hold
+// forever; the HEAD-relative form (and its uncommitted authoring
+// branch) went stale at the first successor commit, the same
+// completed-phase pattern as every predecessor (twelfth instance).
+// Count-neutral: the suite still reports twelve checks.
+const DTIP = '5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8'
+check('S12: topology and retarget coverage (anchored at the durably closed tip) — the preserved round-0 evidence commit plus the preserved round-1 correction plus the round-2 correction over the candidate tip (single-parent chain 3969a98f -> be9b94aa -> 8caf777f -> 5ed6fd84, the stable-tagged EXLIB-2Z closeout), the CUMULATIVE diff carrying exactly this record and this verifier plus ONLY the labeled Z16 retarget, the round-2 correction touching ONLY this record and this verifier, and verify-exlib2z.ts carrying the RETARGET (EXLIB-2Z hosted-application evidence) label anchored at the candidate tip with its sixteen checks intact',
+  (() => {
+    try {
+      const EV0 = 'be9b94aa999e4a4a4e155c4745b77c07315f6934'
+      const R1 = '8caf777fd0b57d614941755b5dd0cb2cf43f3c03'
+      if (execSync(`git rev-list --count ${TIP2Z}..${DTIP}`, { encoding: 'utf8' }).trim() !== '3') return false
+      const p2 = execSync(`git rev-list --parents -n 1 ${DTIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p2.length !== 2 || p2[1] !== R1) return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${R1}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== EV0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${EV0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== TIP2Z) return false
+      const status = execSync(`git diff --name-status ${TIP2Z} ${DTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${R1} ${DTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [RECORD, VERIFIER].sort().map((p) => `M\t${p}`)
+      if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
+      const z = read('scripts/verify-exlib2z.ts')
+      if (!z.includes('RETARGET (EXLIB-2Z hosted-application evidence)')) return false
+      if (!z.includes(`const TIP2Z = '${TIP2Z}'`)) return false
+      return (z.match(/^check\(/gm) || []).length === 16
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
