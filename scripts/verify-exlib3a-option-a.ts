@@ -290,45 +290,46 @@ check('A15: hygiene — both documents\' non-ASCII is the em-dash only, and no p
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
 const P0 = '5d286889c7a6f9a5b663d92d61073d7207464736'
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${ETIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is closed
-// out and a successor commit exists, this HEAD-relative check goes
-// stale by design and gets the standard labeled retarget.
-if (committed) {
-  check('A16: topology — the preserved round-0 preparation commit plus ONE plain forward round-1 correction over the accepted Option-B evidence tip (single-parent chain d4703187 -> 5d286889 -> correction), the CUMULATIVE diff carrying exactly the runbook, the preparation record, and this verifier plus ONLY the accepted labeled V12 retarget, the correction touching ONLY the three authorized Option-A paths (the retargeted predecessor suite byte-unchanged in round 1), and verify-exlib3a-option-b-application.ts carrying the RETARGET (EXLIB-3A OPTION A activation preparation) label anchored at the evidence tip with its twelve checks intact',
-    (() => {
-      try {
-        if (execSync(`git rev-list --count ${ETIP}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== P0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${P0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== ETIP) return false
-        const status = execSync(`git diff --name-status ${ETIP} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${P0} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
-        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const v = read('scripts/verify-exlib3a-option-b-application.ts')
-        if (!v.includes('RETARGET (EXLIB-3A OPTION A activation preparation)')) return false
-        if (!v.includes(`const ETIP = '${ETIP}'`)) return false
-        return (v.match(/^check\(/gm) || []).length === 12
-      } catch { return false }
-    })())
-} else {
-  check('A16 (uncommitted authoring state): every worktree change lies inside the three authorized Option-A phase paths (the accepted V12 retarget byte-unchanged), and the retargeted suite carries the RETARGET (EXLIB-3A OPTION A activation preparation) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p))
-    && read('scripts/verify-exlib3a-option-b-application.ts').includes('RETARGET (EXLIB-3A OPTION A activation preparation)'))
-}
+// A16 RETARGET (EXLIB-3A OPTION A hosted-activation evidence): this
+// suite's original HEAD-relative completed-phase topology (committed
+// branch pinned exactly two commits over the accepted Option-B
+// evidence tip with HEAD's parent the round-0 preparation commit;
+// uncommitted branch described this preparation milestone's own
+// authoring worktree) went stale at the hosted-activation evidence
+// milestone's own commit, the same completed-phase pattern as every
+// predecessor (sixteenth instance). Retargeted to anchor at this
+// phase's own reviewed candidate, where the chain, the cumulative
+// inventory, and the correction's three-path scope hold forever, and
+// where the retargeted predecessor suite is read from the anchored
+// blob rather than the worktree. Count-neutral: the suite still
+// reports sixteen checks.
+const PTIP = '73a2bc8c44c6260c096517e66090014f6af8ebc0'
+check('A16: topology and retarget coverage (anchored at the reviewed corrected candidate 73a2bc8c...) — the round-0 preparation commit plus ONE plain forward round-1 correction over the accepted Option-B evidence tip (single-parent chain d4703187 -> 5d286889 -> 73a2bc8c), the CUMULATIVE diff carrying exactly the runbook, the preparation record, and this verifier plus ONLY the accepted labeled V12 retarget, the correction touching ONLY the three authorized Option-A paths (the retargeted predecessor suite byte-unchanged in round 1), and verify-exlib3a-option-b-application.ts AT THE ANCHOR carrying the RETARGET (EXLIB-3A OPTION A activation preparation) label anchored at the evidence tip with its twelve checks intact',
+  (() => {
+    try {
+      if (execSync(`git rev-list --count ${ETIP}..${PTIP}`, { encoding: 'utf8' }).trim() !== '2') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${PTIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== P0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${P0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== ETIP) return false
+      const status = execSync(`git diff --name-status ${ETIP} ${PTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${P0} ${PTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
+      if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
+      const v = execSync(`git show ${PTIP}:scripts/verify-exlib3a-option-b-application.ts`, { encoding: 'utf8' })
+      if (!v.includes('RETARGET (EXLIB-3A OPTION A activation preparation)')) return false
+      if (!v.includes(`const ETIP = '${ETIP}'`)) return false
+      return (v.match(/^check\(/gm) || []).length === 12
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
