@@ -1,12 +1,16 @@
 // EXLIB-3A OPTION A verification (LOCAL-ONLY): the controlled S6
 // activation package — the exact future protected act bound to
-// repository bytes, the inherited Option-B evidence, and the
-// drafted-unsent authorization. Performs NO hosted contact and
-// activates nothing.
+// repository bytes, the inherited Option-B evidence, and the TWO
+// drafted-unsent one-use grants (round-1 corrected: unobserved
+// Preview/Development database posture, preflight-before-
+// authorization chronology, observable-state evidence semantics,
+// the A/M grant split, and the pinned runbook fingerprint).
+// Performs NO hosted contact and activates nothing.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
 import { readFileSync } from 'fs'
+import { createHash } from 'crypto'
 
 let passed = 0
 let failed = 0
@@ -40,7 +44,7 @@ const sec = (a: string, b: string): string => {
   return norm(rb.slice(s < 0 ? 0 : s, e < 0 ? rb.length : e))
 }
 
-console.log('EXLIB-3A OPTION A activation-package verification (LOCAL-ONLY; PREPARATION ONLY; S6 STOPPED; the section-12 authorization is UNSENT)')
+console.log('EXLIB-3A OPTION A activation-package verification (LOCAL-ONLY; PREPARATION ONLY; S6 STOPPED; both section-12 grants — AUTHORIZATION A and AUTHORIZATION M — are UNSENT)')
 
 check('A1: the inherited Option-B baseline is CROSS-EXTRACTED from the promoted evidence-record bytes — the zero provenance surfaces, the sealed posture, the surrogate, the vector, tenants, predicate, and claims all appear in the runbook exactly as the evidence record preserves them, with the SPENT and historical-gap statements intact',
   (() => {
@@ -80,14 +84,22 @@ check('A3: the intended values are exact — the enablement value exactly true (
       && s1.includes(`INTENDED VALUE, exact: ${RUN_KEY}`)
       && s1.includes('No other variable, secret, or hosted configuration of any kind is part of the act')
   })())
-check('A4: the environment scope is PRODUCTION ONLY — Preview and Development receive nothing, accidental multi-environment propagation is prohibited, and the preview-canary shortcut is prohibited WITH the grounded reason (every environment targets the same hosted project, so a preview canary would act on the production sealed run)',
+check('A4: the environment scope is PRODUCTION ONLY and the Preview/Development database posture is honestly UNOBSERVED — repository bytes prove the variable family and code path only, the hosted per-environment values are platform facts unobserved until the read-only preflight, isolation CANNOT BE ASSUMED in either direction, a non-production canary is NOT AUTHORIZED (and even later-proven isolation would not expand this authorization), multi-environment propagation is prohibited, and NO unobserved same-project assertion survives in either document',
   (() => {
     const s2 = sec('## 2.', '## 3.')
-    return s2.includes('PRODUCTION environment of the hosted Vercel project ONLY')
-      && s2.includes('Preview and Development receive NO activation variables')
-      && s2.includes('ACCIDENTAL MULTI-ENVIRONMENT PROPAGATION IS PROHIBITED')
-      && s2.includes('SAME hosted Supabase project')
-      && s2.includes('PROHIBITED as an activation shortcut')
+    if (!s2.includes('PRODUCTION environment of the hosted Vercel project ONLY')) return false
+    if (!s2.includes('Preview and Development receive NO activation variables')) return false
+    if (!s2.includes('PREVIEW/DEVELOPMENT DATABASE POSTURE IS UNOBSERVED')) return false
+    if (!s2.includes('UNOBSERVED until the read-only Vercel preflight')) return false
+    if (!s2.includes('CANNOT BE ASSUMED')) return false
+    if (!s2.includes('NOT AUTHORIZED as an activation shortcut')) return false
+    if (!s2.includes('does NOT expand this Production-only authorization')) return false
+    if (!s2.includes('separate governance decision')) return false
+    if (!s2.includes('ACCIDENTAL MULTI-ENVIRONMENT PROPAGATION IS PROHIBITED')) return false
+    const both = rbFlat + ' ' + norm(read(PREP))
+    return !both.includes('targets the SAME hosted Supabase project')
+      && !both.includes('same production database')
+      && !both.includes('targets the same hosted Supabase project')
   })())
 check('A5: the three fact classes are kept distinct — repository-proven facts, platform-operational facts assigned to a future READ-ONLY operator preflight (all six mandated observations named; no toolchain encodes it, so the operator gathers them), and the protected mutation acts; and NO Vercel contact occurs in this milestone',
   (() => {
@@ -98,6 +110,7 @@ check('A5: the three fact classes are kept distinct — repository-proven facts,
     if (!s3.includes('no Vercel contact occurs in this milestone')) return false
     if (!s3.includes('no toolchain in this repository encodes a deterministic Vercel preflight')) return false
     for (const item of ['project identity', 'CURRENT presence/values', 'Preview/Development posture',
+      'database-target posture', 'never secret values',
       'requires a redeploy or automatically causes one', 'currently promoted Production deployment',
       'deployment event that will carry activation']) {
       if (!s3.includes(item)) return false
@@ -118,7 +131,7 @@ check('A6: the activation ordering is key-first and grounded — run key staged 
     return !rbFlat.includes('flag first, then the run key')
       && !rbFlat.includes('enablement flag first')
   })())
-check('A7: the blast radius is accepted honestly — the at-scale automatic consequence is stated prominently, the canary determination reads NO EXISTING APPLICATION-LEVEL SINGLE-TENANT CANARY (grounded: no allowlist/flag/gating in src beyond the two unrelated field-validation hits), creating canary architecture is declared out of scope, and no single-user framing appears',
+check('A7: the blast radius is accepted honestly and the canary census is pinned by PATH AND CONTENT — the at-scale automatic consequence is stated prominently, the determination reads NO EXISTING APPLICATION-LEVEL SINGLE-TENANT CANARY, the repository-wide tenant-gating search returns exactly the two known unrelated PATCH field-validation comment lines (so converting a hit into a real tenant/feature gate fails even at an unchanged count), the non-production-canary path is closed by the unobserved-isolation rule, creating canary architecture is out of scope, and no single-user framing appears',
   (() => {
     const s5 = sec('## 5.', '## 6.')
     if (!s5.includes('EVERY AUTHENTICATED USER\'S NEXT QUALIFYING REQUEST')) return false
@@ -126,21 +139,38 @@ check('A7: the blast radius is accepted honestly — the at-scale automatic cons
     if (!s5.includes('NO EXISTING APPLICATION-LEVEL SINGLE-TENANT CANARY')) return false
     if (!s5.includes('Creating canary architecture is out of scope')) return false
     if (!s5.includes('EXPLICITLY ACCEPT the at-scale rollout')) return false
+    if (!s5.includes('database isolation unobserved')) return false
     if (rbFlat.includes('delivers to a single user')) return false
-    const hits = execSync("grep -rniE 'allowlist|allow_list|featureflag|feature_flag|canary' src --include='*.ts' --include='*.tsx' | wc -l", { encoding: 'utf8', shell: '/bin/bash' }).trim()
-    return hits === '2'
+    const hits = execSync("grep -riE 'allowlist|allow_list|featureflag|feature_flag|canary' src --include='*.ts' --include='*.tsx' || true", { encoding: 'utf8', shell: '/bin/bash' })
+      .split('\n').filter(Boolean).map((l) => norm(l).trim()).sort()
+    const expected = [
+      'src/app/api/routine-exercises/[id]/route.ts:// enforces a strict prescription/notes allowlist (exactly the fields',
+      'src/app/api/workout-exercises/[id]/route.ts:// enforces a strict prescription/annotation allowlist: unknown keys',
+    ].sort()
+    return JSON.stringify(hits) === JSON.stringify(expected)
   })())
-check('A8: the post-activation observation plan distinguishes the THREE states (activated-not-triggered / activated-and-triggered / ineffective-or-failing-closed) and names the exact instruments — the deployment-identity comparison, the variable presence proofs without unrelated secrets, the REUSED reviewed Option-B measurement package under a NEW one-use authorization, the fail-closed log evidence, and the run-posture re-read',
+check('A8: the post-activation plan claims only what instruments observe — the three OBSERVABLE states (CONFIG LIVE with NO persistent delivery state, CONFIG LIVE with persistent delivery state, INEFFECTIVE/FAILING CLOSED); zero counts are never translated into request history, nonzero persistent state is never attributed to a mechanism (standing direct RPC remains a competing writer), the telemetry limit is stated AND checked against the module bytes (exactly one console call, the fail-closed error), and every observation runs only under AUTHORIZATION M after state A4',
   (() => {
     const s6 = sec('## 6.', '## 7.')
-    return s6.includes('ACTIVATED, NOT YET TRIGGERED')
-      && s6.includes('ACTIVATED AND TRIGGERED')
-      && s6.includes('ACTIVATION INEFFECTIVE OR FAILING CLOSED')
-      && s6.includes('RE-USE the reviewed Option-B measurement package')
-      && s6.includes('NEW one-use read-only')
-      && s6.includes('without exposing any unrelated secret')
-      && s6.includes('fail-closed log lines')
-      && s6.includes('compared to the section 3.B.5 pre-activation identity')
+    if (!s6.includes('ACTIVATION CONFIG LIVE / NO PERSISTENT DELIVERY STATE OBSERVED')) return false
+    if (!s6.includes('ACTIVATION CONFIG LIVE / PERSISTENT DELIVERY STATE OBSERVED')) return false
+    if (!s6.includes('ACTIVATION INEFFECTIVE OR FAILING CLOSED')) return false
+    if (!s6.includes('NO claim is made about whether a qualifying request occurred')) return false
+    if (!s6.includes('NEVER inferred from persistent state alone')) return false
+    if (!s6.includes('competing possible mechanism')) return false
+    if (!s6.includes('NO success-telemetry line')) return false
+    if (!mod.includes('console.error(`deliverCatalog failed closed')) return false
+    if ((mod.match(/console\./g) || []).length !== 1) return false
+    if (!s6.includes('executed only under AUTHORIZATION M')) return false
+    if (!s6.includes('only after state A4')) return false
+    if (!s6.includes('RE-USE the reviewed Option-B measurement package')) return false
+    if (!s6.includes('without exposing any unrelated secret')) return false
+    if (!s6.includes('fail-closed log lines')) return false
+    if (!s6.includes('compared to the section 3.B.5 pre-activation identity')) return false
+    const both = rbFlat + ' ' + norm(read(PREP))
+    return !both.includes('no qualifying request has arrived')
+      && !both.includes('by the activation timeline')
+      && !both.includes('attributable in aggregate to the app path')
   })())
 check('A9: the STOP matrix is complete across all three phases with the STOP semantics — pre-activation (baseline moved, revoked run, key mismatch, project ambiguity, existing values, scope ambiguity, unprovable ordering, fingerprint mismatch, spent authorization), during (key/flag/deploy failures and ambiguity, wrong environment), post (initialization errors, unexpected counts/posture/claims/corrections, indistinguishable effect), and STOP means report-only with no unrelated repair and no revocation or restore',
   (() => {
@@ -180,43 +210,71 @@ check('A11: the direct-RPC posture is unchanged and truthfully framed — activa
     return !rbFlat.includes('creates direct-RPC reachability')
       && !rbFlat.includes('creates the direct-RPC reachability')
   })())
-check('A12: the drafted authorization is inspected IN ITS OWN SLICE and is UNSENT — PREPARED — NOT ISSUED — DELIBERATELY UNSENT with the must-not-authorize-itself statement; it binds the commit, the at-the-gate fingerprint, the preflight-established project identity, Production-only scope, both fragment-named variables and exact values, the key-first order, the deployment act, the EXPLICIT at-scale acceptance, the observation protocol, one-use consumed-by-attempt, the ambiguity rule, the bounded flag-OFF rollback scope with database acts excluded, and the full negative boundary',
+check('A12: TWO distinct one-use grants inspected IN THEIR OWN SLICE, both UNSENT — AUTHORIZATION A (production activation, consumed by the activation attempt) and AUTHORIZATION M (post-activation read-only measurement, independently consumed by the observation attempt, usable only after state A4, spent states never merged, not an investigation license); A binds the corrected commit + the runbook SHA-256 pinned in the committed prep record (recomputed here from bytes) + the preflight project identity, and carries the exact act, order, at-scale acceptance, bounded rollback, and negative boundary; neither grant can authorize itself',
   (() => {
     const s12 = sec('## 12.', '## 13.')
-    return s12.includes('PREPARED — NOT ISSUED —')
-      && s12.includes('it must not authorize itself')
-      && s12.includes('Claude never issues authorizations')
-      && s12.includes('binds the activation-package commit')
-      && s12.includes('re-measured at the gate')
-      && s12.includes('PROJECT IDENTITY — from the completed read-only preflight')
-      && s12.includes('PRODUCTION environment ONLY')
-      && s12.includes('CATALOG + _DELIVERY + _RUN_KEY')
-      && s12.includes('CATALOG + _DELIVERY + _ENABLED')
-      && s12.includes(RUN_KEY)
-      && s12.includes('in that order, never flag-first, never half-staged')
-      && s12.includes('I EXPLICITLY ACCEPT')
-      && s12.includes('at-scale rollout with no application-level single-tenant canary')
-      && s12.includes('ONE-USE, consumed by the attempt regardless of outcome')
-      && s12.includes('do not retry blind')
-      && s12.includes('bounded emergency flag-OFF rollback (mechanism 1)')
-      && s12.includes('database rollback, revocation, and restore are NOT authorized')
-      && s12.includes('no Supabase mutation, no delivery call by the operator, no revocation, no restore, no Preview/Development change, no other variable or setting, no EXLIB-2S work, and no Git push or tag')
+    if (!s12.includes('AUTHORIZATION A — PRODUCTION ACTIVATION (PREPARED — NOT ISSUED —')) return false
+    if (!s12.includes('AUTHORIZATION M — POST-ACTIVATION READ-ONLY MEASUREMENT (PREPARED — NOT ISSUED —')) return false
+    if (!s12.includes('spent states are never merged')) return false
+    if (!s12.includes('ONE-USE, consumed by the activation attempt regardless of outcome')) return false
+    if (!s12.includes('independently ONE-USE, consumed by the observation attempt regardless of outcome')) return false
+    if (!s12.includes('usable ONLY after state A4')) return false
+    if (!s12.includes('MUST NOT be used merely to investigate')) return false
+    if (!s12.includes('neither grant can authorize itself')) return false
+    if (!s12.includes('Claude never issues authorizations')) return false
+    if (!s12.includes('binds the activation-package commit')) return false
+    if (!s12.includes('[RUNBOOK SHA-256 — the exact value pinned in the committed preparation record]')) return false
+    if (!s12.includes('re-measured at the gate')) return false
+    if (!s12.includes('PROJECT IDENTITY — from the completed read-only preflight')) return false
+    if (!s12.includes('PRODUCTION environment ONLY')) return false
+    if (!s12.includes('CATALOG + _DELIVERY + _RUN_KEY')) return false
+    if (!s12.includes('CATALOG + _DELIVERY + _ENABLED')) return false
+    if (!s12.includes(RUN_KEY)) return false
+    if (!s12.includes('in that order, never flag-first, never half-staged')) return false
+    if (!s12.includes('I EXPLICITLY ACCEPT')) return false
+    if (!s12.includes('at-scale rollout with no application-level single-tenant canary')) return false
+    if (!s12.includes('do not retry blind')) return false
+    if (!s12.includes('bounded emergency flag-OFF rollback (mechanism 1)')) return false
+    if (!s12.includes('database rollback, revocation, and restore are NOT authorized')) return false
+    if (!s12.includes('captured only under Authorization M')) return false
+    if (!s12.includes('no Supabase mutation, no delivery call by the operator, no revocation, no restore, no Preview/Development change, no other variable or setting, no EXLIB-2S work, and no Git push or tag')) return false
+    if (!s12.includes('no configuration change, no deployment, no delivery call, no revocation, no restore')) return false
+    const rbBuf = readFileSync(RUNBOOK)
+    const rbSha = createHash('sha256').update(rbBuf).digest('hex')
+    const prep = read(PREP)
+    return prep.includes(rbSha) && prep.includes(`${rbBuf.length} bytes`)
   })())
-check('A13: the state machine is explicit and gated — all nine labels (A0-A6, F1, F2) present, every transition requires its named gate, no state entered implicitly, and the failure branch ends in STOP with everything further a new human decision',
+check('A13: the state-machine chronology is correct and mechanically enforced — A0 claims NO hosted variable posture (UNOBSERVED; no absent-everywhere or OFF-everywhere claim), A1 completes the read-only preflight with BOTH grants still UNISSUED, A2 is entered only after AUTHORIZATION A is issued and unspent, A5 runs under AUTHORIZATION M, all nine labels present, no implicit transitions, and the failure branch ends in a new human decision',
   (() => {
     const s10 = sec('## 10.', '## 11.')
     for (const st of ['A0 —', 'A1 —', 'A2 —', 'A3 —', 'A4 —', 'A5 —', 'A6 —', 'F1 —', 'F2 —']) {
       if (!s10.includes(st)) return false
     }
+    const block = (a: string, b: string): string => s10.slice(s10.indexOf(a), s10.indexOf(b))
+    const a0 = block('A0 —', 'A1 —')
+    const a1 = block('A1 —', 'A2 —')
+    const a2 = block('A2 —', 'A3 —')
+    const a5 = block('A5 —', 'A6 —')
+    if (!a0.includes('UNOBSERVED')) return false
+    if (a0.includes('both variables absent')) return false
+    if (a0.includes('OFF everywhere')) return false
+    if (!a1.includes('UNISSUED')) return false
+    if (a1.includes('has been issued')) return false
+    if (!a2.includes('AUTHORIZATION A has been issued and is unspent')) return false
+    if (!a5.includes('AUTHORIZATION M')) return false
+    if (rbFlat.includes('both variables absent. (Now.)')) return false
     return s10.includes('no state is entered implicitly')
       && s10.includes('everything further is a new human decision')
   })())
-check('A14: activation evidence and delivery evidence are never conflated — configuration plus deployment does not itself prove any tenant delivery occurred, delivery is traffic-triggered, and the two evidence families are captured and reported separately',
+check('A14: activation evidence and delivery evidence are never conflated and mechanism is never attributed — configuration plus deployment does not itself prove any tenant delivery occurred, delivery is traffic-triggered, persistent state does not identify its own mechanism (app path and standing direct RPC are both lawful writers), the families are reported separately under the three observable states, and no request-history/invocation-history/mechanism-attribution claim is derived from persistent state alone',
   (() => {
     const s11 = sec('## 11.', '## 12.')
     return s11.includes('does NOT itself prove any tenant delivery occurred')
       && s11.includes('traffic-triggered')
       && s11.includes('SEPARATELY')
+      && s11.includes('both lawful writers')
+      && s11.includes('three observable states of section 6')
+      && s11.includes('derived from persistent state alone')
   })())
 check('A15: hygiene — both documents\' non-ASCII is the em-dash only, and no phase file carries hosted endpoints, credential material, or a contiguous delivery-variable name',
   (() => {
@@ -234,18 +292,21 @@ check('A15: hygiene — both documents\' non-ASCII is the em-dash only, and no p
   })())
 const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
 const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
+const P0 = '5d286889c7a6f9a5b663d92d61073d7207464736'
 const committed = CHANGED.length === 0
   && execSync(`git rev-list --count ${ETIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
 // Completed-phase note for the future: once this milestone is closed
 // out and a successor commit exists, this HEAD-relative check goes
 // stale by design and gets the standard labeled retarget.
 if (committed) {
-  check('A16: topology and retarget coverage — ONE plain forward activation-preparation commit over the accepted Option-B evidence tip (single parent d4703187...) carrying exactly the runbook, the preparation record, and this verifier plus ONLY the labeled V12 retarget, and verify-exlib3a-option-b-application.ts carries the RETARGET (EXLIB-3A OPTION A activation preparation) label anchored at the evidence tip with its twelve checks intact',
+  check('A16: topology — the preserved round-0 preparation commit plus ONE plain forward round-1 correction over the accepted Option-B evidence tip (single-parent chain d4703187 -> 5d286889 -> correction), the CUMULATIVE diff carrying exactly the runbook, the preparation record, and this verifier plus ONLY the accepted labeled V12 retarget, the correction touching ONLY the three authorized Option-A paths (the retargeted predecessor suite byte-unchanged in round 1), and verify-exlib3a-option-b-application.ts carrying the RETARGET (EXLIB-3A OPTION A activation preparation) label anchored at the evidence tip with its twelve checks intact',
     (() => {
       try {
-        if (execSync(`git rev-list --count ${ETIP}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        if (execSync(`git rev-list --count ${ETIP}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
         const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== ETIP) return false
+        if (p1.length !== 2 || p1[1] !== P0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${P0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== ETIP) return false
         const status = execSync(`git diff --name-status ${ETIP} HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
@@ -253,6 +314,10 @@ if (committed) {
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${P0} HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
+        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const v = read('scripts/verify-exlib3a-option-b-application.ts')
         if (!v.includes('RETARGET (EXLIB-3A OPTION A activation preparation)')) return false
         if (!v.includes(`const ETIP = '${ETIP}'`)) return false
@@ -260,8 +325,8 @@ if (committed) {
       } catch { return false }
     })())
 } else {
-  check('A16 (uncommitted authoring state): every worktree change lies inside the three phase paths plus the labeled retargeted suite, which carries the RETARGET (EXLIB-3A OPTION A activation preparation) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
+  check('A16 (uncommitted authoring state): every worktree change lies inside the three authorized Option-A phase paths (the accepted V12 retarget byte-unchanged), and the retargeted suite carries the RETARGET (EXLIB-3A OPTION A activation preparation) label',
+    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p))
     && read('scripts/verify-exlib3a-option-b-application.ts').includes('RETARGET (EXLIB-3A OPTION A activation preparation)'))
 }
 

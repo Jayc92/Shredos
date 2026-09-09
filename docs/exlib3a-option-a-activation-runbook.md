@@ -1,12 +1,17 @@
 # EXLIB-3A OPTION A — controlled S6 activation runbook
 
-Recorded 2026-09-09 (UTC). ACTIVATION-PACKAGE PREPARATION ONLY:
-this runbook defines the exact future protected act; it performs
+Recorded 2026-09-09 (UTC); ROUND-1 CORRECTED under the independent
+Codex review disposition CORRECT (the activation architecture was
+accepted; five precision/sequencing corrections were applied — see
+the preparation record). ACTIVATION-PACKAGE PREPARATION ONLY: this
+runbook defines the exact future protected act; it performs
 nothing. No Vercel contact, no Supabase contact, no environment
 change, no deployment, no delivery, no revocation, no restore, no
-push, no tag. S6 remains STOPPED; the future human authorization of
-section 12 is PREPARED — NOT ISSUED — DELIBERATELY UNSENT and must
-not authorize itself.
+push, no tag. S6 remains STOPPED; the TWO future human
+authorizations of section 12 (AUTHORIZATION A — PRODUCTION
+ACTIVATION; AUTHORIZATION M — POST-ACTIVATION READ-ONLY
+MEASUREMENT) are each PREPARED — NOT ISSUED — DELIBERATELY UNSENT,
+and neither grant can authorize itself.
 
 ## 0. Inherited baseline (the accepted Option-B evidence)
 
@@ -63,18 +68,29 @@ default of 10,000 ms applies).
 The eventual act proposes to modify the PRODUCTION environment of
 the hosted Vercel project ONLY. Preview and Development receive NO
 activation variables: nothing in the repository or roadmap
-justifies them, and — decisively — a Preview or Development
-deployment of this application targets the SAME hosted Supabase
-project (the same sealed run, the same production database), so a
-"preview canary" would be a REAL delivery activation against
-production data wearing a non-production label; it is therefore
-PROHIBITED as an activation shortcut and would need the identical
-authorization. ACCIDENTAL MULTI-ENVIRONMENT PROPAGATION IS
-PROHIBITED: when the platform's variable editor offers to apply a
-variable to multiple environments, the operator must select
-Production alone, and the preflight and post-activation evidence
-must record the Preview/Development posture (expected: the two
-variables ABSENT there).
+justifies them. PREVIEW/DEVELOPMENT DATABASE POSTURE IS UNOBSERVED:
+repository bytes prove only that every environment's build of this
+application reads the same Supabase URL/key variable FAMILY with no
+per-environment database indirection in code; the hosted VALUES
+assigned to those variables in Preview and Development are platform
+facts (the platform supports distinct per-environment values) and
+remain UNOBSERVED until the read-only Vercel preflight of section
+3.B, so database isolation of the non-production environments
+CANNOT BE ASSUMED in either direction. A Preview or Development
+canary is therefore NOT AUTHORIZED as an activation shortcut:
+isolation has not been established. If the preflight later proves
+that either non-production environment points at the production
+ShredOS Supabase project, that observed fact must be recorded and
+using that environment as a canary remains PROHIBITED; if the
+preflight instead proves isolation, that still does NOT expand this
+Production-only authorization — a non-production canary would be a
+separate governance decision with its own review and authorization.
+ACCIDENTAL MULTI-ENVIRONMENT PROPAGATION IS PROHIBITED: when the
+platform's variable editor offers to apply a variable to multiple
+environments, the operator must select Production alone, and the
+preflight and post-activation evidence must record the
+Preview/Development posture (expected: the two variables ABSENT
+there).
 
 ## 3. Fact classes and the future read-only Vercel preflight
 
@@ -93,8 +109,12 @@ as screenshots/values in the activation evidence):
      this repository's production deployment;
   2. the CURRENT presence/values of the two delivery variables in
      Production (expected: ABSENT — any existing value is a STOP);
-  3. the Preview/Development posture for both variables (expected:
-     ABSENT);
+  3. the Preview/Development posture for both delivery variables
+     (expected: ABSENT), AND the database-target posture of the
+     Supabase URL variable family across Production, Preview, and
+     Development (recorded as hosted-project identity only, never
+     secret values) — establishing whether the non-production
+     environments are database-isolated (section 2);
   4. whether applying the Production variable change requires a
      redeploy or automatically causes one, on this project's
      current platform behavior;
@@ -103,9 +123,9 @@ as screenshots/values in the activation evidence):
   6. the exact deployment event that will carry activation (a new
      deploy or a redeploy of the promoted build), chosen so exactly
      ONE intended deployment activates the configuration.
-C. PROTECTED HOSTED MUTATION ACTS (only under the section-12
-authorization once issued): setting the two variables in
-Production; the single activation deployment event; nothing else.
+C. PROTECTED HOSTED MUTATION ACTS (only under AUTHORIZATION A of
+section 12 once issued): setting the two variables in Production;
+the single activation deployment event; nothing else.
 
 ## 4. Activation order (fail-closed; no partially enabled state)
 
@@ -146,33 +166,50 @@ CANARY DETERMINATION (from repository bytes): NO EXISTING
 APPLICATION-LEVEL SINGLE-TENANT CANARY. There is no user or tenant
 allowlist, no per-account feature flag, no route gating, and no
 manual test-user path that scopes the flag-ON behavior (the only
-"allowlist" identifiers in src are unrelated PATCH field-validation
-lists). A Preview/Development canary is prohibited by section 2
-(same production database and sealed run). Creating canary
-architecture is out of scope for this preparation and is not
-proposed. The later human activation gate must therefore EXPLICITLY
-ACCEPT the at-scale rollout as stated.
+"allowlist" hits in src are the two unrelated PATCH field-validation
+comment lines pinned in the preparation record). A
+Preview/Development canary is not authorized (section 2: database
+isolation unobserved). Creating canary architecture is out of scope
+for this preparation and is not proposed. The later human activation
+gate must therefore EXPLICITLY ACCEPT the at-scale rollout as
+stated.
 
 ## 6. Immediate post-activation observation plan
 
-Delivery is traffic-triggered, so the evidence must distinguish
-THREE states:
-- ACTIVATED, NOT YET TRIGGERED: the activation deployment is live
-  with both variables present, and the persistent
-  delivery-provenance counts still read zero (no qualifying request
-  has arrived).
-- ACTIVATED AND TRIGGERED: one or more tenants' qualifying requests
-  ran delivery — persistent provenance counts and/or the
-  corrected-in-place split are nonzero, attributable in aggregate
-  to the app path only by the activation timeline, never to a
-  specific user.
+Delivery is traffic-triggered, direct authenticated RPC
+reachability stands throughout, and the promoted function's lawful
+idempotent, collision, and skip outcomes leave no new
+provenance-linked rows — so post-activation evidence is limited to
+what the instruments actually observe. TELEMETRY LIMIT (from
+repository bytes): the committed module's only log line is the
+fail-closed console.error; NO success-telemetry line exists that
+would mechanically prove a successful app-path delivery invocation,
+and none is claimed or invented. The evidence therefore
+distinguishes THREE observable states:
+- ACTIVATION CONFIG LIVE / NO PERSISTENT DELIVERY STATE OBSERVED:
+  the intended Production deployment and both variables are proven
+  live, and the persistent delivery-provenance counts still read
+  zero. NO claim is made about whether a qualifying request
+  occurred, whether the delivery RPC was invoked, or whether any
+  invocation ended idempotent, collision, skip, or fail-closed —
+  request history and invocation history are unknown.
+- ACTIVATION CONFIG LIVE / PERSISTENT DELIVERY STATE OBSERVED:
+  persistent delivery-associated tenant state exists after the
+  pre-activation baseline. Mechanism, identity, exact time, and
+  path are NEVER inferred from persistent state alone: standing
+  direct-RPC reachability remains a competing possible mechanism
+  for any observed row, and no request-history or
+  invocation-history claim is derivable from state.
 - ACTIVATION INEFFECTIVE OR FAILING CLOSED: the deployment or
-  variables did not take effect, or delivery attempts fail closed
-  (server logs carry the module's deliverCatalog failed closed
-  lines; users' exercise initialization is pausing).
+  variables did not take effect, or delivery attempts fail closed —
+  supported by deployment, environment-variable, and log evidence
+  (the module's deliverCatalog failed closed lines in the
+  production server logs; users' exercise initialization pausing),
+  never by counts alone.
 
-OBSERVATIONS (executed only under the section-12 authorization's
-evidence phase, or a separately authorized measurement):
+OBSERVATIONS (executed only under AUTHORIZATION M of section 12
+once issued — never under Authorization A, and only after state A4
+is reached):
 1. the hosted deployment identity: the promoted Production
    deployment id/created-at AFTER activation, compared to the
    section 3.B.5 pre-activation identity;
@@ -182,11 +219,10 @@ evidence phase, or a separately authorized measurement):
 3. the persistent delivery-state measurement: RE-USE the reviewed
    Option-B measurement package
    (docs/exlib3a-option-b-current-state-measurement.sql, fingerprint
-   re-measured at the gate) under a NEW one-use read-only
-   authorization — it already returns the exact delivered counts
-   (total and target-run-scoped), the corrected-in-place versus
-   inserted split, total tenant counts, run posture, predicate, and
-   claims in one result set;
+   re-measured at the gate) under AUTHORIZATION M — it already
+   returns the exact delivered counts (total and target-run-scoped),
+   the corrected-in-place versus inserted split, total tenant
+   counts, run posture, predicate, and claims in one result set;
 4. application/server error evidence relevant to delivery
    initialization: the presence or absence of the module's
    fail-closed log lines in the production server logs for the
@@ -210,7 +246,7 @@ PRE-ACTIVATION (any one is a STOP; do not begin):
   actual behavior (section 3.B.4 unresolved);
 - the reviewed runbook/package fingerprint re-measured at the gate
   mismatches;
-- the activation authorization is already spent.
+- AUTHORIZATION A is already spent.
 
 DURING ACTIVATION (any one is a STOP at the failing step):
 - the run-key update fails, or its presence/value cannot be
@@ -225,9 +261,10 @@ DURING ACTIVATION (any one is a STOP at the failing step):
 POST-ACTIVATION (any one is a STOP-and-report):
 - delivery initialization errors beyond the designed fail-closed
   classes, or persistent fail-closed failures across the window;
-- unexpected persistent delivery counts (movement inconsistent
-  with the activation timeline), unexpected run posture, claims
-  invariant nonzero, unexpected tenant-count movement, or
+- unexpected persistent delivery-state movement (report the
+  observation exactly; mechanism, identity, and path are not
+  inferable from persistent state alone), unexpected run posture,
+  claims invariant nonzero, unexpected tenant-count movement, or
   correction semantics inconsistent with migration 026;
 - the evidence cannot distinguish whether the Production activation
   took effect.
@@ -256,11 +293,11 @@ conflated)
 4. Physical restore: catastrophic-only; NOT part of this runbook's
    act.
 
-EMERGENCY ROLLBACK PRE-AUTHORIZATION — RECOMMENDATION: the
-section-12 activation authorization SHOULD pre-authorize the
-bounded emergency flag-OFF rollback (mechanism 1 ONLY) within the
-same one-use sequence, exercisable ONLY IF (a) activation has
-already mutated the Production configuration AND (b) an immediate
+EMERGENCY ROLLBACK PRE-AUTHORIZATION — RECOMMENDATION:
+AUTHORIZATION A (section 12) SHOULD pre-authorize the bounded
+emergency flag-OFF rollback (mechanism 1 ONLY) within the same
+one-use sequence, exercisable ONLY IF (a) activation has already
+mutated the Production configuration AND (b) an immediate
 fail-closed STOP condition of section 7 occurs before the sequence
 completes. JUSTIFICATION: mechanism 1 is reversible and
 app-path-only; without the pre-authorization, a mid-sequence STOP
@@ -288,20 +325,27 @@ decision.
 
 ## 10. Activation state machine (no step silently implies the next)
 
-- A0 — BASELINE: Option-B evidence accepted; app delivery OFF
-  everywhere; both variables absent. (Now.)
-- A1 — HOSTED PREFLIGHT COMPLETE: every section 3.B fact captured;
-  all pre-activation STOP checks green. Gate: the section-12
-  authorization has been issued and is unspent.
-- A2 — RUN KEY STAGED: the run-key variable set in Production;
-  flag still OFF/absent; key presence and exact value verified.
+- A0 — BASELINE: Option-B evidence accepted; the hosted Vercel
+  delivery-variable posture UNOBSERVED (no Vercel contact has
+  occurred, so nothing is claimed about current variable presence
+  or absence in any environment); no intentional S6 activation has
+  been authorized; S6 remains STOPPED. (Now.)
+- A1 — READ-ONLY HOSTED PREFLIGHT COMPLETE: every section 3.B fact
+  captured; all pre-activation STOP checks green; BOTH section-12
+  grants remain UNISSUED at this state.
+- A2 — RUN KEY STAGED: entered ONLY after the activation package
+  and the preflight evidence have been accepted AND AUTHORIZATION A
+  has been issued and is unspent; the run-key variable set in
+  Production; flag still OFF/absent; key presence and exact value
+  verified.
 - A3 — ENABLEMENT STAGED: the enablement variable set to exactly
   true in Production; not yet live if the platform requires a
   deployment event.
 - A4 — ACTIVATION DEPLOYMENT LIVE: the single intended Production
   deployment event completed; its identity captured.
 - A5 — POST-ACTIVATION OBSERVATION COMPLETE: the section 6
-  evidence captured (including which of the three states obtains).
+  evidence captured under AUTHORIZATION M (including which of the
+  three observable states obtains).
 - A6 — ACTIVATION ACCEPTED: the operator accepts the evidence; the
   milestone closes into its evidence record and review.
 Failure branch (only under section 8's pre-authorization):
@@ -317,31 +361,48 @@ implicitly.
 conflated)
 
 Setting the variables and deploying does NOT itself prove any
-tenant delivery occurred — delivery is traffic-triggered.
+tenant delivery occurred — delivery is traffic-triggered, and
+persistent state does NOT identify its own mechanism (the app path
+and standing direct authenticated RPC are both lawful writers).
 Activation-state evidence (deployment identity, variable presence)
 and delivery-state evidence (persistent provenance counts, the
-split, fail-closed logs) are captured and reported SEPARATELY, and
-the three-state distinction of section 6 governs every claim.
+split, fail-closed logs) are captured and reported SEPARATELY, the
+three observable states of section 6 govern every claim, and no
+request-history, invocation-history, or mechanism-attribution claim
+is ever derived from persistent state alone.
 
-## 12. The future human authorization (PREPARED — NOT ISSUED —
-DELIBERATELY UNSENT)
+## 12. The future human authorizations (TWO distinct one-use
+grants — each PREPARED — NOT ISSUED — DELIBERATELY UNSENT)
 
-The following is the COMPLETE text the operator would send, only
-after Codex approves this activation package and the section 3.B
-preflight facts are established, and only as their own one-use
-decision. Nothing in this runbook issues, requests, or pre-consumes
-it; it must not authorize itself; Claude never issues
-authorizations.
+The eventual human gate consists of TWO logically and evidentially
+distinct one-use grants. They may be issued together in one human
+message, but only AFTER Codex approves this activation package and
+the section 3.B read-only preflight facts are established and
+accepted. Their spent states are never merged: AUTHORIZATION A is
+consumed by the activation attempt regardless of outcome, and
+AUTHORIZATION M is independently consumed by its observation
+attempt regardless of outcome. If activation fails before state A4,
+Authorization M remains unconsumed and MUST NOT be used merely to
+investigate the failure unless its own reviewed conditions permit
+that exact observation. Nothing in this runbook issues, requests,
+or pre-consumes either grant; neither grant can authorize itself;
+Claude never issues authorizations.
+
+AUTHORIZATION A — PRODUCTION ACTIVATION (PREPARED — NOT ISSUED —
+DELIBERATELY UNSENT). The complete text the operator would send:
 
     Authorize the EXLIB-3A OPTION A production S6 activation
     exactly as reviewed:
     * this authorization binds the activation-package commit
-      [COMMIT — the reviewed candidate] and the runbook fingerprint
-      re-measured at the gate; any byte change voids it;
+      [COMMIT — the reviewed corrected candidate], the runbook
+      fingerprint [RUNBOOK SHA-256 — the exact value pinned in the
+      committed preparation record] re-measured at the gate, and
+      the Vercel project identity [PROJECT IDENTITY — from the
+      completed read-only preflight]; any byte change voids it;
     * spent-check FIRST: this authorization is ONE-USE, consumed by
-      the attempt regardless of outcome, and must be unspent;
-    * scope: the named Vercel project [PROJECT IDENTITY — from the
-      completed read-only preflight], PRODUCTION environment ONLY;
+      the activation attempt regardless of outcome, and must be
+      unspent;
+    * scope: the named Vercel project, PRODUCTION environment ONLY;
       Preview and Development receive nothing;
     * the act: set the run-key variable (the fragments CATALOG +
       _DELIVERY + _RUN_KEY) to exactly
@@ -363,15 +424,40 @@ authorizations.
     * on any ambiguous step outcome: do not retry blind; capture
       the state, report, and stop (subject only to the same bounded
       rollback);
-    * immediately after activation: capture the post-activation
-      observation evidence of the reviewed runbook, including the
-      deployment identity, the variable presence proofs, and the
-      persistent delivery-state measurement under its own read-only
-      authorization;
+    * this grant authorizes NO observation beyond per-step
+      verification: the post-activation evidence of the reviewed
+      runbook is captured only under Authorization M;
     * then stop.
     This authorization permits no Supabase mutation, no delivery
     call by the operator, no revocation, no restore, no
     Preview/Development change, no other variable or setting, no
+    EXLIB-2S work, and no Git push or tag.
+
+AUTHORIZATION M — POST-ACTIVATION READ-ONLY MEASUREMENT (PREPARED —
+NOT ISSUED — DELIBERATELY UNSENT). The complete text the operator
+would send:
+
+    Authorize the EXLIB-3A OPTION A post-activation read-only
+    observation exactly as reviewed:
+    * usable ONLY after state A4 (activation deployment live) has
+      been reached under Authorization A;
+    * spent-check FIRST: this authorization is independently
+      ONE-USE, consumed by the observation attempt regardless of
+      outcome, and must be unspent; its spent state is never merged
+      with Authorization A's;
+    * the act, observation only: execute the exact reviewed
+      persistent-state measurement package
+      docs/exlib3a-option-b-current-state-measurement.sql
+      (fingerprint re-measured at the gate) once by the operator
+      path, and capture the read-only deployment-identity,
+      variable-presence, and fail-closed-log observations of the
+      reviewed runbook's section 6;
+    * no mutation, no remediation, no advisor or setting change; on
+      any ambiguous outcome: do not retry; capture the state,
+      report, and stop;
+    * then stop.
+    This authorization permits no configuration change, no
+    deployment, no delivery call, no revocation, no restore, no
     EXLIB-2S work, and no Git push or tag.
 
 ## 13. Negative boundary of THIS milestone
@@ -383,5 +469,5 @@ branch; and the review export. It performed and permits NO: Vercel
 contact; Supabase contact; environment-variable change; deployment
 or redeployment; activation; delivery; revocation; rollback
 execution; restore; production mutation of any kind; push; tag;
-EXLIB-2S work. S6 remains STOPPED; the section-12 authorization is
-UNSENT.
+EXLIB-2S work. S6 remains STOPPED; BOTH section-12 grants
+(Authorization A and Authorization M) are UNSENT.
