@@ -210,45 +210,44 @@ check('B13: hygiene — the record\'s non-ASCII is the em-dash only, and no phas
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${CAND}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is closed
-// out and a successor commit exists, this HEAD-relative check goes
-// stale by design and gets the standard labeled retarget.
-if (committed) {
-  check('B14: topology and retarget coverage — the preserved round-0 measurement-preparation commit plus ONE plain forward round-1 correction over the accepted proposal candidate (single-parent chain 872e19ef -> ba6a6ca6 -> correction), the CUMULATIVE diff carrying exactly the SQL package, this record, and this verifier plus ONLY the labeled X14 retarget, the correction touching ONLY the three Option-B paths, and verify-exlib3a.ts carrying the RETARGET (EXLIB-3A OPTION B measurement preparation) label anchored at the accepted candidate with its fourteen checks intact',
-    (() => {
-      try {
-        const M0 = 'ba6a6ca6cf39d8fdc60a822e93413dd5cf7d1c1a'
-        if (execSync(`git rev-list --count ${CAND}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== M0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${M0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== CAND) return false
-        const status = execSync(`git diff --name-status ${CAND} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${M0} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
-        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const x = read('scripts/verify-exlib3a.ts')
-        if (!x.includes('RETARGET (EXLIB-3A OPTION B measurement preparation)')) return false
-        if (!x.includes(`const CTIP = '${CAND}'`)) return false
-        return (x.match(/^check\(/gm) || []).length === 14
-      } catch { return false }
-    })())
-} else {
-  check('B14 (uncommitted authoring state): every worktree change lies inside the three phase paths plus the labeled retargeted suite, which carries the RETARGET (EXLIB-3A OPTION B measurement preparation) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
-    && read('scripts/verify-exlib3a.ts').includes('RETARGET (EXLIB-3A OPTION B measurement preparation)'))
-}
+// RETARGET (EXLIB-3A OPTION B hosted-measurement evidence): this
+// preparation phase COMPLETED — the round-1 corrected candidate was
+// Codex-approved, the operator issued and consumed the one-use
+// OPTION B authorization, and the hosted measurement executed
+// exactly once (SPENT) — so the topology claims are anchored at the
+// phase's own corrected candidate, where they held and hold
+// forever; the HEAD-relative form (and its uncommitted authoring
+// branch) went stale at the evidence milestone's own commit, the
+// same completed-phase pattern as every predecessor (fourteenth
+// instance). Count-neutral: the suite still reports fourteen
+// checks.
+const MTIP = '3442c8f0f53f70ca367bfe10876dd3cd79fc8456'
+check('B14: topology and retarget coverage (anchored at the corrected candidate) — the preserved round-0 measurement-preparation commit plus ONE plain forward round-1 correction over the accepted proposal candidate (single-parent chain 872e19ef -> ba6a6ca6 -> 3442c8f0), the CUMULATIVE diff carrying exactly the SQL package, this record, and this verifier plus ONLY the labeled X14 retarget, the correction touching ONLY the three Option-B paths, and verify-exlib3a.ts carrying the RETARGET (EXLIB-3A OPTION B measurement preparation) label anchored at the accepted candidate with its fourteen checks intact',
+  (() => {
+    try {
+      const M0 = 'ba6a6ca6cf39d8fdc60a822e93413dd5cf7d1c1a'
+      if (execSync(`git rev-list --count ${CAND}..${MTIP}`, { encoding: 'utf8' }).trim() !== '2') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${MTIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== M0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${M0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== CAND) return false
+      const status = execSync(`git diff --name-status ${CAND} ${MTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${M0} ${MTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
+      if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
+      const x = read('scripts/verify-exlib3a.ts')
+      if (!x.includes('RETARGET (EXLIB-3A OPTION B measurement preparation)')) return false
+      if (!x.includes(`const CTIP = '${CAND}'`)) return false
+      return (x.match(/^check\(/gm) || []).length === 14
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
