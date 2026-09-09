@@ -6,7 +6,12 @@
 // and the reviewed activation runbook. Performs NO hosted contact;
 // nothing is re-observed. The execution DEVIATION (two Production
 // redeploys where one was specified) must be present and must not
-// be rewritten as a single deployment event.
+// be rewritten as a single deployment event, and the GOVERNANCE
+// SEQUENCE around it — the real-time during-activation STOP, the
+// later READY settlement that resolved the OPERATIONAL ambiguity
+// only, and the SEPARATE operator recovery approval that permitted
+// the already-issued Authorization M to be consumed — must be
+// present and must not be smoothed into a clean run.
 //
 // Fail-closed: any mismatch fails the suite.
 import { execSync } from 'child_process'
@@ -37,9 +42,22 @@ const U_PKG = 'docs/exlib2u-staged-run-package.sql'
 const Z_REC = 'docs/exlib2z-hosted-application-record.md'
 const U_REC = 'docs/exlib2u-hosted-application-record.md'
 
+// The THREE deployment identities and their CREATION instants, all
+// operator-supplied. Only creation instants exist in the evidence:
+// no READY-settlement instant was ever supplied, so none is pinned
+// here and none may be stated in the record (C14).
+const DPL0 = 'dpl_J9sNp6qgV2CwGN7hLZyE1vUB8HnU'
 const DPL1 = 'dpl_9mMrn1CeQyESkKSVBA5DBYzEx9hh'
 const DPL2 = 'dpl_2cB4gsmgrqEBDjqQ48hedQDExurr'
+const DPL0_AT = '2026-09-09T00:16:38.370Z'
+const DPL1_AT = '2026-09-09T15:42:29.872Z'
+const DPL2_AT = '2026-09-09T15:43:04.789Z'
 const BASE_SHA = '5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8'
+// ANCHORED phase objects, never moving refs: the evidence commit and
+// the first correction commit. Both are immutable, so the topology
+// assertions they carry hold at any later HEAD.
+const ECOM = '2ccd5848977202abbdb0707bfa198375c96a1da5'
+const CORR1 = '9e1b3b90f010d2ee96f11b321df164123bdf3286'
 const OBSERVED_AT = '2026-09-09 15:54:55.316459+00'
 const BASELINE_AT = '2026-09-09 02:27:31.8287+00'
 const ZEROS = ['delivered_exercises_total', 'delivered_exercises_target_run',
@@ -62,13 +80,19 @@ const excise = (s: string, a: string, b: string): string | null => {
   if (j < 0) return null
   return s.slice(0, i) + s.slice(j)
 }
-const claimSurface = (() => {
+const surfaceRaw = (() => {
   const one = excise(rec, 'WHAT THE REVIEWED ACT SPECIFIED:', 'WHAT OCCURRED:')
   if (one === null) return null
-  const two = excise(one, '## 12.', '## 13.')
-  if (two === null) return null
-  return norm(two)
+  return excise(one, '## 12.', '## 13.')
 })()
+const claimSurface = surfaceRaw === null ? null : norm(surfaceRaw)
+// The GOVERNANCE claim surface drops section 13 as well, because that
+// section ENUMERATES the negative controls and therefore names the
+// mutations the governance pins reject. Scanning it would aim the
+// guard at its own description of itself. Marker-bound and fail-closed
+// exactly like the excisions above.
+const govSurface = surfaceRaw === null ? null
+  : (() => { const g = excise(surfaceRaw, '## 13.', '## 14.'); return g === null ? null : norm(g) })()
 const bprepFlat = norm(read(B_PREP))
 const brecFlat = norm(read(B_REC))
 const rbFlat = norm(read(RUNBOOK))
@@ -80,7 +104,7 @@ const sec = (a: string, b: string): string => {
 
 console.log('EXLIB-3A OPTION A hosted-activation evidence verification (LOCAL-ONLY; BOTH authorizations SPENT; nothing re-observed, everything cross-checked)')
 
-check('C1: both one-use grants are recorded SPENT with SEPARATE spent states — Authorization A consumed by the activation attempt regardless of outcome, Authorization M independently consumed by exactly one observation attempt with no retry, the two redeploys explicitly inside the SINGLE activation attempt creating no additional authorization, no further deployment authorized, and no hosted contact by Claude',
+check('C1: both one-use grants are recorded SPENT with SEPARATE spent states AND the full governance sequence is explicit — Authorization A consumed by the activation attempt regardless of outcome and ALREADY SPENT at the real-time operator STOP with nothing after that STOP resetting it, Authorization M still UNCONSUMED at that STOP and then independently consumed by exactly one observation attempt with no retry, and the SEPARATE operator recovery approval recorded as a third governance event carrying all FIVE of its negative bounds (no mutation, no additional deployment, no reset of A, no second grant of M, no merged spent states) and pinned against any claim that it authorized or ratified the second redeploy, authorized a mutation, multiplied the single grant of M, or unspent A; plus the two redeploys explicitly inside the SINGLE activation attempt creating no additional authorization, no further deployment authorized, and no hosted contact by Claude in either the activation or this correction',
   (() => {
     const s1 = sec('## 1.', '## 2.')
     if (!s1.includes('CONSUMED BY THE ACTIVATION ATTEMPT REGARDLESS OF OUTCOME')) return false
@@ -90,10 +114,49 @@ check('C1: both one-use grants are recorded SPENT with SEPARATE spent states —
     if (!s1.includes('created no additional authorization')) return false
     if (!s1.includes('No further deployment event is authorized')) return false
     if (!s1.includes('Its spent state is not merged')) return false
+    // THE AUTHORIZATION STATES AT THE STOP, which the round-1 review
+    // required to be stated rather than left to be inferred
+    if (!s1.includes('AUTHORIZATION A WAS ALREADY SPENT AT THE MOMENT THE OPERATOR STOP')) return false
+    if (!s1.includes('STILL UNCONSUMED AT THE MOMENT THAT STOP WAS DECLARED')) return false
+    if (!s1.includes('nothing that happened after that STOP reset it, re-authorized it, or restored any unspent portion of it')) return false
+    // THE SEPARATE RECOVERY APPROVAL as its own governance event, with
+    // every bound present. Its purpose is exactly and only to permit
+    // consumption of the grant that already existed.
+    if (!s1.includes('THE SEPARATE OPERATOR RECOVERY APPROVAL')) return false
+    if (!s1.includes('RECOVERY GATE SCOPED TO READ-ONLY OBSERVATION ONLY')) return false
+    if (!s1.includes('permit consumption of the ALREADY-ISSUED Authorization M')) return false
+    if (!s1.includes('The operator replied approve')) return false
+    for (const bound of ['it AUTHORIZED NO MUTATION of any kind',
+      'it AUTHORIZED NO ADDITIONAL DEPLOYMENT',
+      'it DID NOT RESET OR RE-AUTHORIZE AUTHORIZATION A',
+      'it DID NOT CREATE A SECOND GRANT OF AUTHORIZATION M',
+      'it DID NOT MERGE the two grants']) {
+      if (!s1.includes(bound)) return false
+    }
+    if (!s1.includes('IT WAS CONSUMED BY THAT OBSERVATION AND IS NOT REUSABLE')) return false
+    // negatives on the GOVERNANCE claim surface: the recovery approval
+    // may never be widened into a deployment, a mutation, a second
+    // grant, or a resurrection of Authorization A
+    if (govSurface === null) return false
+    for (const bad of ['the recovery approval authorized the second redeploy',
+      'the recovery approval ratified the second redeploy',
+      'the recovery approval authorized an additional deployment',
+      'the recovery approval authorized a deployment',
+      'the recovery approval authorized a mutation',
+      'the recovery approval permitted a mutation',
+      'the recovery approval permitted mutation',
+      'a second grant of Authorization M was created',
+      'a second Authorization M was issued',
+      'Authorization A was reset', 'Authorization A became unspent',
+      'Authorization A was re-authorized', 'Authorization A is no longer spent',
+      'their spent states are merged', 'the two grants are merged']) {
+      if (govSurface.includes(bad)) return false
+    }
     return recFlat.includes('BOTH AUTHORIZATIONS WERE CONSUMED BY THEIR RESPECTIVE ATTEMPTS AND ARE SPENT')
       && recFlat.includes('NEVER merged')
       && recFlat.includes('Claude performed no hosted contact of any kind')
       && recFlat.includes('no Vercel contact in any mode')
+      && recFlat.includes('Vercel was NOT re-contacted to obtain them, in any mode including read-only')
   })())
 check('C2: the executed measurement package is byte-identical to the reviewed source — its live sha256 equals the fingerprint the Option-B PREPARATION RECORD pinned (extracted from those bytes, never restated), equals the blob at the reviewed Option-A candidate 73a2bc8c..., and is the value this record states with its exact byte count',
   (() => {
@@ -108,12 +171,30 @@ check('C2: the executed measurement package is byte-identical to the reviewed so
         && recFlat.includes(`byte-identical live, at the Option-B candidate, and at the reviewed Option-A activation candidate ${PTIP}`)
     } catch { return false }
   })())
-check('C3: THE DEVIATION is recorded as executed and never reconciled — both deployment ids present with both READY and both carrying the same source SHA, the reviewed exactly-ONE-deployment property named as NOT satisfied, the reason for the second redeploy expressly not inferred, and the record nowhere rewrites the sequence as one deployment event or claims the second redeploy was separately authorized',
+check('C3: THE DEVIATION is recorded as executed and never reconciled, AND the operator STOP sequence is recorded as it ran — all THREE deployment ids present with the same source SHA, the second named STILL BUILDING at first observation, a real-time during-activation STOP explicitly declared with state A4 OPERATIONALLY AMBIGUOUS and the STOP-time authorization states named, the later READY settlement described as resolving the OPERATIONAL AMBIGUITY ONLY while the TWO-versus-ONE governance deviation REMAINED, the separate read-only recovery gate and its approve reply, the reviewed exactly-ONE-deployment property named as NOT satisfied, the reason for the second redeploy expressly not inferred, the received ACCEPT WITH DISCLOSED DEVIATION / NO ROLLBACK disposition preserved, and the record nowhere rewriting the sequence as one deployment event or claiming the second redeploy was separately authorized',
   (() => {
     const s2 = sec('## 2.', '## 3.')
-    if (!s2.includes(DPL1) || !s2.includes(DPL2)) return false
+    if (!s2.includes(DPL0) || !s2.includes(DPL1) || !s2.includes(DPL2)) return false
     if ((s2.match(/READY/g) || []).length < 2) return false
     if ((s2.match(new RegExp(BASE_SHA, 'g')) || []).length < 2) return false
+    // THE STOP SEQUENCE, in order and unsmoothed. The round-1 review
+    // required this material operator event to be preserved explicitly:
+    // a STOP was declared in real time while the second redeploy was
+    // unresolved, and the settlement that followed resolved the
+    // OPERATIONAL ambiguity only, never the governance deviation.
+    if (!s2.includes('is not omitted, reordered, or smoothed away')) return false
+    if (!s2.includes('STILL BUILDING at first observation')) return false
+    if (!s2.includes('A STOP WAS EXPLICITLY DECLARED IN REAL TIME, DURING THE ACTIVATION')) return false
+    if (!s2.includes('A4 was OPERATIONALLY AMBIGUOUS while the second deployment was unresolved')) return false
+    if (!s2.includes('AT THAT STOP: Authorization A was SPENT; Authorization M was UNCONSUMED; NO rollback was executed; NO further mutation was permitted')) return false
+    if (!s2.includes('let the in-flight deployment settle')) return false
+    if (!s2.includes('SUBSEQUENTLY SETTLED READY')) return false
+    if (!s2.includes('THE OPERATIONAL AMBIGUITY WAS RESOLVED BY THAT SETTLEMENT; THE TWO-VERSUS-ONE GOVERNANCE DEVIATION REMAINED')) return false
+    if (!s2.includes('A SEPARATE RECOVERY GATE SCOPED TO READ-ONLY OBSERVATION ONLY')) return false
+    if (!s2.includes('consumed EXACTLY ONCE, by the post-activation observation')) return false
+    // the received disposition is preserved verbatim, deviation and all
+    if (!recFlat.includes('ACCEPT ACTIVATION WITH DISCLOSED DEVIATION — NO ROLLBACK')) return false
+    if (!recFlat.includes('PERMANENT DISCLOSED GOVERNANCE DEVIATION')) return false
     if (!s2.includes('the deployment-event count was TWO where the reviewed act specified ONE')) return false
     if (!s2.includes('does not rewrite the sequence as a single deployment')) return false
     if (!s2.includes('does not select one of the two')) return false
@@ -305,7 +386,7 @@ check('C11: the classification is the EXACT reviewed observable-state name, reco
     }
     return true
   })())
-check('C12: the STOP evaluation covers every reviewed post-activation condition against the attested evidence, the near-miss during-activation condition is evaluated WITHOUT self-adjudicating the deviation, no rollback was executed (no F1, no F2; mechanism 1 unexercised and moot; database rollback, revocation and restore excluded), and the bounded decision implication authorizes NO new protected action',
+check('C12: the STOP evaluation covers every reviewed post-activation condition against the attested evidence AND preserves the operator STOP that was actually declared — the real-time during-activation STOP present with state A4 named OPERATIONALLY AMBIGUOUS, the later READY settlement resolving the operational ambiguity ONLY and never curing the governance deviation, the emergency flag-OFF rollback recorded as NOT exercised at the STOP or since, the separate recovery approval named as what made the bounded read-only observation permissible, the post-activation observations triggering no NEW rollback condition, and the deviation half of the section STRUCTURALLY FREE of any NOT TRIGGERED verdict so the erasure the round-1 review caught cannot reappear by rewording — with the deviation still not self-adjudicated and the bounded decision implication, including the received ACCEPT / NO ROLLBACK disposition, authorizing NO new protected action',
   (() => {
     const s7 = sec('## 7.', '## 8.')
     if ((s7.match(/NOT TRIGGERED/g) || []).length < 6) return false
@@ -314,21 +395,56 @@ check('C12: the STOP evaluation covers every reviewed post-activation condition 
       'migration 026', 'cannot distinguish whether the Production activation']) {
       if (!s7.includes(k)) return false
     }
+    // THE OPERATOR STOP, POSITIVELY REQUIRED. The first evidence commit
+    // recorded the nearest during-activation condition as NOT TRIGGERED,
+    // which erased a STOP that had actually been declared in real time.
+    if (!s7.includes('A DURING-ACTIVATION STOP WAS DECLARED IN REAL TIME')) return false
+    if (!s7.includes('EXPLICITLY DECLARED STOP')) return false
+    if (!s7.includes('reviewed state A4 was OPERATIONALLY AMBIGUOUS')) return false
+    if (!s7.includes('THIS RECORD DOES NOT SAY THAT CONDITION WAS NEVER REACHED')) return false
+    if (!s7.includes('does not describe the STOP as hypothetical, pre-emptive, or avoided')) return false
+    if (!s7.includes('THAT SETTLEMENT RESOLVED THE OPERATIONAL AMBIGUITY ONLY')) return false
+    if (!s7.includes('IT DID NOT RESOLVE, CURE, OR RETIRE THE GOVERNANCE DEVIATION')) return false
+    if (!s7.includes('the deployment-event count remains TWO where the reviewed act specified ONE')) return false
+    if (!s7.includes('SEPARATE OPERATOR RECOVERY APPROVAL')) return false
+    if (!s7.includes('DID NOT THEMSELVES TRIGGER ANY NEW ROLLBACK CONDITION')) return false
+    if (!s7.includes('ACCEPT ACTIVATION WITH DISCLOSED DEVIATION — NO ROLLBACK')) return false
+    if (!s7.includes('not a conclusion this record reached about itself')) return false
     if (!s7.includes('COUNT deviation from the reviewed act')) return false
     if (!s7.includes('did not enumerate as a condition of its own')) return false
     if (!s7.includes('DOES NOT SELF-ADJUDICATE THE DEVIATION')) return false
     if (!s7.includes('NO ROLLBACK WAS EXECUTED')) return false
     if (!s7.includes('no F1, no F2')) return false
     if (!s7.includes('went unexercised')) return false
+    if (!s7.includes('it was NOT exercised at the STOP and has not been exercised since')) return false
     if (!s7.includes('database rollback, revocation, and restore were excluded unconditionally')) return false
+    // STRUCTURAL GUARD, not just a phrase list: every NOT TRIGGERED
+    // verdict must live in the POST-ACTIVATION list. The deviation half
+    // of the section — from the during-activation heading to the end —
+    // must carry none at all, so no rewording can reinstate the erasure.
+    const DEV_MARK = 'THE DEVIATION, THE DURING-ACTIVATION CONDITIONS, AND THE STOP THAT WAS ACTUALLY DECLARED'
+    const i = s7.indexOf(DEV_MARK)
+    if (i < 0) return false
+    if ((s7.slice(i).match(/NOT TRIGGERED/g) || []).length !== 0) return false
+    for (const bad of ['during-activation condition is NOT TRIGGERED',
+      'during-activation condition was NOT TRIGGERED',
+      'that condition is NOT TRIGGERED', 'that condition was NOT TRIGGERED',
+      'no STOP was declared', 'no STOP was ever declared',
+      'the STOP was not declared', 'the condition was never triggered',
+      'A4 was unambiguous', 'was unambiguous throughout',
+      'no STOP condition was reached']) {
+      if (s7.includes(bad)) return false
+    }
     const s10 = sec('## 10.', '## 11.')
     if (!s10.includes('SUPPORTS ACCEPTING THE ACTIVATION OPERATIONALLY WITH NO ROLLBACK')) return false
+    if (!s10.includes('ACCEPT ACTIVATION WITH DISCLOSED DEVIATION — NO ROLLBACK')) return false
+    if (!s10.includes('It does not convert into an authorization')) return false
     if (!s10.includes('THIS EVIDENCE RECORD ITSELF AUTHORIZES NO NEW PROTECTED ACTION')) return false
     if (!s10.includes('requires its own new explicit one-use human authorization')) return false
     return recFlat.includes('THIS RECORD AUTHORIZES NO NEW PROTECTED ACTION')
       && sec('## 14.', '￿').includes('Both Authorization A and Authorization M are SPENT and neither can be re-used')
   })())
-check('C13: the boundary and the provenance map are complete and hygiene holds — no Claude hosted contact in any mode, one measurement attempt with no instrument substitution, no push or tag with main = origin/main unchanged, the provenance map carrying a NOT OBSERVED class, the record\'s non-ASCII limited to the em-dash, and no phase file carrying a contiguous delivery or Supabase variable name, hosted endpoint, or credential material',
+check('C13: the boundary and the provenance map are complete and hygiene holds — no Claude hosted contact in any mode, one measurement attempt with no instrument substitution, no push or tag with main = origin/main unchanged, the provenance map carrying a NOT OBSERVED class AND a DISTINCT GOVERNANCE-EVENT class for the operator- and reviewer-relayed facts (the STOP, the settle instruction, the recovery gate and its approve reply) with no reviewer identity or wording asserted beyond what was relayed, a blank reply never read as approval, and the pre-activation deployment identity no longer filed under NOT OBSERVED; the record\'s non-ASCII limited to the em-dash; and no phase file carrying a contiguous delivery or Supabase variable name, hosted endpoint, or credential material',
   (() => {
     const s11 = sec('## 11.', '## 12.')
     if (!s11.includes('no Vercel contact in any mode including read-only')) return false
@@ -337,6 +453,17 @@ check('C13: the boundary and the provenance map are complete and hygiene holds �
     if (!s11.includes('No advisor observation was taken in this milestone')) return false
     const s8 = sec('## 8.', '## 9.')
     if (!s8.includes('NOT OBSERVED')) return false
+    // the GOVERNANCE-EVENT provenance class the round-1 review required:
+    // the STOP, the settle instruction, the recovery gate and its approve
+    // reply are operator-RELAYED facts, not platform readings, and the
+    // pre-activation deployment identity has moved out of NOT OBSERVED
+    if (!s8.includes('OPERATOR AND REVIEWER GOVERNANCE EVENTS, SUPPLIED IN THE ROUND-1 REVIEW HANDOFF')) return false
+    if (!s8.includes('not instrument output and not Claude observations')) return false
+    if (!s8.includes('the separate recovery gate scoped to read-only observation and the operator\'s approve reply')) return false
+    if (!s8.includes('No reviewer identity, approval, or wording beyond what the operator relayed is asserted')) return false
+    if (!s8.includes('a blank or absent reply is never read as approval')) return false
+    if (!s8.includes('the PRE-ACTIVATION promoted deployment identity and creation instant')) return false
+    if (s8.slice(s8.indexOf('NOT OBSERVED')).includes('pre-activation promoted deployment identity')) return false
     for (const ch of rec) {
       const c = ch.codePointAt(0) as number
       if (c > 127 && c !== 0x2014) return false
@@ -350,48 +477,82 @@ check('C13: the boundary and the provenance map are complete and hygiene holds �
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-check('C14: the chronology orders by parse (creation < seal < pre-activation measurement < advisor < this measurement) with the un-supplied deployment instants disclosed as a parse gap, and topology holds anchored at the reviewed candidate — TWO PLAIN FORWARD commits over 73a2bc8c... (the evidence commit, then one honest correction commit; every commit in the range single-parent, never an amend or rebase) whose union carries exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with verify-exlib3a-option-a.ts anchored at that candidate and its SIXTEEN checks intact',
+check('C14: the chronology orders ALL EIGHT supplied instants by parse — staged-run creation < seal < PRE-ACTIVATION deployment creation < pre-activation measurement < advisor < FIRST redeploy creation < SECOND redeploy creation < this measurement — with every instant stated literally in the record, the two redeploy creation instants also stated in the deviation section, and the record still declaring that NO READY-settlement instant was supplied or invented; and topology holds anchored at immutable objects — THREE PLAIN FORWARD commits over 73a2bc8c... (evidence, honest correction, round-1 review correction; every commit single-parent, never an amend or rebase) whose union carries exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with the round-1 correction touching EXACTLY the two authorized paths and scripts/verify-exlib3a-option-a.ts BYTE-IDENTICAL to the evidence commit with its SIXTEEN checks intact',
   (() => {
-    const staging = Date.parse('2026-09-08T05:26:09.940165Z')
-    const seal = Date.parse('2026-09-08T21:24:23.744781Z')
-    const base = Date.parse(BASELINE_AT.replace(' ', 'T').replace('+00', 'Z'))
-    const adv = Date.parse('2026-09-09T02:27:38.675Z')
-    const obs = Date.parse(OBSERVED_AT.replace(' ', 'T').replace('+00', 'Z'))
-    for (const t of [staging, seal, base, adv, obs]) { if (!Number.isFinite(t)) return false }
-    if (!(staging < seal && seal < base && base < adv && adv < obs)) return false
+    // EIGHT instants, one strictly increasing chain. The three
+    // deployment CREATION instants were supplied by the round-1 review
+    // handoff and upgrade the deployment ordering from an operator
+    // attestation to a parsed fact. READY-settlement instants were NOT
+    // supplied, so none is pinned and none may be stated.
+    const zform = (s: string): string => s.replace(' ', 'T').replace('+00', 'Z')
+    const INSTANTS = ['2026-09-08T05:26:09.940165Z', '2026-09-08T21:24:23.744781Z',
+      DPL0_AT, '2026-09-09T02:27:31.8287Z', '2026-09-09T02:27:38.675Z',
+      DPL1_AT, DPL2_AT, '2026-09-09T15:54:55.316459Z']
+    if (INSTANTS.length !== 8) return false
+    const ts = INSTANTS.map((s) => Date.parse(s))
+    for (const t of ts) { if (!Number.isFinite(t)) return false }
+    for (let k = 1; k < ts.length; k += 1) { if (!(ts[k - 1] < ts[k])) return false }
+    // the chronology's own terms must agree with the measurement
+    // sections' +00 forms rather than being a parallel set of strings
+    if (Date.parse(zform(BASELINE_AT)) !== ts[3]) return false
+    if (Date.parse(zform(OBSERVED_AT)) !== ts[7]) return false
     const s9 = sec('## 9.', '## 10.')
-    if (!s9.includes('DEPLOYMENT INSTANTS WERE NOT SUPPLIED')) return false
-    if (!s9.includes('NOT proven by parse in this record')) return false
+    if (!s9.includes('EIGHT SUPPLIED INSTANTS IN ONE ORDER')) return false
+    for (const inst of INSTANTS) { if (!s9.includes(inst)) return false }
+    if (!s9.includes('DEPLOYMENT CREATION INSTANTS ARE NOW PROVEN BY PARSE; READY INSTANTS ARE NEITHER SUPPLIED NOR INVENTED')) return false
+    if (!s9.includes('NO READY-SETTLEMENT INSTANT was supplied for any deployment, so none is stated here and none is inferred')) return false
+    if (!s9.includes('rests on the operator\'s attested STOP-and-wait sequence of section 2, not on a parsed instant')) return false
+    // the deviation section carries the same three creation instants, so
+    // section 2 and section 9 cannot drift apart
+    const s2c = sec('## 2.', '## 3.')
+    for (const inst of [DPL0_AT, DPL1_AT, DPL2_AT]) { if (!s2c.includes(inst)) return false }
     try {
       const LABEL = 'RETARGET (EXLIB-3A OPTION A hosted-activation evidence)'
       const t = read(RETARGETED[0])
       if (!t.includes(LABEL)) return false
       if (!t.includes(`const PTIP = '${PTIP}'`)) return false
       if ((t.match(/^ {0,2}check\(/gm) || []).length !== 16) return false
+      // THE RETARGETED PREDECESSOR IS BYTE-FROZEN. The round-1 review
+      // authorized exactly two paths, and this is not one of them: its
+      // blob must be identical to the evidence commit's. Asserted
+      // against an immutable commit object, so it holds at any HEAD.
+      const blobAt = (c: string): string =>
+        execSync(`git rev-parse ${c}:${RETARGETED[0]}`, { encoding: 'utf8' }).trim()
+      if (blobAt(ECOM) !== blobAt('HEAD')) return false
       const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
       const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
       if (CHANGED.length > 0) {
-        return CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
+        // AUTHORING STATE: only the two AUTHORIZED paths may differ from
+        // HEAD. The frozen predecessor is deliberately excluded here too,
+        // so a stray edit to it fails rather than being tolerated.
+        return CHANGED.every((p) => PHASE_ADDS.includes(p))
       }
-      // PLAIN FORWARD ONLY: the phase landed as two commits — the
-      // evidence commit, then one honest correction commit after the
-      // sweep's own control arm showed section 13 had understated the
-      // sweep's reds. The standing rule forbids amend/rebase/squash,
-      // so the correction is a successor, never a rewrite; every
-      // commit in the range is therefore asserted single-parent.
+      // PLAIN FORWARD ONLY: the phase landed as three commits — the
+      // evidence commit, one honest correction after the sweep's own
+      // control arm showed section 13 had understated the sweep's reds,
+      // and the round-1 review correction that restored the omitted
+      // operator STOP and recovery approval. The standing rule forbids
+      // amend/rebase/squash, so each correction is a successor, never a
+      // rewrite; every commit in the range is asserted single-parent.
       execSync(`git merge-base --is-ancestor ${PTIP} HEAD`, { encoding: 'utf8' })
       const range = execSync(`git rev-list --parents ${PTIP}..HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).map((l) => l.trim().split(/\s+/))
-      if (range.length !== 2) return false
+      if (range.length !== 3) return false
       if (!range.every((p) => p.length === 2)) return false
       if (range[range.length - 1][1] !== PTIP) return false
+      if (range[range.length - 1][0] !== ECOM) return false
+      if (range[0][1] !== CORR1) return false
       const status = execSync(`git diff --name-status ${PTIP} HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       const expected = [
         ...PHASE_ADDS.map((p) => `A\t${p}`),
         ...RETARGETED.map((p) => `M\t${p}`),
       ].sort()
-      return JSON.stringify(status) === JSON.stringify(expected)
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      // THE ROUND-1 CORRECTION TOUCHED EXACTLY THE TWO AUTHORIZED PATHS
+      const corr = execSync(`git diff --name-status ${CORR1} HEAD`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      return JSON.stringify(corr) === JSON.stringify(PHASE_ADDS.map((p) => `M\t${p}`).sort())
     } catch { return false }
   })())
 

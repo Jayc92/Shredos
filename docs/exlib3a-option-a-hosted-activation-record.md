@@ -21,6 +21,14 @@ exactly ONE intended activation deployment event. The deviation is
 recorded as executed in section 2 and is NOT reconciled, merged, or
 rewritten into a single deployment event anywhere in this record.
 
+THE EXECUTION ALSO PRODUCED A MATERIAL GOVERNANCE EVENT THAT THIS
+RECORD STATES EXPLICITLY RATHER THAN SMOOTHING INTO A CLEAN RUN: A
+DURING-ACTIVATION STOP WAS DECLARED IN REAL TIME while the second
+redeploy was still unresolved, and the bounded read-only
+post-activation observation became permissible only under a
+SEPARATE OPERATOR RECOVERY APPROVAL issued after that STOP.
+Sections 1, 2, and 7 carry that sequence in full.
+
 THIS RECORD AUTHORIZES NO NEW PROTECTED ACTION.
 
 ## 1. Authorization posture and source identity
@@ -31,12 +39,40 @@ THIS RECORD AUTHORIZES NO NEW PROTECTED ACTION.
   redeploys of section 2 occurred WITHIN that single activation
   attempt; the second redeploy created no additional authorization
   and none is claimed here. No further deployment event is
-  authorized.
+  authorized. AUTHORIZATION A WAS ALREADY SPENT AT THE MOMENT THE
+  OPERATOR STOP OF SECTION 2 WAS DECLARED, and nothing that happened
+  after that STOP reset it, re-authorized it, or restored any
+  unspent portion of it.
 - AUTHORIZATION M — POST-ACTIVATION READ-ONLY MEASUREMENT: issued
-  by the operator, exercised after the activation deployment,
-  EXECUTED EXACTLY ONCE, and INDEPENDENTLY CONSUMED BY THAT
-  OBSERVATION ATTEMPT — it is SPENT. No retry occurred. Its spent
-  state is not merged with Authorization A's.
+  by the operator BEFORE the activation attempt began and therefore
+  STILL UNCONSUMED AT THE MOMENT THAT STOP WAS DECLARED, exercised
+  after the deployment state had settled, EXECUTED EXACTLY ONCE, and
+  INDEPENDENTLY CONSUMED BY THAT OBSERVATION ATTEMPT — it is SPENT.
+  No retry occurred. Its spent state is not merged with
+  Authorization A's.
+- THE SEPARATE OPERATOR RECOVERY APPROVAL — A THIRD GOVERNANCE
+  EVENT, RECORDED IN ITS OWN RIGHT AND NOT FOLDED INTO EITHER GRANT:
+  after the STOP, and after the second deployment had settled, the
+  reviewer path (Codex) presented a RECOVERY GATE SCOPED TO
+  READ-ONLY OBSERVATION ONLY, whose exact purpose was to permit
+  consumption of the ALREADY-ISSUED Authorization M despite the
+  duplicate-redeploy deviation. The operator replied approve. That
+  recovery approval is bounded exactly as follows, and every bound
+  is recorded as a negative:
+  - it AUTHORIZED NO MUTATION of any kind;
+  - it AUTHORIZED NO ADDITIONAL DEPLOYMENT, and in particular it did
+    NOT authorize, ratify, or retroactively license the second
+    redeploy, which had already occurred before the approval
+    existed;
+  - it DID NOT RESET OR RE-AUTHORIZE AUTHORIZATION A, which remained
+    SPENT throughout;
+  - it DID NOT CREATE A SECOND GRANT OF AUTHORIZATION M — there has
+    only ever been ONE Authorization M, issued once;
+  - it DID NOT MERGE the two grants' spent states.
+  It was a bounded ONE-USE exception permitting the already-issued
+  Authorization M to be consumed for the reviewed read-only
+  observation once the deployment state had settled. IT WAS CONSUMED
+  BY THAT OBSERVATION AND IS NOT REUSABLE.
 - Measurement source package: docs/exlib3a-option-b-current-state-measurement.sql,
   14,101 bytes, sha256
   1e9a60eca9f83b13ab603600272dd3ac3f532cf38d304259c7a584e47fd296ea
@@ -64,11 +100,51 @@ WHAT OCCURRED: the two delivery variables were operator-created
 with Production-only scope BEFORE the redeploy sequence, and then
 TWO Production redeploys occurred.
 
-- FIRST redeploy: dpl_9mMrn1CeQyESkKSVBA5DBYzEx9hh — READY, source
-  main, SHA 5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8.
+- PRE-ACTIVATION promoted Production deployment — the state the
+  activation started from, supplied as operator evidence in the
+  round-1 review handoff: dpl_J9sNp6qgV2CwGN7hLZyE1vUB8HnU —
+  created 2026-09-09T00:16:38.370Z, READY, source main, SHA
+  5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8.
+- FIRST redeploy: dpl_9mMrn1CeQyESkKSVBA5DBYzEx9hh — created
+  2026-09-09T15:42:29.872Z, READY, source main, SHA
+  5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8.
 - SECOND redeploy, and the CURRENT Production deployment:
-  dpl_2cB4gsmgrqEBDjqQ48hedQDExurr — READY, Production, source
-  main, SHA 5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8.
+  dpl_2cB4gsmgrqEBDjqQ48hedQDExurr — created
+  2026-09-09T15:43:04.789Z, Production, source main, SHA
+  5ed6fd84ea81ce1b4ca768b44e036432d26c3ab8. It was STILL BUILDING
+  at first observation and reported READY only after the operator
+  STOP and wait recorded below.
+
+THE OPERATOR STOP AND THE RECOVERY, RECORDED AS THE SEQUENCE
+ACTUALLY RAN. This is a material operator event; it is stated here
+in order and is not omitted, reordered, or smoothed away.
+
+1. Authorization A and Authorization M had BOTH been issued before
+   the activation attempt began.
+2. Production configuration was mutated and the activation attempt
+   began. Authorization A became SPENT at that point.
+3. TWO Production redeploys were then observed: the first
+   dpl_9mMrn1CeQyESkKSVBA5DBYzEx9hh reporting READY, and the second
+   dpl_2cB4gsmgrqEBDjqQ48hedQDExurr STILL BUILDING at first
+   observation.
+4. A STOP WAS EXPLICITLY DECLARED IN REAL TIME, DURING THE
+   ACTIVATION, by the reviewer path (Codex), because the reviewed
+   act allowed exactly ONE Production deployment and reviewed state
+   A4 was OPERATIONALLY AMBIGUOUS while the second deployment was
+   unresolved. AT THAT STOP: Authorization A was SPENT;
+   Authorization M was UNCONSUMED; NO rollback was executed; NO
+   further mutation was permitted; and the operator was instructed
+   to let the in-flight deployment settle.
+5. The second deployment SUBSEQUENTLY SETTLED READY, and both
+   deployments then reported READY on the same source SHA. THE
+   OPERATIONAL AMBIGUITY WAS RESOLVED BY THAT SETTLEMENT; THE
+   TWO-VERSUS-ONE GOVERNANCE DEVIATION REMAINED and is not cured by
+   it.
+6. A SEPARATE RECOVERY GATE SCOPED TO READ-ONLY OBSERVATION ONLY
+   was then presented, and the operator replied approve. Its five
+   negative bounds are recorded in section 1.
+7. Authorization M was then consumed EXACTLY ONCE, by the
+   post-activation observation of section 5.
 
 DEVIATION, RECORDED AS EXECUTED: the deployment-event count was TWO
 where the reviewed act specified ONE. This record does not rewrite
@@ -102,10 +178,15 @@ WHAT THE DEVIATION COSTS, STATED PLAINLY:
   does NOT claim which of the two deployments first carried the
   activation configuration live.
 - The pre-activation promoted Production deployment identity
-  (runbook section 3.B.5) was not restated in the handoff, so the
-  section 6 observation-1 before-and-after comparison rests on the
-  two named post-activation deployments only, not on a captured
-  pre-activation identity.
+  (runbook section 3.B.5) was NOT restated in the original
+  activation handoff. IT WAS SUPPLIED LATER, as operator evidence in
+  the round-1 review handoff, and it is recorded above with its
+  creation instant, so the before-and-after comparison now does rest
+  on a captured pre-activation identity and section 9 orders all
+  three deployment creation instants by parse. What the operator
+  evidence still does not supply is a READY-SETTLEMENT INSTANT for
+  any of the three deployments; none is stated and none is invented
+  (section 9).
 
 ORDERING WITHIN SECTION 4, HONESTLY SPLIT:
 - NOT ESTABLISHED by the handoff: the intra-variable creation order
@@ -321,23 +402,62 @@ the attested evidence:
   execution (section 4). The reviewer is asked to weigh that bound
   rather than a claim of mechanical certainty.
 
-THE DEVIATION AND THE DURING-ACTIVATION CONDITIONS: the reviewed
+THE DEVIATION, THE DURING-ACTIVATION CONDITIONS, AND THE STOP THAT
+WAS ACTUALLY DECLARED:
+
+A DURING-ACTIVATION STOP WAS DECLARED IN REAL TIME. The reviewed
 during-activation condition nearest the deviation is an ambiguous
 deployment result or a promoted Production deployment not
-corresponding to the intended configuration. On the attested facts
-that condition is NOT TRIGGERED — both deployments reported READY,
-and the current promoted deployment is attested to carry the
-intended configuration. The deviation is a COUNT deviation from the
-reviewed act, which the reviewed STOP matrix did not enumerate as a
-condition of its own. THIS RECORD DOES NOT SELF-ADJUDICATE THE
-DEVIATION: it is recorded exactly as executed and disclosed for the
-reviewer's judgment.
+corresponding to the intended configuration. While the second
+redeploy was STILL BUILDING and therefore unresolved, that
+condition was live in the operational sense: the reviewed act
+allowed exactly ONE Production deployment, reviewed state A4 was
+OPERATIONALLY AMBIGUOUS, and on that basis the reviewer path
+(Codex) EXPLICITLY DECLARED STOP (section 2, step 4). THIS RECORD
+DOES NOT SAY THAT CONDITION WAS NEVER REACHED, and it does not
+describe the STOP as hypothetical, pre-emptive, or avoided.
+
+WHAT THE STOP DID: at the STOP, Authorization A was already SPENT,
+Authorization M was UNCONSUMED, NO rollback was executed, NO
+further mutation was permitted, and the operator was instructed to
+let the in-flight deployment settle.
+
+WHAT THE LATER READY SETTLEMENT DID AND DID NOT RESOLVE: the second
+deployment subsequently settled READY, and both deployments then
+reported READY on the same source SHA. THAT SETTLEMENT RESOLVED THE
+OPERATIONAL AMBIGUITY ONLY. IT DID NOT RESOLVE, CURE, OR RETIRE THE
+GOVERNANCE DEVIATION: the deployment-event count remains TWO where
+the reviewed act specified ONE. The deviation is a COUNT deviation
+from the reviewed act, which the reviewed STOP matrix did not
+enumerate as a condition of its own. THIS RECORD DOES NOT
+SELF-ADJUDICATE THE DEVIATION: it is recorded exactly as executed
+and disclosed for the reviewer's judgment.
 
 NO ROLLBACK WAS EXECUTED: the failure branch was not entered (no
 F1, no F2). The bounded emergency flag-OFF pre-authorization
-(mechanism 1) went unexercised and, with Authorization A spent, is
-now moot; database rollback, revocation, and restore were excluded
-unconditionally and none occurred.
+(mechanism 1) went unexercised — it was NOT exercised at the STOP
+and has not been exercised since — and, with Authorization A spent,
+is now moot; database rollback, revocation, and restore were
+excluded unconditionally and none occurred.
+
+HOW THE READ-ONLY OBSERVATION BECAME PERMISSIBLE AFTER THE STOP: a
+SEPARATE OPERATOR RECOVERY APPROVAL — the recovery gate scoped to
+READ-ONLY OBSERVATION ONLY, answered approve — permitted the
+already-issued Authorization M to be consumed for the bounded
+read-only observation once the deployment state had settled. Its
+five negative bounds are in section 1: no mutation, no additional
+deployment, no reset of Authorization A, no second grant of
+Authorization M, no merging of spent states. THE POST-ACTIVATION
+OBSERVATIONS OF SECTIONS 4 AND 5, TAKEN UNDER THAT PERMISSION, DID
+NOT THEMSELVES TRIGGER ANY NEW ROLLBACK CONDITION.
+
+THE DISPOSITION AS RECEIVED, RECORDED AND NOT ADJUDICATED HERE:
+ACCEPT ACTIVATION WITH DISCLOSED DEVIATION — NO ROLLBACK. The
+duplicate Production redeploy stands as a PERMANENT DISCLOSED
+GOVERNANCE DEVIATION; it does not invalidate the activation and it
+authorizes no mutation. That disposition is a received governance
+fact (section 8, class 9), not a conclusion this record reached
+about itself.
 
 ## 8. Evidence provenance map (kept distinct)
 
@@ -347,43 +467,71 @@ unconditionally and none occurred.
 2. HOSTED TRANSPORT RETURN: the section 5 measurement values — the
    execution's directly returned output, with observed_at as
    transaction-start temporal context.
-3. OPERATOR-SUPPLIED PLATFORM OBSERVATION: the deployment
-   identities and statuses, the variable scope and its screenshots,
-   the Supabase target posture of Production and Preview, and the
-   log and error-cluster counts of section 4 — gathered by the
-   operator, never by Claude.
+3. OPERATOR-SUPPLIED PLATFORM OBSERVATION: the three deployment
+   identities, their CREATION instants, and their statuses —
+   including the PRE-ACTIVATION promoted deployment identity and
+   creation instant, supplied in the round-1 review handoff rather
+   than in the original activation handoff — the variable scope and
+   its screenshots, the Supabase target posture of Production and
+   Preview, and the log and error-cluster counts of section 4 —
+   gathered by the operator, never by Claude.
 4. OPERATOR ATTESTATION AGAINST A QUOTED EXPECTATION: the
    target_run_member_surface value (section 5), recorded as an
    attestation against the governed six-member expectation and
    NEVER as a verbatim capture.
 5. OPERATOR-ENTERED VALUES NOT INDEPENDENTLY EXPOSED: the exact
    hosted variable values (section 3).
-6. NOT OBSERVED: the Development database posture; the
-   pre-activation promoted deployment identity; the reason for the
-   second redeploy; the intra-variable creation order and the
-   step-2 verification (sections 2 and 3).
+6. NOT OBSERVED: the Development database posture; the reason for
+   the second redeploy; the READY-SETTLEMENT INSTANT of any of the
+   three deployments; the intra-variable creation order and the
+   step-2 verification (sections 2, 3, and 9).
 7. BOUNDED TRANSPORT-PAYLOAD IDENTITY: section 1's standing
    limitation.
 8. HISTORICAL GAPS: unchanged and untouched.
+9. OPERATOR AND REVIEWER GOVERNANCE EVENTS, SUPPLIED IN THE ROUND-1
+   REVIEW HANDOFF — a class distinct from every platform reading
+   above, because these are governance facts relayed by the
+   operator, not instrument output and not Claude observations: the
+   real-time during-activation STOP and its stated basis; the
+   instruction to let the in-flight deployment settle; the separate
+   recovery gate scoped to read-only observation and the operator's
+   approve reply; and the received disposition ACCEPT ACTIVATION
+   WITH DISCLOSED DEVIATION — NO ROLLBACK (sections 1, 2, 7, and
+   10). No reviewer identity, approval, or wording beyond what the
+   operator relayed is asserted anywhere in this record, and a
+   blank or absent reply is never read as approval.
 
 ## 9. Chronology (every supplied instant parses and orders)
 
+EIGHT SUPPLIED INSTANTS IN ONE ORDER, EVERY TERM PROVEN BY PARSE.
 The staged run's creation (2026-09-08T05:26:09.940165Z) precedes
-the seal (2026-09-08T21:24:23.744781Z), which precedes the
-pre-activation Option-B measurement's transaction start
+the seal (2026-09-08T21:24:23.744781Z), which precedes the creation
+of the PRE-ACTIVATION promoted Production deployment
+(2026-09-09T00:16:38.370Z), which precedes the pre-activation
+Option-B measurement's transaction start
 (2026-09-09T02:27:31.8287Z), which precedes its advisor observation
-(2026-09-09T02:27:38.675Z), which precedes this post-activation
-measurement's transaction start (2026-09-09T15:54:55.316459Z). The
-returned sealed_at equals the instant preserved by the promoted
-EXLIB-2Z record and the target run's surrogate equals the promoted
-EXLIB-2U record's hosted id, both proven by parse and by
-cross-record comparison.
+(2026-09-09T02:27:38.675Z), which precedes the FIRST redeploy's
+creation (2026-09-09T15:42:29.872Z), which precedes the SECOND
+redeploy's creation (2026-09-09T15:43:04.789Z), which precedes this
+post-activation measurement's transaction start
+(2026-09-09T15:54:55.316459Z). The returned sealed_at equals the
+instant preserved by the promoted EXLIB-2Z record and the target
+run's surrogate equals the promoted EXLIB-2U record's hosted id,
+both proven by parse and by cross-record comparison.
 
-DEPLOYMENT INSTANTS WERE NOT SUPPLIED: no created-at was restated
-for either redeploy, so the ordering of the activation deployment
-before this measurement — Authorization M's precondition that state
-A4 has been reached — rests on the operator's sequence attestation
-and is NOT proven by parse in this record.
+DEPLOYMENT CREATION INSTANTS ARE NOW PROVEN BY PARSE; READY
+INSTANTS ARE NEITHER SUPPLIED NOR INVENTED. The three deployment
+instants above are CREATION instants, which is precisely what the
+operator evidence supplies exactly. NO READY-SETTLEMENT INSTANT was
+supplied for any deployment, so none is stated here and none is
+inferred. The consequence is stated rather than closed over: the
+parse proves that the pre-activation deployment, then the first
+redeploy, then the second redeploy were all CREATED before this
+measurement's transaction start — the ordering Authorization M's
+state-A4 precondition needs at the level of creation — while the
+further fact that the SECOND deployment had already SETTLED READY
+before the measurement was taken rests on the operator's attested
+STOP-and-wait sequence of section 2, not on a parsed instant.
 
 ## 10. Decision implication (bounded)
 
@@ -395,6 +543,15 @@ lines or runtime error clusters appeared over the observed window,
 no persistent delivery state moved on any measured surface, the run
 posture is exactly the sealed state, and the claims invariant is
 clean.
+
+THE DISPOSITION AS RECEIVED, RECORDED AND NOT ADJUDICATED HERE: the
+round-1 review disposition relayed by the operator is ACCEPT
+ACTIVATION WITH DISCLOSED DEVIATION — NO ROLLBACK, with the
+duplicate Production redeploy standing as a PERMANENT DISCLOSED
+GOVERNANCE DEVIATION that does not invalidate the activation and
+authorizes no mutation. It is recorded as a received governance fact
+(section 8, class 9). It does not convert into an authorization: the
+sentence below is unchanged by it.
 
 THIS EVIDENCE RECORD ITSELF AUTHORIZES NO NEW PROTECTED ACTION.
 Both one-use grants are SPENT, so every further protected act —
@@ -416,8 +573,13 @@ delivery call, no push, no tag, no EXLIB-2S act. Exactly one
 persistent-state measurement attempt occurred, by the operator
 path, and it succeeded; no retry; no individual SELECT was re-run;
 no estimate or metadata instrument was substituted. No advisor
-observation was taken in this milestone. No Preview or Development
-environment change occurred. No application code entered production
+observation was taken in this milestone. THE ROUND-1 CORRECTION
+RECORDED IN SECTION 13 RE-OBSERVED NOTHING: the pre-activation
+deployment identity and the three deployment creation instants came
+from operator-supplied evidence, and Vercel was NOT re-contacted to
+obtain them, in any mode including read-only. No Preview or
+Development environment change occurred. No application code
+entered production
 (both deployments carry the durable base SHA), and the local
 EXLIB-3A governance chain remains UNPUSHED with main = origin/main
 unchanged. The hosted run remains SEALED; the historical S5
@@ -428,7 +590,16 @@ post-COMMIT gaps remain exactly as recorded.
 scripts/verify-exlib3a-option-a-application.ts (new, static,
 read-only, in the battery; no hosted contact — nothing
 re-observed) proves: both authorizations recorded SPENT with
-separate spent states and one attempt each; the measurement
+separate spent states and one attempt each, together with the FULL
+GOVERNANCE SEQUENCE — Authorization A already SPENT and
+Authorization M still UNCONSUMED at the real-time operator STOP, the
+SEPARATE recovery approval that permitted the already-issued
+Authorization M to be consumed, and all five of its negative bounds
+(no mutation, no additional deployment, no reset of A, no second
+grant of M, no merged spent states) — with negative pins rejecting
+any wording that would widen that recovery approval into a
+deployment or a mutation, multiply the single grant of Authorization
+M, or return Authorization A to an unspent state; the measurement
 package's byte identity live, against the fingerprint the Option-B
 preparation record pinned, and at the reviewed Option-A candidate
 blob; the DEVIATION recorded as executed with both deployment ids,
@@ -455,11 +626,28 @@ record and the member-surface attestation cross-checked against the
 EXLIB-2U staging package's own pinned lines; the exact
 classification string with all four inference prohibitions and
 negative pins against the classic overclaims; the STOP evaluation,
-the no-rollback record, and the bounded decision implication with
-the no-new-authorization statement; the boundary; hygiene (no
-contiguous delivery or Supabase variable name, no hosted endpoint,
-no credential material); and topology, anchored at the reviewed
-Option-A candidate.
+which now requires the real-time during-activation STOP to be
+present with state A4 named OPERATIONALLY AMBIGUOUS, requires the
+later READY settlement to be described as resolving the operational
+ambiguity ONLY and never the governance deviation, and structurally
+forbids any NOT TRIGGERED verdict anywhere in the deviation half of
+that section, so the erasure of the STOP cannot reappear; the
+no-rollback record; the bounded decision implication with the
+no-new-authorization statement, and the received ACCEPT / NO
+ROLLBACK disposition recorded as a relayed governance fact rather
+than a self-adjudication; the boundary; the provenance map, which
+now carries a DISTINCT GOVERNANCE-EVENT class for the operator- and
+reviewer-relayed facts and no longer files the pre-activation
+deployment identity under NOT OBSERVED; hygiene (no contiguous
+delivery or Supabase variable name, no hosted endpoint, no
+credential material); the CHRONOLOGY, which now orders all EIGHT
+supplied instants by parse — including the three deployment CREATION
+instants — while requiring the record to keep declaring that no
+READY-settlement instant was supplied or invented; and topology,
+anchored at the reviewed Option-A candidate, which additionally
+requires this round's correction to touch EXACTLY the two authorized
+paths and requires scripts/verify-exlib3a-option-a.ts to be
+BYTE-IDENTICAL to its state at the evidence commit.
 
 ## 13. Stale-claim sweep and battery reconciliation
 
@@ -512,24 +700,64 @@ SECOND PLAIN FORWARD commit over the evidence commit rather than a
 rewrite of it, and the topology check asserts every commit in the
 phase range is single-parent. The reviewer therefore sees the
 understatement and its correction as two objects, not one tidied
-one. No reviewed or executed artifact was touched by either commit:
-the activation runbook whose fingerprint Authorization A bound
-remains byte-identical at 25,001 bytes.
+one. No reviewed or executed artifact was touched by any commit in
+this phase: the activation runbook whose fingerprint Authorization A
+bound remains byte-identical at 25,001 bytes.
 
-With the retarget in place and C4 anchored, the simulated-commit
-battery, the committed battery, and the fresh-clone battery all
-read 104 suites / 7,293 checks / 0 failures
+THE ROUND-1 REVIEW CORRECTION IS A THIRD PLAIN FORWARD COMMIT, FOR
+THE SAME REASON. The round-1 review returned the evidence package
+CORRECT with one narrow GOVERNANCE-PROVENANCE OMISSION: the durable
+record had omitted the material operator event — the real-time
+during-activation STOP and the separate recovery approval that
+followed it — and, worse, section 7 had recorded the nearest
+during-activation condition as NOT TRIGGERED, which erased the STOP
+that was actually declared. Sections 1, 2, 7, 8, 9, 10, 11 and this
+section now carry the sequence explicitly, the three deployment
+CREATION instants upgrade section 9 from an attested ordering to a
+parsed one, and the pre-activation deployment identity moves out of
+the NOT OBSERVED class it no longer belongs in. The correction
+touches EXACTLY the two authorized paths — this record and its own
+verifier — and scripts/verify-exlib3a-option-a.ts is byte-identical
+to its state at the evidence commit, which the topology check now
+asserts directly rather than leaving to inspection.
+
+THE ERASURE IS GUARDED, NOT MERELY REPAIRED, AND THE GUARD IS
+DEMONSTRATED ON EIGHT NEGATIVE CONTROLS. Each control mutates a
+committed copy of this record in one specific way and the suite must
+go RED; all eight do, and the check that catches each is named:
+deleting the operator-declared STOP (C12); saying Authorization M
+was consumed under its original grant with no recovery approval
+(C1); saying the recovery approval authorized the second redeploy
+(C1); saying Authorization A became unspent or was reset (C1);
+saying state A4 was unambiguous throughout (C12); removing the
+recovery approval's no-mutation boundary (C1); restating the
+TWO-versus-ONE deviation as conforming execution (C3); and removing
+the deployment-creation chronology (C14). The C12 guard is
+structural as well as textual: no NOT TRIGGERED verdict may appear
+anywhere in the deviation half of section 7, so the specific erasure
+the review caught cannot return by rewording.
+
+With the retarget in place, C4 anchored, and the round-1 correction
+applied, the simulated-commit battery, the committed battery, and
+the fresh-clone battery all read
+104 suites / 7,293 checks / 0 failures
 — the pre-milestone baseline 103 / 7,279 plus exactly this
-milestone's new 14-check static suite and nothing else.
+milestone's new 14-check static suite and nothing else. The
+correction is COUNT-NEUTRAL: the suite still reports FOURTEEN
+checks, strengthened in place rather than extended.
 
 ## 14. Stop condition
 
-This milestone stops LOCAL-ONLY on its branch for Codex review of
-this activation and observation evidence, with the section 2
-deviation disclosed for that review. No push, no tag. The next
-steps are separate decisions: Codex review of this record; the
-operator's operational acceptance decision on the activation
-including how the deployment-count deviation bears on it; and, only
-under its own new one-use human authorization, any further
-protected act. Both Authorization A and Authorization M are SPENT
-and neither can be re-used.
+This milestone stops LOCAL-ONLY on its branch for Codex RE-REVIEW of
+the round-1 correction recorded in section 13, with the section 2
+deviation, the real-time during-activation STOP, and the separate
+recovery approval all disclosed for that review. No push, no tag,
+no closeout. The round-1 disposition ACCEPT ACTIVATION WITH
+DISCLOSED DEVIATION — NO ROLLBACK is recorded (sections 7 and 10)
+and authorizes nothing. The next steps remain separate decisions:
+Codex re-review of this record; and, only under its own new one-use
+human authorization, any further protected act, including the
+eventual consolidated closeout that would push this chain. Both
+Authorization A and Authorization M are SPENT and neither can be
+re-used, and the recovery approval that permitted the read-only
+observation was consumed by it and is not reusable either.
