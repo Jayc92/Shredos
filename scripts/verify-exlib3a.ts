@@ -63,8 +63,16 @@ check('X1: the durable starting point is exact and the identifier is lawful BY M
         if (l === 's') { if (present) return false } else if (!present) return false
       }
       if (docsAtBase.some((p) => p.startsWith('docs/exlib3'))) return false
-      const ex3 = execSync("ls docs | grep '^exlib3' || true", { encoding: 'utf8' }).split('\n').filter(Boolean)
-      if (JSON.stringify(ex3) !== JSON.stringify(['exlib3a-s6-delivery-configuration-proposal.md'])) return false
+      // RETARGET (EXLIB-3A OPTION B measurement preparation): the
+      // live-worktree exlib3 census was an authoring-time
+      // self-census, falsified by this milestone's own lawful
+      // exlib3a-option-b artifacts (the same finished-claim-
+      // falsified-by-successor pattern as the 2V census) — anchored
+      // as a tree census at this phase's own accepted candidate,
+      // where it held and holds forever.
+      const ex3 = execSync("git ls-tree --name-only 872e19eff3a618015a6dfea7d83c00a241c37aca docs/ | grep '^docs/exlib3' || true", { encoding: 'utf8', shell: '/bin/bash' })
+        .split('\n').filter(Boolean)
+      if (JSON.stringify(ex3) !== JSON.stringify(['docs/exlib3a-s6-delivery-configuration-proposal.md'])) return false
       return propFlat.includes(BASE) && propFlat.includes(TAG) && propFlat.includes('2s reserved/forbidden')
     } catch { return false }
   })())
@@ -243,45 +251,43 @@ check('X13: the milestone boundary and hygiene hold — section 17 lists every p
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is closed
-// out and a successor commit exists, this HEAD-relative check goes
-// stale by design and gets the standard labeled retarget.
-if (committed) {
-  check('X14: topology and retarget coverage — the preserved round-0 proposal commit plus ONE plain forward round-1 correction over the durable EXLIB-2Z base (single-parent chain 5ed6fd84 -> 548849c0 -> correction), the CUMULATIVE diff carrying exactly this proposal and this verifier plus ONLY the labeled S12 retarget, the correction touching ONLY this proposal and this verifier, and verify-exlib2z-application.ts carrying the RETARGET (EXLIB-3A S6 delivery governance) label anchored at the durable tip with its twelve checks intact',
-    (() => {
-      try {
-        const R0 = '548849c02bfe9052596393712e026e7be36ca4d5'
-        if (execSync(`git rev-list --count ${BASE}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== R0) return false
-        const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p0.length !== 2 || p0[1] !== BASE) return false
-        const status = execSync(`git diff --name-status ${BASE} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const corr = execSync(`git diff --name-status ${R0} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const corrExpected = [PROPOSAL, VERIFIER].sort().map((p) => `M\t${p}`)
-        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
-        const zapp = read('scripts/verify-exlib2z-application.ts')
-        if (!zapp.includes('RETARGET (EXLIB-3A S6 delivery governance)')) return false
-        if (!zapp.includes(`const DTIP = '${BASE}'`)) return false
-        return (zapp.match(/^check\(/gm) || []).length === 12
-      } catch { return false }
-    })())
-} else {
-  check('X14 (uncommitted authoring state): every worktree change lies inside the two phase paths plus the labeled retargeted suite, which carries the RETARGET (EXLIB-3A S6 delivery governance) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
-    && read('scripts/verify-exlib2z-application.ts').includes('RETARGET (EXLIB-3A S6 delivery governance)'))
-}
+// RETARGET (EXLIB-3A OPTION B measurement preparation): this
+// proposal phase COMPLETED — the round-1 corrected candidate was
+// Codex-APPROVED and the operator disposed OPTION B — so the
+// topology claims are anchored at the phase's own accepted
+// candidate, where they held and hold forever; the HEAD-relative
+// form (and its uncommitted authoring branch) went stale at this
+// measurement-preparation milestone's own commit, the same
+// completed-phase pattern as every predecessor (thirteenth
+// instance). Count-neutral: the suite still reports fourteen
+// checks.
+const CTIP = '872e19eff3a618015a6dfea7d83c00a241c37aca'
+check('X14: topology and retarget coverage (anchored at the accepted candidate) — the preserved round-0 proposal commit plus ONE plain forward round-1 correction over the durable EXLIB-2Z base (single-parent chain 5ed6fd84 -> 548849c0 -> 872e19ef, the Codex-accepted candidate), the CUMULATIVE diff carrying exactly this proposal and this verifier plus ONLY the labeled S12 retarget, the correction touching ONLY this proposal and this verifier, and verify-exlib2z-application.ts carrying the RETARGET (EXLIB-3A S6 delivery governance) label anchored at the durable tip with its twelve checks intact',
+  (() => {
+    try {
+      const R0 = '548849c02bfe9052596393712e026e7be36ca4d5'
+      if (execSync(`git rev-list --count ${BASE}..${CTIP}`, { encoding: 'utf8' }).trim() !== '2') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${CTIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== R0) return false
+      const p0 = execSync(`git rev-list --parents -n 1 ${R0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p0.length !== 2 || p0[1] !== BASE) return false
+      const status = execSync(`git diff --name-status ${BASE} ${CTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const corr = execSync(`git diff --name-status ${R0} ${CTIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const corrExpected = [PROPOSAL, VERIFIER].sort().map((p) => `M\t${p}`)
+      if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
+      const zapp = read('scripts/verify-exlib2z-application.ts')
+      if (!zapp.includes('RETARGET (EXLIB-3A S6 delivery governance)')) return false
+      if (!zapp.includes(`const DTIP = '${BASE}'`)) return false
+      return (zapp.match(/^check\(/gm) || []).length === 12
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
