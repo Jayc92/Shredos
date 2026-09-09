@@ -15,8 +15,15 @@
 -- evidence.
 --
 -- WHAT THIS MEASURES AND WHAT IT DOES NOT: every value below is a
--- CURRENT-STATE fact captured at one snapshot instant (the
--- transaction's now(), surfaced as observed_at). Zero
+-- CURRENT-STATE fact. TIMESTAMP PROVENANCE (round-1 corrected):
+-- observed_at is PostgreSQL's TRANSACTION-START timestamp returned
+-- by now() — temporal context for the measurement, NOT the exact
+-- MVCC snapshot-acquisition instant, which this package does not
+-- separately surface and which observed_at must never be
+-- represented as. The DATA metrics are nonetheless coherent with
+-- one another: all fifty are produced by exactly ONE top-level
+-- SELECT and therefore share that single statement's MVCC
+-- snapshot. Zero
 -- provenance-linked rows means no persistent delivery-associated
 -- tenant state is present NOW on the measured surfaces — it is NOT
 -- proof that deliver_catalog_exercises was never invoked or

@@ -59,10 +59,29 @@ check('B1: the package bytes are exactly what this record reviews — the record
       && pkgProse.includes('never by Claude and never by any automated pipeline')
       && pkgProse.includes('EXACT-ONCE LAW')
   })())
-check('B2: the transactional shape is exact — exactly ONE BEGIN TRANSACTION READ ONLY, exactly ONE COMMIT, and exactly ONE top-level SELECT producing the single (metric, value) result set',
-  (pkg.match(/^BEGIN TRANSACTION READ ONLY;$/gm) || []).length === 1
-  && (pkg.match(/^COMMIT;$/gm) || []).length === 1
-  && (pkg.match(/^SELECT /gm) || []).length === 1)
+check('B2: the transactional shape is exact AND the timestamp provenance is truthful (round-1 strengthened) — exactly ONE BEGIN TRANSACTION READ ONLY, ONE COMMIT, and ONE top-level SELECT; observed_at is identified as PostgreSQL\'s TRANSACTION-START timestamp (temporal context), the data metrics are stated to share the single SELECT\'s statement snapshot, the exact MVCC snapshot-acquisition instant is stated as not separately surfaced, and the factual sections REJECT any language equating now()/observed_at with the snapshot instant',
+  (() => {
+    if ((pkg.match(/^BEGIN TRANSACTION READ ONLY;$/gm) || []).length !== 1) return false
+    if ((pkg.match(/^COMMIT;$/gm) || []).length !== 1) return false
+    if ((pkg.match(/^SELECT /gm) || []).length !== 1) return false
+    // the corrected provenance, required in both the package header
+    // and the record
+    if (!pkgProse.includes('TRANSACTION-START timestamp')) return false
+    if (!pkgProse.includes('share that single statement')) return false
+    if (!pkgProse.includes('does not separately surface')) return false
+    if (!recFlat.includes('TRANSACTION-START timestamp')) return false
+    if (!recFlat.includes('share one statement snapshot')) return false
+    if (!recFlat.includes('not separately surfaced')) return false
+    // the equating overstatements must be ABSENT from the package
+    // and the record's factual sections (the dated disclosure may
+    // quote them)
+    const recFactual = norm(rec.slice(0, rec.indexOf('## 13.') > 0 ? rec.indexOf('## 13.') : rec.length))
+    if (pkg.includes('the snapshot instant')) return false
+    if (pkg.includes('bound to the read-only snapshot')) return false
+    if (recFactual.includes('the snapshot instant')) return false
+    if (recFactual.includes('bound to the read-only snapshot')) return false
+    return true
+  })())
 check('B3: ZERO mutation, DDL, grant, or lock statements — the comment-stripped SQL contains no INSERT/UPDATE/DELETE/MERGE/TRUNCATE/CREATE/ALTER/DROP/GRANT/REVOKE keyword, no advisory lock, and no explicit table lock',
   (() => {
     if ((pkgCode.match(/\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|CREATE|ALTER|DROP|GRANT|REVOKE)\b/gi) || []).length !== 0) return false
@@ -199,12 +218,15 @@ const committed = CHANGED.length === 0
 // out and a successor commit exists, this HEAD-relative check goes
 // stale by design and gets the standard labeled retarget.
 if (committed) {
-  check('B14: topology and retarget coverage — ONE plain forward measurement-preparation commit over the accepted proposal candidate (single parent 872e19ef...) carrying exactly the SQL package, this record, and this verifier plus ONLY the labeled X14 retarget, and verify-exlib3a.ts carries the RETARGET (EXLIB-3A OPTION B measurement preparation) label anchored at the accepted candidate with its fourteen checks intact',
+  check('B14: topology and retarget coverage — the preserved round-0 measurement-preparation commit plus ONE plain forward round-1 correction over the accepted proposal candidate (single-parent chain 872e19ef -> ba6a6ca6 -> correction), the CUMULATIVE diff carrying exactly the SQL package, this record, and this verifier plus ONLY the labeled X14 retarget, the correction touching ONLY the three Option-B paths, and verify-exlib3a.ts carrying the RETARGET (EXLIB-3A OPTION B measurement preparation) label anchored at the accepted candidate with its fourteen checks intact',
     (() => {
       try {
-        if (execSync(`git rev-list --count ${CAND}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
+        const M0 = 'ba6a6ca6cf39d8fdc60a822e93413dd5cf7d1c1a'
+        if (execSync(`git rev-list --count ${CAND}..HEAD`, { encoding: 'utf8' }).trim() !== '2') return false
         const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== CAND) return false
+        if (p1.length !== 2 || p1[1] !== M0) return false
+        const p0 = execSync(`git rev-list --parents -n 1 ${M0}`, { encoding: 'utf8' }).trim().split(/\s+/)
+        if (p0.length !== 2 || p0[1] !== CAND) return false
         const status = execSync(`git diff --name-status ${CAND} HEAD`, { encoding: 'utf8' })
           .split('\n').filter(Boolean).sort()
         const expected = [
@@ -212,6 +234,10 @@ if (committed) {
           ...RETARGETED.map((p) => `M\t${p}`),
         ].sort()
         if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+        const corr = execSync(`git diff --name-status ${M0} HEAD`, { encoding: 'utf8' })
+          .split('\n').filter(Boolean).sort()
+        const corrExpected = [...PHASE_ADDS].sort().map((p) => `M\t${p}`)
+        if (JSON.stringify(corr) !== JSON.stringify(corrExpected)) return false
         const x = read('scripts/verify-exlib3a.ts')
         if (!x.includes('RETARGET (EXLIB-3A OPTION B measurement preparation)')) return false
         if (!x.includes(`const CTIP = '${CAND}'`)) return false

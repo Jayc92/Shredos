@@ -15,8 +15,14 @@ bytes — never by Claude.
 ## 1. What was prepared (the exact bytes)
 
 - Package: docs/exlib3a-option-b-current-state-measurement.sql,
-  13,684 bytes, sha256
-  323764cb26cc6fd5e2ab7a5a229c695cf6b78029e80beabbf8799c88403cfb33,
+  14,101 bytes, sha256
+  1e9a60eca9f83b13ab603600272dd3ac3f532cf38d304259c7a584e47fd296ea
+  (the round-1 corrected bytes; the round-0 fingerprint 13,684 B
+  323764cb... is superseded by a comment-only header correction —
+  the comment-stripped executable SQL is byte-identical across the
+  correction, sha256
+  08613dbd44dcea73a16e9272dcab4d33aaeb47bd7f30f935e37fe9bad77cf597
+  both before and after),
   authored on the local-only branch exlib3a-s6-delivery-governance
   over the Codex-accepted proposal candidate
   872e19eff3a618015a6dfea7d83c00a241c37aca (chain
@@ -42,9 +48,14 @@ the package returns.
 
 ## 3. What the package measures (the required surfaces, mapped)
 
-1. OBSERVATION IDENTITY: observed_at (the READ ONLY transaction's
-   now() — the snapshot instant of every value in the set) and
-   executor (current_user).
+1. OBSERVATION IDENTITY: observed_at (PostgreSQL's
+   TRANSACTION-START timestamp returned by now() — temporal context
+   for the measurement, round-1 corrected: it is NOT the exact MVCC
+   snapshot-acquisition instant, which is not separately surfaced,
+   and observed_at must never be represented as that instant; the
+   data values are nonetheless mutually coherent because all fifty
+   metrics are produced by the single top-level SELECT and share
+   one statement snapshot) and executor (current_user).
 2. IMPORT-RUN CENSUS AND TARGET POSTURE: runs_total; the reserved
    key echoed; target_run_found; the target run's id (the hosted
    surrogate, surfaced for comparison with the preserved
@@ -163,7 +174,9 @@ fixture, the committed 2K+2O+2P+2Q+2R+2Y chain, the SPENT EXLIB-2U
 staging package, and the SPENT EXLIB-2Z seal package were executed
 once each to reproduce the sealed world, and this package then ran
 EXACTLY ONCE against it: exit 0, ONE result set of exactly FIFTY
-(metric, value) rows, observed_at bound to the read-only snapshot,
+(metric, value) rows, observed_at returned as the transaction-start
+timestamp (temporal context only; the data rows share the single
+SELECT's statement snapshot — round-1 corrected),
 the sealed posture read back exactly (approved true / sealed set /
 unrevoked / operational fields null), the six-member surface exact,
 vector_string 3/3/5/3/6/1/2/2/1/6/3, tenants 84/0, delivery
@@ -245,3 +258,32 @@ operator's single hosted execution; the EXLIB-3A current-state
 evidence record authored from the returned result set (with
 exact-count provenance labeling); and only then the A-versus-C
 reconsideration. S6 activation remains STOPPED throughout.
+
+## 13. Correction disclosure (2026-09-08, round 1)
+
+Codex reviewed the round-0 candidate
+ba6a6ca6cf39d8fdc60a822e93413dd5cf7d1c1a and returned CORRECT: the
+measurement architecture, read-only shape, fifty-metric census,
+persistent-state framing, exact-once law, and the disposable
+local-cluster validation were ACCEPTED (the local execution ruled
+instrument validation only, consuming nothing), with ONE narrow
+evidence-provenance defect: the round-0 package header and this
+record equated the transaction's now() with "the snapshot instant."
+PostgreSQL defines now() as the START TIME OF THE CURRENT
+TRANSACTION — not the MVCC snapshot-acquisition instant, which this
+package does not separately surface. Corrected in ONE plain forward
+commit touching exactly the package header, this record, and the
+Option-B verifier (the accepted verify-exlib3a retarget is
+byte-unchanged): observed_at is now stated as the transaction-start
+timestamp providing temporal context, never the exact snapshot
+instant; the data metrics' mutual coherence is preserved and stated
+on its true basis — all fifty values are produced by exactly ONE
+top-level SELECT and share that single statement's MVCC snapshot.
+No executable SQL changed: the comment-stripped code is
+byte-identical across the correction (section 1 pins both
+fingerprints). B2 was strengthened count-neutrally to require the
+corrected provenance and to reject the equating language from the
+factual sections; B14 pins the round-0-plus-correction chain. No
+hosted contact, no measurement, no delivery, no revocation, no S6
+action, no push, and no tag occurred in this correction; the
+section-16 authorization remains UNSENT and S6 remains STOPPED.
