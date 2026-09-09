@@ -476,13 +476,49 @@ exact label `RETARGET (EXLIB-3A OPTION A hosted-activation
 evidence)` to anchor at that phase's own reviewed candidate
 73a2bc8c44c6260c096517e66090014f6af8ebc0, where its chain and
 inventory held and hold forever; that suite still reports SIXTEEN
-checks. No other predecessor check went stale: every earlier
-retarget is anchored at its own tip rather than at HEAD. The only
-other red in the sweep was this milestone's OWN new verifier
-holding its retarget-coverage check red until the retarget landed —
-the guard authored before the repair. With the retarget in place
-the simulated-commit battery, the committed battery, and the
-fresh-clone battery all read 104 suites / 7,293 checks / 0 failures
+checks. No other predecessor check went stale, and that is
+DEMONSTRATED rather than asserted: a control arm committing this
+milestone's two phase additions WITHOUT the retarget reds exactly
+two checks, one apiece — the stale A16 itself, proving the retarget
+was NECESSARY rather than gratuitous, and this milestone's own
+retarget-coverage check, proving the new guard detects a missing
+retarget — while every one of the other 102 suites stays green.
+Every earlier retarget is anchored at its own tip rather than at
+HEAD.
+
+The sweep also caught a defect in this milestone's OWN new
+verifier, recorded here rather than quietly repaired. The first
+sweep run red C4, because that check pinned the deployed source SHA
+by resolving the local branch name main. That pin was wrong twice
+over: it cannot resolve in a fresh clone, which has no local main
+and which the required fresh-clone battery exercises, and it would
+go stale at the eventual consolidated closeout when main advances
+past this base — the exact failure the durable-closeout ruling
+already retired once for the EXLIB-2U application verifier and
+whose absence Z14 now enforces. C4 was repaired BEFORE the commit
+to pin the deployed source as ANCHORED commit constants (the
+object's type, its ancestry to the reviewed candidate, and its
+position as the base of exactly this seven-commit local-only
+chain), and the no-application-code property was changed from a
+phrase read out of this record's prose into a property DERIVED from
+that commit range. This record's claim about the deployed source is
+therefore checked against git rather than against itself.
+
+The C4 repair preceded the evidence commit, but this section's own
+correction did not: the first commit's section 13 understated the
+sweep by naming only one other red. Because the standing rule
+forbids amend, rebase, and squash, the correction landed as a
+SECOND PLAIN FORWARD commit over the evidence commit rather than a
+rewrite of it, and the topology check asserts every commit in the
+phase range is single-parent. The reviewer therefore sees the
+understatement and its correction as two objects, not one tidied
+one. No reviewed or executed artifact was touched by either commit:
+the activation runbook whose fingerprint Authorization A bound
+remains byte-identical at 25,001 bytes.
+
+With the retarget in place and C4 anchored, the simulated-commit
+battery, the committed battery, and the fresh-clone battery all
+read 104 suites / 7,293 checks / 0 failures
 — the pre-milestone baseline 103 / 7,279 plus exactly this
 milestone's new 14-check static suite and nothing else.
 

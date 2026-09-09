@@ -350,7 +350,7 @@ check('C13: the boundary and the provenance map are complete and hygiene holds �
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-check('C14: the chronology orders by parse (creation < seal < pre-activation measurement < advisor < this measurement) with the un-supplied deployment instants disclosed as a parse gap, and topology holds anchored at the reviewed candidate — ONE plain forward evidence commit over 73a2bc8c... carrying exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with verify-exlib3a-option-a.ts anchored at that candidate and its SIXTEEN checks intact',
+check('C14: the chronology orders by parse (creation < seal < pre-activation measurement < advisor < this measurement) with the un-supplied deployment instants disclosed as a parse gap, and topology holds anchored at the reviewed candidate — TWO PLAIN FORWARD commits over 73a2bc8c... (the evidence commit, then one honest correction commit; every commit in the range single-parent, never an amend or rebase) whose union carries exactly this record and this verifier plus ONLY the labeled sixteenth-instance retarget, with verify-exlib3a-option-a.ts anchored at that candidate and its SIXTEEN checks intact',
   (() => {
     const staging = Date.parse('2026-09-08T05:26:09.940165Z')
     const seal = Date.parse('2026-09-08T21:24:23.744781Z')
@@ -373,9 +373,18 @@ check('C14: the chronology orders by parse (creation < seal < pre-activation mea
       if (CHANGED.length > 0) {
         return CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
       }
-      if (execSync(`git rev-list --count ${PTIP}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-      const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-      if (p1.length !== 2 || p1[1] !== PTIP) return false
+      // PLAIN FORWARD ONLY: the phase landed as two commits — the
+      // evidence commit, then one honest correction commit after the
+      // sweep's own control arm showed section 13 had understated the
+      // sweep's reds. The standing rule forbids amend/rebase/squash,
+      // so the correction is a successor, never a rewrite; every
+      // commit in the range is therefore asserted single-parent.
+      execSync(`git merge-base --is-ancestor ${PTIP} HEAD`, { encoding: 'utf8' })
+      const range = execSync(`git rev-list --parents ${PTIP}..HEAD`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).map((l) => l.trim().split(/\s+/))
+      if (range.length !== 2) return false
+      if (!range.every((p) => p.length === 2)) return false
+      if (range[range.length - 1][1] !== PTIP) return false
       const status = execSync(`git diff --name-status ${PTIP} HEAD`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       const expected = [
