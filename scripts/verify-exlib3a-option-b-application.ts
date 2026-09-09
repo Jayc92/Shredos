@@ -208,38 +208,34 @@ check('V11: hygiene — the record\'s non-ASCII is the em-dash only, and no phas
       'SUPABASE' + '_URL', 'SUPABASE' + '_SERVICE', 'api' + 'key', 'Bearer' + ' ', 'ey' + 'J']
     return !bads.some((b) => payload.includes(b))
   })())
-const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
-const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
-const committed = CHANGED.length === 0
-  && execSync(`git rev-list --count ${MTIP}..HEAD`, { encoding: 'utf8' }).trim() !== '0'
-// Completed-phase note for the future: once this milestone is closed
-// out and a successor commit exists, this HEAD-relative check goes
-// stale by design and gets the standard labeled retarget.
-if (committed) {
-  check('V12: topology and retarget coverage — ONE plain forward evidence commit over the corrected measurement candidate (single parent 3442c8f0...) carrying exactly this record and this verifier plus ONLY the labeled B14 retarget, and verify-exlib3a-option-b.ts carries the RETARGET (EXLIB-3A OPTION B hosted-measurement evidence) label anchored at the corrected candidate with its fourteen checks intact',
-    (() => {
-      try {
-        if (execSync(`git rev-list --count ${MTIP}..HEAD`, { encoding: 'utf8' }).trim() !== '1') return false
-        const p1 = execSync('git rev-list --parents -n 1 HEAD', { encoding: 'utf8' }).trim().split(/\s+/)
-        if (p1.length !== 2 || p1[1] !== MTIP) return false
-        const status = execSync(`git diff --name-status ${MTIP} HEAD`, { encoding: 'utf8' })
-          .split('\n').filter(Boolean).sort()
-        const expected = [
-          ...PHASE_ADDS.map((p) => `A\t${p}`),
-          ...RETARGETED.map((p) => `M\t${p}`),
-        ].sort()
-        if (JSON.stringify(status) !== JSON.stringify(expected)) return false
-        const b = read('scripts/verify-exlib3a-option-b.ts')
-        if (!b.includes('RETARGET (EXLIB-3A OPTION B hosted-measurement evidence)')) return false
-        if (!b.includes(`const MTIP = '${MTIP}'`)) return false
-        return (b.match(/^check\(/gm) || []).length === 14
-      } catch { return false }
-    })())
-} else {
-  check('V12 (uncommitted authoring state): every worktree change lies inside the two phase paths plus the labeled retargeted suite, which carries the RETARGET (EXLIB-3A OPTION B hosted-measurement evidence) label',
-    CHANGED.length > 0 && CHANGED.every((p) => PHASE_ADDS.includes(p) || RETARGETED.includes(p))
-    && read('scripts/verify-exlib3a-option-b.ts').includes('RETARGET (EXLIB-3A OPTION B hosted-measurement evidence)'))
-}
+// V12 RETARGET (EXLIB-3A OPTION A activation preparation): this
+// suite's original HEAD-relative completed-phase topology (committed
+// branch pinned exactly one commit over the corrected measurement
+// candidate; uncommitted branch described this evidence milestone's
+// own authoring worktree) went stale at the activation-preparation
+// milestone's own commit, the same completed-phase pattern as every
+// predecessor (fifteenth instance). Count-neutral: the suite still
+// reports twelve checks.
+const ETIP = 'd4703187e1f52cdeda17d003023f8eb14e654480'
+check('V12: topology and retarget coverage (anchored at the accepted evidence tip d4703187...) — ONE plain forward evidence commit over the corrected measurement candidate (single parent 3442c8f0...) carrying exactly this record and this verifier plus ONLY the labeled B14 retarget, and verify-exlib3a-option-b.ts carries the RETARGET (EXLIB-3A OPTION B hosted-measurement evidence) label anchored at the corrected candidate with its fourteen checks intact',
+  (() => {
+    try {
+      if (execSync(`git rev-list --count ${MTIP}..${ETIP}`, { encoding: 'utf8' }).trim() !== '1') return false
+      const p1 = execSync(`git rev-list --parents -n 1 ${ETIP}`, { encoding: 'utf8' }).trim().split(/\s+/)
+      if (p1.length !== 2 || p1[1] !== MTIP) return false
+      const status = execSync(`git diff --name-status ${MTIP} ${ETIP}`, { encoding: 'utf8' })
+        .split('\n').filter(Boolean).sort()
+      const expected = [
+        ...PHASE_ADDS.map((p) => `A\t${p}`),
+        ...RETARGETED.map((p) => `M\t${p}`),
+      ].sort()
+      if (JSON.stringify(status) !== JSON.stringify(expected)) return false
+      const b = read('scripts/verify-exlib3a-option-b.ts')
+      if (!b.includes('RETARGET (EXLIB-3A OPTION B hosted-measurement evidence)')) return false
+      if (!b.includes(`const MTIP = '${MTIP}'`)) return false
+      return (b.match(/^check\(/gm) || []).length === 14
+    } catch { return false }
+  })())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
