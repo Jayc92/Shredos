@@ -340,7 +340,13 @@ export type ExerciseType =
 // behavior. ExerciseType/exercise_type remains on Exercise below for
 // legacy DB compatibility only -- it is derived from tracking_mode on
 // write, never read for behavior.
-export type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'
+// W4 (weight_time coordinated plan, docs/weight-time-coordinated-
+// implementation-plan.md): 'weight_time' is the fifth mode — a weighted
+// hold, two independent dimensions (added weight + duration). Its
+// storage contract lands in migration 028 (W6) and its API contract in
+// W7; every consumer that branches on this union is enumerated by
+// scripts/verify-tracking-mode-census.ts and must decide it explicitly.
+export type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed' | 'weight_time'
 
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped'
 

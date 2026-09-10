@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { blockIfWorkoutExerciseCompleted } from '@/lib/supabase/workout-guards'
+import type { TrackingMode } from '@/types/database'
 
 // ============================================================
 // ForgeFitOS — Apply first-set values to remaining sets (UI-5B1B)
@@ -16,13 +17,19 @@ import { blockIfWorkoutExerciseCompleted } from '@/lib/supabase/workout-guards'
 // partial failure affects only the still-blank remainder.
 // ============================================================
 
-type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'
-
+// W4: the local four-value TrackingMode alias is gone; the shared type
+// from @/types/database is the single vocabulary.
 const MODE_COPY_FIELDS: Record<TrackingMode, readonly string[]> = {
   weight_reps: ['reps', 'weight_kg', 'rpe'],
   bodyweight:  ['reps', 'weight_kg', 'rpe'],
   cardio:      ['duration_seconds', 'distance_meters'],
   timed:       ['duration_seconds', 'rpe'],
+  // W4 TEMPORARY, FAIL-CLOSED — NOT the contract. Copying NOTHING means a
+  // weight_time exercise (which cannot yet exist: the database CHECK
+  // widens only in migration 028) would get the existing 400 "Enter and
+  // save the first set's values" answer rather than any copy. W7 defines
+  // the real copy set.
+  weight_time: [],
 }
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {

@@ -98,12 +98,17 @@ const VALID_MODE_FILTERS: readonly TrackingMode[] = [
   'bodyweight',
   'cardio',
   'timed',
+  // W4: the parser admits the fifth mode now; its /progress pill ships in
+  // W10 (src/lib/constants.ts). A parser without a pill is an unreachable
+  // URL that correctly shows an empty mode; a pill without a parser would
+  // silently filter to "All" — so this side lands first on purpose.
+  'weight_time',
 ]
 
 /**
  * Parses a ?mode= query value. Anything that isn't exactly one of the
- * four tracking modes (missing, arrays beyond the first value,
- * arbitrary strings) gracefully falls back to null — meaning "All".
+ * tracking modes (missing, arrays beyond the first value, arbitrary
+ * strings) gracefully falls back to null — meaning "All".
  */
 export function parseTrackingModeFilter(
   value: string | string[] | undefined

@@ -131,7 +131,13 @@ export const EXERCISE_TYPES = [
 // derived and written for every row (see deriveLegacyExerciseType) --
 // callers can no longer supply exercise_type directly through either
 // normalize function below.
-export const TRACKING_MODES = ['weight_reps', 'bodyweight', 'cardio', 'timed'] as const
+// W4: 'weight_time' joins the vocabulary, so validateTrackingMode accepts
+// it at the API boundary. INTERMEDIATE STATE, stated plainly: until
+// migration 028 (W6) the database CHECK still rejects the value, so a
+// create/update carrying it fails closed AT THE DATABASE; and the mode is
+// not selectable in the UI until W10 (src/lib/constants.ts carries no
+// label for it yet). Nothing here treats weight_time as already shipped.
+export const TRACKING_MODES = ['weight_reps', 'bodyweight', 'cardio', 'timed', 'weight_time'] as const
 
 export type ExerciseCategory = typeof EXERCISE_CATEGORIES[number]
 export type MuscleGroup = typeof MUSCLE_GROUPS[number]
@@ -309,6 +315,11 @@ export function deriveLegacyExerciseType(trackingMode: TrackingMode): ExerciseTy
     case 'cardio': return 'cardio'
     case 'timed': return 'mobility'
     case 'weight_reps': return 'strength'
+    // Decision 3 (EXLIB-1C0B4, CLOSED): weight_time derives the broad
+    // legacy exercise_type 'strength' by THIS explicit arm. There is no
+    // default here on purpose — the switch stays exhaustive so a sixth
+    // mode is a compile error, never a silent fallback.
+    case 'weight_time': return 'strength'
   }
 }
 

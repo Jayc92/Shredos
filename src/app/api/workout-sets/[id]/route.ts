@@ -2,17 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { lbsToKg } from '@/lib/units'
 import { blockIfWorkoutSetCompleted } from '@/lib/supabase/workout-guards'
+import type { TrackingMode } from '@/types/database'
 
 // Phase 2S: see the matching comment in
 // workout-exercises/[id]/sets/route.ts for why this is duplicated
-// rather than shared.
-type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'
+// rather than shared. W4: the local four-value TrackingMode alias is
+// gone; the shared type from @/types/database is the single vocabulary.
 
 const MODE_ALLOWED_FIELDS: Record<TrackingMode, ReadonlySet<string>> = {
   weight_reps: new Set(['reps', 'weight_lbs', 'weight_kg', 'rpe', 'is_warmup']),
   bodyweight:  new Set(['reps', 'weight_lbs', 'weight_kg', 'rpe', 'is_warmup']),
   cardio:      new Set(['duration_seconds', 'distance_meters']),
   timed:       new Set(['duration_seconds', 'rpe']),
+  // W4 TEMPORARY, FAIL-CLOSED — NOT the contract. See the matching note
+  // in workout-exercises/[id]/sets/route.ts: this EMPTY set rejects every
+  // weight_time field with 400 until W7 defines the contract, and the
+  // database refuses weight_time exercises until migration 028.
+  weight_time: new Set<string>(),
 }
 const COMMON_FIELDS = new Set(['completed', 'notes'])
 

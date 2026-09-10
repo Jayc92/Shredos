@@ -67,7 +67,16 @@ import { TRACKING_MODES } from '../src/lib/exercise-validation'
 /** The commit whose tree holds the PRE-W3 module (W2's commit — the parent of W3). Immutable pin. */
 const BEFORE_COMMIT = '3a9466356d73310d903e486a00043a5fe34e2f48'
 const MODULE_PATH = 'src/lib/strength-records.ts'
-const EXPECTED_VOCABULARY: readonly string[] = ['weight_reps', 'bodyweight', 'cardio', 'timed']
+// RETARGET (W4: vocabulary widened). At W3 the proof was a total-case
+// argument over the CLOSED four-value vocabulary, and B1 pinned exactly
+// that so the proof would be re-issued the moment the vocabulary moved.
+// W4 added 'weight_time'. The re-issued claim is now two-part: the four
+// LEGACY modes are unchanged and the two predicates still agree on every
+// one of them; and for the fifth mode the two predicates DIFFER ON
+// PURPOSE — the allowlist excludes it (D4: weight_time must not leak into
+// the strength/1RM model) where the old denylist would have admitted it.
+const LEGACY_VOCABULARY: readonly string[] = ['weight_reps', 'bodyweight', 'cardio', 'timed']
+const EXPECTED_VOCABULARY: readonly string[] = [...LEGACY_VOCABULARY, 'weight_time']
 
 const repositoryRoot = process.cwd()
 
@@ -265,15 +274,19 @@ async function main(): Promise<number> {
   const isStrengthRecordTrackingMode = liveModule.isStrengthRecordTrackingMode
   check('B2: the live module exposes isStrengthRecordTrackingMode at runtime', typeof isStrengthRecordTrackingMode === 'function')
   const beforePredicate = (mode: string): boolean => !(mode === 'cardio' || mode === 'timed') // the former denylist, transcribed
-  let allAgree = true
-  console.log('      mode         | before (denylist) | after (allowlist)')
+  let legacyAgree = true
+  let fifthModeDiverges = false
+  console.log('      mode         | before (denylist) | after (allowlist) | expectation')
   for (const mode of liveVocabulary) {
     const before = beforePredicate(mode)
     const after = isStrengthRecordTrackingMode ? isStrengthRecordTrackingMode(mode) : !before
-    if (before !== after) allAgree = false
-    console.log(`      ${mode.padEnd(12)} | ${String(before).padEnd(17)} | ${String(after)}`)
+    const isLegacy = LEGACY_VOCABULARY.includes(mode)
+    if (isLegacy && before !== after) legacyAgree = false
+    if (!isLegacy && before === true && after === false) fifthModeDiverges = true
+    console.log(`      ${mode.padEnd(12)} | ${String(before).padEnd(17)} | ${String(after).padEnd(17)} | ${isLegacy ? 'agree' : 'DIFFER on purpose (denylist leaks, allowlist excludes)'}`)
   }
-  check('B3: before and after agree for every current tracking mode (weight_reps, bodyweight included; cardio, timed excluded)', allAgree)
+  check('B3: before and after agree for every LEGACY tracking mode (weight_reps, bodyweight included; cardio, timed excluded)', legacyAgree)
+  check("B4 (W4 RETARGET): for 'weight_time' the old denylist WOULD have admitted it and the allowlist excludes it — the divergence is the purpose of W3", fifthModeDiverges)
 
   console.log('\nC. Differential run of the REAL module (pre-W3 from git vs live) over an identical fixture')
   const temporaryDirectory = mkdtempSync(path.join(os.tmpdir(), 'w3-strength-records-'))

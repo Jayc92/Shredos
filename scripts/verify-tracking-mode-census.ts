@@ -27,8 +27,24 @@
 //   place (deriveLegacyExerciseType's exhaustive switch). Every other
 //   consumer keeps compiling and fails silently or at runtime. The type
 //   system will not find this work, so this script's output IS the
-//   worklist. It is EXPECTED RED on the tree at the time it is written
-//   and stays red until W10 closes the last site.
+//   worklist.
+//
+// EXPECTED-PENDING PIN (drift detection)
+//   EXPECTED_PENDING_SITES is the number of sites the committed tree is
+//   KNOWN to leave pending. The script exits 0 only when the measured
+//   pending count equals the pin; fewer OR more exits 1 as DRIFT, so an
+//   accidental new branch site, or a site resolved without updating the
+//   pin, is caught at once. Every W-step commit that changes sites
+//   updates the pin in the same commit. Pin history: after W3 = 57;
+//   after W4 = 47 (the seed module's inline union is deliberately left
+//   PENDING — 22 evidence suites pin that module blob-identical; see
+//   verify-weight-time-w4-vocabulary.ts A3).
+//
+// CLASSIFICATION (printed per site)
+//   HANDLES_WEIGHT_TIME                 — an explicit 'weight_time' arm/key/member
+//   EXCLUDES_WEIGHT_TIME_INTENTIONALLY  — a marker whose executable semantics
+//                                         exclude unlisted modes by construction
+//   PENDING                             — no decision yet (counted against the pin)
 //
 // WHAT IT DOES NOT DO
 //   It never edits anything and never contacts any service. It does not
@@ -65,8 +81,9 @@
 // Run from the repository root:
 //   npx tsx scripts/verify-tracking-mode-census.ts
 //   npx tsx scripts/verify-tracking-mode-census.ts --json
-// Exit codes: 0 = every site decided; 1 = MISSING sites (the worklist);
-//             2 = self-test or setup failure.
+// Exit codes: 0 = pending count equals EXPECTED_PENDING_SITES (0 when the
+//                 work is complete); 1 = DRIFT from the pin, in either
+//                 direction; 2 = self-test or setup failure.
 // ============================================================
 
 import ts from 'typescript'
@@ -85,6 +102,11 @@ const EXERCISE_TYPE_VOCABULARY: ReadonlySet<string> = new Set(['strength', 'body
 /** Property names through which an options list carries its machine value. */
 const OPTION_VALUE_PROPERTY_NAMES: ReadonlySet<string> = new Set(['value', 'key', 'id'])
 const NEW_MODE_LITERAL = 'weight_time'
+/**
+ * Sites the committed tree is KNOWN to leave pending. Updated in the same
+ * commit as any change to decision sites. History: W3 = 57, W4 = 47.
+ */
+const EXPECTED_PENDING_SITES = 47
 const MARKER_PATTERN = /tracking-mode-census:\s*(allowlist|exempt)\s*(?:—|–|-)+\s*(\S[^\n]*)/
 
 // ── Result types ───────────────────────────────────────────────────────
@@ -96,6 +118,7 @@ type LiteralContext =
   | 'case-label' | 'equality' | 'object-key' | 'type-map-key' | 'mode-list'
   | 'options-list' | 'type-union' | 'membership' | 'value'
 type SiteVerdict = 'OK' | 'MISSING'
+type SiteClassification = 'HANDLES_WEIGHT_TIME' | 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY' | 'PENDING'
 
 interface LiteralOccurrence {
   file: string
@@ -117,6 +140,7 @@ interface DecisionSite {
   literals: string[]
   contexts: string[]
   verdict: SiteVerdict
+  classification: SiteClassification
   satisfiedBy: 'arm' | 'marker' | 'none'
   markerRationale?: string
 }
@@ -548,6 +572,7 @@ function censusOfSourceFile(sourceFile: ts.SourceFile, checker: ts.TypeChecker, 
         entry = {
           key, file: displayPath, line: siteLine, shape: site.shape, literals: [], contexts: [],
           verdict: hasArm || marker ? 'OK' : 'MISSING',
+          classification: hasArm ? 'HANDLES_WEIGHT_TIME' : marker ? 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY' : 'PENDING',
           satisfiedBy: hasArm ? 'arm' : marker ? 'marker' : 'none',
           markerRationale: marker,
         }
@@ -742,30 +767,35 @@ function main(): number {
     decisionSites: result.sites.length,
     filesWithDecisionSites: filesWithSites.size,
     okSites: okSites.length,
-    missingSites: missingSites.length,
+    handledSites: okSites.filter((site) => site.classification === 'HANDLES_WEIGHT_TIME').length,
+    excludedSites: okSites.filter((site) => site.classification === 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY').length,
+    pendingSites: missingSites.length,
+    expectedPendingSites: EXPECTED_PENDING_SITES,
+    drift: missingSites.length - EXPECTED_PENDING_SITES,
   }
+  const exitCode = summary.drift === 0 ? 0 : 1
 
   if (wantJson) {
     console.log(JSON.stringify({ summary, sites: result.sites, literals: result.literals }, null, 2))
-    return missingSites.length > 0 ? 1 : 0
+    return exitCode
   }
 
-  console.log('Tracking-mode census + guard (W1) — EXPECTED RED until W10 closes the last site')
+  console.log(`Tracking-mode census + guard (W1) — pin: ${EXPECTED_PENDING_SITES} site(s) expected pending on this committed tree`)
   console.log(`root=${repositoryRoot}`)
   console.log(`HEAD=${headSha}`)
   console.log(`self-test: ${FIXTURE_LINES.length}-line fixture, all expectations met`)
   console.log(`files scanned under src/: ${summary.filesScanned}`)
   console.log(`literal occurrences: ${summary.literalOccurrences}  (mode ${summary.modeLiterals}, excluded exercise_type/other ${summary.excludedLiterals}, unresolved ${summary.unresolvedLiterals}; non-branch values ${summary.nonBranchValueLiterals})`)
-  console.log(`decision sites: ${summary.decisionSites} in ${summary.filesWithDecisionSites} files  (OK ${summary.okSites}, MISSING ${summary.missingSites})`)
+  console.log(`decision sites: ${summary.decisionSites} in ${summary.filesWithDecisionSites} files  (HANDLES_WEIGHT_TIME ${summary.handledSites}, EXCLUDES_WEIGHT_TIME_INTENTIONALLY ${summary.excludedSites}, PENDING ${summary.pendingSites}; pin ${EXPECTED_PENDING_SITES})`)
 
   const width = Math.max(...result.sites.map((site) => `${site.file}:${site.line}`.length), 10)
-  console.log(`\nMISSING sites — THE WORKLIST (${missingSites.length}):`)
+  console.log(`\nPENDING sites — THE WORKLIST (${missingSites.length}):`)
   for (const site of missingSites) {
     console.log(`  ${`${site.file}:${site.line}`.padEnd(width)}  ${site.shape.padEnd(16)}  ${site.literals.join(',')}  [${site.contexts.join(',')}]`)
   }
-  console.log(`\nOK sites (${okSites.length}):`)
+  console.log(`\nDECIDED sites (${okSites.length}):`)
   for (const site of okSites) {
-    console.log(`  ${`${site.file}:${site.line}`.padEnd(width)}  ${site.shape.padEnd(16)}  ${site.literals.join(',')}  via ${site.satisfiedBy}${site.markerRationale ? ` (${site.markerRationale})` : ''}`)
+    console.log(`  ${`${site.file}:${site.line}`.padEnd(width)}  ${site.shape.padEnd(16)}  ${site.classification}  ${site.literals.join(',')}${site.markerRationale ? ` (${site.markerRationale})` : ''}`)
   }
   if (unresolvedLiterals.length > 0) {
     console.log(`\nUNRESOLVED literals (counted as mode, fail closed — review each) (${unresolvedLiterals.length}):`)
@@ -776,10 +806,14 @@ function main(): number {
   console.log(`\nEXCLUDED literals — exercise_type or another vocabulary reusing the word (${excludedLiterals.length}):`)
   for (const literal of excludedLiterals) console.log(`  ${literal.file}:${literal.line}:${literal.column}  '${literal.text}'  ${literal.kind}  ${literal.context}  ${literal.basis}`)
 
-  console.log(missingSites.length > 0
-    ? `\nRESULT: RED — ${missingSites.length} decision site(s) have no explicit '${NEW_MODE_LITERAL}' arm and no marker.`
-    : `\nRESULT: GREEN — every decision site has an explicit '${NEW_MODE_LITERAL}' arm or a marker.`)
-  return missingSites.length > 0 ? 1 : 0
+  if (summary.drift === 0) {
+    console.log(missingSites.length > 0
+      ? `\nRESULT: AS PINNED — ${missingSites.length} site(s) pending, exactly EXPECTED_PENDING_SITES. Exit 0.`
+      : `\nRESULT: GREEN — every decision site decides '${NEW_MODE_LITERAL}' explicitly and the pin is 0. Exit 0.`)
+  } else {
+    console.log(`\nRESULT: DRIFT — ${missingSites.length} site(s) pending but EXPECTED_PENDING_SITES = ${EXPECTED_PENDING_SITES} (${summary.drift > 0 ? '+' : ''}${summary.drift}). ${summary.drift > 0 ? 'An undecided site appeared.' : 'Sites were decided without updating the pin.'} Exit 1.`)
+  }
+  return exitCode
 }
 
 process.exit(main())
