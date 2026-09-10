@@ -1,0 +1,733 @@
+{
+  "baselineCommit": "795fe1ff0d7ecd272742fe9f56177f79eabb7a01",
+  "baselineDescription": "The accepted pre-W4 census: 58 decision sites / 14 files, 1 already resolved (the W3 strength-records allowlist), 57 missing. src/ at this commit is identical to 14a36567 (W3).",
+  "generatedBy": "scripts/verify-tracking-mode-census.ts --json (identity fields) executed with a disposable git worktree at the baseline commit as the working directory; eliminations and external exclusions authored in W7.5-A.",
+  "sites": [
+    {
+      "identity": "src/app/(app)/progress/exercises/[id]/page.tsx | isCardioTimed | variable | cardio,timed | #0",
+      "file": "src/app/(app)/progress/exercises/[id]/page.tsx",
+      "line": 123,
+      "shape": "variable",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "const isCardioTimed = trackingMode === 'cardio' || trackingMode === 'timed'"
+    },
+    {
+      "identity": "src/app/(app)/progress/exercises/[id]/page.tsx | isBodyweightMode | variable | bodyweight | #0",
+      "file": "src/app/(app)/progress/exercises/[id]/page.tsx",
+      "line": 215,
+      "shape": "variable",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "const isBodyweightMode = trackingMode === 'bodyweight'"
+    },
+    {
+      "identity": "src/app/(app)/progress/exercises/[id]/page.tsx | isCardio | variable | cardio | #0",
+      "file": "src/app/(app)/progress/exercises/[id]/page.tsx",
+      "line": 484,
+      "shape": "variable",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "const isCardio = trackingMode === 'cardio'"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts",
+      "line": 19,
+      "shape": "type-alias",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts | MODE_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts",
+      "line": 21,
+      "shape": "object-literal",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "{"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 11,
+      "shape": "type-alias",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 13,
+      "shape": "object-literal",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "{"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | bodyweight | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 74,
+      "shape": "if-chain",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "if (trackingMode === 'bodyweight' && !isWarmup && (body.reps === null || body.reps === ..."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | cardio,timed | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 77,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | insertPayload | variable | cardio,timed | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 89,
+      "shape": "variable",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "const insertPayload: Record<string, unknown> = {"
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-exercises/[id]/sets/route.ts",
+      "line": 101,
+      "shape": "if-chain",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'weight_reps' || trackingMode === 'bodyweight') {"
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-sets/[id]/route.ts",
+      "line": 9,
+      "shape": "type-alias",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'"
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-sets/[id]/route.ts",
+      "line": 11,
+      "shape": "object-literal",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "{"
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | bodyweight | #0",
+      "file": "src/app/api/workout-sets/[id]/route.ts",
+      "line": 80,
+      "shape": "if-chain",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "if (trackingMode === 'bodyweight' && !finalIsWarmup && (finalReps === null || finalReps..."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | cardio,timed | #0",
+      "file": "src/app/api/workout-sets/[id]/route.ts",
+      "line": 83,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/app/api/workout-sets/[id]/route.ts",
+      "line": 99,
+      "shape": "if-chain",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'weight_reps' || trackingMode === 'bodyweight') {"
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | showWarmupToggle | variable | bodyweight,weight_reps | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 203,
+      "shape": "variable",
+      "literals": [
+        "weight_reps",
+        "bodyweight"
+      ],
+      "snippet": "const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'"
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight,weight_reps | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 240,
+      "shape": "jsx-expression",
+      "literals": [
+        "weight_reps",
+        "bodyweight"
+      ],
+      "snippet": "{(trackingMode === 'weight_reps' || trackingMode === 'bodyweight') && ("
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | weight_reps | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 257,
+      "shape": "jsx-expression",
+      "literals": [
+        "weight_reps"
+      ],
+      "snippet": "{(trackingMode === 'weight_reps' || addedWeightExpanded) && ("
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 265,
+      "shape": "jsx-expression",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "{trackingMode === 'bodyweight'"
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | cardio,timed | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 294,
+      "shape": "jsx-expression",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "{(trackingMode === 'cardio' || trackingMode === 'timed') && ("
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | cardio | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 320,
+      "shape": "jsx-expression",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "{trackingMode === 'cardio' && ("
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | timed | #0",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 340,
+      "shape": "jsx-expression",
+      "literals": [
+        "timed"
+      ],
+      "snippet": "{trackingMode === 'timed' && ("
+    },
+    {
+      "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight | #1",
+      "file": "src/components/workout/SetRow.tsx",
+      "line": 421,
+      "shape": "jsx-expression",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "{trackingMode === 'bodyweight' && !addedWeightExpanded && !readOnly && ("
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | isCardioOrTimed | variable | cardio,timed | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 112,
+      "shape": "variable",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "const isCardioOrTimed = we.exercise.tracking_mode === 'cardio' || we.exercise.tracking_..."
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | handleAddSet | if-chain | bodyweight,cardio,weight_reps | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 212,
+      "shape": "if-chain",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio"
+      ],
+      "snippet": "if (trackingMode === 'weight_reps') {"
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | APPLY_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 266,
+      "shape": "object-literal",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "{"
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | applyRequiredReady | variable | bodyweight,weight_reps | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 273,
+      "shape": "variable",
+      "literals": [
+        "weight_reps",
+        "bodyweight"
+      ],
+      "snippet": "const applyRequiredReady = applyTemplate !== null && ("
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | weight_reps | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 501,
+      "shape": "jsx-expression",
+      "literals": [
+        "weight_reps"
+      ],
+      "snippet": "{we.exercise.tracking_mode === 'weight_reps' && ("
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | bodyweight | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 509,
+      "shape": "jsx-expression",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "{we.exercise.tracking_mode === 'bodyweight' && ("
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | cardio | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 516,
+      "shape": "jsx-expression",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "{we.exercise.tracking_mode === 'cardio' && ("
+    },
+    {
+      "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | timed | #0",
+      "file": "src/components/workout/WorkoutExerciseBlock.tsx",
+      "line": 522,
+      "shape": "jsx-expression",
+      "literals": [
+        "timed"
+      ],
+      "snippet": "{we.exercise.tracking_mode === 'timed' && ("
+    },
+    {
+      "identity": "src/lib/constants.ts | TRACKING_MODES | options-list | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/lib/constants.ts",
+      "line": 233,
+      "shape": "options-list",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "export const TRACKING_MODES = ["
+    },
+    {
+      "identity": "src/lib/exercise-validation.ts | TRACKING_MODES | mode-list | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/lib/exercise-validation.ts",
+      "line": 134,
+      "shape": "mode-list",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "export const TRACKING_MODES = ['weight_reps', 'bodyweight', 'cardio', 'timed'] as const"
+    },
+    {
+      "identity": "src/lib/exercise-validation.ts | deriveLegacyExerciseType | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/lib/exercise-validation.ts",
+      "line": 307,
+      "shape": "switch",
+      "literals": [
+        "bodyweight",
+        "cardio",
+        "timed",
+        "weight_reps"
+      ],
+      "snippet": "switch (trackingMode) {"
+    },
+    {
+      "identity": "src/lib/progress-overview.ts | VALID_MODE_FILTERS | mode-list | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/lib/progress-overview.ts",
+      "line": 96,
+      "shape": "mode-list",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "const VALID_MODE_FILTERS: readonly TrackingMode[] = ["
+    },
+    {
+      "identity": "src/lib/progress-overview.ts | pickRepresentativeSet | if-chain | cardio,timed | #0",
+      "file": "src/lib/progress-overview.ts",
+      "line": 200,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/progress-overview.ts | signal | variable | cardio,timed | #0",
+      "file": "src/lib/progress-overview.ts",
+      "line": 219,
+      "shape": "variable",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "const signal ="
+    },
+    {
+      "identity": "src/lib/progress-overview.ts | latestSummary | variable | bodyweight | #0",
+      "file": "src/lib/progress-overview.ts",
+      "line": 243,
+      "shape": "variable",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "const latestSummary = formatTrackingAwareSetSummary("
+    },
+    {
+      "identity": "src/lib/progress-overview.ts | summarizeLatestSet | if-chain | weight_reps | #0",
+      "file": "src/lib/progress-overview.ts",
+      "line": 255,
+      "shape": "if-chain",
+      "literals": [
+        "weight_reps"
+      ],
+      "snippet": "if ("
+    },
+    {
+      "identity": "src/lib/strength-records.ts | STRENGTH_RECORD_TRACKING_MODES | mode-list | bodyweight,weight_reps | #0",
+      "file": "src/lib/strength-records.ts",
+      "line": 52,
+      "shape": "mode-list",
+      "literals": [
+        "weight_reps",
+        "bodyweight"
+      ],
+      "snippet": "const STRENGTH_RECORD_TRACKING_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>..."
+    },
+    {
+      "identity": "src/lib/supabase/seed-exercises.ts | SEED_EXERCISES | property-type | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/lib/supabase/seed-exercises.ts",
+      "line": 44,
+      "shape": "property-type",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "tracking_mode: \"weight_reps\" | \"bodyweight\" | \"cardio\" | \"timed\""
+    },
+    {
+      "identity": "src/lib/supabase/server.ts | pickRepresentativeSet | if-chain | cardio,timed | #0",
+      "file": "src/lib/supabase/server.ts",
+      "line": 34,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/supabase/server.ts | fetchCardioTimedRecords | if-chain | cardio,timed | #0",
+      "file": "src/lib/supabase/server.ts",
+      "line": 851,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (ex.tracking_mode !== 'cardio' && ex.tracking_mode !== 'timed') continue"
+    },
+    {
+      "identity": "src/lib/workout.ts | formatTrackingAwareSetSummary | if-chain | cardio,timed | #0",
+      "file": "src/lib/workout.ts",
+      "line": 115,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | formatTrackingAwareSetSummary | if-chain | cardio | #0",
+      "file": "src/lib/workout.ts",
+      "line": 119,
+      "shape": "if-chain",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "if (trackingMode === 'cardio') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | formatTrackingAwareSetSummary | if-chain | bodyweight | #0",
+      "file": "src/lib/workout.ts",
+      "line": 132,
+      "shape": "if-chain",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "if (trackingMode === 'bodyweight') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | pickRepresentativeCardioSet | if-chain | timed | #0",
+      "file": "src/lib/workout.ts",
+      "line": 239,
+      "shape": "if-chain",
+      "literals": [
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | currHasPace | variable | cardio | #0",
+      "file": "src/lib/workout.ts",
+      "line": 311,
+      "shape": "variable",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "const currHasPace = trackingMode === 'cardio'"
+    },
+    {
+      "identity": "src/lib/workout.ts | prevHasPace | variable | cardio | #0",
+      "file": "src/lib/workout.ts",
+      "line": 314,
+      "shape": "variable",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "const prevHasPace = trackingMode === 'cardio'"
+    },
+    {
+      "identity": "src/lib/workout.ts | buildIncreaseSuggestion | if-chain | cardio,timed | #0",
+      "file": "src/lib/workout.ts",
+      "line": 479,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | buildIncreaseSuggestion | if-chain | bodyweight | #0",
+      "file": "src/lib/workout.ts",
+      "line": 505,
+      "shape": "if-chain",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "if (trackingMode === 'bodyweight') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | evaluateSetTargetFeedback | if-chain | cardio,timed | #0",
+      "file": "src/lib/workout.ts",
+      "line": 709,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed' || reps === null) {"
+    },
+    {
+      "identity": "src/lib/workout.ts | suggestNextTarget | if-chain | cardio,timed | #0",
+      "file": "src/lib/workout.ts",
+      "line": 774,
+      "shape": "if-chain",
+      "literals": [
+        "cardio",
+        "timed"
+      ],
+      "snippet": "if (trackingMode === 'cardio' || trackingMode === 'timed') {"
+    },
+    {
+      "identity": "src/lib/workout.ts | suggestNextTarget | return | cardio | #0",
+      "file": "src/lib/workout.ts",
+      "line": 781,
+      "shape": "return",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "return trackingMode === 'cardio'"
+    },
+    {
+      "identity": "src/lib/workout.ts | isBodyweight | variable | bodyweight | #0",
+      "file": "src/lib/workout.ts",
+      "line": 798,
+      "shape": "variable",
+      "literals": [
+        "bodyweight"
+      ],
+      "snippet": "const isBodyweight = trackingMode === 'bodyweight'"
+    },
+    {
+      "identity": "src/lib/workout.ts | summarizeWorkout | if-chain | cardio | #0",
+      "file": "src/lib/workout.ts",
+      "line": 1178,
+      "shape": "if-chain",
+      "literals": [
+        "cardio"
+      ],
+      "snippet": "if ("
+    },
+    {
+      "identity": "src/types/database.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "file": "src/types/database.ts",
+      "line": 343,
+      "shape": "type-alias",
+      "literals": [
+        "weight_reps",
+        "bodyweight",
+        "cardio",
+        "timed"
+      ],
+      "snippet": "export type TrackingMode = 'weight_reps' | 'bodyweight' | 'cardio' | 'timed'"
+    }
+  ],
+  "eliminations": [
+    {
+      "identity": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "50e7451c9c2ed67053f1aac583187690350ce0f4",
+      "replacementOwner": "src/types/database.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The route-local four-value `type TrackingMode` alias was deleted and replaced by `import type { TrackingMode } from '@/types/database'`. The shared union is the single vocabulary authority and carries the explicit weight_time member, so the route's type can no longer drift from it; no executable semantics lived in the alias."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "50e7451c9c2ed67053f1aac583187690350ce0f4",
+      "replacementOwner": "src/types/database.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The route-local four-value `type TrackingMode` alias was deleted and replaced by `import type { TrackingMode } from '@/types/database'`. The shared union is the single vocabulary authority and carries the explicit weight_time member, so the route's type can no longer drift from it; no executable semantics lived in the alias."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "50e7451c9c2ed67053f1aac583187690350ce0f4",
+      "replacementOwner": "src/types/database.ts | TrackingMode | type-alias | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The route-local four-value `type TrackingMode` alias was deleted and replaced by `import type { TrackingMode } from '@/types/database'`. The shared union is the single vocabulary authority and carries the explicit weight_time member, so the route's type can no longer drift from it; no executable semantics lived in the alias."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The per-mode allowed-field map moved, byte-for-byte for the four legacy modes, into src/lib/workout-set-contract.ts MODE_ALLOWED_FIELDS with an explicit weight_time key; both set routes execute that one map (verify-weight-time-contract.ts B1-B4; contract-live L1-L10 prove the legacy field gates unchanged)."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | MODE_ALLOWED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "Same as the POST route's map: the PATCH route's duplicate MODE_ALLOWED_FIELDS moved into the shared contract module (one implementation, no drift)."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | bodyweight | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | completionError | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The POST route's inline bodyweight completion rule (reps required unless warmup) moved into completionError, an exhaustive switch with an explicit weight_time arm; the bodyweight rule and its message are preserved."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | cardio,timed | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | completionError | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The POST route's inline cardio/timed completion rule (duration > 0) moved into completionError; preserved verbatim for cardio and timed."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | insertPayload | variable | cardio,timed | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | WARMUP_FORBIDDEN_MODES | mode-list | cardio,timed | #0",
+      "reason": "The inline `(cardio || timed) ? false : isWarmup` in the insert payload moved into WARMUP_FORBIDDEN_MODES, an explicit set carrying the census marker as an INTENTIONAL exclusion: weight_time is deliberately absent because Decision 5 permits warmups for a weighted hold; cardio/timed still force false."
+    },
+    {
+      "identity": "src/app/api/workout-exercises/[id]/sets/route.ts | POST | if-chain | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | buildSetInsert | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The POST route's per-mode payload branches moved into buildSetInsert's exhaustive switch with an explicit weight_time arm; the four legacy payload shapes are preserved (verify-weight-time-contract.ts A4, contract-live L1-L10)."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | bodyweight | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | completionError | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The PATCH route's inline bodyweight completion rule, evaluated on the merged state, moved into completionError (same rule, same message)."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | cardio,timed | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | completionError | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The PATCH route's inline cardio/timed completion rule, evaluated on the merged state, moved into completionError (same rule, same message)."
+    },
+    {
+      "identity": "src/app/api/workout-sets/[id]/route.ts | PATCH | if-chain | bodyweight,cardio,timed,weight_reps | #0",
+      "eliminatedBy": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8",
+      "replacementOwner": "src/lib/workout-set-contract.ts | buildSetPatch | switch | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The PATCH route's per-mode update branches moved into buildSetPatch's exhaustive switch with an explicit weight_time arm. Supplied-field semantics for the four legacy modes are preserved; the destructive self-heal that nulled stored dimensions was removed BY DESIGN (plan section 5.2, operator-approved), so that part is a deliberate behaviour change proven by verify-weight-time-contract.ts D1-D4, not a lost semantic."
+    }
+  ],
+  "externalExclusions": [
+    {
+      "identity": "src/lib/supabase/seed-exercises.ts | SEED_EXERCISES | property-type | bodyweight,cardio,timed,weight_reps | #0",
+      "reason": "The seed module's local four-value union is INTENTIONALLY narrower than the global TrackingMode: this module contains no weight_time seed (catalog delivery, not seeding, owns those entries) and is not the vocabulary authority. Twenty-two EXLIB evidence suites pin the module blob-identical to promoted tips, so it is not edited; the exclusion is recorded here, outside the frozen module, and no marker comment is added to it.",
+      "ruling": "operator, W4-W7 checkpoint disposition, 2026-09-10: deviation ACCEPTED; reclassify as EXCLUDES_WEIGHT_TIME_INTENTIONALLY"
+    }
+  ]
+}

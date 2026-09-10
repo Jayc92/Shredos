@@ -40,7 +40,20 @@
 //   PENDING — 22 evidence suites pin that module blob-identical; see
 //   verify-weight-time-w4-vocabulary.ts A3); after W7 = 40 (the seven
 //   set-route sites moved into src/lib/workout-set-contract.ts and are
-//   decided there; the warmup-forbidden set is an intentional exclusion).
+//   decided there; the warmup-forbidden set is an intentional exclusion);
+//   after W7.5-A = 39 (the seed union ruled EXCLUDES_WEIGHT_TIME_INTENTIONALLY
+//   by the operator, recorded in the ledger, never in the frozen module).
+//
+// CONSERVATION OF THE ACCEPTED BASELINE (W7.5-A)
+//   scripts/tracking-mode-census-ledger.json holds the 58 sites of the
+//   accepted pre-W4 census (795fe1ff) with stable identities. Every run
+//   resolves each of them to exactly one lifecycle state —
+//   HANDLES_WEIGHT_TIME / EXCLUDES_WEIGHT_TIME_INTENTIONALLY /
+//   ELIMINATED_BY_REFACTOR / PENDING — and the totals must equal 58. A
+//   site missing from the live tree without an elimination record (commit,
+//   replacement executable owner, reason) fails the run: deleting a branch
+//   site can never shrink the worklist silently. The live syntactic census
+//   is reported separately (its own site count and pin).
 //
 // CLASSIFICATION (printed per site)
 //   HANDLES_WEIGHT_TIME                 — an explicit 'weight_time' arm/key/member
@@ -90,7 +103,7 @@
 
 import ts from 'typescript'
 import path from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // ── Vocabulary ─────────────────────────────────────────────────────────
@@ -106,9 +119,11 @@ const OPTION_VALUE_PROPERTY_NAMES: ReadonlySet<string> = new Set(['value', 'key'
 const NEW_MODE_LITERAL = 'weight_time'
 /**
  * Sites the committed tree is KNOWN to leave pending. Updated in the same
- * commit as any change to decision sites. History: W3 = 57, W4 = 47, W7 = 40.
+ * commit as any change to decision sites. History: W3 = 57, W4 = 47, W7 = 40,
+ * W7.5-A = 39 (the seed module's union ruled an intentional exclusion by
+ * external record — see scripts/tracking-mode-census-ledger.json).
  */
-const EXPECTED_PENDING_SITES = 40
+const EXPECTED_PENDING_SITES = 39
 const MARKER_PATTERN = /tracking-mode-census:\s*(allowlist|exempt)\s*(?:—|–|-)+\s*(\S[^\n]*)/
 
 // ── Result types ───────────────────────────────────────────────────────
@@ -139,13 +154,45 @@ interface DecisionSite {
   file: string
   line: number
   shape: string
+  /** Nearest enclosing named declaration (function, component, const, type alias) or `<module>`. */
+  enclosing: string
+  /** The site's literals restricted to the four legacy modes — stable when a site GAINS weight_time. */
+  legacyLiterals: string[]
+  /** Stable identity: file | enclosing | shape | legacyLiterals | ordinal. Survives line shifts and the weight_time edit itself. */
+  identity: string
+  /** First line of the site's text, for human review. */
+  snippet: string
   literals: string[]
   contexts: string[]
   verdict: SiteVerdict
   classification: SiteClassification
-  satisfiedBy: 'arm' | 'marker' | 'none'
+  satisfiedBy: 'arm' | 'marker' | 'external-ruling' | 'none'
   markerRationale?: string
 }
+
+// ── Conservation ledger (W7.5-A) ────────────────────────────────────────
+// The accepted pre-W4 census — 58 decision sites / 14 files at commit
+// 795fe1ff — is CONSERVED: every one of those 58 sites must resolve to
+// exactly one lifecycle state on every run, and the totals must equal 58.
+// A site that a refactor removed from the live tree does not silently
+// shrink the worklist: it must carry an ELIMINATED_BY_REFACTOR record
+// naming the commit, the replacement executable owner and why semantics
+// are preserved. A site the operator rules excluded WITHOUT touching a
+// frozen file carries an external-exclusion record here instead.
+const LEDGER_PATH = 'scripts/tracking-mode-census-ledger.json'
+type LifecycleState = SiteClassification | 'ELIMINATED_BY_REFACTOR'
+interface LedgerBaselineSite { identity: string; file: string; line: number; shape: string; literals: string[]; snippet: string }
+interface LedgerElimination { identity: string; eliminatedBy: string; replacementOwner: string; reason: string }
+interface LedgerExternalExclusion { identity: string; reason: string; ruling: string }
+interface CensusLedger {
+  baselineCommit: string
+  baselineDescription: string
+  generatedBy: string
+  sites: LedgerBaselineSite[]
+  eliminations: LedgerElimination[]
+  externalExclusions: LedgerExternalExclusion[]
+}
+interface ConservationRow { identity: string; state: LifecycleState; detail: string }
 
 interface CensusResult {
   literals: LiteralOccurrence[]
@@ -525,6 +572,91 @@ function shapeOfStatement(statement: ts.Node): string {
   return 'statement'
 }
 
+/** Nearest enclosing named declaration, starting at the site node itself. */
+function enclosingDeclarationName(node: ts.Node): string {
+  let current: ts.Node | undefined = node
+  while (current && !ts.isSourceFile(current)) {
+    if ((ts.isFunctionDeclaration(current) || ts.isClassDeclaration(current) || ts.isTypeAliasDeclaration(current)
+      || ts.isInterfaceDeclaration(current) || ts.isEnumDeclaration(current)) && current.name) return current.name.text
+    if (ts.isMethodDeclaration(current) && ts.isIdentifier(current.name)) return current.name.text
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name)) return current.name.text
+    if (ts.isVariableStatement(current)) {
+      const first = current.declarationList.declarations[0]
+      if (first && ts.isIdentifier(first.name)) return first.name.text
+    }
+    if (ts.isPropertyAssignment(current) && ts.isIdentifier(current.name)
+      && (ts.isArrowFunction(current.initializer) || ts.isFunctionExpression(current.initializer))) return current.name.text
+    current = current.parent
+  }
+  return '<module>'
+}
+
+function firstLineSnippet(node: ts.Node, sourceFile: ts.SourceFile): string {
+  const firstLine = node.getText(sourceFile).split('\n').map((line) => line.trim()).find((line) => line.length > 0) ?? ''
+  return firstLine.length > 90 ? `${firstLine.slice(0, 87)}...` : firstLine
+}
+
+/** Assigns ordinals and identities: file | enclosing | shape | legacyLiterals | ordinal (source order within the group). */
+function assignIdentities(sites: DecisionSite[]): void {
+  const groups = new Map<string, DecisionSite[]>()
+  for (const site of [...sites].sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)))) {
+    const groupKey = `${site.file} | ${site.enclosing} | ${site.shape} | ${site.legacyLiterals.join(',')}`
+    const group = groups.get(groupKey) ?? []
+    group.push(site)
+    groups.set(groupKey, group)
+  }
+  groups.forEach((group: DecisionSite[], groupKey: string) => {
+    group.forEach((site: DecisionSite, ordinal: number) => { site.identity = `${groupKey} | #${ordinal}` })
+  })
+}
+
+function loadLedger(repositoryRoot: string): CensusLedger | null {
+  const ledgerPath = path.join(repositoryRoot, LEDGER_PATH)
+  if (!existsSync(ledgerPath)) return null
+  return JSON.parse(readFileSync(ledgerPath, 'utf8')) as CensusLedger
+}
+
+/** Applies the operator's external exclusions to live sites (used for verifier-frozen files that must not be edited). */
+function applyExternalExclusions(sites: DecisionSite[], ledger: CensusLedger): void {
+  for (const exclusion of ledger.externalExclusions) {
+    const site = sites.find((candidate) => candidate.identity === exclusion.identity)
+    if (!site) continue
+    site.verdict = 'OK'
+    site.classification = 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY'
+    site.satisfiedBy = 'external-ruling'
+    site.markerRationale = `external ruling (${exclusion.ruling}) — ${exclusion.reason}`
+  }
+}
+
+/** Resolves every baseline site to exactly one lifecycle state and reports every inconsistency. */
+function conserveBaseline(ledger: CensusLedger, liveSites: DecisionSite[]): { rows: ConservationRow[]; failures: string[] } {
+  const liveByIdentity = new Map(liveSites.map((site) => [site.identity, site]))
+  const baselineIdentities = new Set(ledger.sites.map((site) => site.identity))
+  const failures: string[] = []
+  const rows: ConservationRow[] = []
+  for (const record of ledger.eliminations) if (!baselineIdentities.has(record.identity)) failures.push(`elimination record names a non-baseline identity: ${record.identity}`)
+  for (const record of ledger.externalExclusions) if (!baselineIdentities.has(record.identity)) failures.push(`external exclusion names a non-baseline identity: ${record.identity}`)
+  for (const baseline of ledger.sites) {
+    const live = liveByIdentity.get(baseline.identity)
+    const elimination = ledger.eliminations.find((record) => record.identity === baseline.identity)
+    const exclusion = ledger.externalExclusions.find((record) => record.identity === baseline.identity)
+    if (elimination && exclusion) failures.push(`baseline site has BOTH an elimination and an external exclusion: ${baseline.identity}`)
+    if (elimination) {
+      if (live) failures.push(`recorded as ELIMINATED_BY_REFACTOR but still live at ${live.file}:${live.line}: ${baseline.identity}`)
+      const owner = liveByIdentity.get(elimination.replacementOwner)
+      if (!owner) failures.push(`replacement owner is not a live decision site: ${elimination.replacementOwner} (for ${baseline.identity})`)
+      else if (owner.classification === 'PENDING') failures.push(`replacement owner is still PENDING: ${elimination.replacementOwner} (for ${baseline.identity})`)
+      rows.push({ identity: baseline.identity, state: 'ELIMINATED_BY_REFACTOR', detail: `by ${elimination.eliminatedBy.slice(0, 8)} → ${elimination.replacementOwner}` })
+      continue
+    }
+    if (!live) { failures.push(`baseline site is neither live nor recorded as eliminated: ${baseline.identity}`); rows.push({ identity: baseline.identity, state: 'PENDING', detail: 'UNACCOUNTED' }); continue }
+    if (exclusion && live.satisfiedBy !== 'external-ruling') failures.push(`external exclusion did not apply to the live site: ${baseline.identity}`)
+    rows.push({ identity: baseline.identity, state: live.classification, detail: `${live.file}:${live.line}${live.satisfiedBy === 'external-ruling' ? ' (external ruling)' : live.satisfiedBy === 'marker' ? ' (marker)' : ''}` })
+  }
+  if (rows.length !== ledger.sites.length) failures.push(`conservation rows ${rows.length} ≠ baseline sites ${ledger.sites.length}`)
+  return { rows, failures }
+}
+
 function siteHasNewModeArm(site: ts.Node): boolean {
   let found = false
   const visit = (node: ts.Node): void => {
@@ -573,6 +705,7 @@ function censusOfSourceFile(sourceFile: ts.SourceFile, checker: ts.TypeChecker, 
         const hasArm = siteHasNewModeArm(site.node)
         entry = {
           key, file: displayPath, line: siteLine, shape: site.shape, literals: [], contexts: [],
+          enclosing: enclosingDeclarationName(site.node), legacyLiterals: [], identity: '', snippet: firstLineSnippet(site.node, sourceFile),
           verdict: hasArm || marker ? 'OK' : 'MISSING',
           classification: hasArm ? 'HANDLES_WEIGHT_TIME' : marker ? 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY' : 'PENDING',
           satisfiedBy: hasArm ? 'arm' : marker ? 'marker' : 'none',
@@ -582,6 +715,7 @@ function censusOfSourceFile(sourceFile: ts.SourceFile, checker: ts.TypeChecker, 
         into.sites.push(entry)
       }
       if (!entry.literals.includes(text)) entry.literals.push(text)
+      if (text !== NEW_MODE_LITERAL && !entry.legacyLiterals.includes(text)) { entry.legacyLiterals.push(text); entry.legacyLiterals.sort() }
       if (!entry.contexts.includes(classification.context)) entry.contexts.push(classification.context)
     }
     into.literals.push(occurrence)
@@ -748,6 +882,27 @@ function main(): number {
   }
   result.sites.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)))
   result.literals.sort((a, b) => (a.file === b.file ? a.line - b.line || a.column - b.column : a.file.localeCompare(b.file)))
+  assignIdentities(result.sites)
+  const ledger = loadLedger(repositoryRoot)
+  if (ledger) applyExternalExclusions(result.sites, ledger)
+  const conservation = ledger ? conserveBaseline(ledger, result.sites) : null
+  if (ledger && conservation) {
+    // ORACLE CONTROLS: the conservation check must be able to fail. Drop one
+    // elimination record -> its site must be reported unaccounted; drop one
+    // baseline site -> the totals must no longer reach the baseline count;
+    // point one replacement owner at a PENDING site -> must be reported.
+    const withoutElimination: CensusLedger = { ...ledger, eliminations: ledger.eliminations.slice(1) }
+    const withoutBaselineSite: CensusLedger = { ...ledger, sites: ledger.sites.slice(1), eliminations: ledger.eliminations.filter((record) => record.identity !== ledger.sites[0].identity), externalExclusions: ledger.externalExclusions.filter((record) => record.identity !== ledger.sites[0].identity) }
+    const pendingOwner = result.sites.find((site) => site.classification === 'PENDING')?.identity ?? '(none)'
+    const badOwner: CensusLedger = { ...ledger, eliminations: ledger.eliminations.map((record, index) => (index === 0 ? { ...record, replacementOwner: pendingOwner } : record)) }
+    const controlA = conserveBaseline(withoutElimination, result.sites).failures.some((failure) => failure.startsWith('baseline site is neither live nor recorded as eliminated'))
+    const controlB = conserveBaseline(withoutBaselineSite, result.sites).rows.length === ledger.sites.length - 1
+    const controlC = conserveBaseline(badOwner, result.sites).failures.some((failure) => failure.startsWith('replacement owner is still PENDING'))
+    if (!controlA || !controlB || !controlC) {
+      console.error(`CONSERVATION ORACLE BROKEN — controls: dropped elimination detected=${controlA}, dropped baseline site changes totals=${controlB}, pending owner detected=${controlC}. No verdict is trustworthy.`)
+      return 2
+    }
+  }
 
   const modeLiterals = result.literals.filter((literal) => literal.kind === 'mode')
   const excludedLiterals = result.literals.filter((literal) => EXCLUDED_KINDS.has(literal.kind))
@@ -774,11 +929,25 @@ function main(): number {
     pendingSites: missingSites.length,
     expectedPendingSites: EXPECTED_PENDING_SITES,
     drift: missingSites.length - EXPECTED_PENDING_SITES,
+    conservation: conservation
+      ? {
+        baselineCommit: ledger!.baselineCommit,
+        baselineSites: ledger!.sites.length,
+        totals: {
+          HANDLES_WEIGHT_TIME: conservation.rows.filter((row) => row.state === 'HANDLES_WEIGHT_TIME').length,
+          EXCLUDES_WEIGHT_TIME_INTENTIONALLY: conservation.rows.filter((row) => row.state === 'EXCLUDES_WEIGHT_TIME_INTENTIONALLY').length,
+          ELIMINATED_BY_REFACTOR: conservation.rows.filter((row) => row.state === 'ELIMINATED_BY_REFACTOR').length,
+          PENDING: conservation.rows.filter((row) => row.state === 'PENDING').length,
+        },
+        failures: conservation.failures,
+      }
+      : null,
   }
-  const exitCode = summary.drift === 0 ? 0 : 1
+  const conservationOk = conservation ? conservation.failures.length === 0 : true
+  const exitCode = summary.drift === 0 && conservationOk ? 0 : 1
 
   if (wantJson) {
-    console.log(JSON.stringify({ summary, sites: result.sites, literals: result.literals }, null, 2))
+    console.log(JSON.stringify({ summary, sites: result.sites, literals: result.literals, conservation: conservation?.rows ?? null }, null, 2))
     return exitCode
   }
 
@@ -799,6 +968,23 @@ function main(): number {
   for (const site of okSites) {
     console.log(`  ${`${site.file}:${site.line}`.padEnd(width)}  ${site.shape.padEnd(16)}  ${site.classification}  ${site.literals.join(',')}${site.markerRationale ? ` (${site.markerRationale})` : ''}`)
   }
+
+  if (conservation && ledger) {
+    const totals = summary.conservation!.totals
+    console.log(`\nCONSERVATION of the accepted baseline (${ledger.sites.length} sites at ${ledger.baselineCommit.slice(0, 8)}): HANDLES ${totals.HANDLES_WEIGHT_TIME} + EXCLUDES ${totals.EXCLUDES_WEIGHT_TIME_INTENTIONALLY} + ELIMINATED_BY_REFACTOR ${totals.ELIMINATED_BY_REFACTOR} + PENDING ${totals.PENDING} = ${totals.HANDLES_WEIGHT_TIME + totals.EXCLUDES_WEIGHT_TIME_INTENTIONALLY + totals.ELIMINATED_BY_REFACTOR + totals.PENDING}`)
+    console.log(`  eliminated by refactor (${totals.ELIMINATED_BY_REFACTOR}):`)
+    for (const row of conservation.rows.filter((entry) => entry.state === 'ELIMINATED_BY_REFACTOR')) console.log(`    ${row.identity}  →  ${row.detail}`)
+    console.log(`  externally ruled exclusions (${ledger.externalExclusions.length}):`)
+    for (const exclusion of ledger.externalExclusions) console.log(`    ${exclusion.identity}  —  ${exclusion.ruling}`)
+    if (conservation.failures.length > 0) {
+      console.log(`  CONSERVATION FAILURES (${conservation.failures.length}):`)
+      for (const failure of conservation.failures) console.log(`    ${failure}`)
+    } else {
+      console.log('  every baseline site resolves to exactly one lifecycle state; no unaccounted disappearance')
+    }
+  } else {
+    console.log(`\nCONSERVATION: no ledger at ${LEDGER_PATH} — baseline conservation not checked`)
+  }
   if (unresolvedLiterals.length > 0) {
     console.log(`\nUNRESOLVED literals (counted as mode, fail closed — review each) (${unresolvedLiterals.length}):`)
     for (const literal of unresolvedLiterals) console.log(`  ${literal.file}:${literal.line}:${literal.column}  '${literal.text}'  ${literal.context}  ${literal.basis}`)
@@ -808,12 +994,14 @@ function main(): number {
   console.log(`\nEXCLUDED literals — exercise_type or another vocabulary reusing the word (${excludedLiterals.length}):`)
   for (const literal of excludedLiterals) console.log(`  ${literal.file}:${literal.line}:${literal.column}  '${literal.text}'  ${literal.kind}  ${literal.context}  ${literal.basis}`)
 
-  if (summary.drift === 0) {
+  if (summary.drift === 0 && conservationOk) {
     console.log(missingSites.length > 0
-      ? `\nRESULT: AS PINNED — ${missingSites.length} site(s) pending, exactly EXPECTED_PENDING_SITES. Exit 0.`
-      : `\nRESULT: GREEN — every decision site decides '${NEW_MODE_LITERAL}' explicitly and the pin is 0. Exit 0.`)
-  } else {
+      ? `\nRESULT: AS PINNED — ${missingSites.length} site(s) pending, exactly EXPECTED_PENDING_SITES; baseline conserved. Exit 0.`
+      : `\nRESULT: GREEN — every decision site decides '${NEW_MODE_LITERAL}' explicitly, the pin is 0 and the baseline is conserved. Exit 0.`)
+  } else if (summary.drift !== 0) {
     console.log(`\nRESULT: DRIFT — ${missingSites.length} site(s) pending but EXPECTED_PENDING_SITES = ${EXPECTED_PENDING_SITES} (${summary.drift > 0 ? '+' : ''}${summary.drift}). ${summary.drift > 0 ? 'An undecided site appeared.' : 'Sites were decided without updating the pin.'} Exit 1.`)
+  } else {
+    console.log(`\nRESULT: CONSERVATION FAILURE — the accepted baseline does not resolve cleanly (see above). Exit 1.`)
   }
   return exitCode
 }
