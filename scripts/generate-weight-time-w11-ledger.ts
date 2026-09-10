@@ -14,15 +14,18 @@
 //      the measurement is always of a CLEAN committed tree, whatever the
 //      main working tree holds) and collects its FAIL lines.
 //   2. For each red suite, runs it in disposable worktrees at the W-step
-//      commits PRE_W4 (795fe1ff) -> W4 -> W5 -> W6 -> W7. A check already
-//      red at PRE_W4 is PRE-EXISTING and is excluded from the weight_time
-//      ledger (listed separately). Otherwise the first commit at which the
-//      check's key fails is recorded.
+//      commits PRE_W4 (795fe1ff) -> W4 -> W5 -> W6 -> W7 -> W8 -> W9 -> W10.
+//      A check already red at PRE_W4 is PRE-EXISTING and is excluded from
+//      the weight_time ledger (listed separately). Otherwise the first
+//      commit at which the check's key fails is recorded.
 //   3. Categorises each check by fixed textual rules PLUS the first red
 //      commit: MIGRATION_INVENTORY_RETARGET, WEIGHT_TIME_BOUNDARY_RETARGET,
-//      ROUTE_TEXT_RETARGET, or OTHER_REQUIRES_REVIEW. Compound checks that
-//      match more than one rule keep the category their first red commit
-//      implies and list the other matching rules under `alsoMatches`.
+//      ROUTE_TEXT_RETARGET, AUDIT_COMPLETENESS_RETARGET,
+//      HISTORICAL_PRODUCT_BOUNDARY_RETARGET (operator ruling at the W7.5
+//      checkpoint: EXLIB-2F's "no product change" claim), UI_SURFACE_RETARGET
+//      (the W10 user-facing pins), or OTHER_REQUIRES_REVIEW. Compound checks
+//      that match more than one rule keep the category their first red
+//      commit implies and list the other matching rules under `alsoMatches`.
 //
 // Check KEY = the FAIL text up to the first " — " (the detail separator
 // most check() helpers use); the full observed line is recorded verbatim.
@@ -49,12 +52,27 @@ const STEPS: Array<{ label: string; sha: string }> = [
   { label: 'W5', sha: '365e9e3d708c6ff5f8acaa3834de48a514d10300' },
   { label: 'W6', sha: 'c785140f27e0169f7c2791c5988f74a7a2c87393' },
   { label: 'W7', sha: 'c22be37cf5b6ee4e4f8791cf4fe37b605b221da8' },
+  // W8-W10 (the W7.5 checkpoint authorised these; the ledger is regenerated
+  // from the clean committed W10 tree).
+  { label: 'W8', sha: 'dc8f10b7ade3ee63c286f4e7ab7d2880cfd4f840' },
+  { label: 'W9', sha: '69b7c7c9f918d663dc880d618498d17657931729' },
+  { label: 'W10', sha: '97442e22f47b5802c1a9dbd37079bc8ff567ebe5' },
 ]
 
-type Category = 'MIGRATION_INVENTORY_RETARGET' | 'WEIGHT_TIME_BOUNDARY_RETARGET' | 'ROUTE_TEXT_RETARGET' | 'AUDIT_COMPLETENESS_RETARGET' | 'OTHER_REQUIRES_REVIEW'
+type Category = 'MIGRATION_INVENTORY_RETARGET' | 'WEIGHT_TIME_BOUNDARY_RETARGET' | 'ROUTE_TEXT_RETARGET' | 'AUDIT_COMPLETENESS_RETARGET' | 'HISTORICAL_PRODUCT_BOUNDARY_RETARGET' | 'UI_SURFACE_RETARGET' | 'OTHER_REQUIRES_REVIEW'
 const RULES: Array<{ category: Category; pattern: RegExp }> = [
   { category: 'ROUTE_TEXT_RETARGET', pattern: /PATCH fetches the stored primary|Add Set keeps every tracking-mode validation/i },
   { category: 'AUDIT_COMPLETENESS_RETARGET', pattern: /appears verbatim in the audit|named in the audit/i },
+  // OPERATOR RULING (W7.5 checkpoint approval, 2026-09-10): verify-exlib2f C1
+  // "no product change" is HISTORICAL_PRODUCT_BOUNDARY_RETARGET, not
+  // OTHER_REQUIRES_REVIEW — EXLIB-2F's claim remains true of its own tip and
+  // W4 is a legitimate later product boundary. Applied by pattern so the
+  // classification is deterministic and reproducible; W11 owns the retarget.
+  { category: 'HISTORICAL_PRODUCT_BOUNDARY_RETARGET', pattern: /no product change/i },
+  // W10 user-facing pins: exact JSX/expression/count pins on SetRow, the
+  // exercise block, the detail client and the /progress tiles that the
+  // approved weight_time UI necessarily moved.
+  { category: 'UI_SURFACE_RETARGET', pattern: /summary tiles derived|detail client behavior contract|completion summary computed only|warm-up toggle shown only|header aligns with the composition|per-mode copy fields exact|required fields per mode|execution behavior anchors|progress badges/i },
   { category: 'WEIGHT_TIME_BOUNDARY_RETARGET', pattern: /weight_time|planning-only boundary|NOT-APPLIED boundary|vocabular/i },
   { category: 'MIGRATION_INVENTORY_RETARGET', pattern: /migration|001-02\d|no 028|exactly 2\d\b|numbered migration|inventory/i },
 ]
@@ -63,6 +81,8 @@ const DISPOSITIONS: Record<Category, string> = {
   WEIGHT_TIME_BOUNDARY_RETARGET: 'Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral.',
   ROUTE_TEXT_RETARGET: 'Retarget only the exact changed behaviour (the exercises PATCH select now also reads tracking_mode; the set routes\' inline validation moved into src/lib/workout-set-contract.ts) and retain the historical source proof against the historical tip; count-neutral.',
   AUDIT_COMPLETENESS_RETARGET: 'The byte-frozen pre-implementation audit cannot name artifacts that post-date it; admit the post-audit artifact by exact path/name with proof of absence at the closeout tip 59e443ba (the pattern verify-exlib1c0b already applies three times, most recently W7.5-B D2); the historical completeness claim over pre-existing artifacts is preserved; count-neutral.',
+  HISTORICAL_PRODUCT_BOUNDARY_RETARGET: 'Operator ruling (W7.5 checkpoint): EXLIB-2F\'s "no product change" claim remains TRUE of its own tip — evaluate the product-change predicate against the pinned EXLIB-2F commit object, never against HEAD; admit W4 (50e7451c) as a legitimate later product boundary authorised by the approved weight_time plan, by exact commit id; never rewrite the EXLIB-2F record; count-neutral. W11 owns the retarget; nothing is retargeted before W11.',
+  UI_SURFACE_RETARGET: 'Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral.',
   OTHER_REQUIRES_REVIEW: 'Not deterministically classifiable by the fixed rules — operator review required before any retarget.',
 }
 
@@ -161,6 +181,8 @@ function main(): number {
         let category: Category
         if (matches.includes('ROUTE_TEXT_RETARGET') && first.label === 'W7') category = 'ROUTE_TEXT_RETARGET'
         else if (matches.includes('AUDIT_COMPLETENESS_RETARGET')) category = 'AUDIT_COMPLETENESS_RETARGET'
+        else if (matches.includes('HISTORICAL_PRODUCT_BOUNDARY_RETARGET') && first.label === 'W4') category = 'HISTORICAL_PRODUCT_BOUNDARY_RETARGET'
+        else if (matches.includes('UI_SURFACE_RETARGET') && first.label === 'W10') category = 'UI_SURFACE_RETARGET'
         else if (matches.includes('WEIGHT_TIME_BOUNDARY_RETARGET') && first.label === 'W4') category = 'WEIGHT_TIME_BOUNDARY_RETARGET'
         else if (matches.includes('MIGRATION_INVENTORY_RETARGET') && first.label === 'W6') category = 'MIGRATION_INVENTORY_RETARGET'
         else if (matches.length === 1) category = matches[0]
@@ -174,7 +196,7 @@ function main(): number {
   const byCategory = (category: Category) => entries.filter((entry) => entry.category === category)
   const ledger = {
     generatedAtCommit: headSha,
-    generatedFrom: 'a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7 worktrees',
+    generatedFrom: 'a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10 worktrees',
     steps: STEPS,
     totals: {
       suitesRedAtHead: redAtHead.length,
@@ -185,6 +207,8 @@ function main(): number {
         WEIGHT_TIME_BOUNDARY_RETARGET: byCategory('WEIGHT_TIME_BOUNDARY_RETARGET').length,
         ROUTE_TEXT_RETARGET: byCategory('ROUTE_TEXT_RETARGET').length,
         AUDIT_COMPLETENESS_RETARGET: byCategory('AUDIT_COMPLETENESS_RETARGET').length,
+        HISTORICAL_PRODUCT_BOUNDARY_RETARGET: byCategory('HISTORICAL_PRODUCT_BOUNDARY_RETARGET').length,
+        UI_SURFACE_RETARGET: byCategory('UI_SURFACE_RETARGET').length,
         OTHER_REQUIRES_REVIEW: byCategory('OTHER_REQUIRES_REVIEW').length,
       },
       preExistingAtPreW4Checks: preExisting.length,
