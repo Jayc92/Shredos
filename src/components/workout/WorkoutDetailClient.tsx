@@ -13,6 +13,7 @@ import { summarizeWorkout } from '@/lib/workout'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
+import type { WeightTimePoint } from '@/lib/weight-time-records'
 
 interface WorkoutDetailClientProps {
   session: any
@@ -24,11 +25,13 @@ interface WorkoutDetailClientProps {
   exerciseTrends?: Record<string, ProgressionTrend>
   exerciseHistory?: Record<string, ExerciseHistoryEntry[]>
   prBaseline?: Record<string, PRBaseline>
+  /** W10: prior 2-D points per weight_time exercise (fetchWeightTimePRBaselines) for Weight-time PR badges and the completion summary. */
+  weightTimeBaseline?: Record<string, WeightTimePoint[]>
 }
 
 export function WorkoutDetailClient({
   session, exercises, previousBests, allExercises,
-  routineId, routineName, exerciseTrends, exerciseHistory, prBaseline,
+  routineId, routineName, exerciseTrends, exerciseHistory, prBaseline, weightTimeBaseline,
 }: WorkoutDetailClientProps) {
   const router = useRouter()
   const [sessionDeleted, setSessionDeleted] = useState(false)
@@ -105,8 +108,10 @@ export function WorkoutDetailClient({
   // Phase 2H: recomputed every render from already-loaded session data —
   // no persisted summary blob, so reopening a completed workout later
   // shows the identical summary automatically.
+  // W10: weight_time exercises are summarised by the 2-D model through the
+  // third argument; the strength baseline map is untouched.
   const completionSummary =
-    session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null
+    session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}) : null
 
   // Phase 2I: a completed workout is read-only in the UI, mirroring
   // the same lock enforced server-side by the mutation guards.
@@ -167,6 +172,7 @@ export function WorkoutDetailClient({
           trend={exerciseTrends?.[we.exercise_id]}
           history={exerciseHistory?.[we.exercise_id]}
           prBaseline={prBaseline?.[we.exercise_id]}
+          weightTimeBaseline={weightTimeBaseline?.[we.exercise_id]}
           readOnly={readOnly}
           isFirst={index === 0}
           isLast={index === orderedExercises.length - 1}

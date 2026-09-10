@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { blockIfWorkoutExerciseCompleted } from '@/lib/supabase/workout-guards'
+import { MODE_COPY_FIELDS } from '@/lib/workout-set-contract'
 import type { TrackingMode } from '@/types/database'
 
 // ============================================================
@@ -18,18 +19,9 @@ import type { TrackingMode } from '@/types/database'
 // ============================================================
 
 // W4: the local four-value TrackingMode alias is gone; the shared type
-// from @/types/database is the single vocabulary.
-const MODE_COPY_FIELDS: Record<TrackingMode, readonly string[]> = {
-  weight_reps: ['reps', 'weight_kg', 'rpe'],
-  bodyweight:  ['reps', 'weight_kg', 'rpe'],
-  cardio:      ['duration_seconds', 'distance_meters'],
-  timed:       ['duration_seconds', 'rpe'],
-  // W7: the copyable dimensions of a weighted hold — added weight and
-  // duration, plus rpe like every other rpe-carrying mode. A template
-  // weight of 0 is a real value and copies as 0 (the blank-only predicate
-  // below is IS NULL, so 0 is never treated as blank).
-  weight_time: ['weight_kg', 'duration_seconds', 'rpe'],
-}
+// from @/types/database is the single vocabulary. W10: the per-mode copy
+// list moved to src/lib/workout-set-contract.ts (MODE_COPY_FIELDS) so the
+// route and the client's Apply eligibility read ONE definition.
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()

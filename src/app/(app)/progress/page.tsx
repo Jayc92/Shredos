@@ -13,6 +13,8 @@ import {
   MIN_LOGGED_DAYS_FOR_AVERAGE,
 } from '@/lib/nutrition-trends'
 import { fetchStrengthRecords } from '@/lib/strength-records'
+import { fetchWeightTimeRecords } from '@/lib/weight-time-records'
+import { formatDurationSeconds, formatAddedWeightLb } from '@/lib/workout'
 import {
   fetchTrackingAwareProgressOverview,
   filterOverviewRows,
@@ -205,7 +207,7 @@ export default async function ProgressPage({
   // day (timezone cookie), not the server's UTC day.
   const localToday = localTodayFromCookies()
 
-  const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs, energyTrends] = await Promise.all([
+  const [strengthRecords, overviewRows, weighIns, nutritionTrendLogs, energyTrends, weightTimeRecords] = await Promise.all([
     fetchStrengthRecords(supabase, user.id),
     fetchTrackingAwareProgressOverview(supabase, user.id),
     // Phase 2Y: same existing helper + 50-row bound /weigh-in uses.
@@ -215,7 +217,42 @@ export default async function ProgressPage({
     fetchNutritionTrendLogs(supabase, user.id),
     // Phase 5B.5: read-only aggregation over the stable 5B evidence.
     fetchProgressEnergyTrends(supabase, user.id, localToday, energyRange, target, profile),
+    // W10: weight_time records from the dedicated 2-D model — its
+    // "Weight-time PR" events join the Recent PRs list below.
+    fetchWeightTimeRecords(supabase, user.id),
   ])
+
+  // W10: one most-recent-first Recent PRs list across the strength model
+  // and the weight_time 2-D model. Each source is already capped at its
+  // ten most recent events, so the union's ten most recent are exact.
+  // A Weight-time PR is a frontier-improving hold — never a ranked value.
+  const recentPRTiles = [
+    ...strengthRecords.recentPREvents.map((e) => {
+      const suffix = e.isUnilateral ? ' per side' : ''
+      const typeLabel =
+        e.type === 'weight' ? 'Weight PR'
+        : e.type === 'estimated_1rm' ? 'Est. 1RM PR'
+        : 'Rep PR'
+      const valueText =
+        e.type === 'weight'
+          ? `${Math.round(kgToLbs(e.weightKg as number))} lbs${
+              e.reps !== null ? ` × ${e.reps}` : ''
+            }${suffix}`
+          : e.type === 'estimated_1rm'
+          ? `${Math.round(kgToLbs(e.estimated1RmKg as number))} lbs${suffix}`
+          : `${e.reps} reps${suffix}`
+      return { key: `strength-${e.exerciseId}-${e.workoutDate}-${e.type}`, typeLabel, workoutDate: e.workoutDate, exerciseName: e.exerciseName, valueText }
+    }),
+    ...weightTimeRecords.recentPREvents.map((e) => ({
+      key: `weight-time-${e.setId}`,
+      typeLabel: 'Weight-time PR',
+      workoutDate: e.workoutDate,
+      exerciseName: e.exerciseName,
+      valueText: `${formatDurationSeconds(e.durationSeconds)} · ${formatAddedWeightLb(e.weightKg)}${e.isUnilateral ? ' per side' : ''}`,
+    })),
+  ]
+    .sort((a, b) => (a.workoutDate < b.workoutDate ? 1 : a.workoutDate > b.workoutDate ? -1 : a.exerciseName.localeCompare(b.exerciseName)))
+    .slice(0, 10)
 
   // Phase 2Y: compact 7-day-average trend for the Weight section —
   // derived by the same pure helper /weigh-in uses, no chart here.
@@ -282,7 +319,7 @@ export default async function ProgressPage({
         </div>
         <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
           <p className="text-base font-bold tabular-nums">
-            {strengthRecords.recentPREvents.length}
+            {recentPRTiles.length}
           </p>
           <p className="text-xs text-ink-muted mt-0.5">recent PRs</p>
         </div>
@@ -340,44 +377,29 @@ export default async function ProgressPage({
           in the component). */}
       <TrainingCoverageSection rows={overviewRows} />
 
-      {/* 4. Recent PRs (Phase 2D semantics preserved — strength-record
-          based; no cardio/timed PR events exist or are invented). */}
+      {/* 4. Recent PRs (Phase 2D semantics preserved for the strength
+          events; no cardio/timed PR events exist or are invented). W10:
+          Weight-time PR events from the dedicated 2-D model join the same
+          most-recent-first list. */}
       <Card variant="default" className="gap-0 py-4">
         <CardContent className="space-y-2">
         <h2 className="text-sm font-semibold text-ink">Recent PRs</h2>
-        {strengthRecords.recentPREvents.length === 0 ? (
+        {recentPRTiles.length === 0 ? (
           <p className="text-sm text-ink-muted">No personal records yet.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {strengthRecords.recentPREvents.map((e, i) => {
-              const suffix = e.isUnilateral ? ' per side' : ''
-              const dateLabel = format(parseISO(e.workoutDate), 'MMM d')
-              const typeLabel =
-                e.type === 'weight' ? 'Weight PR'
-                : e.type === 'estimated_1rm' ? 'Est. 1RM PR'
-                : 'Rep PR'
-              const valueText =
-                e.type === 'weight'
-                  ? `${Math.round(kgToLbs(e.weightKg as number))} lbs${
-                      e.reps !== null ? ` × ${e.reps}` : ''
-                    }${suffix}`
-                  : e.type === 'estimated_1rm'
-                  ? `${Math.round(kgToLbs(e.estimated1RmKg as number))} lbs${suffix}`
-                  : `${e.reps} reps${suffix}`
-
-              return (
-                <li key={i}
-                  className="rounded-lg bg-surface-sunken px-3 py-2.5">
-                  <p className="text-xs font-medium text-ink-muted">
-                    {typeLabel} · {dateLabel}
-                  </p>
-                  <p className="min-w-0 break-words text-sm font-semibold text-ink">
-                    {e.exerciseName}
-                  </p>
-                  <p className="text-sm tabular-nums text-ink">{valueText}</p>
-                </li>
-              )
-            })}
+            {recentPRTiles.map((tile) => (
+              <li key={tile.key}
+                className="rounded-lg bg-surface-sunken px-3 py-2.5">
+                <p className="text-xs font-medium text-ink-muted">
+                  {tile.typeLabel} · {format(parseISO(tile.workoutDate), 'MMM d')}
+                </p>
+                <p className="min-w-0 break-words text-sm font-semibold text-ink">
+                  {tile.exerciseName}
+                </p>
+                <p className="text-sm tabular-nums text-ink">{tile.valueText}</p>
+              </li>
+            ))}
           </ul>
         )}
         </CardContent>

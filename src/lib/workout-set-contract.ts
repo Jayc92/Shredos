@@ -45,7 +45,53 @@ export const COMMON_FIELDS: ReadonlySet<string> = new Set(['completed', 'notes']
 // forbids (append_workout_set rejects is_warmup for cardio and timed).
 // weight_time is deliberately NOT listed: Decision 5 PERMITS warmups for a
 // weighted hold, so its flag passes through like weight_reps/bodyweight.
-const WARMUP_FORBIDDEN_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>(['cardio', 'timed'])
+// (W10: exported so SetRow shows the warm-up toggle from this same set.)
+export const WARMUP_FORBIDDEN_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>(['cardio', 'timed'])
+
+// ── Apply-to-remaining copy contract (W10) ─────────────────────────────
+// ONE definition for the route (POST .../apply-first-set) AND the client
+// (WorkoutExerciseBlock): which stored columns a template set lends to
+// later blank sets, and which template values must be SAVED before the
+// action enables. Previously each side carried its own mode→fields list.
+
+export type ApplyCopyField = 'reps' | 'weight_kg' | 'rpe' | 'duration_seconds' | 'distance_meters'
+
+/**
+ * Storage columns copied from the template set, per mode. weight_time
+ * (W7): the copyable dimensions of a weighted hold — added weight and
+ * duration, plus rpe like every other rpe-carrying mode. A template
+ * weight of 0 is a real value and copies as 0 (the blank predicate is
+ * IS NULL, so 0 is never treated as blank).
+ */
+export const MODE_COPY_FIELDS: Record<TrackingMode, readonly ApplyCopyField[]> = {
+  weight_reps: ['reps', 'weight_kg', 'rpe'],
+  bodyweight:  ['reps', 'weight_kg', 'rpe'],
+  cardio:      ['duration_seconds', 'distance_meters'],
+  timed:       ['duration_seconds', 'rpe'],
+  weight_time: ['weight_kg', 'duration_seconds', 'rpe'],
+}
+
+/**
+ * Template values that must be saved (non-null) before Apply enables.
+ * weight_time requires BOTH added weight (0 counts — it is non-null) and
+ * duration, mirroring its completion rule.
+ */
+export const MODE_APPLY_REQUIRED_FIELDS: Record<TrackingMode, readonly ApplyCopyField[]> = {
+  weight_reps: ['reps', 'weight_kg'],
+  bodyweight:  ['reps'],
+  cardio:      ['duration_seconds'],
+  timed:       ['duration_seconds'],
+  weight_time: ['weight_kg', 'duration_seconds'],
+}
+
+/** True when every required template value for the mode is saved (non-null). */
+export function applyTemplateReady(
+  trackingMode: TrackingMode,
+  template: Partial<Record<ApplyCopyField, number | null>> | null
+): boolean {
+  if (template === null) return false
+  return MODE_APPLY_REQUIRED_FIELDS[trackingMode].every((field) => template[field] !== null && template[field] !== undefined)
+}
 
 // ── Shared types ────────────────────────────────────────────────────────
 

@@ -235,8 +235,19 @@ async function main(): Promise<number> {
     'no mapping: a trigger rejection would surface as a generic 500')
   check('E3: the 409 copy speaks of EXTANT sets, not "ever used"', exerciseRoute.includes(HISTORY_COPY) || (contract?.TRACKING_MODE_HISTORY_409_COPY === HISTORY_COPY && exerciseRoute.includes('TRACKING_MODE_HISTORY_409_COPY')),
     'copy absent')
-  check('E4: the apply-first-set copy set for weight_time is defined (weight_kg, duration_seconds, rpe), not the W4 placeholder',
-    /weight_time:\s*\['weight_kg', 'duration_seconds', 'rpe'\]/.test(applyRoute), 'apply-first-set still carries the W4 TEMPORARY empty copy set')
+  // RETARGET (W10, 2026-09-10): the copy set moved from the route into the
+  // shared contract module (MODE_COPY_FIELDS) so the route and the client
+  // read one definition. The historical claim — the W4 placeholder is gone
+  // and weight_time copies exactly weight_kg, duration_seconds, rpe — is
+  // preserved: it is now proven against the contract module's literal
+  // AND against the route importing that constant. Count-neutral.
+  const contractText = readFileSync(path.join(repositoryRoot, 'src/lib/workout-set-contract.ts'), 'utf8')
+  check('E4: the apply-first-set copy set for weight_time is defined (weight_kg, duration_seconds, rpe), not the W4 placeholder — in the shared contract the route imports',
+    /weight_time:\s*\['weight_kg', 'duration_seconds', 'rpe'\]/.test(contractText)
+      && /import \{ MODE_COPY_FIELDS \} from '@\/lib\/workout-set-contract'/.test(applyRoute)
+      && !/const MODE_COPY_FIELDS/.test(applyRoute)
+      && !/W4 TEMPORARY/.test(applyRoute),
+    'the weight_time copy set is not the single shared definition (or the W4 TEMPORARY placeholder is back)')
 
   console.log('\nF. weight_time does not participate in strength/1RM calculations (item 9)')
   check("F1: isStrengthRecordTrackingMode('weight_time') === false (the W3 allowlist)", isStrengthRecordTrackingMode('weight_time') === false)

@@ -3,9 +3,13 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal, pickRepresentativeWeightTimeSet } from '@/lib/workout'
+import { evaluateWeightTimeSetPRs, weightTimePerformancesFromSessionSets } from '@/lib/weight-time-records'
+import type { WeightTimePoint } from '@/lib/weight-time-records'
+import { MODE_COPY_FIELDS, applyTemplateReady } from '@/lib/workout-set-contract'
 import { ProgressBadge } from './ProgressBadge'
 import { SetRow } from './SetRow'
+import type { SetRowPRType } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
 import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CopyPlus, MoveRight, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import { awaitPendingSetSaves } from './set-save-coordinator'
@@ -13,10 +17,43 @@ import {
   buildAppliedOverrides, mergeAppliedSets, resolveActiveOverrides,
   EMPTY_APPLY_STATE, type ApplyReconcileState,
 } from './set-apply-reconcile'
-import type { WorkoutExerciseWithDetails, WorkoutSet } from '@/types/database'
+import type { WorkoutExerciseWithDetails, WorkoutSet, TrackingMode } from '@/types/database'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline, RepRange } from '@/lib/workout'
+
+// W10: the set-table column headers per tracking mode — ONE exhaustive
+// map (the census decision for this surface) replacing four inline JSX
+// conditions. The four legacy rows render exactly the spans they always
+// did; weight_time adds "Added weight | Duration | RPE" (+ the sm: spacer
+// that keeps the header aligned with SetRow's warm-up toggle column).
+const COLUMN_HEADERS: Record<TrackingMode, readonly { label: string; className: string }[]> = {
+  weight_reps: [
+    { label: 'Reps', className: 'flex-1 text-center' },
+    { label: 'Weight', className: 'flex-1 text-center' },
+    { label: 'RPE', className: 'w-12 text-center' },
+    { label: '', className: 'hidden w-11 sm:inline-block' },
+  ],
+  bodyweight: [
+    { label: 'Reps', className: 'flex-1 text-center' },
+    { label: 'RPE', className: 'w-12 text-center' },
+    { label: '', className: 'hidden w-11 sm:inline-block' },
+  ],
+  cardio: [
+    { label: 'Duration', className: 'flex-1 text-center' },
+    { label: 'Distance', className: 'flex-1 text-center' },
+  ],
+  timed: [
+    { label: 'Duration', className: 'flex-1 text-center' },
+    { label: 'RPE', className: 'w-12 text-center' },
+  ],
+  weight_time: [
+    { label: 'Added weight', className: 'flex-1 text-center' },
+    { label: 'Duration', className: 'flex-1 text-center' },
+    { label: 'RPE', className: 'w-12 text-center' },
+    { label: '', className: 'hidden w-11 sm:inline-block' },
+  ],
+}
 
 // Trend labels and styles (Phase 1E — lightweight, no charts).
 // UI-5B1A: text-glyph arrows became lucide icons and the raw palette
@@ -53,6 +90,8 @@ interface WorkoutExerciseBlockProps {
   trend?: ProgressionTrend
   history?: ExerciseHistoryEntry[]
   prBaseline?: PRBaseline
+  /** W10: prior qualifying (weight, duration) points for a weight_time exercise (fetchWeightTimePRBaselines). */
+  weightTimeBaseline?: WeightTimePoint[]
   readOnly?: boolean
   /** UI-5B1B reordering: presentational move controls; the parent
    *  owns the optimistic order and the transactional endpoint call.
@@ -66,7 +105,7 @@ interface WorkoutExerciseBlockProps {
 }
 
 export function WorkoutExerciseBlock({
-  we, previousBest, trend, history, prBaseline, readOnly = false,
+  we, previousBest, trend, history, prBaseline, weightTimeBaseline, readOnly = false,
   isFirst = false, isLast = false, isReordering = false, onMoveUp, onMoveDown,
 }: WorkoutExerciseBlockProps) {
   const router = useRouter()
@@ -109,11 +148,19 @@ export function WorkoutExerciseBlock({
   // picker and comparison signal -- bestSet()/progressSignal() would
   // always return null/'same' for these modes, since bestSet's filter
   // structurally excludes duration-based sets (no weight_kg, no reps).
+  // tracking-mode-census: exempt — weight_time is routed by isWeightTime below to the 2-D helpers; this predicate stays cardio/timed only
   const isCardioOrTimed = we.exercise.tracking_mode === 'cardio' || we.exercise.tracking_mode === 'timed'
-  const curBest = isCardioOrTimed
-    ? pickRepresentativeCardioSet(sets, we.exercise.tracking_mode)
-    : bestSet(sets)
-  const signal  = isCardioOrTimed
+  // W10: weight_time uses the 2-D representative set (longest hold), the
+  // 2-D dominance signal inside trackingAwareProgressSignal, and
+  // Weight-time PR badges from the W8 model — never bestSet, never
+  // evaluateSetPRs (D4: no scalar for a weighted hold).
+  const isWeightTime = we.exercise.tracking_mode === 'weight_time'
+  const curBest = isWeightTime
+    ? pickRepresentativeWeightTimeSet(sets)
+    : isCardioOrTimed
+      ? pickRepresentativeCardioSet(sets, we.exercise.tracking_mode)
+      : bestSet(sets)
+  const signal  = isWeightTime || isCardioOrTimed
     ? trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)
     : progressSignal(curBest, previousBest)
   const prevSummary = formatPreviousBest(previousBest, we.exercise.tracking_mode)
@@ -125,7 +172,19 @@ export function WorkoutExerciseBlock({
     trend,
     { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
   )
-  const setPRs = evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE)
+  // Strength modes: evaluateSetPRs against the all-time strength baseline.
+  // weight_time: evaluateWeightTimeSetPRs against the prior 2-D points; a
+  // true result is labelled 'weight_time' ("Weight-time PR" in SetRow).
+  const setPRs: Record<string, SetRowPRType> = {}
+  if (isWeightTime) {
+    const weightTimePRs = evaluateWeightTimeSetPRs(
+      weightTimePerformancesFromSessionSets(sets as WorkoutSet[], we.exercise_id),
+      weightTimeBaseline ?? []
+    )
+    for (const setId of Object.keys(weightTimePRs)) setPRs[setId] = weightTimePRs[setId] ? 'weight_time' : null
+  } else {
+    Object.assign(setPRs, evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE))
+  }
 
   // Phase 2G: per-set target-execution feedback for the active
   // workout. Only completed, non-warmup sets are evaluated — warmups
@@ -232,6 +291,18 @@ export function WorkoutExerciseBlock({
         distance_meters:  lastSet?.distance_meters ?? null,
         completed: false,
       }
+    } else if (trackingMode === 'weight_time') {
+      // W10: copy BOTH dimensions and rpe from the last set. A last-set
+      // added weight of 0 copies as 0 — an explicit null check, never the
+      // truthiness test the strength branches use. Never reps, never
+      // distance; a new set is never born a warm-up.
+      payload = {
+        weight_lbs:       lastSet && lastSet.weight_kg !== null ? displayWeight(lastSet.weight_kg) : null,
+        duration_seconds: lastSet?.duration_seconds ?? null,
+        rpe:              lastSet?.rpe ?? null,
+        is_warmup:        false,
+        completed:        false,
+      }
     } else {
       // timed
       payload = {
@@ -259,25 +330,17 @@ export function WorkoutExerciseBlock({
   }
 
   // UI-5B1B Apply-to-remaining eligibility (persisted values only).
-  // Required template fields per mode before the action enables:
+  // W10: the required template fields and the copyable fields come from
+  // the SHARED contract (MODE_APPLY_REQUIRED_FIELDS via applyTemplateReady,
+  // MODE_COPY_FIELDS) — the same definition the apply-first-set route
+  // executes, so the client can no longer drift from the server:
   // weight_reps -> reps + weight; bodyweight -> reps; cardio/timed ->
-  // duration. Targets: later, non-warmup, incomplete sets with at
-  // least one blank copyable field.
-  const APPLY_COPY_FIELDS: Record<string, readonly string[]> = {
-    weight_reps: ['reps', 'weight_kg', 'rpe'],
-    bodyweight:  ['reps', 'weight_kg', 'rpe'],
-    cardio:      ['duration_seconds', 'distance_meters'],
-    timed:       ['duration_seconds', 'rpe'],
-  }
+  // duration; weight_time -> added weight (0 counts) AND duration.
+  // Targets: later, non-warmup, incomplete sets with at least one blank
+  // copyable field.
   const applyTemplate = (sets as any[]).find((s) => !s.is_warmup) ?? null
-  const applyRequiredReady = applyTemplate !== null && (
-    we.exercise.tracking_mode === 'weight_reps'
-      ? applyTemplate.reps !== null && applyTemplate.weight_kg !== null
-      : we.exercise.tracking_mode === 'bodyweight'
-        ? applyTemplate.reps !== null
-        : applyTemplate.duration_seconds !== null
-  )
-  const applyCopyFields = (APPLY_COPY_FIELDS[we.exercise.tracking_mode] ?? [])
+  const applyRequiredReady = applyTemplateReady(we.exercise.tracking_mode, applyTemplate)
+  const applyCopyFields = MODE_COPY_FIELDS[we.exercise.tracking_mode]
     .filter((f) => applyTemplate && applyTemplate[f] !== null)
   const applyTargets = applyTemplate === null ? [] : (sets as any[]).filter((s) =>
     s.set_number > applyTemplate.set_number && !s.is_warmup && !s.completed &&
@@ -498,33 +561,9 @@ export function WorkoutExerciseBlock({
               sm:-only, matching SetRow's two-row phone layout). */}
           <div className="flex items-center gap-1.5 mb-1 text-xs text-ink-muted">
             <span className="hidden w-5 text-center sm:inline-block">#</span>
-            {we.exercise.tracking_mode === 'weight_reps' && (
-              <>
-                <span className="flex-1 text-center">Reps</span>
-                <span className="flex-1 text-center">Weight</span>
-                <span className="w-12 text-center">RPE</span>
-                <span className="hidden w-11 sm:inline-block"></span>
-              </>
-            )}
-            {we.exercise.tracking_mode === 'bodyweight' && (
-              <>
-                <span className="flex-1 text-center">Reps</span>
-                <span className="w-12 text-center">RPE</span>
-                <span className="hidden w-11 sm:inline-block"></span>
-              </>
-            )}
-            {we.exercise.tracking_mode === 'cardio' && (
-              <>
-                <span className="flex-1 text-center">Duration</span>
-                <span className="flex-1 text-center">Distance</span>
-              </>
-            )}
-            {we.exercise.tracking_mode === 'timed' && (
-              <>
-                <span className="flex-1 text-center">Duration</span>
-                <span className="w-12 text-center">RPE</span>
-              </>
-            )}
+            {COLUMN_HEADERS[we.exercise.tracking_mode].map((column, index) => (
+              <span key={index} className={column.className}>{column.label}</span>
+            ))}
             <span className="hidden w-11 sm:inline-block"></span>
             <span className="hidden w-11 sm:inline-block"></span>
           </div>

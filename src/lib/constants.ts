@@ -235,6 +235,10 @@ export const TRACKING_MODES = [
   { value: 'bodyweight',  label: 'Bodyweight' },
   { value: 'cardio',      label: 'Cardio' },
   { value: 'timed',       label: 'Timed' },
+  // W10: the fifth mode becomes user-selectable here (ExerciseForm's
+  // PillGroup, the /progress filter pills and the detail header all read
+  // this list). Exact approved label.
+  { value: 'weight_time', label: 'Weight + Time' },
 ] as const
 
 export const WORKOUT_STATUS_LABELS: Record<string, string> = {

@@ -102,22 +102,37 @@ check('B3: the four existing derivations are unchanged (runtime)',
   deriveLegacyExerciseType('bodyweight') === 'bodyweight' && deriveLegacyExerciseType('cardio') === 'cardio'
     && deriveLegacyExerciseType('timed') === 'mobility' && deriveLegacyExerciseType('weight_reps') === 'strength')
 
-console.log('\nC. Intermediate state — stated, not hidden (W6/W7 RETARGET these with a label)')
-const constants = read('src/lib/constants.ts')
-const labelBlock = constants.slice(constants.indexOf('export const TRACKING_MODES = ['), constants.indexOf('] as const', constants.indexOf('export const TRACKING_MODES = [')))
-check("C1: src/lib/constants.ts TRACKING_MODES (the user-facing labels) does NOT list weight_time — the mode is not selectable before W10",
-  labelBlock.length > 0 && !labelBlock.includes('weight_time'))
+console.log('\nC. Intermediate state — stated, not hidden (W6/W7/W10 RETARGET these with a label)')
+// RETARGET (W10, 2026-09-10): at W4 this check pinned the LIVE label list
+// as weight_time-free ("not selectable before W10"). W10 is the step that
+// makes the mode selectable, so the historical claim is now evaluated
+// against the immutable W4 commit object (50e7451c) and the current state
+// admits exactly one weight_time entry with the approved label
+// "Weight + Time". Count-neutral.
+const W4_TIP = '50e7451c9c2ed67053f1aac583187690350ce0f4'
+const labelBlockOf = (text: string): string => text.slice(text.indexOf('export const TRACKING_MODES = ['), text.indexOf('] as const', text.indexOf('export const TRACKING_MODES = [')))
+const constantsAtW4 = execSync(`git -C "${repositoryRoot}" show ${W4_TIP}:src/lib/constants.ts`, { encoding: 'utf8' })
+const liveLabelBlock = labelBlockOf(read('src/lib/constants.ts'))
+check("C1 (W10 RETARGET): at the W4 tip 50e7451c TRACKING_MODES did NOT list weight_time (the mode was not selectable before W10); the live list now carries exactly one weight_time entry labelled 'Weight + Time'",
+  labelBlockOf(constantsAtW4).length > 0 && !labelBlockOf(constantsAtW4).includes('weight_time')
+    && liveLabelBlock.length > 0 && (liveLabelBlock.match(/weight_time/g) ?? []).length === 1
+    && /\{ value: 'weight_time', label: 'Weight \+ Time' \}/.test(liveLabelBlock))
 // RETARGET (W7): at W4 this check pinned the three EMPTY placeholder keys
 // marked "W4 TEMPORARY, FAIL-CLOSED". W7 replaced them with the real
 // contract: the two set routes now execute src/lib/workout-set-contract.ts
 // (one MODE_ALLOWED_FIELDS map for both), and apply-first-set copies
 // weight_kg, duration_seconds and rpe. No placeholder marker may remain.
+// RETARGET (W10): the apply-first-set copy list moved INTO the shared
+// contract (MODE_COPY_FIELDS) so the route and the client read one
+// definition; the same [weight_kg, duration_seconds, rpe] claim is now
+// proven against the contract's literal plus the route's import.
 const contractModule = read('src/lib/workout-set-contract.ts')
-check('C2 (W7 RETARGET): the W4 placeholders are gone — no "W4 TEMPORARY" marker remains under src/, both set routes import the shared contract, and its weight_time allowlist is exactly {weight_lbs, weight_kg, duration_seconds, rpe, is_warmup}; apply-first-set copies [weight_kg, duration_seconds, rpe]',
+check('C2 (W7 RETARGET, W10 RETARGET): the W4 placeholders are gone — no "W4 TEMPORARY" marker remains under src/, both set routes import the shared contract, and its weight_time allowlist is exactly {weight_lbs, weight_kg, duration_seconds, rpe, is_warmup}; apply-first-set copies [weight_kg, duration_seconds, rpe] through the contract\'s MODE_COPY_FIELDS',
   !ROUTE_FILES.some((file) => read(file).includes('W4 TEMPORARY')) && !contractModule.includes('W4 TEMPORARY')
     && read(ROUTE_FILES[1]).includes("from '@/lib/workout-set-contract'") && read(ROUTE_FILES[2]).includes("from '@/lib/workout-set-contract'")
     && /weight_time: new Set\(\['weight_lbs', 'weight_kg', 'duration_seconds', 'rpe', 'is_warmup'\]\),/.test(contractModule)
-    && /weight_time: \['weight_kg', 'duration_seconds', 'rpe'\],/.test(read(ROUTE_FILES[0])))
+    && /weight_time: \['weight_kg', 'duration_seconds', 'rpe'\],/.test(contractModule)
+    && read(ROUTE_FILES[0]).includes("import { MODE_COPY_FIELDS } from '@/lib/workout-set-contract'"))
 const migrationsDirectory = path.join(repositoryRoot, 'supabase', 'migrations')
 const migrationFiles = readdirSync(migrationsDirectory).filter((name) => /^0\d\d_.*\.sql$/.test(name)).sort()
 // RETARGET (W6): at W4 this check pinned "no 028 yet — the database still

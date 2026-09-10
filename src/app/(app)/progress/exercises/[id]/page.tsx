@@ -28,6 +28,8 @@ import {
 } from '@/lib/progress-charts'
 import { ArrowLeft } from 'lucide-react'
 import ExerciseTrendChart from '@/components/progress/ExerciseTrendChart'
+import { WeightTimeSections } from '@/components/progress/WeightTimeSections'
+import { fetchWeightTimeExerciseDetail } from '@/lib/weight-time-records'
 
 // UI-7: progressLabel's returned strings carry direction glyphs; this
 // page maps each signal to the SAME wording without the glyph. The
@@ -120,22 +122,29 @@ export default async function ExerciseProgressDetailPage({
   if (!exercise) notFound()
 
   const trackingMode = exercise.tracking_mode as TrackingMode
+  // W10: weight_time routes to its own two-dimensional sections — never
+  // the strength charts, never the cardio/timed aggregate (plan §9).
+  const isWeightTime = trackingMode === 'weight_time'
+  // tracking-mode-census: exempt — weight_time is routed by isWeightTime above; this predicate stays cardio/timed only
   const isCardioTimed = trackingMode === 'cardio' || trackingMode === 'timed'
   const isUnilateral = !!exercise.unilateral
 
-  // Recent history (all four modes) + the mode-appropriate all-time
+  // Recent history (all five modes) + the mode-appropriate all-time
   // aggregate, in parallel. fetchExerciseHistory is the SOLE source
   // for latest timed RPE, the most recent session summary, recent
   // history, and the comparable-session signal — all-time cards come
   // from the dedicated aggregate scans instead, because "one
   // representative set per session" can miss the true all-time best.
-  const [historyMap, strengthDetail, cardioTimedDetail] = await Promise.all([
+  const [historyMap, strengthDetail, cardioTimedDetail, weightTimeDetail] = await Promise.all([
     fetchExerciseHistory(supabase, user.id, [exercise.id], undefined, CHART_HISTORY_LIMIT),
-    isCardioTimed
+    isCardioTimed || isWeightTime
       ? Promise.resolve(null)
       : fetchExerciseProgressDetail(supabase, user.id, exercise.id),
     isCardioTimed
       ? fetchCardioTimedProgressDetail(supabase, user.id, exercise.id)
+      : Promise.resolve(null),
+    isWeightTime
+      ? fetchWeightTimeExerciseDetail(supabase, user.id, exercise.id)
       : Promise.resolve(null),
   ])
   // Phase 2W: chartEntries feeds the trend charts (up to 15 sessions);
@@ -176,7 +185,13 @@ export default async function ExerciseProgressDetailPage({
 
       <ProgressSubNav fastingEnabled={profile.fasting_enabled} />
 
-      {isCardioTimed ? (
+      {isWeightTime ? (
+        <WeightTimeSections
+          detail={weightTimeDetail}
+          recentEntries={recentEntries}
+          isUnilateral={isUnilateral}
+        />
+      ) : isCardioTimed ? (
         <CardioTimedSections
           trackingMode={trackingMode}
           exerciseId={exercise.id}
@@ -212,6 +227,7 @@ function StrengthSections({
   chartEntries: ExerciseHistoryEntry[]
   suffix: string
 }) {
+  // tracking-mode-census: exempt — weight_time never reaches StrengthSections (routed to WeightTimeSections by the page)
   const isBodyweightMode = trackingMode === 'bodyweight'
 
   // Phase 2W trend charts — pure adapters over the same history the
@@ -481,6 +497,7 @@ function CardioTimedSections({
   recentEntries: ExerciseHistoryEntry[]
   chartEntries: ExerciseHistoryEntry[]
 }) {
+  // tracking-mode-census: exempt — weight_time never reaches CardioTimedSections (routed to WeightTimeSections by the page)
   const isCardio = trackingMode === 'cardio'
 
   // Phase 2W trend charts. cardio: pace → duration → distance

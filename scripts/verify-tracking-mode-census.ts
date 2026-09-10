@@ -47,7 +47,13 @@
 //   server.ts domain sites decided: explicit weight_time arms, exhaustive
 //   switches, or executable mode sets with markers; six baseline sites
 //   eliminated by those refactors carry ledger records naming their
-//   replacement owners). The 20 that remain are the W10 UI/constants sites.
+//   replacement owners); after W10 = 0 (the 20 UI/constants sites decided:
+//   the TRACKING_MODES label, hoisted SetRow predicates, the exhaustive
+//   COLUMN_HEADERS map, the shared Apply contract, the detail-page routing;
+//   fifteen baseline sites eliminated by those refactors carry ledger
+//   records). ZERO is the census exit condition of plan §16 — every
+//   original site HANDLES, EXCLUDES intentionally, or was eliminated by a
+//   refactor whose owner is a decided live site.
 //
 // CONSERVATION OF THE ACCEPTED BASELINE (W7.5-A)
 //   scripts/tracking-mode-census-ledger.json holds the 58 sites of the
@@ -127,9 +133,9 @@ const NEW_MODE_LITERAL = 'weight_time'
  * commit as any change to decision sites. History: W3 = 57, W4 = 47, W7 = 40,
  * W7.5-A = 39 (the seed module's union ruled an intentional exclusion by
  * external record — see scripts/tracking-mode-census-ledger.json), W9 = 20
- * (the 19 non-UI domain sites decided; the remaining 20 are W10's).
+ * (the 19 non-UI domain sites decided), W10 = 0 (the census exit condition).
  */
-const EXPECTED_PENDING_SITES = 20
+const EXPECTED_PENDING_SITES = 0
 const MARKER_PATTERN = /tracking-mode-census:\s*(allowlist|exempt)\s*(?:—|–|-)+\s*(\S[^\n]*)/
 
 // ── Result types ───────────────────────────────────────────────────────
@@ -899,11 +905,20 @@ function main(): number {
     // point one replacement owner at a PENDING site -> must be reported.
     const withoutElimination: CensusLedger = { ...ledger, eliminations: ledger.eliminations.slice(1) }
     const withoutBaselineSite: CensusLedger = { ...ledger, sites: ledger.sites.slice(1), eliminations: ledger.eliminations.filter((record) => record.identity !== ledger.sites[0].identity), externalExclusions: ledger.externalExclusions.filter((record) => record.identity !== ledger.sites[0].identity) }
-    const pendingOwner = result.sites.find((site) => site.classification === 'PENDING')?.identity ?? '(none)'
+    // W10 (census exit condition): once no live site is PENDING, control C
+    // has nothing real to point at — so it runs against a CLONE of the live
+    // sites in which one decided site is relabelled PENDING for the control
+    // only. The detector must still fire; the real verdict below is
+    // computed over the unmodified live sites.
+    const livePendingSite = result.sites.find((site) => site.classification === 'PENDING')
+    const controlSites: DecisionSite[] = livePendingSite
+      ? result.sites
+      : result.sites.map((site, index) => (index === 0 ? { ...site, classification: 'PENDING' as SiteClassification } : site))
+    const pendingOwner = (livePendingSite ?? controlSites[0])?.identity ?? '(none)'
     const badOwner: CensusLedger = { ...ledger, eliminations: ledger.eliminations.map((record, index) => (index === 0 ? { ...record, replacementOwner: pendingOwner } : record)) }
     const controlA = conserveBaseline(withoutElimination, result.sites).failures.some((failure) => failure.startsWith('baseline site is neither live nor recorded as eliminated'))
     const controlB = conserveBaseline(withoutBaselineSite, result.sites).rows.length === ledger.sites.length - 1
-    const controlC = conserveBaseline(badOwner, result.sites).failures.some((failure) => failure.startsWith('replacement owner is still PENDING'))
+    const controlC = conserveBaseline(badOwner, controlSites).failures.some((failure) => failure.startsWith('replacement owner is still PENDING'))
     if (!controlA || !controlB || !controlC) {
       console.error(`CONSERVATION ORACLE BROKEN — controls: dropped elimination detected=${controlA}, dropped baseline site changes totals=${controlB}, pending owner detected=${controlC}. No verdict is trustworthy.`)
       return 2

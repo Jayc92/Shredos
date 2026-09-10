@@ -5,19 +5,32 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { displayWeight } from '@/lib/workout'
 import type { PRType } from '@/lib/workout'
+import { lbsToKg } from '@/lib/units'
+import { WARMUP_FORBIDDEN_MODES, completionError } from '@/lib/workout-set-contract'
 import { Trash2, AlertCircle, Check } from 'lucide-react'
 import { trackSetSave } from './set-save-coordinator'
 import { reconcileSetRowState } from './set-apply-reconcile'
+import { WeightTimeSetInputs } from './WeightTimeSetInputs'
 import type { WorkoutSet, TrackingMode } from '@/types/database'
+
+/**
+ * W10: the badge vocabulary SetRow renders. The strength PRType comes from
+ * evaluateSetPRs; 'weight_time' comes from the separate 2-D model
+ * (evaluateWeightTimeSetPRs) — the two are never mixed upstream, SetRow
+ * only labels whichever its parent resolved.
+ */
+export type SetRowPRType = PRType | 'weight_time'
 
 // Phase 2C: display labels for evaluateSetPRs' PRType. "Est. 1RM PR"
 // specifically, not "1RM PR" -- it's a formula-derived estimate, not a
 // verified true 1-rep max. "Rep PR" for bodyweight display copy, while
-// the internal type stays bodyweight_reps.
-const PR_LABELS: Record<Exclude<PRType, null>, string> = {
+// the internal type stays bodyweight_reps. W10: "Weight-time PR" is the
+// approved historical copy for a frontier-improving hold.
+const PR_LABELS: Record<Exclude<SetRowPRType, null>, string> = {
   weight: 'Weight PR',
   estimated_1rm: 'Est. 1RM PR',
   bodyweight_reps: 'Rep PR',
+  weight_time: 'Weight-time PR',
 }
 
 // Phase 2S: local, non-exported conversion -- distance is stored in
@@ -32,7 +45,7 @@ interface SetRowProps {
   set: WorkoutSet
   isUnilateral: boolean
   trackingMode: TrackingMode
-  prType?: PRType
+  prType?: SetRowPRType
   targetFeedbackLabel?: string
   readOnly?: boolean
 }
@@ -46,6 +59,10 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
   const [isWarmup,  setIsWarmup]  = useState(set.is_warmup)
   const [busy,      setBusy]      = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // W10: the visible reason a completion attempt was refused — the
+  // contract's own message (added weight missing, duration missing), not
+  // a bare "Not saved" icon. Cleared on the next successful action.
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null)
 
   // Phase 2S: cardio/timed duration as a minutes + seconds pair rather
   // than one ambiguous "total seconds" field. Bodyweight's added-weight
@@ -110,12 +127,34 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
       })
       if (!res.ok) {
         setSaveError('Not saved')
+        // W10: a refused completion carries the route's reason (the same
+        // contract message the pre-check below produces); surface it
+        // instead of leaving the user with an icon alone.
+        if ('completed' in update) {
+          const body = await res.json().catch(() => ({}))
+          if (typeof body?.error === 'string') setCompletionMessage(body.error)
+        }
         return false
       }
       router.refresh()
       return true
     })()
     return trackSetSave(set.workout_exercise_id, save)
+  }
+
+  /**
+   * W10: the weight_time completion rule, evaluated on the row's CURRENT
+   * inputs with the contract's own completionError — so the user sees the
+   * exact reason before any request is sent. Added weight 0 is a valid
+   * value (parsed to numeric 0, never treated as missing); an empty
+   * weight or a zero/empty duration blocks completion.
+   */
+  function weightTimeCompletionBlocker(): string | null {
+    const weightInput = lbs.trim() === '' ? null : parseFloat(lbs)
+    const weightKg = weightInput === null || isNaN(weightInput) ? null : lbsToKg(weightInput)
+    const hasDurationInput = durationMin.trim() !== '' || durationSec.trim() !== ''
+    const durationSeconds = hasDurationInput ? (parseInt(durationMin) || 0) * 60 + (parseInt(durationSec) || 0) : null
+    return completionError('weight_time', { reps: null, weightKg, durationSeconds, isWarmup })
   }
 
   async function handleRepsBlur() {
@@ -172,6 +211,14 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
   async function toggleComplete() {
     if (readOnly) return
     const next = !completed
+    // W10: a weighted hold needs BOTH added weight (0 counts) and a
+    // duration > 0 before it can complete; refuse locally with the
+    // contract's message rather than round-tripping to a 400.
+    if (next && showWeightTimeInputs) {
+      const blocker = weightTimeCompletionBlocker()
+      if (blocker) { setCompletionMessage(blocker); return }
+    }
+    setCompletionMessage(null)
     setCompleted(next)
     const ok = await patch({ completed: next })
     if (!ok) setCompleted(!next)
@@ -200,7 +247,33 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
 
   const inputCls = 'w-full min-w-0 min-h-9 px-2 py-1.5 rounded-md bg-surface-interactive border border-edge text-ink text-xs text-center tabular-nums focus:outline-none focus:ring-1 focus:ring-ring'
   const weightSuffix = isUnilateral ? 'per side' : 'lbs'
-  const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'
+  // W10: the warm-up toggle follows the shared contract — every mode the
+  // database does not forbid a warm-up for shows it, so weight_time has
+  // it (Decision 5) exactly like weight_reps/bodyweight, and
+  // cardio/timed still do not (Phase 2S).
+  const showWarmupToggle = !WARMUP_FORBIDDEN_MODES.has(trackingMode)
+
+  // ── Which input group this row renders (W10) ──────────────────────
+  // One named predicate per group, decided here rather than inline in
+  // the JSX so each tracking-mode decision is a single, readable line.
+  // W10: weight_time — Added weight + Duration (+ optional RPE); never reps, never distance.
+  const showWeightTimeInputs = trackingMode === 'weight_time'
+  // tracking-mode-census: exempt — weight_time renders its own group (showWeightTimeInputs); reps never appear for a hold
+  const showStrengthInputs = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'
+  // tracking-mode-census: exempt — inside the strength group only; weight_time has its own added-weight input
+  const showStrengthWeightInput = trackingMode === 'weight_reps' || addedWeightExpanded
+  // tracking-mode-census: exempt — strength-group label copy; weight_time labels its input "Added weight" in WeightTimeSetInputs
+  const strengthWeightAriaLabel = trackingMode === 'bodyweight'
+    ? (isUnilateral ? 'Added weight per side in lbs' : 'Added weight in lbs')
+    : (isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs')
+  // tracking-mode-census: exempt — weight_time renders its own group (showWeightTimeInputs); distance never appears for a hold
+  const showDurationDistanceInputs = trackingMode === 'cardio' || trackingMode === 'timed'
+  // tracking-mode-census: exempt — inside the cardio/timed group; a hold never has a distance
+  const showDistanceInput = trackingMode === 'cardio'
+  // tracking-mode-census: exempt — inside the cardio/timed group; weight_time's RPE input lives in WeightTimeSetInputs
+  const showTimedRpeInput = trackingMode === 'timed'
+  // tracking-mode-census: exempt — bodyweight's collapsed affordance; weight_time always shows Added weight (0 is a real value)
+  const showAddedWeightAffordance = trackingMode === 'bodyweight' && !addedWeightExpanded && !readOnly
 
   // Phase 2C/2G: combined PR + target-feedback label — only one PR type
   // shown, priority already resolved by evaluateSetPRs, and target
@@ -237,7 +310,26 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
 
       {/* Tracking inputs — full-width second row on phones, inline from sm: */}
       <div className="order-last flex w-full min-w-0 items-center gap-1.5 sm:order-none sm:w-auto sm:flex-1">
-      {(trackingMode === 'weight_reps' || trackingMode === 'bodyweight') && (
+      {showWeightTimeInputs && (
+        <WeightTimeSetInputs
+          lbs={lbs}
+          durationMin={durationMin}
+          durationSec={durationSec}
+          rpe={rpe}
+          isUnilateral={isUnilateral}
+          readOnly={readOnly}
+          inputClassName={inputCls}
+          onLbsChange={setLbs}
+          onLbsBlur={handleWeightBlur}
+          onDurationMinChange={setDurationMin}
+          onDurationSecChange={setDurationSec}
+          onDurationBlur={handleDurationBlur}
+          onRpeChange={setRpe}
+          onRpeBlur={handleRpeBlur}
+        />
+      )}
+
+      {showStrengthInputs && (
         <>
           {/* Reps */}
           <div className="flex-1 min-w-0">
@@ -254,7 +346,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
 
           {/* Weight — always visible for weight_reps; only for bodyweight
               once "+ Added weight" has been expanded */}
-          {(trackingMode === 'weight_reps' || addedWeightExpanded) && (
+          {showStrengthWeightInput && (
             <div className="flex-1 min-w-0">
               <div className="relative">
                 <input type="number" inputMode="decimal" value={lbs}
@@ -262,9 +354,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
                   onFocus={e => e.target.select()}
                   onBlur={handleWeightBlur}
                   placeholder="lbs" min="0" step="0.5"
-                  aria-label={trackingMode === 'bodyweight'
-                    ? (isUnilateral ? 'Added weight per side in lbs' : 'Added weight in lbs')
-                    : (isUnilateral ? 'Weight per side in lbs' : 'Weight in lbs')}
+                  aria-label={strengthWeightAriaLabel}
                   readOnly={readOnly}
                   aria-readonly={readOnly}
                   className={cn(inputCls, isUnilateral ? 'pr-16' : 'pr-7')} />
@@ -291,7 +381,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
         </>
       )}
 
-      {(trackingMode === 'cardio' || trackingMode === 'timed') && (
+      {showDurationDistanceInputs && (
         <>
           {/* Duration — minutes : seconds pair */}
           <div className="flex-1 min-w-0 flex items-center gap-1">
@@ -317,7 +407,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
           </div>
 
           {/* Distance — cardio only, optional */}
-          {trackingMode === 'cardio' && (
+          {showDistanceInput && (
             <div className="flex-1 min-w-0">
               <div className="relative">
                 <input type="number" inputMode="decimal" value={distanceMi}
@@ -337,7 +427,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
           )}
 
           {/* RPE — timed only, optional */}
-          {trackingMode === 'timed' && (
+          {showTimedRpeInput && (
             <div className="w-12 flex-shrink-0">
               <input type="number" inputMode="decimal" value={rpe}
                 onChange={e => setRpe(e.target.value)}
@@ -418,7 +508,7 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
           shown below the main row once (before the PR/target line) --
           same pattern as the row itself, just a second line rather than
           squeezing into an already-full single-line layout on mobile. */}
-      {trackingMode === 'bodyweight' && !addedWeightExpanded && !readOnly && (
+      {showAddedWeightAffordance && (
         <button
           type="button"
           onClick={() => setAddedWeightExpanded(true)}
@@ -426,6 +516,13 @@ export function SetRow({ set, isUnilateral, trackingMode, prType, targetFeedback
         >
           + Added weight
         </button>
+      )}
+
+      {/* W10: the reason a completion attempt was refused, in words */}
+      {completionMessage && (
+        <p role="alert" className="text-xs text-critical pl-7 mt-1">
+          {completionMessage}
+        </p>
       )}
 
       {/* Phase 2C/2G: combined PR + target-feedback line */}
