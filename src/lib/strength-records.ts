@@ -34,6 +34,28 @@ import { classifyTrend } from '@/lib/workout-coach'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { WorkoutSet, ExerciseType, TrackingMode, ExerciseEquipment } from '@/types/database'
 
+// ── Tracking-mode ALLOWLIST for the strength/1RM record model ──────────
+// tracking-mode-census: allowlist — this module is intentionally
+// strength-only (weight_reps + bodyweight). Any tracking mode NOT listed
+// here is excluded from strength records BY CONSTRUCTION and can only be
+// admitted by an explicit edit to this set, never by default.
+//
+// W3 of the coordinated tracking-mode plan
+// (docs/weight-time-coordinated-implementation-plan.md §8.7, §11, §16 W3):
+// this set replaces the two former DENYLISTS — one at the collection loop,
+// one at the records filter — which named cardio and timed as the excluded
+// modes and therefore let every OTHER mode through, so any future tracking
+// mode would have entered the strength/1RM model silently. Behaviour is
+// identical for all four current modes — proven exhaustively over the
+// closed vocabulary and by a differential run of the real module in
+// scripts/verify-strength-records-allowlist.ts.
+const STRENGTH_RECORD_TRACKING_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>(['weight_reps', 'bodyweight'])
+
+/** True iff sets logged under this tracking mode participate in the strength/1RM record model. */
+export function isStrengthRecordTrackingMode(trackingMode: TrackingMode): boolean {
+  return STRENGTH_RECORD_TRACKING_MODES.has(trackingMode)
+}
+
 const RECENT_PR_DISPLAY_CAP = 10
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -221,10 +243,10 @@ function processExerciseSession(
 /**
  * Fetches and reconstructs all-time strength records and a
  * chronologically-correct recent-PR event timeline for EVERY exercise,
- * in a single query + single pass. Exercises of type 'cardio'/
- * 'mobility' are excluded entirely — neither a weight nor a rep-PR
- * framing fits them, same reasoning already applied in
- * suggestNextTarget (Phase 2C).
+ * in a single query + single pass. Only exercises whose tracking mode
+ * is on STRENGTH_RECORD_TRACKING_MODES participate — neither a weight
+ * nor a rep-PR framing fits the others, same reasoning already applied
+ * in suggestNextTarget (Phase 2C).
  */
 export async function fetchStrengthRecords(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -280,10 +302,11 @@ export async function fetchStrengthRecords(
         }
       }
 
-      // Phase 2R: cardio/timed excluded entirely -- don't even collect
-      // their sets. Uses tracking_mode, the behavioral replacement for
-      // exercise_type's old cardio/mobility check.
-      if (ex.tracking_mode === 'cardio' || ex.tracking_mode === 'timed') continue
+      // Phase 2R (polarity fixed in W3): only allowlisted tracking modes
+      // are collected -- don't even gather the others' sets. Uses
+      // tracking_mode, the behavioral replacement for exercise_type's
+      // old cardio/mobility check.
+      if (!isStrengthRecordTrackingMode(ex.tracking_mode)) continue
 
       const working = ((we.workout_sets ?? []) as RawSet[]).filter(isQualifyingSet)
       if (working.length === 0) continue
@@ -317,7 +340,7 @@ export async function fetchStrengthRecords(
   }
 
   const records: StrengthRecord[] = Object.entries(exerciseMeta)
-    .filter(([, meta]) => meta.trackingMode !== 'cardio' && meta.trackingMode !== 'timed')
+    .filter(([, meta]) => isStrengthRecordTrackingMode(meta.trackingMode))
     .map(([exerciseId, meta]) => {
       const scoresDescending = (sessionScoresAscending[exerciseId] ?? []).slice().reverse()
       const st = state[exerciseId] ?? freshRunningBestState()
