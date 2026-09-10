@@ -70,13 +70,22 @@ else
   echo "$DIRTY"
   exit 1
 fi
-MIGS=(supabase/migrations/0*.sql)
+# RETARGET (W6): the discovery is DEFINED at the 027 boundary — the
+# installed state that 028's DROP CONSTRAINT statements must match. At W2
+# this script failed closed if any 028 existed; now that 028 is authored,
+# it (and nothing later) is admitted, EXCLUDED from the applied set, and
+# cross-checked against the discovered names at the end.
+ALL_MIGS=(supabase/migrations/0*.sql)
+MIGS=(); LATER=()
+for f in "${ALL_MIGS[@]}"; do
+  case "$(basename "$f")" in 028_*) LATER+=("$f");; 029_*|03*|04*|05*|06*|07*|08*|09*) bad "unexpected migration beyond 028: $f — re-derive the boundary before trusting this record"; exit 1;; *) MIGS+=("$f");; esac
+done
 COUNT=${#MIGS[@]}
 LAST="$(basename "${MIGS[$((COUNT-1))]}")"
-if [ "$COUNT" = "27" ] && [ "${LAST:0:3}" = "027" ]; then
-  ok "exactly 27 numbered migrations present, last = $LAST"
+if [ "$COUNT" = "27" ] && [ "${LAST:0:3}" = "027" ] && [ "${#LATER[@]}" -le 1 ]; then
+  ok "exactly 27 numbered migrations at the discovery boundary (001-027, last = $LAST); 028 present and excluded from application: ${#LATER[@]}"
 else
-  bad "expected exactly 27 migrations ending at 027, found $COUNT ending at $LAST — this discovery would be stale"
+  bad "expected exactly 27 migrations ending at 027 plus at most one 028, found $COUNT ending at $LAST with ${#LATER[@]} later file(s) — this discovery would be stale"
   exit 1
 fi
 for f in "${MIGS[@]}"; do
@@ -136,6 +145,16 @@ echo
 echo "DISCOVERED INSTALLED NAMES (what migration 028's DROP CONSTRAINT must target)"
 echo "  public.exercises.tracking_mode         => $TENANT_NAME"
 echo "  public.exercise_catalog.tracking_mode  => $CATALOG_NAME"
+
+# RETARGET (W6): cross-check the authored 028 against the discovery.
+if [ "${#LATER[@]}" = "1" ]; then
+  M028="${LATER[0]}"
+  echo
+  echo "Cross-check: $(basename "$M028") drops exactly the discovered names"
+  grep -qE "^\s*DROP CONSTRAINT $TENANT_NAME;" "$M028" && ok "028 drops $TENANT_NAME" || bad "028 does not DROP $TENANT_NAME"
+  grep -qE "^\s*DROP CONSTRAINT $CATALOG_NAME;" "$M028" && ok "028 drops $CATALOG_NAME" || bad "028 does not DROP $CATALOG_NAME"
+  [ "$(grep -cE '^\s*DROP CONSTRAINT ' "$M028")" = "2" ] && ok "028 drops no other constraint" || bad "028 drops a constraint this discovery did not name"
+fi
 
 echo
 if [ "$FAIL" -eq 0 ]; then

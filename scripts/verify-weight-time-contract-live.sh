@@ -191,7 +191,8 @@ if [ -n "$E_WT" ]; then
   expect_err "C4a: completed weight_time REQUIRES a weight (null weight is not zero weight)"       invalid_input APPEND "$WE_WT" NULL NULL NULL 60 NULL true false
   expect_ok  "C4b: completed weight_time with LEGAL ZERO weight + duration 60 is accepted"         APPEND "$WE_WT" NULL 0 NULL 60 NULL true false
   STORED="$(Q postgres "SELECT weight_kg || '|' || (weight_kg IS NOT NULL) || '|' || pg_typeof(weight_kg) || '|' || duration_seconds FROM public.workout_sets WHERE workout_exercise_id='$WE_WT' AND weight_kg = 0 ORDER BY set_number DESC LIMIT 1;")"
-  [ "$STORED" = "0.00|t|numeric|60" ] && ok "C4c: the zero is STORED as numeric 0.00 (IS NOT NULL), duration 60 — never collapsed to null" || bad "C4c: stored zero-weight row reads '$STORED', expected '0.00|t|numeric|60'"
+  # (a boolean concatenated into text renders as 'true'/'false')
+  [ "$STORED" = "0.00|true|numeric|60" ] && ok "C4c: the zero is STORED as numeric 0.00 (IS NOT NULL = true), duration 60 — never collapsed to null" || bad "C4c: stored zero-weight row reads '$STORED', expected '0.00|true|numeric|60'"
   expect_err "C5: weight_time rejects a NEGATIVE weight"                                            invalid_input APPEND "$WE_WT" NULL -1 NULL 60 NULL true false
   expect_err "C6a: completed weight_time cannot have duration 0"                                    invalid_input APPEND "$WE_WT" NULL 20 NULL 0 NULL true false
   expect_err "C6b: completed weight_time cannot have a negative duration"                           invalid_input APPEND "$WE_WT" NULL 20 NULL -5 NULL true false
@@ -291,7 +292,7 @@ else
     || bad "S3: append_workout_set definition does not show the expected weight_time branch / mode-aware lower bound"
   TRG="$(Q postgres "SELECT pg_get_triggerdef(t.oid) FROM pg_trigger t WHERE t.tgrelid='public.exercises'::regclass AND NOT t.tgisinternal AND t.tgname='exercises_tracking_mode_history_guard';")"
   FN="$(Q postgres "SELECT p.prosecdef || '|' || coalesce(array_to_string(p.proconfig, ','), '') || '|' || has_function_privilege('authenticated', p.oid, 'EXECUTE') || '|' || has_function_privilege('anon', p.oid, 'EXECUTE') FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='exercises_guard_tracking_mode_history';")"
-  if printf '%s' "$TRG" | grep -q 'BEFORE UPDATE OF tracking_mode ON public.exercises FOR EACH ROW WHEN ((old.tracking_mode IS DISTINCT FROM new.tracking_mode)) EXECUTE FUNCTION' && printf '%s' "$TRG" | grep -q 'exercises_guard_tracking_mode_history()' && [ "$FN" = "t|search_path=public, pg_temp|f|f" ]; then
+  if printf '%s' "$TRG" | grep -q 'BEFORE UPDATE OF tracking_mode ON public.exercises FOR EACH ROW WHEN ((old.tracking_mode IS DISTINCT FROM new.tracking_mode)) EXECUTE FUNCTION' && printf '%s' "$TRG" | grep -q 'exercises_guard_tracking_mode_history()' && [ "$FN" = "true|search_path=public, pg_temp|false|false" ]; then
     ok "S4: trigger exercises_tracking_mode_history_guard is BEFORE UPDATE OF tracking_mode, row-level, WHEN OLD IS DISTINCT FROM NEW; its function is SECURITY DEFINER with search_path=public, pg_temp and EXECUTE revoked from authenticated and anon"
   else
     bad "S4: trigger/function shape differs — trigger: '$TRG'; function: '$FN'"

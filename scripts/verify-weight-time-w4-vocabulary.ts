@@ -115,12 +115,19 @@ check('C2: the three total Record maps carry an EMPTY weight_time key marked "W4
   }))
 const migrationsDirectory = path.join(repositoryRoot, 'supabase', 'migrations')
 const migrationFiles = readdirSync(migrationsDirectory).filter((name) => /^0\d\d_.*\.sql$/.test(name)).sort()
-check('C3: no migration 028 exists yet and the 010/023 tracking_mode CHECKs still name exactly the four legacy values — the database still refuses weight_time',
-  !migrationFiles.some((name) => name.startsWith('028_'))
-    && /CHECK \(tracking_mode IN\s*\('weight_reps',\s*'bodyweight',\s*'cardio',\s*'timed'\)\)/.test(read('supabase/migrations/010_phase2r_exercise_tracking_modes.sql'))
-    && /CHECK \(tracking_mode IN\s*\('weight_reps',\s*'bodyweight',\s*'cardio',\s*'timed'\)\)/.test(read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql'))
+// RETARGET (W6): at W4 this check pinned "no 028 yet — the database still
+// refuses weight_time". W6 authored 028, which widens both CHECKs by
+// DROP/ADD under their installed names. Migrations 010 and 023 are NOT
+// modified in place, so their four-value text remains the historical truth
+// of their own files; the widening lives only in 028.
+const FOUR_VALUE_CHECK = /CHECK \(tracking_mode IN\s*\('weight_reps',\s*'bodyweight',\s*'cardio',\s*'timed'\)\)/
+check('C3 (W6 RETARGET): migration 028 exists exactly once; 010/023 keep their four-value CHECK text unchanged in place; 028 carries the five-value CHECK for both tables',
+  migrationFiles.filter((name) => name.startsWith('028_')).length === 1
+    && FOUR_VALUE_CHECK.test(read('supabase/migrations/010_phase2r_exercise_tracking_modes.sql'))
+    && FOUR_VALUE_CHECK.test(read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql'))
     && !/weight_time/.test(read('supabase/migrations/010_phase2r_exercise_tracking_modes.sql'))
     && !/weight_time/.test(read('supabase/migrations/023_exlib_catalog_and_delivery_contract.sql'))
+    && (read('supabase/migrations/028_weight_time_tracking_mode.sql').match(/CHECK \(tracking_mode IN \('weight_reps', 'bodyweight', 'cardio', 'timed', 'weight_time'\)\)/g) ?? []).length === 2
     && existsSync(path.join(migrationsDirectory, '027_exlib_catalog_content_schema.sql')))
 
 console.log(`\n${passed} passed, ${failed} failed`)
