@@ -250,8 +250,20 @@ definition in `026_exlib_plank_seed_reconciliation.sql:146`. See §17.
 `weight_time` appears **zero times anywhere in `src/`** (verified by
 direct `git grep`; also asserted by eleven committed verifiers, §13).
 So "current behavior" means: what happens the instant a
-`weight_time` value can exist. There are 53 mode-literal comparison
-sites across 9 files at this HEAD:
+`weight_time` value can exist.
+
+**CURRENT STATE (errata, 2026-09-09): the W1 census is the
+authoritative implementation scope — 58 decision sites across 14
+files** (`scripts/verify-tracking-mode-census.ts`, committed at
+`fa5a359b`, measured at `14a36567` after W3: OK 1, MISSING 57). It
+supersedes the earlier hand-grep estimate below for every
+implementation purpose; the census counts *decision sites* (a switch,
+an else-if chain, an object literal, a type union, a JSX expression)
+rather than individual comparisons, and it reaches type declarations,
+Record keys and option lists that a comparison grep cannot. The table
+that follows is retained as **what the earlier grep observed at its
+own commit (`0e10d7b`)**: 53 mode-literal comparison sites across 9
+files.
 
 | File | Sites |
 |---|---|
@@ -299,7 +311,8 @@ or at runtime:
   (`src/lib/progress-overview.ts:96-101`) is a hand-written array
   typed as a *list of* the union, not a total map. Adding a union
   member does **not** break it. Silent.
-- All 53 `===`/`!==` branches keep compiling. Silent.
+- Every equality / else-if / JSX comparison site in the census keeps
+  compiling. Silent.
 
 **Consequence for the plan, and it is the reason W1 exists:**
 `deriveLegacyExerciseType`'s exhaustive switch **is not the worklist**.
@@ -1195,7 +1208,8 @@ let its output be the worklist: a script that enumerates every
 mode-literal branch site and every `Record<TrackingMode, …>` and
 fails if any lacks a `weight_time` arm. Written after a hand cleanup
 it could only be demonstrated on a corpus with no defects left. The
-53-site table in §3 is the expected initial output.
+W1 census (58 decision sites / 14 files at `14a36567`) is the
+authoritative worklist; §3's older 53/9 grep table is historical.
 
 **5. Mode-transition route tests (§5.3, UX layer)** — an exercise with
 any referencing `workout_sets` row gets 409 from the precheck; a
@@ -1407,8 +1421,9 @@ exhaustion over a 4-element set. Once a fifth member exists, that
 proof is no longer a total-case argument and the change becomes
 entangled with new feature behaviour.
 
-Second principle, from §3.1: the type system finds only one of the 53
-sites, so the census and guard come **first** and produce the worklist.
+Second principle, from §3.1: the type system finds only one of the 58
+census sites, so the census and guard come **first** and produce the
+worklist.
 
 Third: each of the four changes to already-shipped behaviour (W3, G1
 in W5/W6, the O8 trigger in W6, the self-heal removal in W7) is
