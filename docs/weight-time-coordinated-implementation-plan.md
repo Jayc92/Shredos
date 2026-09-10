@@ -265,6 +265,23 @@ that follows is retained as **what the earlier grep observed at its
 own commit (`0e10d7b`)**: 53 mode-literal comparison sites across 9
 files.
 
+**CONSERVATION (errata, 2026-09-10, W7.5-A).** The original W1
+implementation census — **58 sites / 14 files** at `795fe1ff` — is the
+conserved baseline: `scripts/tracking-mode-census-ledger.json` carries
+all 58 with stable identities, and every census run resolves each of
+them to exactly one lifecycle state (HANDLES_WEIGHT_TIME /
+EXCLUDES_WEIGHT_TIME_INTENTIONALLY / ELIMINATED_BY_REFACTOR / PENDING)
+with totals that must equal 58. After W7: **5 handled + 2 intentionally
+excluded + 12 eliminated by refactor + 39 pending = 58** — the 12
+eliminations are the three route-local `TrackingMode` aliases replaced
+by the shared type at W4 (`50e7451c`) and the nine set-route maps and
+branches moved into `src/lib/workout-set-contract.ts` at W7
+(`c22be37c`), each recorded with its eliminating commit, replacement
+executable owner and preservation reason. The **live syntactic census**
+after W7 is **53 sites / 13 files** (HANDLES 11, EXCLUDES 3, PENDING
+39); it is reported separately and can never shrink the conserved
+worklist silently.
+
 | File | Sites |
 |---|---|
 | `src/lib/workout.ts` | 13 |
@@ -1250,10 +1267,35 @@ the W-steps of §16.
 | W8 | Dedicated 2-D weight_time records logic | local runtime proof |
 | W9 | Workout-domain integration (`workout.ts`, 13 sites) | local runtime proof |
 | W10 | UI, including the selectable mode label | local UI verification behind the loopback guard |
-| W11 | Historical verifier retargets — labelled and **count-neutral** | full suite green |
+| W11 | Historical verifier retargets per the GENERATED ledger `docs/weight-time-w11-failure-ledger.json` — 55 suites / 65 failing checks (45 migration-inventory, 15 weight_time-boundary, 2 route-text, 2 audit-completeness, 1 requires review) — labelled, historical claims preserved against their tips, **count-neutral** | full suite green |
 | W12 | Review / integration: full suite green; lint 0; type-check 0 | operator |
 | W13 | Hosted application — **Joseph/ChatGPT only**, ShredOS only, under its own explicit instruction | operator |
 | W14 | Catalog admission of the **five** entries — separate authorization | operator |
+
+**W11 SCOPE (errata, 2026-09-10, W7.5-C).** The eleven suites below
+remain part of W11 but are **no longer its extent**. W11's exact scope
+is the generated, machine-readable failure ledger
+`docs/weight-time-w11-failure-ledger.json` (twin `.md`), produced by
+`scripts/generate-weight-time-w11-ledger.ts` from a clean worktree of
+the committed tree and bisected across the W-step commits: **55 suites /
+65 failing checks caused by W4–W7** — 45 MIGRATION_INVENTORY_RETARGET
+(first red at W6: phase claims of "migrations exactly 001-0NN / no 028"
+that must be preserved against their historical commits and admit the
+reviewed 028 by exact filename), 15 WEIGHT_TIME_BOUNDARY_RETARGET
+(first red at W4: preserve the zero-weight_time boundary against the
+historical tip and add the reviewed current-state admission), 2
+ROUTE_TEXT_RETARGET (first red at W7: `verify-phase5a6b` "PATCH fetches
+the stored primary", `verify-ui5b1b` S4), 2 AUDIT_COMPLETENESS_RETARGET
+(`verify-exlib1c0b` C1 and D1 — the byte-frozen audit cannot name
+post-audit artifacts; admit by name with proof of absence at the
+closeout tip, the pattern that file already applies), and 1
+OTHER_REQUIRES_REVIEW (`verify-exlib2f` C1 "no product change", a
+HEAD-relative product-boundary pin, first red at W4 — operator review
+before any retarget). The ledger is regenerated, never hand-edited.
+**Outside W11:** the three verifiers that were red BEFORE W4
+(`verify-exlib1c0b` D2, `verify-exlib3a-option-a` A7,
+`verify-exlib3a-option-a-application` C14) were lifecycle pins stale
+after normal post-closeout development and were retargeted in W7.5-B.
 
 **W11 in detail — eleven committed verifiers assert that
 `weight_time` is ABSENT and will go red the moment it ships:**
@@ -1398,6 +1440,14 @@ separate authorization, which admits five of them.
   and the mandatory A/B concurrency proof (§5.4).
 - **Revision 2's §10.2 scope note** (the `deliver_catalog_exercises`
   replacement) — **RESOLVED: explicitly IN SCOPE.**
+- **Seed module local union** (`src/lib/supabase/seed-exercises.ts:44`,
+  the W4 deviation) — **RULED 2026-09-10: EXCLUDES_WEIGHT_TIME_INTENTIONALLY,
+  not PENDING.** The local four-value type is intentionally narrower than
+  the global `TrackingMode`: the module contains no weight_time seed and
+  is not the vocabulary authority; twenty-two evidence suites pin it
+  blob-identical to promoted tips, so it is never edited and no marker
+  is added to it. Recorded in the census ledger as an external
+  exclusion, outside the frozen module.
 
 ### 15.2 Open by design
 
@@ -1440,10 +1490,11 @@ of them into a larger step would make its proof unreadable.
 | **W5** | **Zero-weight validation / persistence semantics, specified and proven red.** Write the failing live controls and the API-level zero-preservation spec *before* the SQL exists: `weight_kg = 0` must persist as `0`, never `null` (G2) | — (spec only) | controls demonstrably red against today's code |
 | **W6** | **Migration 028 + `append_workout_set`**: two CHECK widenings using W2's names; the `weight_time` `ELSIF` gate (warmups permitted, G4); the completion rule; **G1**'s mode-dependent lower bound; the **O8 history-guard trigger** raising `tracking_mode_has_workout_history`; `deliver_catalog_exercises` replaced so **both** 026 CASEs carry an explicit `weight_time` branch (§8.9, §17). Scope fixed by §10.2 | **yes** (G1, trigger) | live suite, classified negative controls, G1 preservation controls, the seven-point guard proof, **A/B concurrency proof with two real sessions (B unprovable ⇒ STOP)**, `pg_get_functiondef` readback, atomicity |
 | **W7** | **API routes**: three `Record` keys; G2 zero-preservation in both set routes; the §5.3 precheck in `PATCH /api/exercises/[id]` plus mapping of `tracking_mode_has_workout_history` to 409; **removal of the destructive self-heal** — that removal as its own commit inside W7 | **yes** (self-heal) | route tests, §12.5 route tests, before/after proof for all four modes |
+| **W7.5** | **DONE 2026-09-10 — stabilisation after the accepted W4–W7 checkpoint.** A: the 58-site W1 census conserved by ledger (§3). B: three verifiers red BEFORE W4 — `verify-exlib1c0b` D2 (first red at W1 `fa5a359b`), `verify-exlib3a-option-a` A7 (W3 `14a36567`), `verify-exlib3a-option-a-application` C14 (`0e10d7b`, the first post-closeout commit) — diagnosed as historical lifecycle/topology pins stale after normal post-closeout development, not regressions, and retargeted with labels against their historical tips, count-neutral; **they are outside W11**. C: the exact W11 failure ledger generated (`docs/weight-time-w11-failure-ledger.json`) | verifier-only | conservation 58 = 58; the three suites green on a clean tree; ledger unattributed = 0 |
 | **W8** | **2-D records module** (Phase 2V shape), `duration_seconds` in its select; gate `evaluateSetPRs` at its caller; never extend `strength-records.ts` | no | runtime proof: dominance, ties, zero-weight, warmups, RPE-neutrality |
 | **W9** | **`workout.ts`, 13 sites**: summaries, representative-set, progress signal, suggestions. `setScore`/`bestSet` **excluded, not extended** | additive per mode | runtime proof, no-scalar assertion |
 | **W10** | **UI**: SetRow, WorkoutExerciseBlock, form (**including the `constants.ts` label — the step that makes the mode user-reachable**), pills, detail view, mode-change rejection copy | additive | local-stack UI verification behind the loopback guard |
-| **W11** | **Retarget the eleven boundary assertions** with labelled corrections, **count-neutral** at 168 total (§13) | no | every suite at its exact prior count, 0 failed |
+| **W11** | **Retarget every check in the generated ledger** `docs/weight-time-w11-failure-ledger.json` (55 suites / 65 checks: 45 migration-inventory, 15 weight_time-boundary incl. the eleven, 2 route-text, 2 audit-completeness, 1 requires review — §13) with labelled corrections: historical claims preserved against their historical tips, the reviewed 028 / weight_time state admitted separately, **count-neutral** | no | every ledger check green, every suite at its exact prior check count, ledger regenerated empty |
 | **W12** | Review / integration: full suite green, lint 0, type-check 0 → commit → push (each under its own one-use instruction) | — | operator |
 | **W13** | **Hosted application — Joseph/ChatGPT only**, ShredOS only, separate authorization | — | operator |
 | **W14** | **Catalog admission of the five entries** (§1.1) — separate authorization | — | operator |
