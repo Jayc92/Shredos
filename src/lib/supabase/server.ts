@@ -4,7 +4,10 @@ import { startOfISOWeek } from 'date-fns'
 import { parseISO } from 'date-fns'
 import { localTodayFromCookies } from '@/lib/local-date-server'
 import { startOfISOWeekISO } from '@/lib/local-date'
-import { setScore, epley1RM, pickRepresentativeCardioSet } from '@/lib/workout'
+import {
+  setScore, epley1RM, pickRepresentativeCardioSet,
+  pickRepresentativeWeightTimeSet, STRENGTH_SCORING_MODES, CARDIO_TIMED_MODES,
+} from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database'
 
@@ -31,13 +34,21 @@ import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database
  * never compares across sessions and is not used for any PR purpose.
  */
 function pickRepresentativeSet(sets: any[], trackingMode: TrackingMode): any {
-  if (trackingMode === 'cardio' || trackingMode === 'timed') {
-    return pickRepresentativeCardioSet(sets as WorkoutSet[], trackingMode) ?? sets[0]
+  switch (trackingMode) {
+    case 'weight_time':
+      // W9: the longest qualifying hold (tie → heavier) stands for the
+      // session; setScore is never consulted for a weighted hold (D4).
+      return pickRepresentativeWeightTimeSet(sets as WorkoutSet[]) ?? sets[0]
+    case 'cardio':
+    case 'timed':
+      return pickRepresentativeCardioSet(sets as WorkoutSet[], trackingMode) ?? sets[0]
+    case 'weight_reps':
+    case 'bodyweight':
+      return sets.reduce(
+        (best: any, s: any) => (setScore(s as WorkoutSet) > setScore(best as WorkoutSet) ? s : best),
+        sets[0]
+      )
   }
-  return sets.reduce(
-    (best: any, s: any) => (setScore(s as WorkoutSet) > setScore(best as WorkoutSet) ? s : best),
-    sets[0]
-  )
 }
 
 /**
@@ -616,8 +627,14 @@ export async function fetchExerciseHistory(
       if (result[exerciseId].length >= limit) continue
 
       const b = best as any
+      // W9: the strength scalar is computed for STRENGTH_SCORING_MODES
+      // only — a weight_time history row never carries an estimated 1RM
+      // (its reps are always null, but the exclusion is by mode, not by
+      // accident of null data).
       const estimated1RmKg =
-        b.weight_kg && b.reps ? epley1RM(b.weight_kg, b.reps) : null
+        STRENGTH_SCORING_MODES.has(trackingModeByExerciseId[exerciseId]) && b.weight_kg && b.reps
+          ? epley1RM(b.weight_kg, b.reps)
+          : null
 
       result[exerciseId].push({
         workoutDate: session.workout_date,
@@ -662,6 +679,7 @@ export async function fetchExercisePRBaseline(
       id,
       workout_exercises (
         exercise_id,
+        exercise:exercises ( tracking_mode ),
         workout_sets ( reps, weight_kg, is_warmup, completed )
       )
     `)
@@ -677,9 +695,19 @@ export async function fetchExercisePRBaseline(
   for (const session of sessions ?? []) {
     for (const we of (session.workout_exercises as Array<{
       exercise_id: string
+      exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[] | null
       workout_sets: Array<{ reps: number|null; weight_kg: number|null; is_warmup: boolean; completed: boolean }>
     }>) ?? []) {
       if (!exerciseIds.includes(we.exercise_id)) continue
+
+      // W9: the strength PR baseline is built from STRENGTH_SCORING_MODES
+      // only. A weight_time set carries a weight_kg > 0 that would
+      // otherwise become a strength "max weight" baseline; its records
+      // are the 2-D model (fetchWeightTimePRBaselines), so it is skipped
+      // here by mode. cardio/timed never passed the value filter below
+      // and are unaffected.
+      const trackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
+      if (!trackingMode || !STRENGTH_SCORING_MODES.has(trackingMode)) continue
 
       const working = (we.workout_sets ?? []).filter(
         (s: any) => s.completed && !s.is_warmup && (
@@ -848,7 +876,10 @@ export async function fetchCardioTimedRecords(
     }>) ?? []) {
       const ex = Array.isArray(we.exercise) ? we.exercise[0] : we.exercise
       if (!ex) continue
-      if (ex.tracking_mode !== 'cardio' && ex.tracking_mode !== 'timed') continue
+      // W9: the cardio/timed aggregate serves CARDIO_TIMED_MODES only —
+      // an executable mode set. weight_time has its own records reader
+      // (fetchWeightTimeRecords) and is excluded here by construction.
+      if (!CARDIO_TIMED_MODES.has(ex.tracking_mode)) continue
 
       const exerciseId = we.exercise_id
       if (!meta[exerciseId]) {

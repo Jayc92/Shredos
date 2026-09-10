@@ -5,6 +5,11 @@
 
 import { differenceInDays, parseISO, subDays, format } from 'date-fns'
 import { addDaysISO } from '@/lib/local-date'
+// W9: the trend scalar (weight × reps) is a strength-only proxy;
+// fetchExerciseTrends serves STRENGTH_SCORING_MODES by mode, never by
+// the accident of null reps. (workout.ts imports only a TYPE from this
+// module, so there is no runtime cycle.)
+import { STRENGTH_SCORING_MODES } from '@/lib/workout'
 
 // ── Coaching constants ────────────────────────────────────────────────────────
 // Hardcoded for Phase 1E. Per-user preferences deferred to Phase 2.
@@ -345,6 +350,7 @@ export async function fetchExerciseTrends(
       id, workout_date,
       workout_exercises (
         exercise_id,
+        exercise:exercises ( tracking_mode ),
         workout_sets (completed, is_warmup, reps, weight_kg)
       )
     `)
@@ -366,6 +372,11 @@ export async function fetchExerciseTrends(
 
     for (const we of (session.workout_exercises ?? [])) {
       if (!exerciseIds.includes(we.exercise_id)) continue
+      // W9: weight_time (and cardio/timed) never enter the weight × reps
+      // scalar — excluded by mode, so a weighted hold's weight can never
+      // become a "volume" score. Their trend stays 'needs-data'.
+      const trackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
+      if (!trackingMode || !STRENGTH_SCORING_MODES.has(trackingMode)) continue
       const validSets = ((we.workout_sets ?? []) as any[]).filter(
         s => s.completed && !s.is_warmup && (s.weight_kg ?? 0) > 0 && (s.reps ?? 0) > 0
       )

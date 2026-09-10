@@ -158,6 +158,14 @@ check('A7: the blast radius is accepted honestly and the canary census is pinned
     // Such hits are admitted ONLY as comment lines in the two named files;
     // an executable hit, a hit in any other file, or any change to the two
     // historical lines still fails.
+    // RETARGET (W9, 2026-09-10 — the same rule, one more admitted SHAPE):
+    // the census marker syntax itself is `tracking-mode-census: allowlist`,
+    // so every file that decides a tracking-mode site with an executable
+    // mode set carries that word in a comment line by construction
+    // (workout.ts from W9; the W10 UI files next). A comment line whose
+    // content contains that marker is admitted in any src file; every
+    // other new hit must still be a comment line in one of the two named
+    // files, and an executable hit anywhere still fails. Count-neutral.
     const CLOSEOUT_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
     const KEYWORDS = 'allowlist|allow_list|featureflag|feature_flag|canary'
     const historicalHits = execSync(`git grep -riE '${KEYWORDS}' ${CLOSEOUT_TIP} -- 'src/*.ts' 'src/*.tsx' || true`, { encoding: 'utf8', shell: '/bin/bash' })
@@ -170,7 +178,9 @@ check('A7: the blast radius is accepted honestly and the canary census is pinned
     return liveHits.filter((l) => !expected.includes(l)).every((l) => {
       const file = l.slice(0, l.indexOf(':'))
       const content = l.slice(l.indexOf(':') + 1).trim()
-      return ADMITTED_COMMENT_FILES.includes(file) && (content.startsWith('//') || content.startsWith('*') || content.startsWith('/*'))
+      const isCommentLine = content.startsWith('//') || content.startsWith('*') || content.startsWith('/*')
+      const isCensusMarker = isCommentLine && content.includes('tracking-mode-census: allowlist')
+      return isCensusMarker || (ADMITTED_COMMENT_FILES.includes(file) && isCommentLine)
     })
   })())
 check('A8: the post-activation plan claims only what instruments observe — the three OBSERVABLE states (CONFIG LIVE with NO persistent delivery state, CONFIG LIVE with persistent delivery state, INEFFECTIVE/FAILING CLOSED); zero counts are never translated into request history, nonzero persistent state is never attributed to a mechanism (standing direct RPC remains a competing writer), the telemetry limit is stated AND checked against the module bytes (exactly one console call, the fail-closed error), and every observation runs only under AUTHORIZATION M after state A4',

@@ -31,9 +31,13 @@ import {
   progressSignal,
   trackingAwareProgressSignal,
   pickRepresentativeCardioSet,
+  pickRepresentativeWeightTimeSet,
   formatTrackingAwareSetSummary,
 } from '@/lib/workout'
 import type { WorkoutSet, TrackingMode, ExerciseEquipment, PrimaryMuscle } from '@/types/database'
+// W9: weight_time rows use the 2-D representative set and signal from
+// workout.ts (pickRepresentativeWeightTimeSet; trackingAwareProgressSignal
+// routes weight_time to weightTimeProgressSignal) — never setScore.
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -202,10 +206,17 @@ function toWorkoutSet(raw: RawOverviewSet, workoutDate: string): WorkoutSet {
  * workout.ts.
  */
 function pickRepresentativeSet(sets: WorkoutSet[], trackingMode: TrackingMode): WorkoutSet {
-  if (trackingMode === 'cardio' || trackingMode === 'timed') {
-    return pickRepresentativeCardioSet(sets, trackingMode) ?? sets[0]
+  switch (trackingMode) {
+    case 'weight_time':
+      // W9: longest qualifying hold (tie → heavier), never setScore.
+      return pickRepresentativeWeightTimeSet(sets) ?? sets[0]
+    case 'cardio':
+    case 'timed':
+      return pickRepresentativeCardioSet(sets, trackingMode) ?? sets[0]
+    case 'weight_reps':
+    case 'bodyweight':
+      return sets.reduce((best, s) => (setScore(s) > setScore(best) ? s : best), sets[0])
   }
-  return sets.reduce((best, s) => (setScore(s) > setScore(best) ? s : best), sets[0])
 }
 
 /**
@@ -221,12 +232,27 @@ function statusFor(
   trackingMode: TrackingMode
 ): OverviewStatus {
   if (!previous) return 'needs_data'
-  const signal =
-    trackingMode === 'cardio' || trackingMode === 'timed'
-      ? trackingAwareProgressSignal(latest, previous, trackingMode)
-      : progressSignal(latest, previous)
+  const signal = signalFor(latest, previous, trackingMode)
   if (signal === 'improved' || signal === 'declined' || signal === 'same') return signal
   return 'needs_data'
+}
+
+/**
+ * The per-mode latest-vs-previous comparison. cardio/timed and
+ * weight_time go through trackingAwareProgressSignal (which applies
+ * pace/duration for cardio/timed and 2-D dominance for weight_time —
+ * incomparable holds are 'same'); the strength modes use progressSignal.
+ */
+function signalFor(latest: WorkoutSet, previous: WorkoutSet, trackingMode: TrackingMode) {
+  switch (trackingMode) {
+    case 'weight_time':
+    case 'cardio':
+    case 'timed':
+      return trackingAwareProgressSignal(latest, previous, trackingMode)
+    case 'weight_reps':
+    case 'bodyweight':
+      return progressSignal(latest, previous)
+  }
 }
 
 /**
@@ -248,7 +274,7 @@ function summarizeLatestSet(
   const latestSummary = formatTrackingAwareSetSummary(
     {
       reps: latest.reps,
-      weightKg: trackingMode === 'bodyweight' ? bodyweightAddedKg : latest.weight_kg,
+      weightKg: weightKgForSummary(trackingMode, latest.weight_kg, bodyweightAddedKg),
       rpe: latest.rpe,
       durationSeconds: latest.duration_seconds,
       distanceMeters: latest.distance_meters,
@@ -257,6 +283,7 @@ function summarizeLatestSet(
   )
 
   let secondarySummary: string | null = null
+  // tracking-mode-census: exempt — est. 1RM is a weight_reps-only secondary; weight_time never enters epley1RM (D4)
   if (
     trackingMode === 'weight_reps' &&
     latest.weight_kg !== null &&
@@ -268,6 +295,29 @@ function summarizeLatestSet(
   }
 
   return { latestSummary, secondarySummary }
+}
+
+/**
+ * Which weight the summary formatter sees. bodyweight nulls out an
+ * added weight that would display-round to 0 (so "+0 lbs" never
+ * appears); weight_time passes its stored value through UNCHANGED — a
+ * stored 0 is a real value and must render as "0 lb added" (O5); the
+ * other modes pass the stored value through as before.
+ */
+function weightKgForSummary(
+  trackingMode: TrackingMode,
+  storedWeightKg: number | null,
+  bodyweightAddedKg: number | null
+): number | null {
+  switch (trackingMode) {
+    case 'bodyweight':
+      return bodyweightAddedKg
+    case 'weight_time':
+    case 'weight_reps':
+    case 'cardio':
+    case 'timed':
+      return storedWeightKg
+  }
 }
 
 // ── Pure builder ─────────────────────────────────────────────────────

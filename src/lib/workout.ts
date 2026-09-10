@@ -7,6 +7,59 @@ import { kgToLbs } from '@/lib/units'
 import type { WorkoutSet, TrackingMode, ExerciseEquipment, WorkoutExerciseWithDetails } from '@/types/database'
 import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
+import {
+  isQualifyingWeightTimeSet,
+  weightTimeProgressSignal,
+  evaluateWeightTimeSetPRs,
+  weightTimePerformancesFromSessionSets,
+} from '@/lib/weight-time-records'
+import type { WeightTimePoint } from '@/lib/weight-time-records'
+
+// ── W9: tracking-mode sets (executable, not commentary) ──────────────
+// Each set below is the ONE place a family of helpers decides which
+// modes it serves. weight_time is admitted or excluded here by name, so
+// the census can read the decision and the code enforces it.
+
+/**
+ * Modes whose sets may carry an RPE. cardio structurally never has RPE
+ * (Phase 2S rejects it); every other mode logs it optionally, including
+ * weight_time (D5: RPE is metadata for a weighted hold).
+ */
+export const RPE_LOGGABLE_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>([
+  'weight_reps', 'bodyweight', 'timed', 'weight_time',
+])
+
+/**
+ * Modes scored by the strength scalar (setScore/epley1RM/bestSet) and
+ * the strength PR model (evaluateSetPRs, fetchExercisePRBaseline,
+ * fetchExerciseTrends). weight_time is EXCLUDED by construction: its
+ * two dimensions have no scalar (D4) and its records live in
+ * src/lib/weight-time-records.ts. cardio/timed are excluded as before.
+ */
+// tracking-mode-census: allowlist — weight_time is excluded from the strength scalar and the strength PR model by construction; its records are the 2-D model in weight-time-records.ts (D4)
+export const STRENGTH_SCORING_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>([
+  'weight_reps', 'bodyweight',
+])
+
+/**
+ * Modes served by the cardio/timed representative-set and pace/duration
+ * signal helpers below. weight_time is EXCLUDED: its representative set
+ * and signal are the 2-D helpers (pickRepresentativeWeightTimeSet,
+ * weightTimeProgressSignal), never the duration-only or pace branches.
+ */
+// tracking-mode-census: allowlist — weight_time never reaches the cardio pace branch or the duration-only signal; it is routed to the 2-D helpers before these run (plan §8.8)
+export const CARDIO_TIMED_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>([
+  'cardio', 'timed',
+])
+
+/**
+ * The O5 added-weight phrase for weight_time prose: a stored 0 is a real
+ * value and reads "0 lb added" — never blank, never null, never
+ * "Bodyweight". Singular "lb" is the approved copy (plan §4.1).
+ */
+export function formatAddedWeightLb(weightKg: number): string {
+  return `${displayWeight(weightKg) ?? 0} lb added`
+}
 
 // ── Phase 2T: tracking-aware duration/distance display ─────────────
 // Local, non-exported conversion constant -- matches the exact same
@@ -112,10 +165,25 @@ export function formatTrackingAwareSetSummary(
 ): string {
   const prefix = set.isWarmup ? 'WU · ' : ''
 
+  // W9: weight_time renders BOTH dimensions — duration first, then the
+  // added weight via the O5 phrase ("1:30 · 20 lb added", "1:30 · 0 lb
+  // added", "WU · 1:30 · 20 lb added · RPE 7"). A null weight is not a
+  // qualifying hold and is simply omitted; 0 is never omitted.
+  if (trackingMode === 'weight_time') {
+    const duration = formatDurationSeconds(set.durationSeconds)
+    if (!duration) return ''
+    const parts = [duration]
+    if (set.weightKg !== null) parts.push(formatAddedWeightLb(set.weightKg))
+    if (set.rpe !== null) parts.push(`RPE ${set.rpe}`)
+    return prefix + parts.join(' · ')
+  }
+
+  // tracking-mode-census: exempt — weight_time returned from its own branch above; this branch is cardio/timed only
   if (trackingMode === 'cardio' || trackingMode === 'timed') {
     const duration = formatDurationSeconds(set.durationSeconds)
     if (!duration) return ''
     const parts = [duration]
+    // tracking-mode-census: exempt — inside the cardio/timed branch; weight_time returned above
     if (trackingMode === 'cardio') {
       const distance = formatDistanceMeters(set.distanceMeters)
       if (distance) parts.push(distance)
@@ -129,6 +197,7 @@ export function formatTrackingAwareSetSummary(
     return prefix + parts.join(' · ')
   }
 
+  // tracking-mode-census: exempt — weight_time returned from its own branch above; bodyweight-only formatting
   if (trackingMode === 'bodyweight') {
     if (set.reps === null) return ''
     const parts = [`${set.reps} reps`]
@@ -228,6 +297,12 @@ export function pickRepresentativeCardioSet(
   sets: WorkoutSet[],
   trackingMode: TrackingMode
 ): WorkoutSet | null {
+  // W9: executable guard — only cardio/timed are served here. A
+  // weight_time caller gets null and must use
+  // pickRepresentativeWeightTimeSet, so the pace branch below is
+  // unreachable for a weighted hold (plan §8.8).
+  if (!CARDIO_TIMED_MODES.has(trackingMode)) return null
+
   const qualifying = sets.filter(
     (s) => s.completed && !s.is_warmup && s.duration_seconds !== null && s.duration_seconds > 0
   )
@@ -236,6 +311,7 @@ export function pickRepresentativeCardioSet(
   const byLongestDuration = (a: WorkoutSet, b: WorkoutSet) =>
     (b.duration_seconds as number) > (a.duration_seconds as number) ? b : a
 
+  // tracking-mode-census: exempt — weight_time returned null at the CARDIO_TIMED_MODES guard above
   if (trackingMode === 'timed') {
     return qualifying.reduce(byLongestDuration)
   }
@@ -259,6 +335,37 @@ export function pickRepresentativeCardioSet(
     // Tie on pace and distance -> longer duration wins.
     return (s.duration_seconds as number) > (best.duration_seconds as number) ? s : best
   })
+}
+
+// ── W9: weight_time representative set (display only) ───────────────
+
+/**
+ * Selects the one set that stands for a session in "Last: ..." and the
+ * "Recent" history rows for a weight_time exercise. This is a DISPLAY
+ * choice, not a record: the longest qualifying hold (ties → the heavier
+ * one → the lower set_number), mirroring timed's longest-duration rule
+ * one dimension at a time. It never combines the two dimensions into a
+ * score and never calls setScore. All-time records, the frontier and
+ * PR events are set-level and live in weight-time-records.ts.
+ */
+export function pickRepresentativeWeightTimeSet(sets: WorkoutSet[]): WorkoutSet | null {
+  const qualifying = sets.filter((s) => isQualifyingWeightTimeSet(s))
+  if (qualifying.length === 0) return null
+  return qualifying.reduce((best, s) => {
+    const bestDuration = best.duration_seconds as number
+    const duration = s.duration_seconds as number
+    if (duration !== bestDuration) return duration > bestDuration ? s : best
+    const bestWeight = best.weight_kg as number
+    const weight = s.weight_kg as number
+    if (weight !== bestWeight) return weight > bestWeight ? s : best
+    return s.set_number < best.set_number ? s : best
+  })
+}
+
+/** The two-dimensional point of a set, for weightTimeProgressSignal. Null when the set is not a qualifying hold. */
+export function weightTimePointOf(set: WorkoutSet | null): WeightTimePoint | null {
+  if (!set || set.weight_kg === null || set.duration_seconds === null || set.duration_seconds <= 0 || set.weight_kg < 0) return null
+  return { weightKg: set.weight_kg, durationSeconds: set.duration_seconds }
 }
 
 // ── Progressive overload signal ───────────────────────────────────
@@ -308,9 +415,18 @@ export function trackingAwareProgressSignal(
   if (!previousBest) return 'new'
   if (!currentBest)  return 'same'
 
+  // W9: weight_time is judged by 2-D dominance, NEVER by the
+  // duration-only fallback below (plan §8.8: "this is where the D4
+  // violation would land"). Incomparable pairs are 'same'.
+  if (trackingMode === 'weight_time') {
+    return weightTimeProgressSignal(weightTimePointOf(currentBest), weightTimePointOf(previousBest))
+  }
+
+  // tracking-mode-census: exempt — weight_time returned via weightTimeProgressSignal above; pace applies to cardio only
   const currHasPace = trackingMode === 'cardio'
     && currentBest.duration_seconds !== null && currentBest.duration_seconds > 0
     && currentBest.distance_meters !== null && currentBest.distance_meters > 0
+  // tracking-mode-census: exempt — weight_time returned via weightTimeProgressSignal above; pace applies to cardio only
   const prevHasPace = trackingMode === 'cardio'
     && previousBest.duration_seconds !== null && previousBest.duration_seconds > 0
     && previousBest.distance_meters !== null && previousBest.distance_meters > 0
@@ -476,7 +592,10 @@ function buildIncreaseSuggestion(
   reps: number,
   suffix: string
 ): NextTargetSuggestion {
-  if (trackingMode === 'cardio' || trackingMode === 'timed') {
+  // W9: weight_time joins cardio/timed here — it has no reps-based
+  // strength progression. Its own guidance is buildWeightTimeNextTarget,
+  // reached from suggestNextTarget before this function is ever called.
+  if (trackingMode === 'cardio' || trackingMode === 'timed' || trackingMode === 'weight_time') {
     return {
       action: 'no_suggestion',
       message: 'No strength-progression suggestion for this exercise type.',
@@ -502,6 +621,7 @@ function buildIncreaseSuggestion(
     }
   }
 
+  // tracking-mode-census: exempt — weight_time returned 'no_suggestion' at the top of buildIncreaseSuggestion
   if (trackingMode === 'bodyweight') {
     const nextReps = reps + SUGGESTED_REP_INCREASE
     return {
@@ -617,6 +737,34 @@ function buildTimedNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
   }
 }
 
+// ── W9: weight_time next-target guidance (O5, D4, D5) ───────────────
+
+/**
+ * The two approved neutral strings, verbatim (plan §4.1), in the order
+ * that changes one dimension at a time: duration first, then weight.
+ */
+export const WEIGHT_TIME_HOLD_LONGER_GUIDANCE = 'Try holding this weight slightly longer.'
+export const WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE = 'When this duration feels controlled, try the next available weight.'
+
+/**
+ * weight_time's next-target message. Deliberately NOT a computed target:
+ * no new duration or weight number is derived (that would need a
+ * scalar or an increment policy neither D4 nor O5 approved), RPE is
+ * never consulted (D5: metadata only — unlike timed's RPE-repeat rule),
+ * and the two dimensions are never collapsed. A previous set that is
+ * not a qualifying hold (null weight or no duration) yields the same
+ * 'unavailable' message the other duration modes use.
+ */
+function buildWeightTimeNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
+  if (weightTimePointOf(previousBest) === null) {
+    return { action: 'unavailable', message: 'Log a completed set to start tracking targets.' }
+  }
+  return {
+    action: 'increase',
+    message: `${WEIGHT_TIME_HOLD_LONGER_GUIDANCE} ${WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE}`,
+  }
+}
+
 type ResolvedRepTargetMode = 'range' | 'single' | 'ceiling_only' | 'none'
 
 interface ResolvedRepTarget {
@@ -706,7 +854,11 @@ export function evaluateSetTargetFeedback(
   trackingMode: TrackingMode,
   repRange?: RepRange
 ): SetTargetFeedback {
-  if (trackingMode === 'cardio' || trackingMode === 'timed' || reps === null) {
+  // W9: weight_time has no rep target — the programmed-target model is
+  // reps-only and cannot honestly represent a two-dimensional hold
+  // target, so weight_time stays outside it by design (intentional
+  // exclusion, recorded here and in the W9 verifier).
+  if (trackingMode === 'cardio' || trackingMode === 'timed' || trackingMode === 'weight_time' || reps === null) {
     return { rangeStatus: 'no_target', effortStatus: 'not_applicable', label: '' }
   }
 
@@ -771,6 +923,19 @@ export function suggestNextTarget(
   trend?: ProgressionTrend,
   repRange?: RepRange
 ): NextTargetSuggestion {
+  // W9: weight_time gets the approved neutral 2-D guidance and never
+  // enters the reps/RPE strength ladder below.
+  if (trackingMode === 'weight_time') {
+    if (!previousBest) {
+      return {
+        action: 'unavailable',
+        message: 'Log a completed set to start tracking targets.',
+      }
+    }
+    return buildWeightTimeNextTarget(previousBest)
+  }
+
+  // tracking-mode-census: exempt — weight_time returned from its own branch above; cardio/timed guidance only
   if (trackingMode === 'cardio' || trackingMode === 'timed') {
     if (!previousBest) {
       return {
@@ -778,6 +943,7 @@ export function suggestNextTarget(
         message: 'Log a completed set to start tracking targets.',
       }
     }
+    // tracking-mode-census: exempt — inside the cardio/timed branch; weight_time returned above
     return trackingMode === 'cardio'
       ? buildCardioNextTarget(previousBest)
       : buildTimedNextTarget(previousBest)
@@ -795,6 +961,7 @@ export function suggestNextTarget(
   // misclassified cardio/mobility exercises (which also have no
   // weight) as bodyweight. Phase 2R: uses the exercise's tracking_mode
   // (the clearer, dedicated replacement for exercise_type) instead.
+  // tracking-mode-census: exempt — weight_time returned from its own branch above; only weight_reps/bodyweight reach here
   const isBodyweight = trackingMode === 'bodyweight'
   const reps = previousBest.reps ?? null
   const rpe = previousBest.rpe ?? null
@@ -1061,7 +1228,11 @@ function emptyTargetCounts(): WorkoutTargetCounts {
  */
 export function summarizeWorkout(
   exercises: WorkoutExerciseWithDetails[],
-  prBaselineByExerciseId: Record<string, PRBaseline>
+  prBaselineByExerciseId: Record<string, PRBaseline>,
+  // W9: prior qualifying (weight, duration) points per weight_time
+  // exercise (fetchWeightTimePRBaselines). weight_time exercises are
+  // scored by the 2-D model ONLY; they never enter evaluateSetPRs.
+  weightTimeBaselineByExerciseId: Record<string, WeightTimePoint[]> = {}
 ): WorkoutCompletionSummary {
   const exerciseCount = exercises.length
   let completedExerciseCount = 0
@@ -1090,7 +1261,14 @@ export function summarizeWorkout(
       maxEstimated1RmKg: null,
       maxBodyweightReps: null,
     }
-    const setPRs = evaluateSetPRs(workingSets, baseline)
+    const setPRs: Record<string, PRType | boolean> = we.exercise.tracking_mode === 'weight_time'
+      ? evaluateWeightTimeSetPRs(
+          weightTimePerformancesFromSessionSets(workingSets, we.exercise_id),
+          weightTimeBaselineByExerciseId[we.exercise_id] ?? []
+        )
+      : STRENGTH_SCORING_MODES.has(we.exercise.tracking_mode)
+        ? evaluateSetPRs(workingSets, baseline)
+        : {}
 
     const exTargetCounts = emptyTargetCounts()
     let exHighEffort = 0
@@ -1175,8 +1353,10 @@ export function summarizeWorkout(
     // satisfy "100% missing RPE" and always trigger this suggestion --
     // an impossible-to-act-on message for a mode that can't log RPE at
     // all. Timed remains eligible: RPE is optional but real for timed.
+    // W9: the eligible modes are the RPE_LOGGABLE_MODES set
+    // (weight_time included — RPE is optional metadata for a hold).
     if (
-      ex.trackingMode !== 'cardio' &&
+      RPE_LOGGABLE_MODES.has(ex.trackingMode) &&
       ex.completedWorkingSets > 0 &&
       ex.missingRpeCount === ex.completedWorkingSets
     ) {

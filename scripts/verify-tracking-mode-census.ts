@@ -42,7 +42,12 @@
 //   set-route sites moved into src/lib/workout-set-contract.ts and are
 //   decided there; the warmup-forbidden set is an intentional exclusion);
 //   after W7.5-A = 39 (the seed union ruled EXCLUDES_WEIGHT_TIME_INTENTIONALLY
-//   by the operator, recorded in the ledger, never in the frozen module).
+//   by the operator, recorded in the ledger, never in the frozen module);
+//   after W9 = 20 (the 13 workout.ts, 4 progress-overview.ts and 2
+//   server.ts domain sites decided: explicit weight_time arms, exhaustive
+//   switches, or executable mode sets with markers; six baseline sites
+//   eliminated by those refactors carry ledger records naming their
+//   replacement owners). The 20 that remain are the W10 UI/constants sites.
 //
 // CONSERVATION OF THE ACCEPTED BASELINE (W7.5-A)
 //   scripts/tracking-mode-census-ledger.json holds the 58 sites of the
@@ -121,9 +126,10 @@ const NEW_MODE_LITERAL = 'weight_time'
  * Sites the committed tree is KNOWN to leave pending. Updated in the same
  * commit as any change to decision sites. History: W3 = 57, W4 = 47, W7 = 40,
  * W7.5-A = 39 (the seed module's union ruled an intentional exclusion by
- * external record — see scripts/tracking-mode-census-ledger.json).
+ * external record — see scripts/tracking-mode-census-ledger.json), W9 = 20
+ * (the 19 non-UI domain sites decided; the remaining 20 are W10's).
  */
-const EXPECTED_PENDING_SITES = 39
+const EXPECTED_PENDING_SITES = 20
 const MARKER_PATTERN = /tracking-mode-census:\s*(allowlist|exempt)\s*(?:—|–|-)+\s*(\S[^\n]*)/
 
 // ── Result types ───────────────────────────────────────────────────────

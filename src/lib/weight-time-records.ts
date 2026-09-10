@@ -19,7 +19,7 @@
 //
 // Deliberately NOT built on strength-records.ts, epley1RM, setScore or
 // bestSet: those are strength/1RM scalars and weight_time must never enter
-// them (strength-records.ts's allowlist excludes it by construction).
+// them (strength-records.ts's explicit mode list excludes it by construction).
 // Deliberately no weight × duration score, no RPE-adjusted score, no 1RM
 // transformation, no scalar trend.
 //
@@ -340,6 +340,32 @@ export function collectWeightTimePerformances(sessions: WeightTimeRawSession[]):
     }
   }
   return byExercise
+}
+
+/**
+ * Adapts ONE session's raw sets (the active workout's own rows, or a
+ * completed session's rows already known to belong together) into
+ * qualifying performances for evaluateWeightTimeSetPRs / the summary
+ * helpers. Within one session the chronology keys collapse to
+ * set_number then set id; the session-level keys are constants.
+ */
+export function weightTimePerformancesFromSessionSets(
+  sets: WeightTimeRawSet[],
+  exerciseId: string,
+  session: { sessionId?: string; workoutDate?: string; sessionCreatedAt?: string; orderIndex?: number } = {},
+): WeightTimePerformance[] {
+  return sets.filter(isQualifyingWeightTimeSet).map((set) => ({
+    setId: set.id,
+    exerciseId,
+    sessionId: session.sessionId ?? '',
+    workoutDate: session.workoutDate ?? '',
+    sessionCreatedAt: session.sessionCreatedAt ?? '',
+    orderIndex: session.orderIndex ?? 0,
+    setNumber: set.set_number,
+    weightKg: set.weight_kg as number,
+    durationSeconds: set.duration_seconds as number,
+    rpe: set.rpe,
+  }))
 }
 
 const SESSION_SELECT = `

@@ -262,9 +262,16 @@ async function main() {
     const existedAtClosureTip = (p: string): boolean => {
       try { execSync(`git cat-file -e ${CLOSEOUT_TIP}:${p}`, { stdio: 'ignore' }); return true } catch { return false }
     }
+    // RETARGET (W9, 2026-09-10 — the same W7.5-B admission extended to the
+    // W8-W10 suites of the same milestone, under the same proof: each is
+    // admitted by name and must be ABSENT at the closeout tip): the W8
+    // record-model proof, the W9 domain-integration proof and the W10 UI
+    // proof carry vocabulary pins by construction, exactly like the five
+    // above. Count-neutral; no pre-existing suite is touched.
     const WEIGHT_TIME_MILESTONE_SUITES = [
       'verify-strength-records-allowlist', 'verify-tracking-mode-census', 'verify-weight-time-w4-vocabulary',
       'verify-weight-time-contract', 'verify-weight-time-migration-028',
+      'verify-weight-time-records', 'verify-weight-time-w9-integration', 'verify-weight-time-w10-ui',
     ]
     const admittedPostAuditSuite = (n: string): boolean =>
       WEIGHT_TIME_MILESTONE_SUITES.includes(n) && !existedAtClosureTip(`scripts/${n}.ts`)
