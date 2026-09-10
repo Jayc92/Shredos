@@ -141,13 +141,37 @@ check('A7: the blast radius is accepted honestly and the canary census is pinned
     if (!s5.includes('EXPLICITLY ACCEPT the at-scale rollout')) return false
     if (!s5.includes('database isolation unobserved')) return false
     if (rbFlat.includes('delivers to a single user')) return false
-    const hits = execSync("grep -riE 'allowlist|allow_list|featureflag|feature_flag|canary' src --include='*.ts' --include='*.tsx' || true", { encoding: 'utf8', shell: '/bin/bash' })
-      .split('\n').filter(Boolean).map((l) => norm(l).trim()).sort()
     const expected = [
       'src/app/api/routine-exercises/[id]/route.ts:// enforces a strict prescription/notes allowlist (exactly the fields',
       'src/app/api/workout-exercises/[id]/route.ts:// enforces a strict prescription/annotation allowlist: unknown keys',
     ].sort()
-    return JSON.stringify(hits) === JSON.stringify(expected)
+    // RETARGET (W7.5-B lifecycle correction, 2026-09-10 — NOT weight_time
+    // work). The canary census is a claim about the CLOSEOUT tip
+    // (59e443ba — the promoted main, the target of tag
+    // exlib3a-option-a-activation-evidence-stable): at that tip exactly
+    // these two comment lines match the keyword grep. That historical
+    // assertion is preserved verbatim, evaluated against the immutable
+    // commit object. Normal post-closeout development may add keyword hits
+    // that are NOT a delivery canary/allowlist/feature-flag mechanism — the
+    // weight_time milestone's tracking-mode "allowlist" (a strength-records
+    // data-model term marked `tracking-mode-census: allowlist`) is one.
+    // Such hits are admitted ONLY as comment lines in the two named files;
+    // an executable hit, a hit in any other file, or any change to the two
+    // historical lines still fails.
+    const CLOSEOUT_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+    const KEYWORDS = 'allowlist|allow_list|featureflag|feature_flag|canary'
+    const historicalHits = execSync(`git grep -riE '${KEYWORDS}' ${CLOSEOUT_TIP} -- 'src/*.ts' 'src/*.tsx' || true`, { encoding: 'utf8', shell: '/bin/bash' })
+      .split('\n').filter(Boolean).map((l) => norm(l.replace(`${CLOSEOUT_TIP}:`, '')).trim()).sort()
+    if (JSON.stringify(historicalHits) !== JSON.stringify(expected)) return false
+    const liveHits = execSync(`grep -riE '${KEYWORDS}' src --include='*.ts' --include='*.tsx' || true`, { encoding: 'utf8', shell: '/bin/bash' })
+      .split('\n').filter(Boolean).map((l) => norm(l).trim()).sort()
+    if (!expected.every((l) => liveHits.includes(l))) return false
+    const ADMITTED_COMMENT_FILES = ['src/lib/strength-records.ts', 'src/lib/workout-set-contract.ts']
+    return liveHits.filter((l) => !expected.includes(l)).every((l) => {
+      const file = l.slice(0, l.indexOf(':'))
+      const content = l.slice(l.indexOf(':') + 1).trim()
+      return ADMITTED_COMMENT_FILES.includes(file) && (content.startsWith('//') || content.startsWith('*') || content.startsWith('/*'))
+    })
   })())
 check('A8: the post-activation plan claims only what instruments observe — the three OBSERVABLE states (CONFIG LIVE with NO persistent delivery state, CONFIG LIVE with persistent delivery state, INEFFECTIVE/FAILING CLOSED); zero counts are never translated into request history, nonzero persistent state is never attributed to a mechanism (standing direct RPC remains a competing writer), the telemetry limit is stated AND checked against the module bytes (exactly one console call, the fail-closed error), and every observation runs only under AUTHORIZATION M after state A4',
   (() => {

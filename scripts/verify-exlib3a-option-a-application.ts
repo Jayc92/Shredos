@@ -580,7 +580,23 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
       // against an immutable commit object, so it holds at any HEAD.
       const blobAt = (c: string): string =>
         execSync(`git rev-parse ${c}:${RETARGETED[0]}`, { encoding: 'utf8' }).trim()
-      if (blobAt(ECOM) !== blobAt('HEAD')) return false
+      // RETARGET (W7.5-B lifecycle correction, 2026-09-10 — NOT weight_time
+      // work). Every history clause below is a claim about the CLOSEOUT
+      // tip — 59e443ba, the promoted main and the target of tag
+      // exlib3a-option-a-activation-evidence-stable — not about whatever
+      // HEAD later becomes. Normal post-closeout development (the lint
+      // baseline 0e10d7b and everything after) legitimately extends
+      // history, which made these HEAD-relative clauses red from the first
+      // later commit. The historical assertions are preserved verbatim
+      // against the pinned immutable tip; the later state is admitted
+      // separately: the closeout tip must remain an ancestor of HEAD (no
+      // rewrite), the record must stay byte-frozen, and the predecessor
+      // may differ from its closeout blob only under a labelled RETARGET.
+      const CLOSEOUT = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+      if (blobAt(ECOM) !== blobAt(CLOSEOUT)) return false
+      const workingBlob = (p: string): string => execSync(`git hash-object ${p}`, { encoding: 'utf8' }).trim()
+      if (workingBlob(RETARGETED[0]) !== blobAt(CLOSEOUT) && !read(RETARGETED[0]).includes('RETARGET (W7.5-B')) return false
+      execSync(`git merge-base --is-ancestor ${CLOSEOUT} HEAD`, { encoding: 'utf8' })
       const PORCELAIN = execSync('git status --porcelain', { encoding: 'utf8' }).split('\n').filter(Boolean)
       const CHANGED = PORCELAIN.map((l) => l.slice(3).trim()).sort()
       if (CHANGED.length > 0) {
@@ -599,8 +615,8 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
       // standing rule forbids amend/rebase/squash, so each correction is
       // a successor, never a rewrite; every commit in the range is
       // asserted single-parent.
-      execSync(`git merge-base --is-ancestor ${PTIP} HEAD`, { encoding: 'utf8' })
-      const range = execSync(`git rev-list --parents ${PTIP}..HEAD`, { encoding: 'utf8' })
+      execSync(`git merge-base --is-ancestor ${PTIP} ${CLOSEOUT}`, { encoding: 'utf8' })
+      const range = execSync(`git rev-list --parents ${PTIP}..${CLOSEOUT}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).map((l) => l.trim().split(/\s+/))
       if (range.length !== 4) return false
       if (!range.every((p) => p.length === 2)) return false
@@ -608,7 +624,7 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
       if (range[range.length - 1][0] !== ECOM) return false
       if (range[1][0] !== CORR2 || range[1][1] !== CORR1) return false
       if (range[0][1] !== CORR2) return false
-      const status = execSync(`git diff --name-status ${PTIP} HEAD`, { encoding: 'utf8' })
+      const status = execSync(`git diff --name-status ${PTIP} ${CLOSEOUT}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       const expected = [
         ...PHASE_ADDS.map((p) => `A\t${p}`),
@@ -617,18 +633,20 @@ check('C14: the chronology orders ALL EIGHT supplied instants by parse — stage
       if (JSON.stringify(status) !== JSON.stringify(expected)) return false
       // THE CUMULATIVE CORRECTION SCOPE IS STILL EXACTLY THE TWO
       // AUTHORIZED PATHS — no third path entered at either correction
-      const corr = execSync(`git diff --name-status ${CORR1} HEAD`, { encoding: 'utf8' })
+      const corr = execSync(`git diff --name-status ${CORR1} ${CLOSEOUT}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       if (JSON.stringify(corr) !== JSON.stringify(PHASE_ADDS.map((p) => `M\t${p}`).sort())) return false
       // THE ROUND-2 CORRECTION IS VERIFIER-ONLY, AND THE RECORD IS FROZEN
       // BY THAT AUTHORIZATION. Both asserted against the immutable commit
       // object, so they hold at any later HEAD.
-      const corr2 = execSync(`git diff --name-status ${CORR2} HEAD`, { encoding: 'utf8' })
+      const corr2 = execSync(`git diff --name-status ${CORR2} ${CLOSEOUT}`, { encoding: 'utf8' })
         .split('\n').filter(Boolean).sort()
       if (JSON.stringify(corr2) !== JSON.stringify([`M\t${VERIFIER}`])) return false
       const recBlob = (c: string): string =>
         execSync(`git rev-parse ${c}:${RECORD}`, { encoding: 'utf8' }).trim()
-      return recBlob(CORR2) === recBlob('HEAD')
+      // the record is frozen by the round-2 authorization THROUGH the
+      // closeout, and (current state) must never change afterwards either
+      return recBlob(CORR2) === recBlob(CLOSEOUT) && workingBlob(RECORD) === recBlob(CLOSEOUT)
     } catch { return false }
   })())
 

@@ -246,10 +246,33 @@ async function main() {
     // tip), so it post-dates and cannot be named in the frozen
     // pre-implementation audit and is excluded from the
     // must-be-named set by name, exactly like the 1c0b3 suites.
+    // RETARGET (W7.5-B lifecycle correction, 2026-09-10 — NOT weight_time
+    // work): the same byte-frozen-audit rule a third time. The weight_time
+    // implementation milestone that this audit itself proposed (plan
+    // revision 3, operator-approved 2026-09-09) authored suites that carry
+    // vocabulary pins by construction — the W1 census, the W3 allowlist
+    // proof, the W4 vocabulary proof, the W5/W7 contract proof and the 028
+    // text proof. They post-date the frozen pre-implementation audit and
+    // cannot be named in it, so they are admitted by name — and the
+    // admission is pinned to post-closeout development by requiring that
+    // NONE of them existed at the promoted closeout tip 59e443ba (an
+    // immutable object), so no pre-existing suite can be moved into the
+    // exclusion. Every suite that existed before remains must-be-named.
+    const CLOSEOUT_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+    const existedAtClosureTip = (p: string): boolean => {
+      try { execSync(`git cat-file -e ${CLOSEOUT_TIP}:${p}`, { stdio: 'ignore' }); return true } catch { return false }
+    }
+    const WEIGHT_TIME_MILESTONE_SUITES = [
+      'verify-strength-records-allowlist', 'verify-tracking-mode-census', 'verify-weight-time-w4-vocabulary',
+      'verify-weight-time-contract', 'verify-weight-time-migration-028',
+    ]
+    const admittedPostAuditSuite = (n: string): boolean =>
+      WEIGHT_TIME_MILESTONE_SUITES.includes(n) && !existedAtClosureTip(`scripts/${n}.ts`)
     const missingSuites = suitePins.filter((n) => !audit.includes(n) &&
       !n.startsWith('verify-exlib1c0b3') &&
-      !n.startsWith('verify-exlib2v'))
-    check(`D2: EVERY committed verifier suite carrying vocabulary pins (${suitePins.length} suites) is named in the audit — none missing`,
+      !n.startsWith('verify-exlib2v') &&
+      !admittedPostAuditSuite(n))
+    check(`D2: EVERY committed verifier suite carrying vocabulary pins (${suitePins.length} suites) is named in the audit — none missing (weight_time milestone suites admitted by name and proven absent at the closeout tip)`,
       suitePins.length >= 12 && missingSuites.length === 0,
       missingSuites.length ? `missing: ${missingSuites.join(', ')}` : undefined)
     check('D3: the consumer matrix records role, exhaustive assumption, per-value effects, required change, and schema-only safety for the API/UI/records surfaces',
