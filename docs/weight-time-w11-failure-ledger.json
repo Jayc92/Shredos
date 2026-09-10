@@ -1,6 +1,6 @@
 {
-  "generatedAtCommit": "ec1a3362bc4e0eb4aa71c8049088ba4cee627fae",
-  "generatedFrom": "a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7 worktrees",
+  "generatedAtCommit": "c3e7247862be6afa27751c80b31ac2365343f91b",
+  "generatedFrom": "a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10 worktrees",
   "steps": [
     {
       "label": "PRE_W4",
@@ -21,23 +21,37 @@
     {
       "label": "W7",
       "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+    },
+    {
+      "label": "W8",
+      "sha": "dc8f10b7ade3ee63c286f4e7ab7d2880cfd4f840"
+    },
+    {
+      "label": "W9",
+      "sha": "69b7c7c9f918d663dc880d618498d17657931729"
+    },
+    {
+      "label": "W10",
+      "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
     }
   ],
   "totals": {
-    "suitesRedAtHead": 55,
-    "weightTimeCausedSuites": 55,
-    "weightTimeCausedChecks": 65,
+    "suitesRedAtHead": 59,
+    "weightTimeCausedSuites": 59,
+    "weightTimeCausedChecks": 74,
     "byCategory": {
       "MIGRATION_INVENTORY_RETARGET": 45,
       "WEIGHT_TIME_BOUNDARY_RETARGET": 15,
       "ROUTE_TEXT_RETARGET": 2,
       "AUDIT_COMPLETENESS_RETARGET": 2,
-      "OTHER_REQUIRES_REVIEW": 1
+      "HISTORICAL_PRODUCT_BOUNDARY_RETARGET": 1,
+      "UI_SURFACE_RETARGET": 9,
+      "OTHER_REQUIRES_REVIEW": 0
     },
     "preExistingAtPreW4Checks": 0,
     "unattributedChecks": 0,
     "crashedSuites": 0,
-    "greenSuites": 54
+    "greenSuites": 53
   },
   "environmentNotes": [
     "Suites run with LC_ALL=C LANG=C.",
@@ -154,13 +168,13 @@
     {
       "suite": "verify-exlib1c0b",
       "verifierPath": "scripts/verify-exlib1c0b.ts",
-      "checkKey": "D1: EVERY src consumer found by fresh mechanical search (26 files) appears verbatim in the audit",
-      "observedFailure": "FAIL  D1: EVERY src consumer found by fresh mechanical search (26 files) appears verbatim in the audit — none missing — missing: src/lib/workout-set-contract.ts",
+      "checkKey": "D1: EVERY src consumer found by fresh mechanical search (28 files) appears verbatim in the audit",
+      "observedFailure": "FAIL  D1: EVERY src consumer found by fresh mechanical search (28 files) appears verbatim in the audit — none missing — missing: src/lib/weight-time-records.ts, src/lib/workout-coach.ts, src/lib/workout-set-contract.ts",
       "category": "AUDIT_COMPLETENESS_RETARGET",
       "alsoMatches": [],
       "firstRedCommit": {
-        "label": "W7",
-        "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+        "label": "W9",
+        "sha": "69b7c7c9f918d663dc880d618498d17657931729"
       },
       "disposition": "The byte-frozen pre-implementation audit cannot name artifacts that post-date it; admit the post-audit artifact by exact path/name with proof of absence at the closeout tip 59e443ba (the pattern verify-exlib1c0b already applies three times, most recently W7.5-B D2); the historical completeness claim over pre-existing artifacts is preserved; count-neutral."
     },
@@ -423,13 +437,13 @@
       "verifierPath": "scripts/verify-exlib2f.ts",
       "checkKey": "C1: no product change",
       "observedFailure": "FAIL  C1: no product change — the seed module is byte-identical to the promoted EXLIB-2E tip, the ledger stays 48/48 pending-null, all 26 legacy candidates stay import-ineligible, and all 126 authored records stay pending/evidence-null/import-false/unpublished",
-      "category": "OTHER_REQUIRES_REVIEW",
+      "category": "HISTORICAL_PRODUCT_BOUNDARY_RETARGET",
       "alsoMatches": [],
       "firstRedCommit": {
         "label": "W4",
         "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
       },
-      "disposition": "Not deterministically classifiable by the fixed rules — operator review required before any retarget."
+      "disposition": "Operator ruling (W7.5 checkpoint): EXLIB-2F's \"no product change\" claim remains TRUE of its own tip — evaluate the product-change predicate against the pinned EXLIB-2F commit object, never against HEAD; admit W4 (50e7451c) as a legitimate later product boundary authorised by the approved weight_time plan, by exact commit id; never rewrite the EXLIB-2F record; count-neutral. W11 owns the retarget; nothing is retargeted before W11."
     },
     {
       "suite": "verify-exlib2f-application",
@@ -668,6 +682,71 @@
       "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
     },
     {
+      "suite": "verify-phase4b5",
+      "verifierPath": "scripts/verify-phase4b5.ts",
+      "checkKey": "summary tiles derived from the same data (no invented score)",
+      "observedFailure": "FAIL  summary tiles derived from the same data (no invented score)",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase4b6a",
+      "verifierPath": "scripts/verify-phase4b6a.ts",
+      "checkKey": "detail client behavior contract intact (migrated by 4B.6B)",
+      "observedFailure": "FAIL  detail client behavior contract intact (migrated by 4B.6B)",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase4b6b",
+      "verifierPath": "scripts/verify-phase4b6b.ts",
+      "checkKey": "completion summary computed only for completed",
+      "observedFailure": "FAIL  completion summary computed only for completed",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase4b6b",
+      "verifierPath": "scripts/verify-phase4b6b.ts",
+      "checkKey": "warm-up toggle shown only for weight modes",
+      "observedFailure": "FAIL  warm-up toggle shown only for weight modes",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase5a2",
+      "verifierPath": "scripts/verify-phase5a2.ts",
+      "checkKey": "summary/PR pipeline untouched",
+      "observedFailure": "FAIL  summary/PR pipeline untouched",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
       "suite": "verify-phase5a6b",
       "verifierPath": "scripts/verify-phase5a6b.ts",
       "checkKey": "PATCH fetches the stored primary for the collision rule",
@@ -811,6 +890,32 @@
       "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
     },
     {
+      "suite": "verify-ui5a",
+      "verifierPath": "scripts/verify-ui5a.ts",
+      "checkKey": "X4: execution behavior anchors intact",
+      "observedFailure": "FAIL  X4: execution behavior anchors intact",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1a",
+      "verifierPath": "scripts/verify-ui5b1a.ts",
+      "checkKey": "S7: header aligns with the composition (labels at base, sm-only columns)",
+      "observedFailure": "FAIL  S7: header aligns with the composition (labels at base, sm-only columns)",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
       "suite": "verify-ui5b1a",
       "verifierPath": "scripts/verify-ui5b1a.ts",
       "checkKey": "X5: UI-5B1A added no migration (exactly 22; 022 = approved UI-5B2 file)",
@@ -822,6 +927,32 @@
         "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
       },
       "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1b",
+      "verifierPath": "scripts/verify-ui5b1b.ts",
+      "checkKey": "A2: template = first non-warmup set; per-mode copy fields exact",
+      "observedFailure": "FAIL  A2: template = first non-warmup set; per-mode copy fields exact",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1b",
+      "verifierPath": "scripts/verify-ui5b1b.ts",
+      "checkKey": "A9: eligibility from persisted props only; required fields per mode",
+      "observedFailure": "FAIL  A9: eligibility from persisted props only; required fields per mode",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10",
+        "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
     },
     {
       "suite": "verify-ui5b1b",
@@ -955,13 +1086,9 @@
     "verify-phase4b2",
     "verify-phase4b3",
     "verify-phase4b4",
-    "verify-phase4b5",
-    "verify-phase4b6a",
-    "verify-phase4b6b",
     "verify-phase4b6c",
     "verify-phase4b6d",
     "verify-phase5a1",
-    "verify-phase5a2",
     "verify-phase5a3",
     "verify-phase5a4",
     "verify-phase5a5",
@@ -972,6 +1099,9 @@
     "verify-tracking-mode-census",
     "verify-weight-time-contract",
     "verify-weight-time-migration-028",
-    "verify-weight-time-w4-vocabulary"
+    "verify-weight-time-records",
+    "verify-weight-time-w10-ui",
+    "verify-weight-time-w4-vocabulary",
+    "verify-weight-time-w9-integration"
   ]
 }

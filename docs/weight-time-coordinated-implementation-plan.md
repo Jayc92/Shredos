@@ -1297,6 +1297,42 @@ before any retarget). The ledger is regenerated, never hand-edited.
 `verify-exlib3a-option-a-application` C14) were lifecycle pins stale
 after normal post-closeout development and were retargeted in W7.5-B.
 
+**W8–W10 DONE; W11 SCOPE REGENERATED (errata, 2026-09-10).** W8
+`dc8f10b7`, W9 `69b7c7c9`, W10 `97442e22` landed as three plain forward
+commits (§16 rows). The census reached its exit condition: **0 pending**,
+59 live sites (HANDLES 32 / EXCLUDES 27), conservation of the accepted 58
+= 8 HANDLES + 17 EXCLUDES + 33 ELIMINATED_BY_REFACTOR + 0 PENDING, every
+elimination naming a decided live owner (six at W9: exhaustive switches
+and executable mode sets; fifteen at W10: hoisted SetRow predicates, the
+`COLUMN_HEADERS` map, the shared Apply contract). The ledger generator
+(`c4dcb325`) now bisects PRE_W4 → W4 … → W10 and applies two rulings by
+deterministic pattern: **HISTORICAL_PRODUCT_BOUNDARY_RETARGET** for
+`verify-exlib2f` C1 "no product change" (the operator's W7.5-checkpoint
+ruling — EXLIB-2F's claim remains true of its own tip, W4 is a legitimate
+later product boundary; W11 owns the retarget, nothing retargeted yet) and
+**UI_SURFACE_RETARGET** for the W10 user-facing pins. The W7 figure of
+55 / 65 was a baseline only. **The regenerated ledger (generator
+`c3e72478`, measured from a clean worktree of that tree, JSON sha256
+`fea8ee0590cd6e4b84a0bef81a1922d36dd59fb4c1e49ab0a9cb6e25fbe7c181`)
+is W11's exact scope: 59 suites / 74 failing checks caused by W4–W10 —
+45 MIGRATION_INVENTORY_RETARGET, 15 WEIGHT_TIME_BOUNDARY_RETARGET, 2
+ROUTE_TEXT_RETARGET, 2 AUDIT_COMPLETENESS_RETARGET (`verify-exlib1c0b`
+C1 and D1; D1 first red at W9 because `workout-coach.ts` now names
+`tracking_mode`), 1 HISTORICAL_PRODUCT_BOUNDARY_RETARGET (`verify-exlib2f`
+C1), 9 UI_SURFACE_RETARGET (first red at W10: `verify-phase4b5` summary
+tiles, `verify-phase4b6a` detail-client contract, `verify-phase4b6b`
+completion summary + warm-up toggle, `verify-phase5a2` summary/PR
+pipeline, `verify-ui5a` X4, `verify-ui5b1a` S7, `verify-ui5b1b` A2 and
+A9), 0 OTHER_REQUIRES_REVIEW; pre-existing at PRE_W4 0, unattributed 0,
+crashed 0, 53 suites green.** These totals supersede every count in this
+section and in the §16 W11 row. Own-suite retargets made during
+W8–W10, all labelled and count-neutral: `verify-exlib1c0b` D2 (the W8–W10
+suite names admitted under the existing absent-at-closeout proof),
+`verify-exlib3a-option-a` A7 (census-marker comment lines admitted in any
+src file), `verify-weight-time-w4-vocabulary` C1/C2 (label now present,
+evaluated against the W4 tip; copy list lives in the contract),
+`verify-weight-time-contract` E4 (copy set proven in the contract module).
+
 **W11 in detail — eleven committed verifiers assert that
 `weight_time` is ABSENT and will go red the moment it ships:**
 
@@ -1491,9 +1527,9 @@ of them into a larger step would make its proof unreadable.
 | **W6** | **Migration 028 + `append_workout_set`**: two CHECK widenings using W2's names; the `weight_time` `ELSIF` gate (warmups permitted, G4); the completion rule; **G1**'s mode-dependent lower bound; the **O8 history-guard trigger** raising `tracking_mode_has_workout_history`; `deliver_catalog_exercises` replaced so **both** 026 CASEs carry an explicit `weight_time` branch (§8.9, §17). Scope fixed by §10.2 | **yes** (G1, trigger) | live suite, classified negative controls, G1 preservation controls, the seven-point guard proof, **A/B concurrency proof with two real sessions (B unprovable ⇒ STOP)**, `pg_get_functiondef` readback, atomicity |
 | **W7** | **API routes**: three `Record` keys; G2 zero-preservation in both set routes; the §5.3 precheck in `PATCH /api/exercises/[id]` plus mapping of `tracking_mode_has_workout_history` to 409; **removal of the destructive self-heal** — that removal as its own commit inside W7 | **yes** (self-heal) | route tests, §12.5 route tests, before/after proof for all four modes |
 | **W7.5** | **DONE 2026-09-10 — stabilisation after the accepted W4–W7 checkpoint.** A: the 58-site W1 census conserved by ledger (§3). B: three verifiers red BEFORE W4 — `verify-exlib1c0b` D2 (first red at W1 `fa5a359b`), `verify-exlib3a-option-a` A7 (W3 `14a36567`), `verify-exlib3a-option-a-application` C14 (`0e10d7b`, the first post-closeout commit) — diagnosed as historical lifecycle/topology pins stale after normal post-closeout development, not regressions, and retargeted with labels against their historical tips, count-neutral; **they are outside W11**. C: the exact W11 failure ledger generated (`docs/weight-time-w11-failure-ledger.json`) | verifier-only | conservation 58 = 58; the three suites green on a clean tree; ledger unattributed = 0 |
-| **W8** | **2-D records module** (Phase 2V shape), `duration_seconds` in its select; gate `evaluateSetPRs` at its caller; never extend `strength-records.ts` | no | runtime proof: dominance, ties, zero-weight, warmups, RPE-neutrality |
-| **W9** | **`workout.ts`, 13 sites**: summaries, representative-set, progress signal, suggestions. `setScore`/`bestSet` **excluded, not extended** | additive per mode | runtime proof, no-scalar assertion |
-| **W10** | **UI**: SetRow, WorkoutExerciseBlock, form (**including the `constants.ts` label — the step that makes the mode user-reachable**), pills, detail view, mode-change rejection copy | additive | local-stack UI verification behind the loopback guard |
+| **W8** | **DONE 2026-09-10 (`dc8f10b7`) — 2-D records module** `src/lib/weight-time-records.ts` (Phase 2V shape), `duration_seconds` in its select; `evaluateSetPRs` gated at its callers (W9/W10); `strength-records.ts` never extended. Deterministic chronology `workout_date → session created_at → session id → order_index → set_number → set id`; the first-ever qualifying hold IS a Weight-time PR (nothing earlier dominates it — a deliberate divergence from the strength model's silent first baseline); the frontier collapses exact repeats to the earliest representative | no | `scripts/verify-weight-time-records.ts` 59/0: dominance, ties, zero-weight, warmups, RPE-neutrality, chronology, historical PR after later domination, fetchers over a fake client |
+| **W9** | **DONE 2026-09-10 (`69b7c7c9`) — `workout.ts` 13 sites + `progress-overview.ts` 4 + `server.ts` 2 + `workout-coach.ts`**: summaries ("1:30 · 0 lb added"), representative set = longest qualifying hold (tie → heavier → lower set_number; a DISPLAY choice, not a record), `trackingAwareProgressSignal` applies 2-D dominance (incomparable = `same`), guidance = the two approved strings verbatim with RPE never consulted (D5), reps-only target model = intentional exclusion, `summarizeWorkout` scores holds with the 2-D model only. Executable mode sets `RPE_LOGGABLE_MODES` / `STRENGTH_SCORING_MODES` / `CARDIO_TIMED_MODES`; `fetchExercisePRBaseline`, the history 1RM and `fetchExerciseTrends` gated by mode. `setScore`/`bestSet`/`epley1RM`/`evaluateSetPRs` **excluded, not extended** | additive per mode | `scripts/verify-weight-time-w9-integration.ts` 53/0; census pin 39 → 20; six baseline sites eliminated by refactor, recorded |
+| **W10** | **DONE 2026-09-10 (`97442e22`) — UI**: `constants.ts` label **"Weight + Time"** (the step that makes the mode user-reachable), `WeightTimeSetInputs` (Added weight / Duration — minutes / Duration — seconds / RPE; never reps or distance; a stored 0 renders "0"), warm-up toggle from the shared `WARMUP_FORBIDDEN_MODES`, completion refused locally with the contract's own message (`role="alert"`), "Weight-time PR" badges from the 2-D model, Add-set copies 0 as 0, shared Apply contract (`MODE_COPY_FIELDS` / `MODE_APPLY_REQUIRED_FIELDS`, route AND client), exhaustive `COLUMN_HEADERS`, `WeightTimeSections` (longest hold + its weight, heaviest hold + its duration, the frontier as a compact list sorted by added weight with no rank, "Weight-time PR" history; **no trend chart** — no scalar to plot), Weight-time PR events in /progress Recent PRs. Mode-change rejection copy was already surfaced by W7 (409 → `TRACKING_MODE_HISTORY_409_COPY`) | additive | `scripts/verify-weight-time-w10-ui.ts` 53/0 (react-dom/server renders of the two pure components over fixtures + source checks); census **0 pending, 58 = 8 + 17 + 33 + 0** (exit condition met). Browser verification was NOT performed: the app needs an authenticated hosted session and hosted contact is forbidden to Claude |
 | **W11** | **Retarget every check in the generated ledger** `docs/weight-time-w11-failure-ledger.json` (55 suites / 65 checks: 45 migration-inventory, 15 weight_time-boundary incl. the eleven, 2 route-text, 2 audit-completeness, 1 requires review — §13) with labelled corrections: historical claims preserved against their historical tips, the reviewed 028 / weight_time state admitted separately, **count-neutral** | no | every ledger check green, every suite at its exact prior check count, ledger regenerated empty |
 | **W12** | Review / integration: full suite green, lint 0, type-check 0 → commit → push (each under its own one-use instruction) | — | operator |
 | **W13** | **Hosted application — Joseph/ChatGPT only**, ShredOS only, separate authorization | — | operator |

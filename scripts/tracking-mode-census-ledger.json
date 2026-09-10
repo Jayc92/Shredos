@@ -724,127 +724,127 @@
     },
     {
       "identity": "src/lib/progress-overview.ts | pickRepresentativeSet | if-chain | cardio,timed | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/progress-overview.ts | pickRepresentativeSet | switch | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The cardio/timed if-chain became an exhaustive switch over all five modes with an explicit weight_time arm (pickRepresentativeWeightTimeSet — longest qualifying hold, never setScore); the four legacy arms keep their exact previous behaviour."
     },
     {
       "identity": "src/lib/progress-overview.ts | signal | variable | cardio,timed | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/progress-overview.ts | signalFor | switch | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The cardio/timed ternary inside statusFor became signalFor, an exhaustive switch: weight_time joins cardio/timed in trackingAwareProgressSignal (which applies 2-D dominance for weight_time), the strength modes keep progressSignal."
     },
     {
       "identity": "src/lib/progress-overview.ts | latestSummary | variable | bodyweight | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/progress-overview.ts | weightKgForSummary | switch | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The bodyweight ternary that nulls a display-zero added weight became weightKgForSummary, an exhaustive switch in which weight_time passes its stored value through unchanged so a stored 0 renders as \"0 lb added\" (O5)."
     },
     {
       "identity": "src/lib/supabase/server.ts | pickRepresentativeSet | if-chain | cardio,timed | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/supabase/server.ts | pickRepresentativeSet | switch | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The private cardio/timed if-chain became an exhaustive switch with an explicit weight_time arm (pickRepresentativeWeightTimeSet); weight_reps/bodyweight keep the setScore reduce byte-for-byte in behaviour."
     },
     {
       "identity": "src/lib/supabase/server.ts | fetchCardioTimedRecords | if-chain | cardio,timed | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/workout.ts | CARDIO_TIMED_MODES | mode-list | cardio,timed | #0",
       "reason": "The inline `!== 'cardio' && !== 'timed'` skip became `!CARDIO_TIMED_MODES.has(mode)` — an executable allowlist whose single definition (workout.ts) carries the census decision: weight_time is excluded from the cardio/timed aggregate by construction and has its own reader (fetchWeightTimeRecords)."
     },
     {
       "identity": "src/lib/workout.ts | summarizeWorkout | if-chain | cardio | #0",
-      "eliminatedBy": "W9",
+      "eliminatedBy": "69b7c7c9f918d663dc880d618498d17657931729",
       "replacementOwner": "src/lib/workout.ts | RPE_LOGGABLE_MODES | mode-list | bodyweight,timed,weight_reps | #0",
       "reason": "The `!== 'cardio'` RPE-attention exclusion became `RPE_LOGGABLE_MODES.has(mode)` — an executable allowlist naming weight_time (RPE is optional metadata for a hold, D5); cardio remains excluded exactly as before."
     },
     {
       "identity": "src/app/api/workout-exercises/[id]/apply-first-set/route.ts | MODE_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/lib/workout-set-contract.ts | MODE_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The route-local copy list moved into the shared set contract (MODE_COPY_FIELDS) so the apply-first-set route and the client's Apply eligibility execute ONE definition; the route imports it. The weight_time entry (weight_kg, duration_seconds, rpe) is unchanged."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | showWarmupToggle | variable | bodyweight,weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/lib/workout-set-contract.ts | WARMUP_FORBIDDEN_MODES | mode-list | cardio,timed | #0",
       "reason": "The warm-up toggle now follows the shared contract: `!WARMUP_FORBIDDEN_MODES.has(trackingMode)` — the same set the routes and the database rule use (cardio/timed forbidden). weight_time shows the toggle by construction (Decision 5); no mode literal remains in SetRow for this decision."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight,weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showStrengthInputs | variable | bodyweight,weight_reps | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showStrengthWeightInput | variable | weight_reps | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | strengthWeightAriaLabel | variable | bodyweight | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | cardio,timed | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showDurationDistanceInputs | variable | cardio,timed | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | cardio | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showDistanceInput | variable | cardio | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | timed | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showTimedRpeInput | variable | timed | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/SetRow.tsx | SetRow | jsx-expression | bodyweight | #1",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/SetRow.tsx | showAddedWeightAffordance | variable | bodyweight | #0",
       "reason": "The inline JSX tracking-mode condition was hoisted out of the component's single return statement into a named predicate on its own line (the census resolves a marker through the enclosing statement, so a marker inside the JSX would have covered every site in the return at once). The predicate carries the decision; the JSX now reads the boolean and contains no mode literal."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | APPLY_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/lib/workout-set-contract.ts | MODE_COPY_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The client-side copy list was deleted; WorkoutExerciseBlock reads the shared contract's MODE_COPY_FIELDS, the same definition the apply-first-set route executes, so the client can no longer drift from the server."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | applyRequiredReady | variable | bodyweight,weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/lib/workout-set-contract.ts | MODE_APPLY_REQUIRED_FIELDS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The client-side required-fields ternary became applyTemplateReady(mode, template) over the shared contract's MODE_APPLY_REQUIRED_FIELDS; weight_time requires BOTH added weight (0 counts) and duration, mirroring its completion rule."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | weight_reps | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/WorkoutExerciseBlock.tsx | COLUMN_HEADERS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "The four inline header conditions became ONE exhaustive COLUMN_HEADERS map keyed by tracking mode; the legacy rows render exactly the spans they always did and weight_time adds Added weight | Duration | RPE."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | bodyweight | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/WorkoutExerciseBlock.tsx | COLUMN_HEADERS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "See the weight_reps header record: replaced by the exhaustive COLUMN_HEADERS map."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | cardio | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/WorkoutExerciseBlock.tsx | COLUMN_HEADERS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "See the weight_reps header record: replaced by the exhaustive COLUMN_HEADERS map."
     },
     {
       "identity": "src/components/workout/WorkoutExerciseBlock.tsx | WorkoutExerciseBlock | jsx-expression | timed | #0",
-      "eliminatedBy": "W10",
+      "eliminatedBy": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5",
       "replacementOwner": "src/components/workout/WorkoutExerciseBlock.tsx | COLUMN_HEADERS | object-literal | bodyweight,cardio,timed,weight_reps | #0",
       "reason": "See the weight_reps header record: replaced by the exhaustive COLUMN_HEADERS map."
     }
