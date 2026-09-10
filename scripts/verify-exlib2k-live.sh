@@ -54,6 +54,27 @@ FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; return 0; }
 
+# ── W11-LIVE (weight_time milestone, 2026-09-10): historical anchors ──
+# Migration 028_weight_time_tracking_mode.sql was admitted to this repository
+# AFTER this suite's migration-inventory claims were authored, so those claims
+# went stale for exactly one reason: the legitimate weight_time milestone.
+# Each retargeted gate below KEEPS its historical assertion and ANDs in the
+# EXACT current-state identity of 028, so the retarget can never silently
+# absorb a further migration — 029+ still fails the gate loudly. No other
+# assertion in this suite is changed, added, or removed.
+W11_M028='supabase/migrations/028_weight_time_tracking_mode.sql'
+W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+W11_M028_BYTES=37162
+w11_m028_pinned() {
+  local n028 n029 bytes sha
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W11_M028" | tr -d ' ')
+  sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+
 TMP="$(mktemp -d /tmp/exlib2k-pg.XXXXXX)"
 PGDATA="$TMP/pgdata"
 SOCK="$TMP"
@@ -165,8 +186,12 @@ for f in supabase/migrations/0*.sql; do
     || { bad "B2: migration failed: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "27" ] && ok "B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)" \
-  || bad "B2: expected 27 migrations, applied $APPLIED"
+# W11-LIVE RETARGET: the committed chain is 001-028 now. The weight_time
+# milestone is applied WITH the chain — which is what proves it composes —
+# and is pinned by exact identity, so this gate is strictly stronger than
+# the 27-file version it replaces.
+[ "$APPLIED" = "28" ] && w11_m028_pinned && ok "B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)" \
+  || bad "B2: expected 28 migrations (001-027 + the pinned weight_time 028), applied $APPLIED"
 expect_eq "B2b: HOSTED MEMBERSHIP SEMANTICS (dedicated check) - migration 027's CREATE ROLE, executed by the non-superuser postgres, natively yields the implicit creator membership ADMIN TRUE / INHERIT FALSE / SET FALSE on ALL FOUR catalog authorities, exactly one membership each - the exact posture reported from the failed hosted attempt" \
   "SELECT string_agg(r.rolname||'='||g.rolname||'>'||m.rolname||':'||am.admin_option::text||':'||am.inherit_option::text||':'||am.set_option::text, ' | ' ORDER BY r.rolname) || ' rows=' || count(*)::text FROM pg_auth_members am JOIN pg_roles r ON r.oid=am.roleid JOIN pg_roles m ON m.oid=am.member JOIN pg_roles g ON g.oid=am.grantor WHERE r.rolname LIKE 'exlib_catalog_%'" \
   "exlib_catalog_admin=supabase_admin>postgres:true:false:false | exlib_catalog_admission=supabase_admin>postgres:true:false:false | exlib_catalog_loader=supabase_admin>postgres:true:false:false | exlib_catalog_reviewer=supabase_admin>postgres:true:false:false rows=4"

@@ -43,6 +43,27 @@ FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
 
+# ── W11-LIVE (weight_time milestone, 2026-09-10): historical anchors ──
+# Migration 028_weight_time_tracking_mode.sql was admitted to this repository
+# AFTER this suite's migration-inventory claims were authored, so those claims
+# went stale for exactly one reason: the legitimate weight_time milestone.
+# Each retargeted gate below KEEPS its historical assertion and ANDs in the
+# EXACT current-state identity of 028, so the retarget can never silently
+# absorb a further migration — 029+ still fails the gate loudly. No other
+# assertion in this suite is changed, added, or removed.
+W11_M028='supabase/migrations/028_weight_time_tracking_mode.sql'
+W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+W11_M028_BYTES=37162
+w11_m028_pinned() {
+  local n028 n029 bytes sha
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W11_M028" | tr -d ' ')
+  sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+
 TMP="$(mktemp -d /tmp/exlib2e-pg.XXXXXX)"
 PGDATA="$TMP/pgdata"
 SOCK="$TMP"
@@ -78,8 +99,13 @@ ok "candidate under test: $CANDIDATE ($CANDBYTES bytes, sha256 $CANDSHA)"
 # exactly "migrations 001-026 + the reviewed 026 candidate". No 028+.
 CAND_COUNT=$(ls supabase/migrations/ | grep -c '^026' || true)
 N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
-[ "$CAND_COUNT/$N028" = "1/0" ] || { bad "expected exactly one 026 candidate and no 028+, found $CAND_COUNT/$N028"; exit 1; }
-python3 - <<'PYEQ' && ok "exactly one 026 candidate, no 027; its executable SQL is byte-identical to the reviewed docs proposal (only the leading status header differs)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
+# W11-LIVE RETARGET: 028 (the weight_time milestone) now exists and is
+# EXCLUDED from every loop in this suite by the 02[7-9] filters below, so
+# this suite's claims stay exactly "migrations 001-026 + the reviewed 026
+# candidate". The historical ABSENCE bound ("no 028+") is replaced by the
+# EXACT current inventory, which a further migration (029+) still fails.
+[ "$CAND_COUNT/$N028" = "1/1" ] && w11_m028_pinned || { bad "expected exactly one 026 candidate and exactly the pinned weight_time 028, found $CAND_COUNT/$N028"; exit 1; }
+python3 - <<'PYEQ' && ok "exactly one 026 candidate; its executable SQL is byte-identical to the reviewed docs proposal (only the leading status header differs)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
 def body(p):
     ls = open(p, encoding='utf-8').read().splitlines(keepends=True)
     i = 0

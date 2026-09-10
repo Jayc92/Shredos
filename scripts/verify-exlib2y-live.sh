@@ -55,6 +55,27 @@ FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; return 0; }
 
+# ── W11-LIVE (weight_time milestone, 2026-09-10): historical anchors ──
+# Migration 028_weight_time_tracking_mode.sql was admitted to this repository
+# AFTER this suite's migration-inventory claims were authored, so those claims
+# went stale for exactly one reason: the legitimate weight_time milestone.
+# Each retargeted gate below KEEPS its historical assertion and ANDs in the
+# EXACT current-state identity of 028, so the retarget can never silently
+# absorb a further migration — 029+ still fails the gate loudly. No other
+# assertion in this suite is changed, added, or removed.
+W11_M028='supabase/migrations/028_weight_time_tracking_mode.sql'
+W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+W11_M028_BYTES=37162
+w11_m028_pinned() {
+  local n028 n029 bytes sha
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W11_M028" | tr -d ' ')
+  sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+
 TMP="$(mktemp -d /tmp/exlib2y-pg.XXXXXX)"
 PGDATA="$TMP/pgdata"
 SOCK="$TMP"
@@ -164,8 +185,12 @@ for f in supabase/migrations/0*.sql; do
     || { bad "B2: migration failed: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "27" ] && ok "B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)" \
-  || bad "B2: expected 27 migrations, applied $APPLIED"
+# W11-LIVE RETARGET: the committed chain is 001-028 now. The weight_time
+# milestone is applied WITH the chain — which is what proves it composes —
+# and is pinned by exact identity, so this gate is strictly stronger than
+# the 27-file version it replaces.
+[ "$APPLIED" = "28" ] && w11_m028_pinned && ok "B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)" \
+  || bad "B2: expected 28 migrations (001-027 + the pinned weight_time 028), applied $APPLIED"
 [ "$(Q "$LDR_B")" = "$BASELINE_OK" ] && [ "$(Q "$REV_B")" = "$BASELINE_OK" ] && [ "$(Q "$ADM_B")" = "$BASELINE_OK" ] && [ "$(Q "$PUB_B")" = "$BASELINE_OK" ] \
   && ok "B3: all four catalog-role memberships carry EXACTLY the hosted baseline shape" \
   || bad "B3: role baseline wrong"

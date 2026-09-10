@@ -37,6 +37,27 @@ FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; return 0; }
 
+# ── W11-LIVE (weight_time milestone, 2026-09-10): historical anchors ──
+# Migration 028_weight_time_tracking_mode.sql was admitted to this repository
+# AFTER this suite's migration-inventory claims were authored, so those claims
+# went stale for exactly one reason: the legitimate weight_time milestone.
+# Each retargeted gate below KEEPS its historical assertion and ANDs in the
+# EXACT current-state identity of 028, so the retarget can never silently
+# absorb a further migration — 029+ still fails the gate loudly. No other
+# assertion in this suite is changed, added, or removed.
+W11_M028='supabase/migrations/028_weight_time_tracking_mode.sql'
+W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+W11_M028_BYTES=37162
+w11_m028_pinned() {
+  local n028 n029 bytes sha
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W11_M028" | tr -d ' ')
+  sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+
 TMP="$(mktemp -d /tmp/exlib2l-pg.XXXXXX)"
 PGDATA="$TMP/pgdata"
 SOCK="$TMP"
@@ -78,9 +99,12 @@ echo "=== A. Candidate identity, sequence, and the executable-body drift gate"
 NMIG=$(ls supabase/migrations/0*.sql 2>/dev/null | wc -l | tr -d ' ')
 N027=$(ls supabase/migrations/ | grep -c '^027' || true)
 N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
-[ "$NMIG/$N027/$N028" = "27/1/0" ] \
-  && ok "A2: exactly one numbered migration 027 and no 028 - the sequence is exactly 001-027 (27 files)" \
-  || bad "A2: expected 27/1/0, found $NMIG/$N027/$N028"
+# W11-LIVE RETARGET: the sequence is 001-028 now. The historical claim
+# "exactly one numbered migration 027" is preserved; the added weight_time
+# milestone is pinned by exact identity rather than asserted absent.
+[ "$NMIG/$N027/$N028" = "28/1/1" ] && w11_m028_pinned \
+  && ok "A2: exactly one numbered migration 027 and exactly one 028 - the sequence is exactly 001-028 (28 files: the 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256)" \
+  || bad "A2: expected 28/1/1 with the pinned weight_time 028, found $NMIG/$N027/$N028"
 MSHA=$(shasum -a 256 "$MIGRATION" | awk '{print $1}')
 MBYTES=$(wc -c < "$MIGRATION" | tr -d ' ')
 ok "A3: migration candidate under test: $MBYTES bytes, sha256 $MSHA"
@@ -130,12 +154,16 @@ APPLIED=0
 for f in supabase/migrations/0*.sql; do
   # postgres receives 001-026 now; the 027 candidate is applied in
   # section D over the NONEMPTY legacy state seeded in section C.
-  case "$f" in supabase/migrations/027_*) continue;; esac
+  # W11-LIVE (weight_time milestone, 2026-09-10): 028 is excluded HERE TOO.
+  # B3's whole premise is the exact PRE-027 legacy state; applying the
+  # weight_time milestone into it would destroy that premise. The historical
+  # claim "migrations 001-026" and its count (26) are preserved verbatim.
+  case "$f" in supabase/migrations/027_*|supabase/migrations/028_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
     || { bad "B3: migration failed in postgres: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "26" ] && ok "B3: migrations 001-026 applied cleanly in order to 'postgres' (the nonempty-start database; 027 follows in section D)" \
+[ "$APPLIED" = "26" ] && w11_m028_pinned && ok "B3: migrations 001-026 applied cleanly in order to 'postgres' (the nonempty-start database; 027 follows in section D; the weight_time milestone 028 is excluded and pinned, so this is the exact PRE-027 legacy state)" \
   || bad "B3: expected 26 migrations in postgres, applied $APPLIED"
 APPLIED=0
 for f in supabase/migrations/0*.sql; do
@@ -143,8 +171,9 @@ for f in supabase/migrations/0*.sql; do
     || { bad "B4: migration failed in emptycase: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "27" ] && ok "B4: migrations 001-027 applied cleanly in order to 'emptycase' FROM supabase/migrations exactly once - explicit applied count = 27 (proof: the empty legitimate starting state)" \
-  || bad "B4: expected 27 migrations in emptycase, applied $APPLIED"
+# W11-LIVE RETARGET: the full committed chain from empty is 001-028 now.
+[ "$APPLIED" = "28" ] && w11_m028_pinned && ok "B4: migrations 001-028 applied cleanly in order to 'emptycase' FROM supabase/migrations exactly once - explicit applied count = 28 (the 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256; proof: the empty legitimate starting state)" \
+  || bad "B4: expected 28 migrations in emptycase (001-027 + the pinned weight_time 028), applied $APPLIED"
 
 echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (seeded BEFORE migration 027)"
 GL1='11111111-2222-3333-4444-555555555001'
