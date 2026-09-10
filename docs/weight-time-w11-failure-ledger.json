@@ -1,6 +1,6 @@
 {
-  "generatedAtCommit": "c3e7247862be6afa27751c80b31ac2365343f91b",
-  "generatedFrom": "a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10 worktrees",
+  "generatedAtCommit": "92cfec6d50f81ab8e9f789cc71b11a7b7436a498",
+  "generatedFrom": "a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10/W10.5 worktrees",
   "steps": [
     {
       "label": "PRE_W4",
@@ -33,25 +33,29 @@
     {
       "label": "W10",
       "sha": "97442e22f47b5802c1a9dbd37079bc8ff567ebe5"
+    },
+    {
+      "label": "W10.5",
+      "sha": "69aa1a8ef8f6ab11d2ac9d16c2a3ef58d1054312"
     }
   ],
   "totals": {
     "suitesRedAtHead": 59,
     "weightTimeCausedSuites": 59,
-    "weightTimeCausedChecks": 74,
+    "weightTimeCausedChecks": 77,
     "byCategory": {
       "MIGRATION_INVENTORY_RETARGET": 45,
       "WEIGHT_TIME_BOUNDARY_RETARGET": 15,
       "ROUTE_TEXT_RETARGET": 2,
       "AUDIT_COMPLETENESS_RETARGET": 2,
       "HISTORICAL_PRODUCT_BOUNDARY_RETARGET": 1,
-      "UI_SURFACE_RETARGET": 9,
+      "UI_SURFACE_RETARGET": 12,
       "OTHER_REQUIRES_REVIEW": 0
     },
     "preExistingAtPreW4Checks": 0,
     "unattributedChecks": 0,
     "crashedSuites": 0,
-    "greenSuites": 53
+    "greenSuites": 54
   },
   "environmentNotes": [
     "Suites run with LC_ALL=C LANG=C.",
@@ -684,6 +688,32 @@
     {
       "suite": "verify-phase4b5",
       "verifierPath": "scripts/verify-phase4b5.ts",
+      "checkKey": "overview PR line formatting unchanged",
+      "observedFailure": "FAIL  overview PR line formatting unchanged",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10.5",
+        "sha": "69aa1a8ef8f6ab11d2ac9d16c2a3ef58d1054312"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase4b5",
+      "verifierPath": "scripts/verify-phase4b5.ts",
+      "checkKey": "per-side suffix preserved (unilateral)",
+      "observedFailure": "FAIL  per-side suffix preserved (unilateral)",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10.5",
+        "sha": "69aa1a8ef8f6ab11d2ac9d16c2a3ef58d1054312"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
+    },
+    {
+      "suite": "verify-phase4b5",
+      "verifierPath": "scripts/verify-phase4b5.ts",
       "checkKey": "summary tiles derived from the same data (no invented score)",
       "observedFailure": "FAIL  summary tiles derived from the same data (no invented score)",
       "category": "UI_SURFACE_RETARGET",
@@ -862,6 +892,19 @@
         "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
       },
       "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui4",
+      "verifierPath": "scripts/verify-ui4.ts",
+      "checkKey": "S22: established PR definitions preserved verbatim",
+      "observedFailure": "FAIL  S22: established PR definitions preserved verbatim",
+      "category": "UI_SURFACE_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W10.5",
+        "sha": "69aa1a8ef8f6ab11d2ac9d16c2a3ef58d1054312"
+      },
+      "disposition": "Preserve the historical UI claim against its historical tip (the exact pinned expression or count, evaluated at the pinned commit object); admit the W10 weight_time surface by the exact changed expression — the warm-up toggle reads the shared WARMUP_FORBIDDEN_MODES set, the completion summary receives the 2-D baseline map as a third argument, the column headers render from the exhaustive COLUMN_HEADERS map (a fifth RPE header), Apply eligibility and copy fields read MODE_APPLY_REQUIRED_FIELDS / MODE_COPY_FIELDS from the shared contract in both the route and the client, the Recent PRs tile counts the merged strength + Weight-time list; count-neutral."
     },
     {
       "suite": "verify-ui4",
@@ -1100,6 +1143,7 @@
     "verify-weight-time-contract",
     "verify-weight-time-migration-028",
     "verify-weight-time-records",
+    "verify-weight-time-w10-5-stabilization",
     "verify-weight-time-w10-ui",
     "verify-weight-time-w4-vocabulary",
     "verify-weight-time-w9-integration"
