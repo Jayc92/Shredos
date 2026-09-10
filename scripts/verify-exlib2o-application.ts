@@ -126,6 +126,25 @@ const frozenVsSource = (p: string): boolean =>
   execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim() ===
   execSync(`git rev-parse "${SOURCE_TIP}:${p}"`, { encoding: 'utf8' }).trim()
 
+/**
+ * RETARGET (W11-LIVE — weight_time migration 028): the frozen set below
+ * includes this milestone's LIVE harness. W12-C retargeted that harness's
+ * migration-inventory gate onto 001-028 because migration 028 — the
+ * weight_time milestone — made its "27 files" claim false. The freeze claim is
+ * NOT dropped and NOT weakened to "whatever the file says now". Exactly as
+ * verify-exlib2l.ts already does for the EXLIB-2N decision application, it is
+ * evaluated between two IMMUTABLE commit objects: the harness is byte-frozen
+ * from this suite's source tip THROUGH the promoted pre-weight_time closeout
+ * tip (blob 458c5a5c at both). The CURRENT blob is then pinned exactly, so the
+ * anti-drift purpose survives in full — any further edit to the harness, by
+ * anyone, still fails this check loudly.
+ */
+const W11_LIVE_RETARGETED_BLOB = 'eb0bdabdf2ef2be9cf1fb361b9f78f0e099fb399'
+const frozenThroughClosureVsSource = (p: string): boolean =>
+  execSync(`git rev-parse ${W11_PRE_WEIGHT_TIME_TIP}:${p}`, { encoding: 'utf8' }).trim() ===
+    execSync(`git rev-parse ${SOURCE_TIP}:${p}`, { encoding: 'utf8' }).trim() &&
+  execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim() === W11_LIVE_RETARGETED_BLOB
+
 async function main(): Promise<void> {
   console.log('EXLIB-2O hosted-load application-evidence verification (EXECUTED ONCE by ChatGPT; LOCAL-ONLY)')
 
@@ -358,13 +377,17 @@ async function main(): Promise<void> {
       recFlat.includes('preserved precisely, not "fixed"') &&
       recFlat.includes('UNADJUDICATED and OUTSIDE EXLIB-2O') &&
       recFlat.includes('NOT introduced by this load, NOT fixed by it, and NOT accepted by this record'))
-    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row stays seed_link_compatible false, tenant 84 unchanged, and the phase range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2T delivery-runtime preparation))',
+    check('D5: boundaries hold — Plank neutrality and the frozen set are recorded AND blob-identical to the promoted tip (prep record, live verifier, seed module, inventory, ledger, package.json), the Plank inventory row stays seed_link_compatible false, tenant 84 unchanged, and the phase range through the anchored delivery-runtime predecessor touches only docs/ and scripts/verify-* paths (RETARGET (EXLIB-2T delivery-runtime preparation); RETARGET (W11-LIVE — weight_time migration 028) for the live harness only)',
       (() => {
-        for (const p of [PREP_RECORD, LIVE, 'src/lib/supabase/seed-exercises.ts',
+        for (const p of [PREP_RECORD, 'src/lib/supabase/seed-exercises.ts',
           'docs/exlib2b-release1-inventory.jsonl', 'docs/exlib1b1-review-ledger.jsonl',
           'package.json', 'docs/exlib2k-hosted-load-application-record.md']) {
           if (!frozenVsSource(p)) return false
         }
+        // RETARGET (W11-LIVE — weight_time migration 028): the LIVE harness moves
+        // from a working-tree freeze to the two-immutable-commit freeze plus an
+        // exact current-blob pin. See frozenThroughClosureVsSource.
+        if (!frozenThroughClosureVsSource(LIVE)) return false
         const inv = read('docs/exlib2b-release1-inventory.jsonl').split('\n')
           .filter((l) => l.trim() && !l.trim().startsWith('#')).map((l) => JSON.parse(l))
         const plank = inv.filter((r: any) => r.proposed_canonical_name === 'Plank')

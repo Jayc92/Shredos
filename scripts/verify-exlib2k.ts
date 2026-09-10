@@ -75,6 +75,24 @@ const w11Migration028Admitted = (): boolean => {
     && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
 }
 
+/**
+ * RETARGET (W11-LIVE — weight_time migration 028): this suite pins the exact
+ * TEXT of its live harness's migration-inventory message. Migration 028 — the
+ * weight_time milestone — made the harness's own "27 files" claim false, so
+ * W12-C retargeted that harness onto 001-028. The historical assertion is NOT
+ * discarded: it is evaluated against the immutable pre-milestone commit
+ * object, where it was and remains true. BOTH directions are asserted — the
+ * historical text is present at the tip and absent now, the retargeted text is
+ * present now and absent at the tip — so neither the history nor the current
+ * state can drift silently, and a further migration cannot be absorbed.
+ */
+const w11LiveTextRetargeted = (path: string, historical: string, current: string): boolean => {
+  const atTip = execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:${path}`, { encoding: 'utf8' })
+  const now = read(path)
+  return atTip.includes(historical) && !atTip.includes(current)
+    && now.includes(current) && !now.includes(historical)
+}
+
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) { passed += 1; console.log(`  PASS  ${name}`) }
   else { failed += 1; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -281,8 +299,10 @@ async function main(): Promise<void> {
       recFlat.includes('NOT claimed as executed anywhere') &&
       recFlat.includes('the fail-closed stop was not triggered') &&
       live.includes('E1: a second execution fails closed at the empty-surface precondition (ONE-USE, exactly as documented)'))
-    check('D3: the live harness proves the required matrix — 27 migrations exactly once, zero starting state, the 84-exercise representative tenant fixture, byte-level artifact match, admission-before-review and publication refusals, no projection, no run/delivery/exercise effect, one-use, and whole-transaction rollback variants on fresh scratch databases',
-      live.includes('B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)') &&
+    check('D3: the live harness proves the required matrix — the committed migration chain applied exactly once (RETARGET (W11-LIVE — weight_time migration 028): 001-027 as 27 files at the pre-milestone tip, 001-028 with the weight_time milestone pinned now), zero starting state, the 84-exercise representative tenant fixture, byte-level artifact match, admission-before-review and publication refusals, no projection, no run/delivery/exercise effect, one-use, and whole-transaction rollback variants on fresh scratch databases',
+      w11LiveTextRetargeted(LIVE,
+        'B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)',
+        'B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)') &&
       live.includes('B3: the database begins with ZERO catalog/content state') &&
       live.includes('B4: representative tenant fixture in place - exactly 84 exercises') &&
       live.includes('C4: EVERY loaded value equals the admitted artifact byte for byte') &&

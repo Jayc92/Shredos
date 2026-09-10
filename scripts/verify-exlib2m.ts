@@ -61,6 +61,24 @@ const w11Migration028Admitted = (): boolean => {
     && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
 }
 
+/**
+ * RETARGET (W11-LIVE — weight_time migration 028): this suite pins the exact
+ * TEXT of its live harness's migration-inventory message. Migration 028 — the
+ * weight_time milestone — made the harness's own "27 files" claim false, so
+ * W12-C retargeted that harness onto 001-028. The historical assertion is NOT
+ * discarded: it is evaluated against the immutable pre-milestone commit
+ * object, where it was and remains true. BOTH directions are asserted — the
+ * historical text is present at the tip and absent now, the retargeted text is
+ * present now and absent at the tip — so neither the history nor the current
+ * state can drift silently, and a further migration cannot be absorbed.
+ */
+const w11LiveTextRetargeted = (path: string, historical: string, current: string): boolean => {
+  const atTip = execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:${path}`, { encoding: 'utf8' })
+  const now = read(path)
+  return atTip.includes(historical) && !atTip.includes(current)
+    && now.includes(current) && !now.includes(historical)
+}
+
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) { passed += 1; console.log(`  PASS  ${name}`) }
   else { failed += 1; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -240,7 +258,7 @@ async function main(): Promise<void> {
 
   console.log('\nC. Schema-only application; nothing else changed (proofs 14-15)')
   {
-    check('C1: migration application creates schema only — one explicit transaction, NO line-leading DML outside function bodies, and the live suite proves the zero-state and 023-026 delivery/rollback preservation (proof 14)',
+    check('C1: migration application creates schema only — one explicit transaction, NO line-leading DML outside function bodies, and the live suite proves the zero-state and 023-026 delivery/rollback preservation (proof 14) (RETARGET (W11-LIVE — weight_time migration 028): the live-harness full-chain-from-empty count moved 27 -> 28)',
       (() => {
         if (!/^BEGIN;$/m.test(mig) || !/^COMMIT;$/m.test(mig)) return false
         const stripped = mig
@@ -250,7 +268,9 @@ async function main(): Promise<void> {
         return !/^\s*(INSERT|UPDATE|DELETE|COPY|TRUNCATE)\b/im.test(stripped) &&
           live.includes('D5: migration application alone creates NO content, relationship, expected-relationship, run, membership, review decision, admission, publication, or seal state') &&
           live.includes('E8: unchanged migration-026 DELIVERY works on the HISTORICAL external rows') &&
-          live.includes('B4: migrations 001-027 applied cleanly in order to') &&
+          w11LiveTextRetargeted(LIVE,
+            'B4: migrations 001-027 applied cleanly in order to',
+            'B4: migrations 001-028 applied cleanly in order to') &&
           live.includes('A5: DRIFT GATE') &&
           live.includes('A7: this suite sources the docs proposal EXACTLY ONCE')
       })())
