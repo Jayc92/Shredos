@@ -40,9 +40,17 @@
 // 2V cardio/timed readers keep server.ts strength/cardio-only.
 // ============================================================
 
-import type { ProgressSignal } from '@/types/app'
-
 // ── Types ────────────────────────────────────────────────────────────
+
+/**
+ * The two-dimensional latest-vs-previous comparison (W10.5-A ruling 3).
+ * 'improved' / 'declined' only when one hold DOMINATES the other; 'same'
+ * only for an exact repeat; an incomparable pair is reported as the
+ * actual dimensional change — 'heavier_shorter' or 'lighter_longer' —
+ * and is NEVER collapsed into improved/declined/same. 'new' = no previous
+ * qualifying hold to compare against. Never a scalar trend.
+ */
+export type WeightTimeComparison = 'improved' | 'declined' | 'same' | 'heavier_shorter' | 'lighter_longer' | 'new'
 
 /** The two dimensions. Nothing else ever enters a comparison. */
 export interface WeightTimePoint {
@@ -198,21 +206,21 @@ export function computeCurrentFrontier(performances: WeightTimePerformance[]): W
 
 /** Maximum duration; ties broken by higher added weight, then by the earliest achieved. */
 export function selectLongestHold(performances: WeightTimePerformance[]): WeightTimePerformance | null {
-  return performances.reduce<WeightTimePerformance | null>((best, candidate) => {
-    if (best === null) return candidate
-    if (candidate.durationSeconds !== best.durationSeconds) return candidate.durationSeconds > best.durationSeconds ? candidate : best
-    if (candidate.weightKg !== best.weightKg) return candidate.weightKg > best.weightKg ? candidate : best
-    return compareChronologically(candidate, best) < 0 ? candidate : best
+  return performances.reduce<WeightTimePerformance | null>((leading, candidate) => {
+    if (leading === null) return candidate
+    if (candidate.durationSeconds !== leading.durationSeconds) return candidate.durationSeconds > leading.durationSeconds ? candidate : leading
+    if (candidate.weightKg !== leading.weightKg) return candidate.weightKg > leading.weightKg ? candidate : leading
+    return compareChronologically(candidate, leading) < 0 ? candidate : leading
   }, null)
 }
 
 /** Maximum added weight; ties broken by longer duration, then by the earliest achieved. */
 export function selectHeaviestHold(performances: WeightTimePerformance[]): WeightTimePerformance | null {
-  return performances.reduce<WeightTimePerformance | null>((best, candidate) => {
-    if (best === null) return candidate
-    if (candidate.weightKg !== best.weightKg) return candidate.weightKg > best.weightKg ? candidate : best
-    if (candidate.durationSeconds !== best.durationSeconds) return candidate.durationSeconds > best.durationSeconds ? candidate : best
-    return compareChronologically(candidate, best) < 0 ? candidate : best
+  return performances.reduce<WeightTimePerformance | null>((leading, candidate) => {
+    if (leading === null) return candidate
+    if (candidate.weightKg !== leading.weightKg) return candidate.weightKg > leading.weightKg ? candidate : leading
+    if (candidate.durationSeconds !== leading.durationSeconds) return candidate.durationSeconds > leading.durationSeconds ? candidate : leading
+    return compareChronologically(candidate, leading) < 0 ? candidate : leading
   }, null)
 }
 
@@ -255,19 +263,22 @@ export function evaluateWeightTimeSetPRs(currentSessionSets: WeightTimePerforman
 }
 
 /**
- * Two-dimensional latest-vs-previous status, the weight_time parallel to
- * progressSignal/trackingAwareProgressSignal WITHOUT a scalar: improved iff
- * the latest dominates the previous; declined iff the previous dominates
- * the latest; exact repeats AND incomparable pairs (heavier-but-shorter,
- * lighter-but-longer) are 'same' — neither direction may honestly be
- * claimed for an incomparable pair (Decision 4).
+ * Two-dimensional latest-vs-previous comparison, the weight_time parallel
+ * to progressSignal/trackingAwareProgressSignal WITHOUT a scalar: improved
+ * iff the latest dominates the previous; declined iff the previous
+ * dominates the latest; 'same' iff exact repeat. An incomparable pair is
+ * reported as what actually changed — heavier_shorter or lighter_longer —
+ * because neither direction may honestly be claimed for it (Decision 4;
+ * W10.5-A ruling 3: never "Steady", never Up/Down). A missing previous
+ * hold → 'new'; a latest that is not a qualifying hold → 'new' as well
+ * (there is nothing to compare, not a repeat).
  */
-export function weightTimeProgressSignal(latest: WeightTimePoint | null, previous: WeightTimePoint | null): ProgressSignal {
-  if (!previous) return 'new'
-  if (!latest) return 'same'
+export function compareWeightTimeHolds(latest: WeightTimePoint | null, previous: WeightTimePoint | null): WeightTimeComparison {
+  if (!previous || !latest) return 'new'
   if (dominates(latest, previous)) return 'improved'
   if (dominates(previous, latest)) return 'declined'
-  return 'same'
+  if (isExactRepeat(latest, previous)) return 'same'
+  return latest.weightKg > previous.weightKg ? 'heavier_shorter' : 'lighter_longer'
 }
 
 /** The whole record model for one exercise's qualifying performances. */

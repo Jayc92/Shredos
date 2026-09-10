@@ -898,6 +898,8 @@ export interface WeeklyExerciseProgressSummary {
   improving: number
   steady: number
   declining: number
+  /** W10.5: weight_time rows whose latest hold is a two-dimensional trade-off (heavier/shorter or lighter/longer) — counted separately, never as steady, improving or declining. */
+  mixed: number
   needsData: number
   notableExercises: ExerciseProgressOverviewRow[]
 }
@@ -906,8 +908,9 @@ export interface WeeklyExerciseProgressSummary {
  * Up to three notable results from the already-sorted overview rows:
  * improving first (most recent session first — sortOverviewRows'
  * existing in-group order), then declining; "More data needed" rows
- * appear only when NO judged comparison exists at all. Steady rows
- * are counted but never "notable". Deterministic.
+ * appear only when NO judged comparison exists at all. Steady and mixed
+ * rows are counted (both are judged comparisons) but never "notable" —
+ * a two-dimensional trade-off is not a direction. Deterministic.
  */
 export function selectNotableExercises(
   sortedRows: ExerciseProgressOverviewRow[]
@@ -942,6 +945,7 @@ export function computeWeeklyExerciseProgress(
     improving: inWeek.filter((r) => r.status === 'improved').length,
     steady: inWeek.filter((r) => r.status === 'same').length,
     declining: inWeek.filter((r) => r.status === 'declined').length,
+    mixed: inWeek.filter((r) => r.status === 'mixed').length,
     needsData: inWeek.filter((r) => r.status === 'needs_data').length,
     notableExercises: selectNotableExercises(inWeek),
   }

@@ -135,8 +135,11 @@ async function main(): Promise<number> {
 
   console.log('\nE. WorkoutExerciseBlock — routing, badges, add-set, headers')
   const blockCode = stripComments(block)
-  check('E1: weight_time routes to pickRepresentativeWeightTimeSet and the tracking-aware (2-D) signal; strength modes keep bestSet/progressSignal',
-    blockCode.includes("const isWeightTime = we.exercise.tracking_mode === 'weight_time'") && /const curBest = isWeightTime\s*\? pickRepresentativeWeightTimeSet\(sets\)/.test(blockCode) && blockCode.includes('const signal  = isWeightTime || isCardioOrTimed') && blockCode.includes('trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)'))
+  check('E1: weight_time routes to its representativeHold and the 2-D comparison badge, never through curBest/bestSet/ProgressSignal; strength modes keep bestSet/progressSignal',
+    blockCode.includes("const isWeightTime = we.exercise.tracking_mode === 'weight_time'") && blockCode.includes('const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null')
+    && blockCode.includes('const weightTimeComparison = isWeightTime ? compareWeightTimeSets(representativeHold, previousRepresentativeHold) : null')
+    && /const curBest = isWeightTime\s*\? null/.test(blockCode) && /const signal  = isWeightTime\s*\? null/.test(blockCode)
+    && blockCode.includes('trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)') && /<WeightTimeComparisonBadge comparison=\{weightTimeComparison\}/.test(blockCode))
   check('E2: Weight-time PR badges come from evaluateWeightTimeSetPRs over the prior 2-D points; evaluateSetPRs runs only for the other modes',
     /if \(isWeightTime\) \{\s*const weightTimePRs = evaluateWeightTimeSetPRs\(/.test(blockCode) && /\} else \{\s*Object\.assign\(setPRs, evaluateSetPRs\(sets, prBaseline \?\? EMPTY_PR_BASELINE\)\)/.test(blockCode) && blockCode.includes("setPRs[setId] = weightTimePRs[setId] ? 'weight_time' : null"))
   const addSet = blockCode.slice(blockCode.indexOf('async function handleAddSet'), blockCode.indexOf('async function handleRemove'))
@@ -184,8 +187,8 @@ async function main(): Promise<number> {
   const prItems = (prList.match(/<li[^>]*>([^<]*)<\/li>/g) || []).map((item) => item.replace(/<[^>]+>/g, ''))
   check('F5: PR HISTORY uses the copy "Weight-time PR", most recent first, and keeps the dominated (20,1:00) as a historical PR',
     prItems.length === 4 && prItems.every((item) => item.includes('— Weight-time PR — ')) && prItems[0].startsWith('Aug 15 — Weight-time PR — 0:40 · 30 lb added') && prItems[3].startsWith('Aug 1 — Weight-time PR — 1:00 · 20 lb added'), JSON.stringify(prItems))
-  check('F6: COACHING shows "Last: 0:40 · 30 lb added", the two approved strings verbatim, and a 2-D comparison ("Same" for the incomparable heavier/shorter hold)',
-    text.includes('Last: 0:40 · 30 lb added') && text.includes(`${WEIGHT_TIME_HOLD_LONGER_GUIDANCE} ${WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE}`) && text.includes('Vs. previous session: Same'))
+  check('F6: COACHING shows "Last: 0:40 · 30 lb added", the single duration sentence (the next-weight sentence is not emitted), and the dimensional comparison "Heavier, shorter" for the incomparable hold — never "Same"',
+    text.includes('Last: 0:40 · 30 lb added') && text.includes(WEIGHT_TIME_HOLD_LONGER_GUIDANCE) && !text.includes(WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE) && text.includes('Vs. previous session: Heavier, shorter') && !text.includes('Vs. previous session: Same'))
   check('F7: RECENT HISTORY renders each session\'s hold through the shared formatter, zero as "0 lb added"', text.includes('Aug 15 — 0:40 · 30 lb added') && text.includes('Aug 8 — 2:00 · 0 lb added · RPE 7'))
   const unilateralSections = renderToStaticMarkup(React.createElement(WeightTimeSections, { detail: { ...detail, isUnilateral: true }, recentEntries, isUnilateral: true })).replace(/<[^>]+>/g, '|')
   check('F8: UNILATERAL — "per side" follows the added weight in records, frontier and history', unilateralSections.includes('Heaviest hold: 30 lb added per side (0:40)') && unilateralSections.includes('0 lb added per side · 2:00') && unilateralSections.includes('Aug 15 — 0:40 · 30 lb added per side'))
@@ -200,10 +203,12 @@ async function main(): Promise<number> {
     && /isWeightTime\s*\? fetchWeightTimeExerciseDetail\(supabase, user\.id, exercise\.id\)/.test(detailPage) && /\{isWeightTime \? \(\s*<WeightTimeSections/.test(detailPage)
     && detailPage.includes('fetchCardioTimedProgressDetail(supabase, user.id, exercise.id)'))
   const progressPage = read('src/app/(app)/progress/page.tsx')
-  check('G2: /progress fetches fetchWeightTimeRecords and merges "Weight-time PR" events into one most-recent-first Recent PRs list capped at ten; the count tile counts that list',
-    progressPage.includes('fetchWeightTimeRecords(supabase, user.id)') && progressPage.includes("typeLabel: 'Weight-time PR'") && progressPage.includes('.slice(0, 10)') && progressPage.includes('{recentPRTiles.length}') && progressPage.includes('recentPRTiles.map((tile) =>'))
-  check('G3: the Weight-time PR tile value renders both dimensions with the O5 phrase and the per-side suffix', progressPage.includes("valueText: `${formatDurationSeconds(e.durationSeconds)} · ${formatAddedWeightLb(e.weightKg)}${e.isUnilateral ? ' per side' : ''}`"))
-  check('G4: the strength Recent PR events keep their exact labels and value formatting', progressPage.includes("e.type === 'weight' ? 'Weight PR'") && progressPage.includes("? `${Math.round(kgToLbs(e.estimated1RmKg as number))} lbs${suffix}`"))
+  // W10.5-A ruling 6: the merge moved into src/lib/recent-pr-tiles.ts (deterministic chronological merge, explicit cap); the page delegates to it.
+  const recentTiles = read('src/lib/recent-pr-tiles.ts')
+  check('G2: /progress fetches fetchWeightTimeRecords and merges "Weight-time PR" events through buildRecentPRTiles into one most-recent-first Recent PRs list with an explicit cap of ten; the count tile counts that list',
+    progressPage.includes('fetchWeightTimeRecords(supabase, user.id)') && progressPage.includes('buildRecentPRTiles(strengthRecords.recentPREvents, weightTimeRecords.recentPREvents)') && recentTiles.includes("typeLabel: 'Weight-time PR'") && recentTiles.includes('export const RECENT_PR_TILE_CAP = 10') && progressPage.includes('{recentPRTiles.length}') && progressPage.includes('recentPRTiles.map((tile) =>'))
+  check('G3: the Weight-time PR tile value renders both dimensions with the O5 phrase and the per-side suffix', recentTiles.includes("valueText: `${formatDurationSeconds(event.durationSeconds)} · ${formatAddedWeightLb(event.weightKg)}${event.isUnilateral ? ' per side' : ''}`"))
+  check('G4: the strength Recent PR events keep their exact labels and value formatting (the pre-W8 mapping, verbatim, in strengthPRTile)', recentTiles.includes("event.type === 'weight' ? 'Weight PR'") && recentTiles.includes("? `${Math.round(kgToLbs(event.estimated1RmKg as number))} lbs${suffix}`") && recentTiles.includes(": `${event.reps} reps${suffix}`"))
 
   console.log(`\n${passed} passed, ${failed} failed`)
   return failed === 0 ? 0 : 1

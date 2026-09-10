@@ -5,8 +5,8 @@ import {
   formatAddedWeightLb,
   formatTrackingAwareSetSummary,
   suggestNextTarget,
-  trackingAwareProgressSignal,
-  progressLabel,
+  compareWeightTimeSets,
+  describeWeightTimeComparison,
 } from '@/lib/workout'
 import type { ExerciseHistoryEntry } from '@/lib/workout'
 import type { WeightTimeExerciseDetail, WeightTimePerformance } from '@/lib/weight-time-records'
@@ -36,14 +36,6 @@ import type { WorkoutSet } from '@/types/database'
 // ============================================================
 
 const PR_HISTORY_INITIAL_CAP = 10
-
-/** UI-7's glyph-free signal wording (the page's own SIGNAL_TEXT, mirrored). */
-const SIGNAL_TEXT: Record<string, string> = {
-  improved: 'Improved',
-  declined: 'Declined',
-  same: 'Same',
-  new: 'New exercise',
-}
 
 /** Synthetic WorkoutSet adapter — the same convention the detail page uses for the other modes. */
 function toSyntheticSet(performance: WeightTimePerformance): WorkoutSet {
@@ -81,14 +73,16 @@ export function WeightTimeSections({ detail, recentEntries, isUnilateral }: Weig
   const hasAnyRecord = summary !== null && summary.qualifyingCount > 0
 
   // Coaching from the latest completed qualifying hold only (this read-only
-  // page has no session context): the approved neutral strings, and the
-  // 2-D comparison against the previous session's representative hold.
+  // page has no session context): the approved neutral guidance, and the
+  // two-dimensional comparison against the previous session's
+  // representativeHold — an incomparable pair is reported as the actual
+  // dimensional change ("Heavier, shorter"), never as a direction.
   const latest = detail?.latestQualifying ?? null
   const previous = detail?.previousSessionQualifying ?? null
   const latestSet = latest ? toSyntheticSet(latest) : null
   const nextTarget = suggestNextTarget(latestSet, isUnilateral, 'weight_time', null)
-  const signal = latest && previous
-    ? trackingAwareProgressSignal(latestSet, toSyntheticSet(previous), 'weight_time')
+  const comparison = latest && previous
+    ? compareWeightTimeSets(latestSet, toSyntheticSet(previous))
     : null
 
   const prEvents = summary?.prEvents ?? []
@@ -141,9 +135,9 @@ export function WeightTimeSections({ detail, recentEntries, isUnilateral }: Weig
           <p className="text-sm text-ink-muted">Last: {formatHold(latest, suffix)}</p>
         )}
         <p className="text-sm text-ink-muted">{nextTarget.message}</p>
-        {signal && (
-          <p className="text-xs text-ink-muted">
-            Vs. previous session: {SIGNAL_TEXT[signal] ?? progressLabel(signal)}
+        {comparison && comparison !== 'new' && (
+          <p className="text-xs text-ink-muted" data-comparison={comparison}>
+            Vs. previous session: {describeWeightTimeComparison(comparison)}
           </p>
         )}
         </CardContent>

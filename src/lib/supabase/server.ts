@@ -6,7 +6,7 @@ import { localTodayFromCookies } from '@/lib/local-date-server'
 import { startOfISOWeekISO } from '@/lib/local-date'
 import {
   setScore, epley1RM, pickRepresentativeCardioSet,
-  pickRepresentativeWeightTimeSet, STRENGTH_SCORING_MODES, CARDIO_TIMED_MODES,
+  pickRepresentativeHold, STRENGTH_SCORING_MODES, CARDIO_TIMED_MODES,
 } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database'
@@ -36,9 +36,10 @@ import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database
 function pickRepresentativeSet(sets: any[], trackingMode: TrackingMode): any {
   switch (trackingMode) {
     case 'weight_time':
-      // W9: the longest qualifying hold (tie → heavier) stands for the
-      // session; setScore is never consulted for a weighted hold (D4).
-      return pickRepresentativeWeightTimeSet(sets as WorkoutSet[]) ?? sets[0]
+      // W9/W10.5: the representativeHold (longest qualifying hold; tie →
+      // heavier) stands for the session — a display anchor, never a "best
+      // set"; setScore is never consulted for a weighted hold (D4).
+      return pickRepresentativeHold(sets as WorkoutSet[]) ?? sets[0]
     case 'cardio':
     case 'timed':
       return pickRepresentativeCardioSet(sets as WorkoutSet[], trackingMode) ?? sets[0]
@@ -448,7 +449,14 @@ export async function resolveActiveWorkoutConflict(
   return activeSession
 }
 
-/** Fetch previous bests for exercises in a session (for overload badge) */
+/**
+ * Fetch each exercise's representative set from its most recent earlier
+ * session (for the overload badge and the "Last:" line). For the strength
+ * modes this is the best set by setScore; cardio/timed use the pace /
+ * duration rule; weight_time returns the session's representativeHold
+ * (W10.5-A ruling 1) — a display anchor, never a "best set". The exported
+ * name and the returned map keep their historical, mode-generic shape.
+ */
 export async function fetchPreviousBests(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -500,32 +508,33 @@ export async function fetchPreviousBests(
       )
       if (working.length === 0) continue
 
-      // Pick best set — reuses the same scoring workout.ts's bestSet and
-      // fetchExerciseHistory use, so "best set" means the same thing
-      // everywhere in the app (Phase 2B: previously duplicated this
-      // scoring inline). Phase 2T: routes through pickRepresentativeSet,
-      // which uses duration for cardio/timed instead of setScore.
-      const best = pickRepresentativeSet(working, trackingMode)
+      // Pick the representative set — the same per-mode rule
+      // fetchExerciseHistory uses, so the session's representative means
+      // the same thing everywhere in the app (Phase 2B: previously
+      // duplicated this scoring inline). Phase 2T: routes through
+      // pickRepresentativeSet, which uses duration for cardio/timed
+      // instead of setScore; W9/W10.5: the representativeHold for weight_time.
+      const representative = pickRepresentativeSet(working, trackingMode)
 
       bests[we.exercise_id] = {
         // Full WorkoutSet-compatible shape
         id: '',
         workout_exercise_id: we.exercise_id,
         set_number: 0,
-        weight_kg: best.weight_kg,
-        reps: best.reps,
+        weight_kg: representative.weight_kg,
+        reps: representative.reps,
         // Phase 2B fix: previously hardcoded to null regardless of the
         // actual logged RPE, which meant Phase 2A's suggestNextTarget
         // RPE-based branches ("RPE was high", the increase condition
         // requiring RPE <= 8) could never fire in production. rpe is
         // now selected above and returned here for real.
-        rpe: best.rpe ?? null,
+        rpe: representative.rpe ?? null,
         completed: true,
         is_warmup: false,
         notes: null,
         // Phase 2T: cardio/timed history.
-        duration_seconds: best.duration_seconds ?? null,
-        distance_meters: best.distance_meters ?? null,
+        duration_seconds: representative.duration_seconds ?? null,
+        distance_meters: representative.distance_meters ?? null,
         created_at: session.workout_date,
       }
     }
@@ -537,16 +546,20 @@ export async function fetchPreviousBests(
 /**
  * Fetch recent exercise history (Phase 2B, extended Phase 2E). For
  * each given exercise, returns up to `limit` most-recent completed
- * sessions' best working set, most-recent-first. Warm-up and incomplete
- * sets are excluded, same rule as fetchPreviousBests above. Reuses the
- * same setScore/epley1RM math workout.ts's bestSet and
- * fetchPreviousBests use, so "best set" means the same thing
+ * sessions' representative working set, most-recent-first. Warm-up and
+ * incomplete sets are excluded, same rule as fetchPreviousBests above.
+ * The per-mode representative rule is pickRepresentativeSet's — for the
+ * strength modes the best set by setScore/epley1RM (the same math
+ * workout.ts's bestSet uses), for cardio/timed the pace/duration rule,
+ * and for weight_time the representativeHold (W10.5-A ruling 1; never a
+ * "best set") — so a session's representative means the same thing
  * everywhere in the app.
  *
  * If the same exercise appears more than once within a single session
  * (a rare "added twice to one workout" case), all of that session's
- * qualifying sets for that exercise are merged before picking one best
- * set, so a single session never produces more than one history row.
+ * qualifying sets for that exercise are merged before picking one
+ * representative, so a single session never produces more than one
+ * history row.
  *
  * currentSessionId is optional (Phase 2E): the workout-detail page
  * still passes its own session id to exclude it from "recent history".
@@ -590,7 +603,7 @@ export async function fetchExerciseHistory(
     // Merge all workout_exercises entries for the same exercise within
     // this one session first, so a repeated exercise still produces
     // exactly one history row for that session, not two.
-    const bestInSession: Record<string, any> = {}
+    const representativeInSession: Record<string, any> = {}
     const trackingModeByExerciseId: Record<string, TrackingMode> = {}
 
     for (const we of (session.workout_exercises as Array<{
@@ -615,18 +628,18 @@ export async function fetchExerciseHistory(
       )
       if (working.length === 0) continue
 
-      const localBest = pickRepresentativeSet(working, trackingMode)
+      const localRepresentative = pickRepresentativeSet(working, trackingMode)
 
-      const existing = bestInSession[we.exercise_id]
-      bestInSession[we.exercise_id] = existing
-        ? pickRepresentativeSet([existing, localBest], trackingMode)
-        : localBest
+      const existing = representativeInSession[we.exercise_id]
+      representativeInSession[we.exercise_id] = existing
+        ? pickRepresentativeSet([existing, localRepresentative], trackingMode)
+        : localRepresentative
     }
 
-    for (const [exerciseId, best] of Object.entries(bestInSession)) {
+    for (const [exerciseId, representative] of Object.entries(representativeInSession)) {
       if (result[exerciseId].length >= limit) continue
 
-      const b = best as any
+      const b = representative as any
       // W9: the strength scalar is computed for STRENGTH_SCORING_MODES
       // only — a weight_time history row never carries an estimated 1RM
       // (its reps are always null, but the exclusion is by mode, not by

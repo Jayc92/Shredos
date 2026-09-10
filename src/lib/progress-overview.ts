@@ -31,17 +31,27 @@ import {
   progressSignal,
   trackingAwareProgressSignal,
   pickRepresentativeCardioSet,
-  pickRepresentativeWeightTimeSet,
+  pickRepresentativeHold,
+  compareWeightTimeSets,
+  weightTimeComparisonDetail,
   formatTrackingAwareSetSummary,
 } from '@/lib/workout'
 import type { WorkoutSet, TrackingMode, ExerciseEquipment, PrimaryMuscle } from '@/types/database'
-// W9: weight_time rows use the 2-D representative set and signal from
-// workout.ts (pickRepresentativeWeightTimeSet; trackingAwareProgressSignal
-// routes weight_time to weightTimeProgressSignal) — never setScore.
+// W9/W10.5: weight_time rows use the representativeHold and the
+// two-dimensional comparison from workout.ts (pickRepresentativeHold,
+// compareWeightTimeSets) — never setScore, never the duration-only signal.
 
 // ── Types ────────────────────────────────────────────────────────────
 
-export type OverviewStatus = 'improved' | 'same' | 'declined' | 'needs_data'
+/**
+ * 'mixed' (W10.5-A ruling 3) is the weight_time-only status for an
+ * incomparable latest-vs-previous pair (heavier-but-shorter or
+ * lighter-but-longer). It is a NON-RANKING category: it sorts in the same
+ * band as 'same', is never counted as improving or declining, carries a
+ * neutral badge, and the row's statusDetail names the actual dimensional
+ * change. It is never mapped to improved / declined / same.
+ */
+export type OverviewStatus = 'improved' | 'same' | 'declined' | 'mixed' | 'needs_data'
 
 /** Normalized overview row — the page never sees raw joined shapes. */
 export interface ExerciseProgressOverviewRow {
@@ -60,6 +70,13 @@ export interface ExerciseProgressOverviewRow {
   /** Optional secondary context (est. 1RM for weight_reps). */
   secondarySummary: string | null
   status: OverviewStatus
+  /**
+   * For status 'mixed' only: the dimensional change in words ("heavier,
+   * shorter than the previous session"). The builder always sets it (null
+   * for every other status); optional in the type so historical fixtures
+   * that predate W10.5 still satisfy the row shape.
+   */
+  statusDetail?: string | null
 }
 
 /** Matches the Phase 2V detail-page header's own recent-session cap. */
@@ -136,15 +153,19 @@ export function filterOverviewRows(
 const STATUS_SORT_ORDER: Record<OverviewStatus, number> = {
   improved: 0,
   same: 1,
+  // 'mixed' shares the non-directional band with 'same' on purpose: a
+  // two-dimensional trade-off ranks neither above nor below "no change",
+  // so the two interleave by recency instead of one preceding the other.
+  mixed: 1,
   declined: 2,
   needs_data: 3,
 }
 
 /**
- * Improving → Steady → Declining → More data needed; within a status
- * group, most recent completed session first, then exercise name
- * alphabetically as the deterministic fallback. Never sorts by
- * absolute performance. Pure — returns a new array.
+ * Improving → Steady/Mixed (one band) → Declining → More data needed;
+ * within a status band, most recent completed session first, then
+ * exercise name alphabetically as the deterministic fallback. Never sorts
+ * by absolute performance. Pure — returns a new array.
  */
 export function sortOverviewRows(
   rows: ExerciseProgressOverviewRow[]
@@ -208,8 +229,8 @@ function toWorkoutSet(raw: RawOverviewSet, workoutDate: string): WorkoutSet {
 function pickRepresentativeSet(sets: WorkoutSet[], trackingMode: TrackingMode): WorkoutSet {
   switch (trackingMode) {
     case 'weight_time':
-      // W9: longest qualifying hold (tie → heavier), never setScore.
-      return pickRepresentativeWeightTimeSet(sets) ?? sets[0]
+      // W9/W10.5: the representativeHold (longest; tie → heavier), never setScore.
+      return pickRepresentativeHold(sets) ?? sets[0]
     case 'cardio':
     case 'timed':
       return pickRepresentativeCardioSet(sets, trackingMode) ?? sets[0]
@@ -230,22 +251,34 @@ function statusFor(
   latest: WorkoutSet,
   previous: WorkoutSet | null,
   trackingMode: TrackingMode
-): OverviewStatus {
-  if (!previous) return 'needs_data'
+): { status: OverviewStatus; statusDetail: string | null } {
+  if (!previous) return { status: 'needs_data', statusDetail: null }
+  // W10.5-A ruling 3: weight_time is compared in two dimensions. Dominance
+  // → improved/declined, an exact repeat → same, an incomparable pair →
+  // 'mixed' with the dimensional change spelled out. Never Up/Down/Steady
+  // for a trade-off, and never a scalar.
+  if (trackingMode === 'weight_time') {
+    const comparison = compareWeightTimeSets(latest, previous)
+    if (comparison === 'improved' || comparison === 'declined' || comparison === 'same') return { status: comparison, statusDetail: null }
+    if (comparison === 'heavier_shorter' || comparison === 'lighter_longer') return { status: 'mixed', statusDetail: weightTimeComparisonDetail(comparison) }
+    return { status: 'needs_data', statusDetail: null }
+  }
   const signal = signalFor(latest, previous, trackingMode)
-  if (signal === 'improved' || signal === 'declined' || signal === 'same') return signal
-  return 'needs_data'
+  if (signal === 'improved' || signal === 'declined' || signal === 'same') return { status: signal, statusDetail: null }
+  return { status: 'needs_data', statusDetail: null }
 }
 
 /**
- * The per-mode latest-vs-previous comparison. cardio/timed and
- * weight_time go through trackingAwareProgressSignal (which applies
- * pace/duration for cardio/timed and 2-D dominance for weight_time —
- * incomparable holds are 'same'); the strength modes use progressSignal.
+ * The per-mode latest-vs-previous comparison for the FOUR legacy modes:
+ * cardio/timed go through trackingAwareProgressSignal (pace/duration),
+ * the strength modes use progressSignal. weight_time never reaches this
+ * function — statusFor routes it to compareWeightTimeSets first, and
+ * trackingAwareProgressSignal refuses weight_time (fail-closed).
  */
 function signalFor(latest: WorkoutSet, previous: WorkoutSet, trackingMode: TrackingMode) {
   switch (trackingMode) {
     case 'weight_time':
+      throw new Error('weight_time is compared by compareWeightTimeSets in statusFor, never by a ProgressSignal')
     case 'cardio':
     case 'timed':
       return trackingAwareProgressSignal(latest, previous, trackingMode)
@@ -393,6 +426,11 @@ export function buildExerciseProgressOverview(
       state.latestRepresentative,
       state.meta.tracking_mode
     )
+    const { status, statusDetail } = statusFor(
+      state.latestRepresentative,
+      state.previousRepresentative,
+      state.meta.tracking_mode
+    )
     return {
       exerciseId,
       exerciseName: state.meta.name,
@@ -404,11 +442,8 @@ export function buildExerciseProgressOverview(
       recentSessionCount: Math.min(state.sessionCount, RECENT_SESSION_COUNT_CAP),
       latestSummary,
       secondarySummary,
-      status: statusFor(
-        state.latestRepresentative,
-        state.previousRepresentative,
-        state.meta.tracking_mode
-      ),
+      status,
+      statusDetail,
     }
   })
 }

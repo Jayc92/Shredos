@@ -272,6 +272,7 @@ async function main() {
       'verify-strength-records-allowlist', 'verify-tracking-mode-census', 'verify-weight-time-w4-vocabulary',
       'verify-weight-time-contract', 'verify-weight-time-migration-028',
       'verify-weight-time-records', 'verify-weight-time-w9-integration', 'verify-weight-time-w10-ui',
+      'verify-weight-time-w10-5-stabilization',
     ]
     const admittedPostAuditSuite = (n: string): boolean =>
       WEIGHT_TIME_MILESTONE_SUITES.includes(n) && !existedAtClosureTip(`scripts/${n}.ts`)

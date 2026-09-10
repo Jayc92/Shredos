@@ -25,7 +25,7 @@ import { readFileSync } from 'node:fs'
 import {
   isQualifyingWeightTimeSet, compareChronologically, dominates, isExactRepeat,
   computeCurrentFrontier, selectLongestHold, selectHeaviestHold,
-  reconstructWeightTimePREvents, evaluateWeightTimeSetPRs, weightTimeProgressSignal,
+  reconstructWeightTimePREvents, evaluateWeightTimeSetPRs, compareWeightTimeHolds,
   summarizeWeightTimePerformances, collectWeightTimePerformances,
   fetchWeightTimeRecords, fetchWeightTimeExerciseDetail, fetchWeightTimePRBaselines,
 } from '../src/lib/weight-time-records'
@@ -161,13 +161,14 @@ async function main(): Promise<number> {
   const strip = (summary: ReturnType<typeof summarizeWeightTimePerformances>) => JSON.stringify(summary, (key, value) => (key === 'rpe' ? undefined : value))
   check('G3: RPE is metadata only — identical records, frontier and PR events with and without RPE', strip(summarizeWeightTimePerformances(withRpe)) === strip(summarizeWeightTimePerformances(withoutRpe)))
 
-  console.log('\nH. Two-dimensional status signal (no scalar)')
-  check('H1: latest dominates previous → improved', weightTimeProgressSignal({ weightKg: 25, durationSeconds: 70 }, { weightKg: 20, durationSeconds: 60 }) === 'improved')
-  check('H2: previous dominates latest → declined', weightTimeProgressSignal({ weightKg: 15, durationSeconds: 50 }, { weightKg: 20, durationSeconds: 60 }) === 'declined')
-  check('H3: exact repeat → same', weightTimeProgressSignal({ weightKg: 20, durationSeconds: 60 }, { weightKg: 20, durationSeconds: 60 }) === 'same')
-  check('H4: incomparable heavier/shorter → same (no direction is claimed)', weightTimeProgressSignal({ weightKg: 30, durationSeconds: 40 }, { weightKg: 20, durationSeconds: 60 }) === 'same')
-  check('H5: incomparable lighter/longer → same', weightTimeProgressSignal({ weightKg: 10, durationSeconds: 90 }, { weightKg: 20, durationSeconds: 60 }) === 'same')
-  check('H6: no previous → new; no latest → same', weightTimeProgressSignal({ weightKg: 10, durationSeconds: 90 }, null) === 'new' && weightTimeProgressSignal(null, { weightKg: 10, durationSeconds: 90 }) === 'same')
+  console.log('\nH. Two-dimensional comparison (no scalar, no direction for a trade-off — W10.5-A ruling 3)')
+  check('H1: latest dominates previous → improved', compareWeightTimeHolds({ weightKg: 25, durationSeconds: 70 }, { weightKg: 20, durationSeconds: 60 }) === 'improved')
+  check('H2: previous dominates latest → declined', compareWeightTimeHolds({ weightKg: 15, durationSeconds: 50 }, { weightKg: 20, durationSeconds: 60 }) === 'declined')
+  check('H3: exact repeat → same (the ONLY way to be "same")', compareWeightTimeHolds({ weightKg: 20, durationSeconds: 60 }, { weightKg: 20, durationSeconds: 60 }) === 'same')
+  check('H4: incomparable heavier/shorter → heavier_shorter (never same, never declined)', compareWeightTimeHolds({ weightKg: 30, durationSeconds: 40 }, { weightKg: 20, durationSeconds: 60 }) === 'heavier_shorter')
+  check('H5: incomparable lighter/longer → lighter_longer (never same, never improved)', compareWeightTimeHolds({ weightKg: 10, durationSeconds: 90 }, { weightKg: 20, durationSeconds: 60 }) === 'lighter_longer')
+  check('H6: no previous → new; no latest → new', compareWeightTimeHolds({ weightKg: 10, durationSeconds: 90 }, null) === 'new' && compareWeightTimeHolds(null, { weightKg: 10, durationSeconds: 90 }) === 'new')
+  check('H7: same weight longer / heavier same duration → improved (dominance, not a trade-off)', compareWeightTimeHolds({ weightKg: 20, durationSeconds: 70 }, { weightKg: 20, durationSeconds: 60 }) === 'improved' && compareWeightTimeHolds({ weightKg: 25, durationSeconds: 60 }, { weightKg: 20, durationSeconds: 60 }) === 'improved')
 
   console.log('\nI. Source discipline — no scalar, no strength helpers')
   const moduleText = readFileSync(path.join(repositoryRoot, 'src/lib/weight-time-records.ts'), 'utf8')

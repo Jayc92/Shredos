@@ -14,7 +14,7 @@ import {
 } from '@/lib/nutrition-trends'
 import { fetchStrengthRecords } from '@/lib/strength-records'
 import { fetchWeightTimeRecords } from '@/lib/weight-time-records'
-import { formatDurationSeconds, formatAddedWeightLb } from '@/lib/workout'
+import { buildRecentPRTiles } from '@/lib/recent-pr-tiles'
 import {
   fetchTrackingAwareProgressOverview,
   filterOverviewRows,
@@ -30,7 +30,7 @@ import { fetchProgressEnergyTrends, parseEnergyRange } from '@/lib/progress-ener
 import { localTodayFromCookies } from '@/lib/local-date-server'
 import { addDaysISO } from '@/lib/local-date'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowRight, Check, MoveRight, TrendingDown, TrendingUp } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, Check, MoveRight, TrendingDown, TrendingUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ProgressSignal } from '@/types/app'
 import { cn } from '@/lib/utils'
@@ -50,6 +50,10 @@ const STATUS_META: Record<OverviewStatus, { label: string; Icon: LucideIcon | nu
   improved: { label: 'Improving', Icon: TrendingUp },
   same: { label: 'Steady', Icon: MoveRight },
   declined: { label: 'Declining', Icon: TrendingDown },
+  // W10.5: a weight_time two-dimensional trade-off — non-ranking wording,
+  // a bidirectional (never up/down) icon, and the neutral 'same' tokens;
+  // the card spells out the dimensional change beneath the badge.
+  mixed: { label: 'Mixed', Icon: ArrowLeftRight },
   needs_data: { label: 'More data needed', Icon: null },
 }
 
@@ -82,8 +86,9 @@ const signalBadgeClass = (signal: ProgressSignal): string =>
 
 function StatusBadge({ status }: { status: OverviewStatus }) {
   // needs_data borrows the existing 'new' badge treatment — both mean
-  // "no baseline to compare against yet".
-  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  // "no baseline to compare against yet". 'mixed' borrows the NEUTRAL
+  // 'same' tokens so a trade-off never wears a success or critical colour.
+  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status === 'mixed' ? 'same' : status
   const { label, Icon } = STATUS_META[status]
   return (
     <span
@@ -147,6 +152,11 @@ function ExerciseOverviewCard({ row }: { row: ExerciseProgressOverviewRow }) {
         </Link>
         <StatusBadge status={row.status} />
       </div>
+      {row.statusDetail && (
+        <p className="text-xs text-ink-muted" data-status-detail="">
+          {row.statusDetail.charAt(0).toUpperCase() + row.statusDetail.slice(1)}
+        </p>
+      )}
       {metaParts.length > 0 && (
         <p className="text-xs text-ink-muted">{metaParts.join(' · ')}</p>
       )}
@@ -222,37 +232,11 @@ export default async function ProgressPage({
     fetchWeightTimeRecords(supabase, user.id),
   ])
 
-  // W10: one most-recent-first Recent PRs list across the strength model
-  // and the weight_time 2-D model. Each source is already capped at its
-  // ten most recent events, so the union's ten most recent are exact.
-  // A Weight-time PR is a frontier-improving hold — never a ranked value.
-  const recentPRTiles = [
-    ...strengthRecords.recentPREvents.map((e) => {
-      const suffix = e.isUnilateral ? ' per side' : ''
-      const typeLabel =
-        e.type === 'weight' ? 'Weight PR'
-        : e.type === 'estimated_1rm' ? 'Est. 1RM PR'
-        : 'Rep PR'
-      const valueText =
-        e.type === 'weight'
-          ? `${Math.round(kgToLbs(e.weightKg as number))} lbs${
-              e.reps !== null ? ` × ${e.reps}` : ''
-            }${suffix}`
-          : e.type === 'estimated_1rm'
-          ? `${Math.round(kgToLbs(e.estimated1RmKg as number))} lbs${suffix}`
-          : `${e.reps} reps${suffix}`
-      return { key: `strength-${e.exerciseId}-${e.workoutDate}-${e.type}`, typeLabel, workoutDate: e.workoutDate, exerciseName: e.exerciseName, valueText }
-    }),
-    ...weightTimeRecords.recentPREvents.map((e) => ({
-      key: `weight-time-${e.setId}`,
-      typeLabel: 'Weight-time PR',
-      workoutDate: e.workoutDate,
-      exerciseName: e.exerciseName,
-      valueText: `${formatDurationSeconds(e.durationSeconds)} · ${formatAddedWeightLb(e.weightKg)}${e.isUnilateral ? ' per side' : ''}`,
-    })),
-  ]
-    .sort((a, b) => (a.workoutDate < b.workoutDate ? 1 : a.workoutDate > b.workoutDate ? -1 : a.exerciseName.localeCompare(b.exerciseName)))
-    .slice(0, 10)
+  // W10/W10.5: one Recent PRs list across the strength model and the
+  // weight_time 2-D model — a deterministic chronological merge of two
+  // already-most-recent-first lists (src/lib/recent-pr-tiles.ts). With no
+  // weight_time events it is byte-for-byte the pre-W8 strength list.
+  const recentPRTiles = buildRecentPRTiles(strengthRecords.recentPREvents, weightTimeRecords.recentPREvents)
 
   // Phase 2Y: compact 7-day-average trend for the Weight section —
   // derived by the same pure helper /weigh-in uses, no chart here.

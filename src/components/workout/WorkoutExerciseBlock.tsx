@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal, pickRepresentativeWeightTimeSet } from '@/lib/workout'
+import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal, pickRepresentativeHold, compareWeightTimeSets } from '@/lib/workout'
 import { evaluateWeightTimeSetPRs, weightTimePerformancesFromSessionSets } from '@/lib/weight-time-records'
 import type { WeightTimePoint } from '@/lib/weight-time-records'
 import { MODE_COPY_FIELDS, applyTemplateReady } from '@/lib/workout-set-contract'
 import { ProgressBadge } from './ProgressBadge'
+import { WeightTimeComparisonBadge } from './WeightTimeComparisonBadge'
 import { SetRow } from './SetRow'
 import type { SetRowPRType } from './SetRow'
 import { ExerciseHistoryRows } from './ExerciseHistoryRows'
@@ -150,19 +151,28 @@ export function WorkoutExerciseBlock({
   // structurally excludes duration-based sets (no weight_kg, no reps).
   // tracking-mode-census: exempt — weight_time is routed by isWeightTime below to the 2-D helpers; this predicate stays cardio/timed only
   const isCardioOrTimed = we.exercise.tracking_mode === 'cardio' || we.exercise.tracking_mode === 'timed'
-  // W10: weight_time uses the 2-D representative set (longest hold), the
-  // 2-D dominance signal inside trackingAwareProgressSignal, and
-  // Weight-time PR badges from the W8 model — never bestSet, never
-  // evaluateSetPRs (D4: no scalar for a weighted hold).
+  // W10/W10.5: weight_time never flows through curBest, bestSet or any
+  // ProgressSignal. This session's representativeHold (longest hold; tie →
+  // heavier — a display anchor, never a "best set") is compared in two
+  // dimensions with the previous session's representativeHold, which
+  // arrives in the mode-generic previousBest prop (fetchPreviousBests).
+  // Weight-time PR badges come from the W8 model — never evaluateSetPRs
+  // (D4: no scalar for a weighted hold).
   const isWeightTime = we.exercise.tracking_mode === 'weight_time'
+  const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null
+  const previousRepresentativeHold = isWeightTime ? previousBest : null
+  const weightTimeComparison = isWeightTime ? compareWeightTimeSets(representativeHold, previousRepresentativeHold) : null
   const curBest = isWeightTime
-    ? pickRepresentativeWeightTimeSet(sets)
+    ? null
     : isCardioOrTimed
       ? pickRepresentativeCardioSet(sets, we.exercise.tracking_mode)
       : bestSet(sets)
-  const signal  = isWeightTime || isCardioOrTimed
-    ? trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)
-    : progressSignal(curBest, previousBest)
+  const signal  = isWeightTime
+    ? null
+    : isCardioOrTimed
+      ? trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)
+      : progressSignal(curBest, previousBest)
+  const hasCurrentSessionAnchor = isWeightTime ? representativeHold !== null : curBest !== null
   const prevSummary = formatPreviousBest(previousBest, we.exercise.tracking_mode)
   const nextTarget = suggestNextTarget(
     previousBest,
@@ -441,8 +451,10 @@ export function WorkoutExerciseBlock({
               session -> no meaningful comparison exists, so show no
               badge at all rather than a misleading "Same". New-exercise
               behavior (no previousBest) is unaffected either way. */}
-          {(curBest || !previousBest) && (
-            <ProgressBadge signal={signal} previousSummary={prevSummary} />
+          {(hasCurrentSessionAnchor || !previousBest) && (
+            isWeightTime && weightTimeComparison !== null
+              ? <WeightTimeComparisonBadge comparison={weightTimeComparison} previousSummary={prevSummary} />
+              : signal !== null && <ProgressBadge signal={signal} previousSummary={prevSummary} />
           )}
           {/* UI-5B1B: real named move controls (44px), available for
               live AND completed workouts (presentation order only). */}

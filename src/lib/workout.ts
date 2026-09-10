@@ -9,11 +9,11 @@ import type { ProgressSignal } from '@/types/app'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import {
   isQualifyingWeightTimeSet,
-  weightTimeProgressSignal,
+  compareWeightTimeHolds,
   evaluateWeightTimeSetPRs,
   weightTimePerformancesFromSessionSets,
 } from '@/lib/weight-time-records'
-import type { WeightTimePoint } from '@/lib/weight-time-records'
+import type { WeightTimePoint, WeightTimeComparison } from '@/lib/weight-time-records'
 
 // ── W9: tracking-mode sets (executable, not commentary) ──────────────
 // Each set below is the ONE place a family of helpers decides which
@@ -43,9 +43,9 @@ export const STRENGTH_SCORING_MODES: ReadonlySet<TrackingMode> = new Set<Trackin
 
 /**
  * Modes served by the cardio/timed representative-set and pace/duration
- * signal helpers below. weight_time is EXCLUDED: its representative set
- * and signal are the 2-D helpers (pickRepresentativeWeightTimeSet,
- * weightTimeProgressSignal), never the duration-only or pace branches.
+ * signal helpers below. weight_time is EXCLUDED: its representativeHold
+ * and its comparison are the 2-D helpers (pickRepresentativeHold,
+ * compareWeightTimeSets), never the duration-only or pace branches.
  */
 // tracking-mode-census: allowlist — weight_time never reaches the cardio pace branch or the duration-only signal; it is routed to the 2-D helpers before these run (plan §8.8)
 export const CARDIO_TIMED_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>([
@@ -298,9 +298,9 @@ export function pickRepresentativeCardioSet(
   trackingMode: TrackingMode
 ): WorkoutSet | null {
   // W9: executable guard — only cardio/timed are served here. A
-  // weight_time caller gets null and must use
-  // pickRepresentativeWeightTimeSet, so the pace branch below is
-  // unreachable for a weighted hold (plan §8.8).
+  // weight_time caller gets null and must use pickRepresentativeHold,
+  // so the pace branch below is unreachable for a weighted hold (plan
+  // §8.8).
   if (!CARDIO_TIMED_MODES.has(trackingMode)) return null
 
   const qualifying = sets.filter(
@@ -337,35 +337,73 @@ export function pickRepresentativeCardioSet(
   })
 }
 
-// ── W9: weight_time representative set (display only) ───────────────
+// ── W9/W10.5: the weight_time representativeHold (display anchor only) ─
 
 /**
- * Selects the one set that stands for a session in "Last: ..." and the
- * "Recent" history rows for a weight_time exercise. This is a DISPLAY
- * choice, not a record: the longest qualifying hold (ties → the heavier
- * one → the lower set_number), mirroring timed's longest-duration rule
- * one dimension at a time. It never combines the two dimensions into a
- * score and never calls setScore. All-time records, the frontier and
- * PR events are set-level and live in weight-time-records.ts.
+ * The representativeHold: the ONE hold that stands for a session where an
+ * existing surface structurally needs a single set ("Last: ...", the
+ * "Recent" history rows, the overview's latest-vs-previous comparison).
+ * Rule (W10.5-A ruling 1): longest duration; tie → higher added weight;
+ * remaining tie → deterministic historical order (the lower set_number).
+ * It is NOT a "best set", "best performance" or "top set" — it feeds no
+ * scalar ranking, no progression ladder and no trend; it never combines
+ * the two dimensions and never calls setScore. All-time records, the
+ * frontier and PR events are set-level and live in weight-time-records.ts.
  */
-export function pickRepresentativeWeightTimeSet(sets: WorkoutSet[]): WorkoutSet | null {
+export function pickRepresentativeHold(sets: WorkoutSet[]): WorkoutSet | null {
   const qualifying = sets.filter((s) => isQualifyingWeightTimeSet(s))
   if (qualifying.length === 0) return null
-  return qualifying.reduce((best, s) => {
-    const bestDuration = best.duration_seconds as number
+  return qualifying.reduce((representative, s) => {
+    const representativeDuration = representative.duration_seconds as number
     const duration = s.duration_seconds as number
-    if (duration !== bestDuration) return duration > bestDuration ? s : best
-    const bestWeight = best.weight_kg as number
+    if (duration !== representativeDuration) return duration > representativeDuration ? s : representative
+    const representativeWeight = representative.weight_kg as number
     const weight = s.weight_kg as number
-    if (weight !== bestWeight) return weight > bestWeight ? s : best
-    return s.set_number < best.set_number ? s : best
+    if (weight !== representativeWeight) return weight > representativeWeight ? s : representative
+    return s.set_number < representative.set_number ? s : representative
   })
 }
 
-/** The two-dimensional point of a set, for weightTimeProgressSignal. Null when the set is not a qualifying hold. */
+/** The two-dimensional point of a set, for compareWeightTimeSets. Null when the set is not a qualifying hold. */
 export function weightTimePointOf(set: WorkoutSet | null): WeightTimePoint | null {
   if (!set || set.weight_kg === null || set.duration_seconds === null || set.duration_seconds <= 0 || set.weight_kg < 0) return null
   return { weightKg: set.weight_kg, durationSeconds: set.duration_seconds }
+}
+
+/**
+ * Two-dimensional comparison of two weight_time sets (the current
+ * representativeHold vs the previous session's). Exact repeat → 'same';
+ * dominance → 'improved' / 'declined'; an incomparable pair reports the
+ * dimensional change ('heavier_shorter' / 'lighter_longer') and is never
+ * collapsed to a direction (W10.5-A ruling 3).
+ */
+export function compareWeightTimeSets(current: WorkoutSet | null, previous: WorkoutSet | null): WeightTimeComparison {
+  return compareWeightTimeHolds(weightTimePointOf(current), weightTimePointOf(previous))
+}
+
+/** Display wording for a comparison — the incomparable cases name both dimensions and carry no direction. */
+export function describeWeightTimeComparison(comparison: WeightTimeComparison): string {
+  switch (comparison) {
+    case 'improved': return 'Improved'
+    case 'declined': return 'Declined'
+    case 'same': return 'Same'
+    case 'heavier_shorter': return 'Heavier, shorter'
+    case 'lighter_longer': return 'Lighter, longer'
+    case 'new': return 'New exercise'
+  }
+}
+
+/** Lower-case detail for an overview row whose status is 'mixed'; null for every other comparison. */
+export function weightTimeComparisonDetail(comparison: WeightTimeComparison): string | null {
+  switch (comparison) {
+    case 'heavier_shorter': return 'heavier, shorter than the previous session'
+    case 'lighter_longer': return 'lighter, longer than the previous session'
+    case 'improved':
+    case 'declined':
+    case 'same':
+    case 'new':
+      return null
+  }
 }
 
 // ── Progressive overload signal ───────────────────────────────────
@@ -415,18 +453,22 @@ export function trackingAwareProgressSignal(
   if (!previousBest) return 'new'
   if (!currentBest)  return 'same'
 
-  // W9: weight_time is judged by 2-D dominance, NEVER by the
-  // duration-only fallback below (plan §8.8: "this is where the D4
-  // violation would land"). Incomparable pairs are 'same'.
+  // W9/W10.5: weight_time is NEVER judged here. Its comparison has six
+  // outcomes (compareWeightTimeSets) and the incomparable ones have no
+  // honest ProgressSignal value (W10.5-A ruling 3: never Up/Down/Steady),
+  // so this is an executable, fail-closed exclusion: every production
+  // caller routes weight_time to compareWeightTimeSets before calling,
+  // and a caller that slips through fails loudly instead of returning a
+  // wrong direction. (Plan §8.8: "this is where the D4 violation would land".)
   if (trackingMode === 'weight_time') {
-    return weightTimeProgressSignal(weightTimePointOf(currentBest), weightTimePointOf(previousBest))
+    throw new Error('weight_time holds are compared in two dimensions: use compareWeightTimeSets, not trackingAwareProgressSignal')
   }
 
-  // tracking-mode-census: exempt — weight_time returned via weightTimeProgressSignal above; pace applies to cardio only
+  // tracking-mode-census: exempt — weight_time is refused above (fail-closed); pace applies to cardio only
   const currHasPace = trackingMode === 'cardio'
     && currentBest.duration_seconds !== null && currentBest.duration_seconds > 0
     && currentBest.distance_meters !== null && currentBest.distance_meters > 0
-  // tracking-mode-census: exempt — weight_time returned via weightTimeProgressSignal above; pace applies to cardio only
+  // tracking-mode-census: exempt — weight_time is refused above (fail-closed); pace applies to cardio only
   const prevHasPace = trackingMode === 'cardio'
     && previousBest.duration_seconds !== null && previousBest.duration_seconds > 0
     && previousBest.distance_meters !== null && previousBest.distance_meters > 0
@@ -740,8 +782,15 @@ function buildTimedNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
 // ── W9: weight_time next-target guidance (O5, D4, D5) ───────────────
 
 /**
- * The two approved neutral strings, verbatim (plan §4.1), in the order
- * that changes one dimension at a time: duration first, then weight.
+ * The two approved neutral strings, verbatim (plan §4.1). Progression
+ * moves ONE dimension at a time (D4): the duration sentence is the
+ * default guidance. The next-weight sentence is approved copy but is NOT
+ * emitted automatically in this milestone (W10.5-A ruling 4): it may only
+ * be emitted when the application holds real evidence that the intended
+ * duration criterion/range has been achieved consistently, and no
+ * truthful representation of that criterion exists yet — being on the
+ * Pareto frontier is not that evidence. Exported so the copy stays
+ * pinned; unused by any automatic path.
  */
 export const WEIGHT_TIME_HOLD_LONGER_GUIDANCE = 'Try holding this weight slightly longer.'
 export const WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE = 'When this duration feels controlled, try the next available weight.'
@@ -751,17 +800,18 @@ export const WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE = 'When this duration feels contro
  * no new duration or weight number is derived (that would need a
  * scalar or an increment policy neither D4 nor O5 approved), RPE is
  * never consulted (D5: metadata only — unlike timed's RPE-repeat rule),
- * and the two dimensions are never collapsed. A previous set that is
- * not a qualifying hold (null weight or no duration) yields the same
+ * and the two dimensions are never collapsed. The input is the previous
+ * session's representativeHold (never a "best set"); one that is not a
+ * qualifying hold (null weight or no duration) yields the same
  * 'unavailable' message the other duration modes use.
  */
-function buildWeightTimeNextTarget(previousBest: WorkoutSet): NextTargetSuggestion {
-  if (weightTimePointOf(previousBest) === null) {
+function buildWeightTimeNextTarget(previousRepresentativeHold: WorkoutSet): NextTargetSuggestion {
+  if (weightTimePointOf(previousRepresentativeHold) === null) {
     return { action: 'unavailable', message: 'Log a completed set to start tracking targets.' }
   }
   return {
     action: 'increase',
-    message: `${WEIGHT_TIME_HOLD_LONGER_GUIDANCE} ${WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE}`,
+    message: WEIGHT_TIME_HOLD_LONGER_GUIDANCE,
   }
 }
 

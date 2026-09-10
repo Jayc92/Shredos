@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   formatTrackingAwareSetSummary, formatAddedWeightLb,
-  pickRepresentativeCardioSet, pickRepresentativeWeightTimeSet, bestSet, setScore,
+  pickRepresentativeCardioSet, pickRepresentativeHold, compareWeightTimeSets, bestSet, setScore,
   trackingAwareProgressSignal, progressSignal,
   suggestNextTarget, evaluateSetTargetFeedback, evaluateSetPRs, summarizeWorkout,
   WEIGHT_TIME_HOLD_LONGER_GUIDANCE, WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE,
@@ -104,31 +104,32 @@ async function main(): Promise<number> {
     && formatTrackingAwareSetSummary({ reps: null, weightKg: null, rpe: null, durationSeconds: 1935, distanceMeters: 3.1 * 1609.34 }, 'cardio') === '32:15 · 3.10 mi · 10:24 /mi'
     && formatTrackingAwareSetSummary({ reps: null, weightKg: null, rpe: 7, durationSeconds: 120, distanceMeters: null }, 'timed') === '2:00 · RPE 7')
 
-  console.log('\nB. Representative set — longest qualifying hold, never a scalar, never the pace branch')
+  console.log('\nB. The representativeHold — longest qualifying hold, never a scalar, never the pace branch, never a "best set"')
   setCounter = 0
   const r1 = hold(20, 60); const r2 = hold(10, 90); const r3 = hold(30, 90); const rWarm = hold(50, 200, { is_warmup: true }); const rIncomplete = hold(50, 200, { completed: false }); const rNullWeight = set({ weight_kg: null, duration_seconds: 300 })
-  check('B1: longest hold wins; tie on duration → heavier: among (20,60),(10,90),(30,90) → (30,90)', pickRepresentativeWeightTimeSet([r1, r2, r3])?.id === r3.id)
-  check('B2: tie on duration and weight → lower set_number', pickRepresentativeWeightTimeSet([hold(30, 90, { set_number: 5, id: 'later' }), hold(30, 90, { set_number: 2, id: 'earlier' })])?.id === 'earlier')
-  check('B3: warm-ups, incomplete sets and null-weight sets never represent a session', pickRepresentativeWeightTimeSet([rWarm, rIncomplete, rNullWeight]) === null && pickRepresentativeWeightTimeSet([rWarm, r1])?.id === r1.id)
-  check('B4: a zero-added-weight hold can represent the session', pickRepresentativeWeightTimeSet([hold(0, 120), hold(20, 60)])?.weight_kg === 0)
+  check('B1: longest hold wins; tie on duration → heavier: among (20,60),(10,90),(30,90) → (30,90)', pickRepresentativeHold([r1, r2, r3])?.id === r3.id)
+  check('B2: tie on duration and weight → lower set_number', pickRepresentativeHold([hold(30, 90, { set_number: 5, id: 'later' }), hold(30, 90, { set_number: 2, id: 'earlier' })])?.id === 'earlier')
+  check('B3: warm-ups, incomplete sets and null-weight sets never represent a session', pickRepresentativeHold([rWarm, rIncomplete, rNullWeight]) === null && pickRepresentativeHold([rWarm, r1])?.id === r1.id)
+  check('B4: a zero-added-weight hold can represent the session', pickRepresentativeHold([hold(0, 120), hold(20, 60)])?.weight_kg === 0)
   check('B5: pickRepresentativeCardioSet returns null for weight_time (executable CARDIO_TIMED_MODES guard) and still serves timed/cardio', pickRepresentativeCardioSet([r1, r3], 'weight_time') === null && pickRepresentativeCardioSet([set({ duration_seconds: 60 }), set({ duration_seconds: 90 })], 'timed')?.duration_seconds === 90)
   check('B6: bestSet/setScore are untouched strength scalars — a weight_time set fed to them would be scored by weight alone, which is why no weight_time caller uses them (asserted in H below)', setScore(hold(20, 60)) === lbsToKg(20) && bestSet([hold(20, 60), hold(30, 40)])?.weight_kg === lbsToKg(30))
 
-  console.log('\nC. Progress signal — 2-D dominance, never duration-only')
-  check('C1: (25,70) after (20,60) → improved', trackingAwareProgressSignal(hold(25, 70), hold(20, 60), 'weight_time') === 'improved')
-  check('C2: (15,50) after (20,60) → declined', trackingAwareProgressSignal(hold(15, 50), hold(20, 60), 'weight_time') === 'declined')
-  check('C3: exact repeat → same', trackingAwareProgressSignal(hold(20, 60), hold(20, 60), 'weight_time') === 'same')
-  check('C4: heavier-but-shorter (30,40) after (20,60) → same (the duration-only fallback would have said declined)', trackingAwareProgressSignal(hold(30, 40), hold(20, 60), 'weight_time') === 'same' && trackingAwareProgressSignal(hold(30, 40), hold(20, 60), 'timed') === 'declined')
-  check('C5: lighter-but-longer (10,90) after (20,60) → same (the duration-only fallback would have said improved)', trackingAwareProgressSignal(hold(10, 90), hold(20, 60), 'weight_time') === 'same' && trackingAwareProgressSignal(hold(10, 90), hold(20, 60), 'timed') === 'improved')
-  check('C6: same weight, longer → improved; heavier, same duration → improved', trackingAwareProgressSignal(hold(20, 70), hold(20, 60), 'weight_time') === 'improved' && trackingAwareProgressSignal(hold(25, 60), hold(20, 60), 'weight_time') === 'improved')
-  check('C7: no previous → new; a previous set that is not a qualifying hold (null weight) is no baseline → new, never a directional claim', trackingAwareProgressSignal(hold(20, 60), null, 'weight_time') === 'new' && trackingAwareProgressSignal(hold(20, 60), set({ weight_kg: null, duration_seconds: 60 }), 'weight_time') === 'new')
+  console.log('\nC. Comparison — 2-D dominance, trade-offs named, never duration-only (W10.5-A ruling 3)')
+  check('C1: (25,70) after (20,60) → improved', compareWeightTimeSets(hold(25, 70), hold(20, 60)) === 'improved')
+  check('C2: (15,50) after (20,60) → declined', compareWeightTimeSets(hold(15, 50), hold(20, 60)) === 'declined')
+  check('C3: exact repeat → same', compareWeightTimeSets(hold(20, 60), hold(20, 60)) === 'same')
+  check('C4: heavier-but-shorter (30,40) after (20,60) → heavier_shorter (the duration-only fallback would have said declined)', compareWeightTimeSets(hold(30, 40), hold(20, 60)) === 'heavier_shorter' && trackingAwareProgressSignal(hold(30, 40), hold(20, 60), 'timed') === 'declined')
+  check('C5: lighter-but-longer (10,90) after (20,60) → lighter_longer (the duration-only fallback would have said improved)', compareWeightTimeSets(hold(10, 90), hold(20, 60)) === 'lighter_longer' && trackingAwareProgressSignal(hold(10, 90), hold(20, 60), 'timed') === 'improved')
+  check('C6: same weight, longer → improved; heavier, same duration → improved', compareWeightTimeSets(hold(20, 70), hold(20, 60)) === 'improved' && compareWeightTimeSets(hold(25, 60), hold(20, 60)) === 'improved')
+  check('C7: no previous → new; a previous set that is not a qualifying hold (null weight) is no baseline → new, never a directional claim', compareWeightTimeSets(hold(20, 60), null) === 'new' && compareWeightTimeSets(hold(20, 60), set({ weight_kg: null, duration_seconds: 60 })) === 'new')
   check('C8: progressSignal (strength) is unchanged: 1% threshold on setScore', progressSignal(set({ weight_kg: 102, reps: 5 }), set({ weight_kg: 100, reps: 5 })) === 'improved')
+  check('C9: trackingAwareProgressSignal REFUSES weight_time (fail-closed: a hold has no honest ProgressSignal) and still serves timed', (() => { try { trackingAwareProgressSignal(hold(30, 40), hold(20, 60), 'weight_time'); return false } catch (error) { return /compareWeightTimeSets/.test(String(error)) } })() && trackingAwareProgressSignal(set({ duration_seconds: 70 }), set({ duration_seconds: 60 }), 'timed') === 'improved')
 
-  console.log('\nD. Next target — only the two approved neutral strings, RPE never consulted')
-  const approved = `${WEIGHT_TIME_HOLD_LONGER_GUIDANCE} ${WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE}`
+  console.log('\nD. Next target — ONE approved sentence at a time, RPE never consulted (W10.5-A ruling 4)')
+  const approved = WEIGHT_TIME_HOLD_LONGER_GUIDANCE
   check('D1: the two approved strings are verbatim', WEIGHT_TIME_HOLD_LONGER_GUIDANCE === 'Try holding this weight slightly longer.' && WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE === 'When this duration feels controlled, try the next available weight.')
   const target = suggestNextTarget(hold(20, 60), false, 'weight_time', 'barbell')
-  check('D2: with a previous hold → action increase, message = the approved strings (duration first, then weight)', target.action === 'increase' && target.message === approved, JSON.stringify(target))
+  check('D2: with a previous representativeHold → action increase, message = the duration sentence ONLY', target.action === 'increase' && target.message === approved, JSON.stringify(target))
   check('D3: RPE 10, RPE 6 and no RPE produce the SAME message (D5: RPE is metadata only)',
     suggestNextTarget(hold(20, 60, { rpe: 10 }), false, 'weight_time', null).message === approved && suggestNextTarget(hold(20, 60, { rpe: 6 }), false, 'weight_time', null).message === approved)
   check('D4: a stalling trend, a rep range and any equipment never change the message (no strength ladder)',
@@ -138,6 +139,8 @@ async function main(): Promise<number> {
   check('D6: a previous set that is not a qualifying hold (null weight) → unavailable', suggestNextTarget(set({ weight_kg: null, duration_seconds: 60 }), false, 'weight_time', null).action === 'unavailable')
   check('D7: the message never contains a computed number, "reps", "lbs ×" or "RPE"', !/\d|reps|lbs|RPE/.test(approved))
   check('D8: timed keeps its RPE-repeat rule and cardio its pace rule (legacy unchanged)', suggestNextTarget(set({ duration_seconds: 354, rpe: 9 }), false, 'timed', null).message === 'Repeat 5:54 next time' && /slightly faster/.test(suggestNextTarget(set({ duration_seconds: 1800, distance_meters: 5000 }), false, 'cardio', null).message))
+  check('D9: the next-weight sentence is NEVER emitted automatically — not for a long hold, a heavy hold, a frontier point, any RPE or any trend (no truthful "duration criterion achieved" evidence exists yet)',
+    [hold(0, 600), hold(200, 5), hold(20, 60, { rpe: 3 }), hold(20, 60, { rpe: 10 })].every((previous) => ['improving', 'steady', 'stalling', 'needs-data'].every((trend) => !suggestNextTarget(previous, false, 'weight_time', null, trend as never).message.includes(WEIGHT_TIME_NEXT_WEIGHT_GUIDANCE))))
 
   console.log('\nE. Programmed-target model — weight_time intentionally outside it')
   check('E1: evaluateSetTargetFeedback → no_target for weight_time even with reps and a range', evaluateSetTargetFeedback(10, 7, 'weight_time', { min: 8, max: 12 }).rangeStatus === 'no_target' && evaluateSetTargetFeedback(10, 7, 'weight_time', { min: 8, max: 12 }).label === '')
@@ -188,7 +191,8 @@ async function main(): Promise<number> {
   const carry = rows.find((r) => r.exerciseId === 'carry')!
   check('G1: the plank row\'s latest summary is its LONGEST hold with a real zero: "2:00 · 0 lb added"', plank.latestSummary === '2:00 · 0 lb added', plank.latestSummary)
   check('G2: plank (0,120) after (0,90) → improved (2-D: same weight, longer)', plank.status === 'improved')
-  check('G3: carry (30,40) after (20,60) → same (incomparable, no direction claimed)', carry.status === 'same')
+  check('G3: carry (30,40) after (20,60) → status mixed with the dimensional detail (never same/steady, never declined)', carry.status === 'mixed' && carry.statusDetail === 'heavier, shorter than the previous session', `${carry.status} / ${carry.statusDetail}`)
+  check('G3b: improved/declined/same rows carry no statusDetail', plank.statusDetail === null && rows.find((r) => r.exerciseId === 'bench')!.statusDetail === null)
   check('G4: weight_time rows never carry an est. 1RM secondary', plank.secondarySummary === null && carry.secondarySummary === null)
   check('G5: legacy rows unchanged — bench "5 reps × 225 lbs" with est. 1RM, status improved; pushup "12 reps" status same',
     rows.find((r) => r.exerciseId === 'bench')!.latestSummary === '5 reps × 225 lbs' && rows.find((r) => r.exerciseId === 'bench')!.secondarySummary !== null && rows.find((r) => r.exerciseId === 'bench')!.status === 'improved'
@@ -214,7 +218,7 @@ async function main(): Promise<number> {
   console.log('\nI. Source discipline — server.ts gates, no scalar, strength helpers untouched')
   const server = read('src/lib/supabase/server.ts')
   const serverExecutable = stripComments(server)
-  check('I1: server.ts pickRepresentativeSet is an exhaustive switch with an explicit weight_time arm using pickRepresentativeWeightTimeSet', /switch \(trackingMode\) \{\s*case 'weight_time':[\s\S]*?pickRepresentativeWeightTimeSet/.test(functionBody(serverExecutable, 'pickRepresentativeSet')))
+  check('I1: server.ts pickRepresentativeSet is an exhaustive switch with an explicit weight_time arm using pickRepresentativeHold', /switch \(trackingMode\) \{\s*case 'weight_time':[\s\S]*?pickRepresentativeHold/.test(functionBody(serverExecutable, 'pickRepresentativeSet')))
   check('I2: fetchExercisePRBaseline selects tracking_mode and skips every mode outside STRENGTH_SCORING_MODES', functionBody(serverExecutable, 'fetchExercisePRBaseline').includes('exercise:exercises ( tracking_mode )') && functionBody(serverExecutable, 'fetchExercisePRBaseline').includes('!STRENGTH_SCORING_MODES.has(trackingMode)) continue'))
   check('I3: fetchExerciseHistory computes est. 1RM only for STRENGTH_SCORING_MODES', functionBody(serverExecutable, 'fetchExerciseHistory').includes('STRENGTH_SCORING_MODES.has(trackingModeByExerciseId[exerciseId])'))
   check('I4: fetchCardioTimedRecords gates by CARDIO_TIMED_MODES (executable), with no inline literal chain left', functionBody(serverExecutable, 'fetchCardioTimedRecords').includes('!CARDIO_TIMED_MODES.has(ex.tracking_mode)) continue') && !functionBody(serverExecutable, 'fetchCardioTimedRecords').includes("!== 'cardio'"))

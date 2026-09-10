@@ -18,7 +18,7 @@ import { localTodayFromCookies } from '@/lib/local-date-server'
 import { format, parseISO } from 'date-fns'
 import { PageHeader } from '@/components/ui/page-header'
 import {
-  ArrowRight, ChevronLeft, ChevronRight, MoveRight, TrendingDown, TrendingUp,
+  ArrowLeftRight, ArrowRight, ChevronLeft, ChevronRight, MoveRight, TrendingDown, TrendingUp,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { TRACKING_MODES } from '@/lib/constants'
@@ -33,6 +33,9 @@ const STATUS_META: Record<OverviewStatus, { label: string; Icon: LucideIcon | nu
   improved: { label: 'Improving', Icon: TrendingUp },
   same: { label: 'Steady', Icon: MoveRight },
   declined: { label: 'Declining', Icon: TrendingDown },
+  // W10.5: a weight_time two-dimensional trade-off — non-ranking wording,
+  // a bidirectional (never up/down) icon, and the neutral 'same' tokens.
+  mixed: { label: 'Mixed', Icon: ArrowLeftRight },
   needs_data: { label: 'More data needed', Icon: null },
 }
 
@@ -55,7 +58,9 @@ const signalBadgeClass = (signal: ProgressSignal): string =>
   SIGNAL_TOKEN[progressColor(signal).split(' ')[0].split('-')[1]] ?? 'bg-surface-sunken text-ink border-edge'
 
 function StatusBadge({ status }: { status: OverviewStatus }) {
-  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status
+  // needs_data borrows the 'new' treatment; 'mixed' borrows the NEUTRAL
+  // 'same' tokens so a trade-off never wears a success or critical colour.
+  const signalForColor: ProgressSignal = status === 'needs_data' ? 'new' : status === 'mixed' ? 'same' : status
   const { label, Icon } = STATUS_META[status]
   return (
     <span
@@ -429,6 +434,7 @@ export default async function CheckInPage({
         {exerciseProgress.improving +
           exerciseProgress.steady +
           exerciseProgress.declining +
+          exerciseProgress.mixed +
           exerciseProgress.needsData ===
         0 ? (
           <p className="text-sm text-ink-muted">
@@ -459,6 +465,17 @@ export default async function CheckInPage({
                 </p>
                 <p className="text-xs text-ink-muted mt-0.5">need more data</p>
               </div>
+              {/* W10.5: weight_time trade-offs (heavier/shorter, lighter/longer)
+                  are their own count — never folded into steady, improving
+                  or declining. Shown only when one exists. */}
+              {exerciseProgress.mixed > 0 && (
+                <div className="bg-surface-sunken rounded-lg px-2 py-2.5 text-center">
+                  <p className="text-base font-bold tabular-nums">
+                    {exerciseProgress.mixed}
+                  </p>
+                  <p className="text-xs text-ink-muted mt-0.5">mixed (two-dimensional)</p>
+                </div>
+              )}
             </div>
             {exerciseProgress.notableExercises.length > 0 && (
               <div className="space-y-3">
