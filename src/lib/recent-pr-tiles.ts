@@ -2,8 +2,8 @@
 // ShredOS — Recent PRs tiles (W10.5-A ruling 6)
 //
 // The /progress "Recent PRs" card merges two PR models that can never
-// overlap: strength PR events (strength-records.ts, whose allowlist admits
-// weight_reps/bodyweight exercises only) and Weight-time PR events
+// overlap: strength PR events (strength-records.ts, whose explicit mode list
+// admits weight_reps/bodyweight exercises only) and Weight-time PR events
 // (weight-time-records.ts, weight_time exercises only). Because an
 // exercise has exactly one tracking mode, no set can be counted by both
 // models; the tile keys carry the model name so a collision is
