@@ -17,6 +17,18 @@ import { join } from 'path'
 let passed = 0
 let failed = 0
 
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** A file's bytes as text at the closeout tip (the historical text a retargeted pin is evaluated against). */
+const w11AtClosureTip = (path: string): string =>
+  require('child_process').execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:"${path}"`, { encoding: 'utf8' }) as string
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) {
     passed++
@@ -478,7 +490,10 @@ console.log('\n13. Phase boundary')
   check('detail client behavior contract intact (migrated by 4B.6B)',
     // 4B.6B migrated the presentation as chartered; the durable
     // invariant is the client's behavior anchor.
-    read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})'))
+    // RETARGET (W11 — UI_SURFACE): the historical call is anchored at the closeout tip; W10 passes the
+    // weight_time 2-D baseline as a THIRD argument — the strength baseline argument is unchanged.
+    w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})') &&
+    read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {})'))
   check('workout API routes unchanged (anchors)',
     read('src/app/api/workouts/route.ts').includes('findActiveTrainingSession') &&
     read('src/app/api/routines/[id]/start/route.ts').includes('findActiveTrainingSession'))

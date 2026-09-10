@@ -17,6 +17,18 @@ import { join } from 'path'
 let passed = 0
 let failed = 0
 
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** A file's bytes as text at the closeout tip (the historical text a retargeted pin is evaluated against). */
+const w11AtClosureTip = (path: string): string =>
+  require('child_process').execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:"${path}"`, { encoding: 'utf8' }) as string
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) {
     passed++
@@ -182,7 +194,12 @@ console.log('\n3. Overview logic contract')
     overviewPage.includes('filterOverviewRows(overviewRows, activeMode)'))
   check('summary tiles derived from the same data (no invented score)',
     overviewPage.includes("overviewRows.filter((r) => r.status === 'improved').length") &&
-    overviewPage.includes('strengthRecords.recentPREvents.length') &&
+    // RETARGET (W11 — UI_SURFACE): the strength-only count is anchored at the closeout tip; W10/W10.5 count
+    // the merged strength + Weight-time list (identical to the strength count with zero weight_time events —
+    // verify-weight-time-w10-5-stabilization 6b/6c).
+    w11AtClosureTip('src/app/(app)/progress/page.tsx').includes('strengthRecords.recentPREvents.length') &&
+    overviewPage.includes('const recentPRTiles = buildRecentPRTiles(strengthRecords.recentPREvents, weightTimeRecords.recentPREvents)') &&
+    overviewPage.includes('{recentPRTiles.length}') &&
     !overviewPage.includes('score'))
   check('status order unchanged in the lib',
     overviewLib.includes('improved') && overviewLib.includes('needs_data') &&
@@ -781,11 +798,16 @@ console.log('\n22. Per-state copy')
     detailPage.includes('Show all ({remainingPrHistory.length} more)'))
   check('PR line formatting unchanged',
     detailPage.includes("e.type === 'weight' ? 'Weight PR' : e.type === 'estimated_1rm' ? 'Est. 1RM PR' : 'Rep PR'"))
+  // RETARGET (W11 — UI_SURFACE): the page's inline PR mapping is anchored at the closeout tip; W10.5 moved it
+  // verbatim into src/lib/recent-pr-tiles.ts (strengthPRTile), which the page delegates to.
   check('overview PR line formatting unchanged',
-    overviewPage.includes("? 'Weight PR'") && overviewPage.includes("'Est. 1RM PR'"))
+    w11AtClosureTip('src/app/(app)/progress/page.tsx').includes("? 'Weight PR'") && w11AtClosureTip('src/app/(app)/progress/page.tsx').includes("'Est. 1RM PR'") &&
+    read('src/lib/recent-pr-tiles.ts').includes("? 'Weight PR'") && read('src/lib/recent-pr-tiles.ts').includes("'Est. 1RM PR'") &&
+    overviewPage.includes("import { buildRecentPRTiles } from '@/lib/recent-pr-tiles'"))
   check('per-side suffix preserved (unilateral)',
     detailPage.includes("isUnilateral ? ' per side' : ''") &&
-    overviewPage.includes("e.isUnilateral ? ' per side' : ''"))
+    w11AtClosureTip('src/app/(app)/progress/page.tsx').includes("e.isUnilateral ? ' per side' : ''") &&
+    read('src/lib/recent-pr-tiles.ts').includes("event.isUnilateral ? ' per side' : ''"))
   check('tile labels preserved',
     ['exercises tracked', 'improving', 'need more data', 'recent PRs']
       .every((t) => overviewPage.includes(t)) &&

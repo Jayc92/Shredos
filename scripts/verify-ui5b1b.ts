@@ -41,6 +41,38 @@ Module._load = function (request: string) {
 
 let passed = 0
 let failed = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+/** A file's bytes as text at the closeout tip (the historical text a retargeted pin is evaluated against). */
+const w11AtClosureTip = (path: string): string =>
+  require('child_process').execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:"${path}"`, { encoding: 'utf8' }) as string
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) { passed++; console.log(`  PASS  ${name}`) }
   else { failed++; console.error(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -276,11 +308,16 @@ async function main() {
       setsRoute.includes("supabase.rpc('append_workout_set'") &&
       !stripComments(setsRoute).includes(".from('workout_sets')\n    .insert") &&
       !stripComments(setsRoute).includes('?.set_number ?? 0) + 1'))
+    // RETARGET (W11 — ROUTE_TEXT): the historical inline validation is anchored at the closeout tip; W7
+    // moved exactly that validation into src/lib/workout-set-contract.ts (buildSetInsert), which the route
+    // now imports — the same rules, owned by the contract module.
     check('S4: Add Set keeps every tracking-mode validation and carry-forward rule',
-      setsRoute.includes('MODE_ALLOWED_FIELDS[trackingMode]') &&
-      setsRoute.includes('Reps are required to complete this set.') &&
-      setsRoute.includes('Duration is required to complete this set.') &&
-      setsRoute.includes('const insertPayload: Record<string, unknown>') &&
+      ['MODE_ALLOWED_FIELDS[trackingMode]', 'Reps are required to complete this set.', 'Duration is required to complete this set.', 'const insertPayload: Record<string, unknown>']
+        .every((s) => w11AtClosureTip('src/app/api/workout-exercises/[id]/sets/route.ts').includes(s)) &&
+      setsRoute.includes("import { buildSetInsert, mapWorkoutSetRpcError } from '@/lib/workout-set-contract'") &&
+      setsRoute.includes('const contract = buildSetInsert(trackingMode, body)') &&
+      ['MODE_ALLOWED_FIELDS[trackingMode]', 'Reps are required to complete this set.', 'Duration is required to complete this set.']
+        .every((s) => (require('fs').readFileSync('src/lib/workout-set-contract.ts', 'utf8') as string).includes(s)) &&
       block.includes("weight_lbs: lastSet?.weight_kg ? displayWeight(lastSet.weight_kg) : null"))
     check('S5: set identity never client-controlled (typed params; no id/number params exist)',
       setsRoute.includes('p_workout_exercise_id: params.id') &&
@@ -382,10 +419,11 @@ async function main() {
       !applyRoute.includes('request.json'))
     check('A2: template = first non-warmup set; per-mode copy fields exact',
       applyRoute.includes('.find((s: any) => !s.is_warmup)') &&
-      applyRoute.includes("weight_reps: ['reps', 'weight_kg', 'rpe']") &&
-      applyRoute.includes("bodyweight:  ['reps', 'weight_kg', 'rpe']") &&
-      applyRoute.includes("cardio:      ['duration_seconds', 'distance_meters']") &&
-      applyRoute.includes("timed:       ['duration_seconds', 'rpe']"))
+      // RETARGET (W11 — UI_SURFACE): the four copy lists are anchored at the closeout tip; W10 moved them
+      // verbatim into the shared contract (MODE_COPY_FIELDS), which the route now imports.
+      ["weight_reps: ['reps', 'weight_kg', 'rpe']", "bodyweight:  ['reps', 'weight_kg', 'rpe']", "cardio:      ['duration_seconds', 'distance_meters']", "timed:       ['duration_seconds', 'rpe']"]
+        .every((s) => w11AtClosureTip('src/app/api/workout-exercises/[id]/apply-first-set/route.ts').includes(s) && (require('fs').readFileSync('src/lib/workout-set-contract.ts', 'utf8') as string).includes(s)) &&
+      applyRoute.includes("import { MODE_COPY_FIELDS } from '@/lib/workout-set-contract'"))
     check('A3: blank-only targets — later, non-warmup, incomplete, at least one blank field',
       applyRoute.includes('s.set_number > (template as any).set_number && !s.is_warmup && !s.completed') &&
       applyRoute.includes('copyFields.some((f) => s[f] === null)'))
@@ -421,8 +459,13 @@ async function main() {
       stripComments(block).split('handleApplyToRemaining()').length >= 2 &&
       block.indexOf('router.refresh()', block.indexOf('handleApplyToRemaining')) > 0)
     check('A9: eligibility from persisted props only; required fields per mode',
-      block.includes('applyTemplate.reps !== null && applyTemplate.weight_kg !== null') &&
-      block.includes('applyTemplate.duration_seconds !== null') &&
+      // RETARGET (W11 — UI_SURFACE): the inline required-fields ternary is anchored at the closeout tip; W10
+      // replaced it with applyTemplateReady over the contract's MODE_APPLY_REQUIRED_FIELDS (same legacy rules).
+      w11AtClosureTip('src/components/workout/WorkoutExerciseBlock.tsx').includes('applyTemplate.reps !== null && applyTemplate.weight_kg !== null') &&
+      w11AtClosureTip('src/components/workout/WorkoutExerciseBlock.tsx').includes('applyTemplate.duration_seconds !== null') &&
+      block.includes('const applyRequiredReady = applyTemplateReady(we.exercise.tracking_mode, applyTemplate)') &&
+      ["weight_reps: ['reps', 'weight_kg'],", "bodyweight:  ['reps'],", "cardio:      ['duration_seconds'],", "timed:       ['duration_seconds'],"]
+        .every((s) => (require('fs').readFileSync('src/lib/workout-set-contract.ts', 'utf8') as string).includes(s)) &&
       block.includes('const applyEnabled = !readOnly && applyRequiredReady && applyTargets.length > 0'))
     check('A10: no replace-existing mode in V1',
       !stripComments(block).toLowerCase().includes('replace existing') &&
@@ -457,7 +500,7 @@ async function main() {
       // workout-reuse migration (create_routine_from_workout +
       // repeat_workout). The boundary moves from exactly-21 to
       // exactly-22; no other migration may appear.
-      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 27 && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
+      (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ /* RETARGET (W11 — weight_time migration 028, 2026-09-10): 028_weight_time_tracking_mode.sql is the reviewed weight_time migration authored in W6 (PREPARED, NOT APPLIED; 37,162 bytes, sha256 9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3). The historical claim — exactly 001-027 with no 028 — is preserved against the promoted closeout tip 59e443ba (git ls-tree of that immutable commit object, inside w11Migration028Admitted), no longer read from the working tree; the current tree admits exactly one 028 with that filename and fingerprint; the boundary moves from exactly-27 to exactly-28; 023/024/025/026/027/028 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 28 && w11Migration028Admitted() && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('021')).length === 1 &&
       readdirSync('supabase/migrations').filter((f) => f.startsWith('022')).length === 1 &&
       // RETARGET (EXLIB-1B2): the approved-for-drafting EXLIB catalog

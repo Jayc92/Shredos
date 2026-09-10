@@ -16,6 +16,18 @@ import { join } from 'path'
 let passed = 0
 let failed = 0
 
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** A file's bytes as text at the closeout tip (the historical text a retargeted pin is evaluated against). */
+const w11AtClosureTip = (path: string): string =>
+  require('child_process').execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:"${path}"`, { encoding: 'utf8' }) as string
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) {
     passed++
@@ -128,8 +140,11 @@ console.log('\n3. Workout states')
     header.includes('bg-surface-sunken text-ink-muted'))
   check('read-only lock derived exactly as before',
     client.includes("const readOnly = session.status === 'completed'"))
+  // RETARGET (W11 — UI_SURFACE): the historical expression is anchored at the closeout tip; W10 passes the
+  // weight_time 2-D baseline as a THIRD argument — the completed-only gate is unchanged.
   check('completion summary computed only for completed',
-    client.includes("session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null"))
+    w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes("session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null") &&
+    client.includes("session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}) : null"))
   check('add-exercise hidden when read-only',
     client.includes('{!readOnly && <AddExerciseSection'))
   check('complete endpoint unchanged',
@@ -473,8 +488,13 @@ console.log('\n16. SetRow field inventory')
     setRow.includes('useState(set.weight_kg !== null)'))
   check('warm-up toggle PATCH unchanged',
     setRow.includes('await patch({ is_warmup: next })'))
+  // RETARGET (W11 — UI_SURFACE): the historical literal is anchored at the closeout tip; W10 derives the
+  // toggle from the shared contract set WARMUP_FORBIDDEN_MODES = {cardio, timed} — the same answer for the
+  // legacy modes (shown for weight_reps/bodyweight, hidden for cardio/timed) plus weight_time (Decision 5).
   check('warm-up toggle shown only for weight modes',
-    setRow.includes("const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'"))
+    w11AtClosureTip('src/components/workout/SetRow.tsx').includes("const showWarmupToggle = trackingMode === 'weight_reps' || trackingMode === 'bodyweight'") &&
+    setRow.includes('const showWarmupToggle = !WARMUP_FORBIDDEN_MODES.has(trackingMode)') &&
+    (require('fs').readFileSync('src/lib/workout-set-contract.ts', 'utf8') as string).includes("export const WARMUP_FORBIDDEN_MODES: ReadonlySet<TrackingMode> = new Set<TrackingMode>(['cardio', 'timed'])"))
   check('per-side suffix unchanged',
     setRow.includes("const weightSuffix = isUnilateral ? 'per side' : 'lbs'"))
   check('cardio distance conversion + clear semantics unchanged',
