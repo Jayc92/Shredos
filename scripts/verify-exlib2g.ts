@@ -25,6 +25,28 @@ import { existsSync, readFileSync, readdirSync } from 'fs'
 
 let passed = 0
 let failed = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/**
+ * RETARGET (W11 — weight_time implementation boundary): "zero weight_time in
+ * src/" holds at the closeout tip (git grep of the immutable commit object);
+ * the current tree carries the REVIEWED weight_time implementation (plan
+ * docs/weight-time-coordinated-implementation-plan.md, W4–W10.5), whose live
+ * boundary is owned by scripts/verify-tracking-mode-census.ts and its
+ * conservation ledger — admitted by their presence together with the record
+ * module and migration 028, never by loosening the historical assertion.
+ */
+const w11WeightTimeBoundaryHolds = (): boolean =>
+  (require('child_process').execSync(`git grep -l weight_time ${W11_PRE_WEIGHT_TIME_TIP} -- src/ || true`, { encoding: 'utf8' }) as string).trim() === ''
+  && ['scripts/verify-tracking-mode-census.ts', 'scripts/tracking-mode-census-ledger.json', 'src/lib/weight-time-records.ts', `supabase/migrations/${W11_M028}`]
+    .every((p) => require('fs').existsSync(p))
+
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) { passed += 1; console.log(`  PASS  ${name}`) }
   else { failed += 1; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -259,7 +281,8 @@ async function main(): Promise<void> {
         if (led.length !== 48 || !led.every((r: any) => r.status === 'pending' && r.reviewer === null)) return false
         const cands = parseJsonl('docs/exlib1c0a-equipment-resolution.jsonl').flatMap((r: any) => r.canonical_candidates)
         if (cands.length !== 26 || !cands.every((c: any) => c.import_eligible === false)) return false
-        if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
+        // RETARGET (W11 — weight_time implementation boundary): see w11WeightTimeBoundaryHolds.
+        if (!w11WeightTimeBoundaryHolds()) return false
         if (existsSync('scripts/exlib1c-import.ts') || existsSync('src/lib/catalog-import.ts')) return false
         return !readdirSync('docs').some((f) => /\.(dump|backup|sql\.gz)$/.test(f))
       })())

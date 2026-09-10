@@ -17,6 +17,35 @@ import { createHash } from 'crypto'
 
 let passed = 0
 let failed = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) { passed++; console.log(`  PASS  ${name}`) }
   else { failed++; console.error(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -97,7 +126,9 @@ async function main() {
         // 027 candidate joins the boundary (PREPARED, NOT APPLIED;
         // executable SQL byte-identical to the promoted EXLIB-2L
         // proposal); exactly-26 becomes exactly-27 with 027 pinned.
-        return files.length === 27 &&
+        // RETARGET (W11 — weight_time migration 028): exactly-27 (proven at the closeout tip by
+        // w11Migration028Admitted) becomes exactly-28 with 028 pinned by filename and fingerprint.
+        return files.length === 28 && w11Migration028Admitted() &&
           files.includes('026_exlib_plank_seed_reconciliation.sql') &&
           files.includes('027_exlib_catalog_content_schema.sql') &&
           files.filter((f) => f.startsWith('025')).length === 1 &&
@@ -187,8 +218,14 @@ async function main() {
         '023_exlib_catalog_and_delivery_contract.sql',
         '025_exlib_equipment_vocabulary_support.sql',
         '026_exlib_plank_seed_reconciliation.sql',
-        '027_exlib_catalog_content_schema.sql']) &&
-      migFiles.filter((f) => !f.startsWith('025') && !f.startsWith('026') && !f.startsWith('027')).every((f) => audit.includes(f)) &&
+        '027_exlib_catalog_content_schema.sql',
+        // RETARGET (W11 — weight_time migration 028): the reviewed 028 is an EIGHTH vocabulary-bearing
+        // migration (it widens both tracking_mode CHECKs and redefines deliver_catalog_exercises; PREPARED,
+        // NOT APPLIED; pinned by w11Migration028Admitted); the byte-frozen audit still names the four that
+        // existed at audit time, and the audit's completeness claim is evaluated over exactly those four.
+        '028_weight_time_tracking_mode.sql']) &&
+      w11Migration028Admitted() &&
+      migFiles.filter((f) => !f.startsWith('025') && !f.startsWith('026') && !f.startsWith('027') && !f.startsWith('028')).every((f) => audit.includes(f)) &&
       auditFlat.includes('Migration 024 touches none of the three columns'))
     check('C2: the schema matrix enumerates S1-S15 including both CHECK pairs, the freeze trigger, delivery, rollback, append RPC, grants, and set storage',
       ['| S1 |', '| S2 |', '| S3 |', '| S4 |', '| S5 |', '| S6 |', '| S7 |',
@@ -226,7 +263,18 @@ async function main() {
       ...grepFiles('src', /tracking_mode|trackingMode/),
       ...grepFiles('src', /exercise_type|exerciseType/),
     ])).sort()
-    const missing = srcConsumers.filter((p) => !audit.includes(p))
+    // RETARGET (W11 — audit completeness over the historical universe): the audit's completeness claim is
+    // preserved over the consumers that existed at the closeout tip (every consumer found by the same
+    // mechanical search of the immutable commit object is named in the audit); consumers that post-date the
+    // closeout — weight_time's record module, the shared set contract, and workout-coach.ts's W9 mode gate —
+    // are admitted by exact path, each proven NOT to have been a consumer at the tip. Count-neutral.
+    const w11ConsumersAtClosureTip = (require('child_process').execSync(
+      `git grep -lE 'equipment|tracking_mode|trackingMode|exercise_type|exerciseType' ${W11_PRE_WEIGHT_TIME_TIP} -- 'src/*.ts' 'src/*.tsx' 'src/*.sql' || true`,
+      { encoding: 'utf8' }) as string).split('\n').filter(Boolean).map((l: string) => l.replace(`${W11_PRE_WEIGHT_TIME_TIP}:`, ''))
+    const W11_POST_CLOSEOUT_CONSUMERS = ['src/lib/weight-time-records.ts', 'src/lib/workout-set-contract.ts', 'src/lib/workout-coach.ts']
+    const w11AdmittedPostClosure = (p: string): boolean => W11_POST_CLOSEOUT_CONSUMERS.includes(p) && !w11ConsumersAtClosureTip.includes(p)
+    const w11HistoricalUniverseNamed = w11ConsumersAtClosureTip.length >= 20 && w11ConsumersAtClosureTip.every((p) => audit.includes(p))
+    const missing = srcConsumers.filter((p) => !audit.includes(p) && !w11AdmittedPostClosure(p)).concat(w11HistoricalUniverseNamed ? [] : ['<historical universe at the closeout tip not fully named>'])
     check(`D1: EVERY src consumer found by fresh mechanical search (${srcConsumers.length} files) appears verbatim in the audit — none missing`,
       srcConsumers.length >= 20 && missing.length === 0,
       missing.length ? `missing: ${missing.join(', ')}` : undefined)

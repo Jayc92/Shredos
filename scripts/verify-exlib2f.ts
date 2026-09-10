@@ -26,6 +26,45 @@ import { existsSync, readFileSync, readdirSync } from 'fs'
 
 let passed = 0
 let failed = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+// RETARGET (W11 — HISTORICAL_PRODUCT_BOUNDARY): EXLIB-2F's own apply-prep tip and the weight_time
+// product boundary (W4), both immutable commit objects.
+const W11_EXLIB2F_APPLY_PREP_TIP = 'bc8a5e20343aa1f83832627f78891632ee61f897'
+const W11_WEIGHT_TIME_PRODUCT_BOUNDARY = '50e7451c9c2ed67053f1aac583187690350ce0f4'
+const w11NoWeightTimeAt = (tip: string): boolean =>
+  (require('child_process').execSync(`git grep -l weight_time ${tip} -- src/ || true`, { encoding: 'utf8' }) as string).trim() === ''
+const w11WeightTimeProductBoundaryAdmitted = (): boolean => {
+  try { require('child_process').execSync(`git merge-base --is-ancestor ${W11_WEIGHT_TIME_PRODUCT_BOUNDARY} HEAD`, { stdio: 'pipe' }) } catch { return false }
+  return !w11NoWeightTimeAt(W11_WEIGHT_TIME_PRODUCT_BOUNDARY) && w11NoWeightTimeAt(`${W11_WEIGHT_TIME_PRODUCT_BOUNDARY}^`)
+}
+
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) { passed += 1; console.log(`  PASS  ${name}`) }
   else { failed += 1; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
@@ -130,14 +169,16 @@ async function main(): Promise<void> {
     check('A2: live migration boundary — exactly ONE numbered migration 026 with the exact candidate filename. RETARGET (EXLIB-2M migration-027 apply-prep): the contiguous sequence now extends to 001-027, where 027 is the reviewed EXLIB-2M apply-prep candidate (PREPARED, NOT APPLIED); exactly one 027, no gap, no duplicate, no 028+',
       (() => {
         const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
-        if (files.length !== 27) return false
+        // RETARGET (W11 — weight_time migration 028): exactly-27 (proven at the closeout tip by
+        // w11Migration028Admitted) becomes exactly-28 with 028 pinned by filename and fingerprint.
+        if (files.length !== 28 || !w11Migration028Admitted()) return false
         if (files.filter((f) => f.startsWith('026')).length !== 1) return false
         if (!files.includes('026_exlib_plank_seed_reconciliation.sql')) return false
         if (files.filter((f) => f.startsWith('027')).length !== 1) return false
         if (!files.includes('027_exlib_catalog_content_schema.sql')) return false
-        if (files.some((f) => f.startsWith('028'))) return false
+        if (files.filter((f) => f.startsWith('028')).length !== 1 || files[27] !== W11_M028) return false
         const prefixes = files.map((f) => parseInt((f.match(/^(\d{3})_/) ?? [])[1], 10))
-        return JSON.stringify(prefixes) === JSON.stringify(Array.from({ length: 27 }, (_, i) => i + 1))
+        return JSON.stringify(prefixes) === JSON.stringify(Array.from({ length: 28 }, (_, i) => i + 1))
       })())
     check('A3: the reviewed docs proposal is retained byte-identical to its promoted EXLIB-2E fingerprint (32,500 B) — not moved, not deleted, not edited',
       existsSync(PROPOSAL) && readFileSync(PROPOSAL).length === 32500 && sha256(PROPOSAL) === PROPOSAL_SHA)
@@ -247,7 +288,14 @@ async function main(): Promise<void> {
         if (recs.length !== 126 || !recs.every((r) =>
           r.content_review.status === 'pending' && r.content_review.reviewer === null &&
           r.import_eligible === false && !Object.keys(r).some((k) => k.includes('publication')))) return false
-        if (execSync("grep -rl 'weight_time' src/ || true", { encoding: 'utf8' }).trim() !== '') return false
+        // RETARGET (W11 — HISTORICAL_PRODUCT_BOUNDARY, operator ruling at the W7.5 checkpoint): "no product
+        // change" remains TRUE of EXLIB-2F's own phase — evaluated at the phase's apply-prep tip bc8a5e20 (an
+        // immutable commit object) where src/ carried zero weight_time. The reviewed weight_time implementation
+        // is a LATER product boundary authorised by the approved plan and is admitted separately, by exact commit
+        // id: W4 50e7451c, an ancestor of HEAD and the first commit with weight_time under src/. The EXLIB-2F
+        // record itself is not rewritten.
+        if (!w11NoWeightTimeAt(W11_EXLIB2F_APPLY_PREP_TIP)) return false
+        if (!w11WeightTimeProductBoundaryAdmitted()) return false
         return !existsSync('scripts/exlib1c-import.ts') && !existsSync('src/lib/catalog-import.ts')
       })())
     check('C2: REVISED (RETARGET (EXLIB-2F application record)) — the apply-prep PHASE\'s prepared-not-applied posture is anchored to its own tip: the byte-frozen candidate header and apply-prep record carry the NOT-APPLIED-at-prep-time statements, and the apply-prep tip\'s tree provably contains no application record; the live applied-state posture is owned by scripts/verify-exlib2f-application.ts since the authorized hosted application (20260901032229)',

@@ -18,6 +18,48 @@ import { existsSync, readFileSync, readdirSync } from 'fs'
 
 let passed = 0
 let failed = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+/**
+ * RETARGET (W11 — weight_time implementation boundary): "zero weight_time in
+ * src/" holds at the closeout tip (git grep of the immutable commit object);
+ * the current tree carries the REVIEWED weight_time implementation (plan
+ * docs/weight-time-coordinated-implementation-plan.md, W4–W10.5), whose live
+ * boundary is owned by scripts/verify-tracking-mode-census.ts and its
+ * conservation ledger — admitted by their presence together with the record
+ * module and migration 028, never by loosening the historical assertion.
+ */
+const w11WeightTimeBoundaryHolds = (): boolean =>
+  (require('child_process').execSync(`git grep -l weight_time ${W11_PRE_WEIGHT_TIME_TIP} -- src/ || true`, { encoding: 'utf8' }) as string).trim() === ''
+  && ['scripts/verify-tracking-mode-census.ts', 'scripts/tracking-mode-census-ledger.json', 'src/lib/weight-time-records.ts', `supabase/migrations/${W11_M028}`]
+    .every((p) => require('fs').existsSync(p))
+
 const check = (name: string, ok: boolean): void => {
   if (ok) { passed += 1; console.log(`  PASS  ${name}`) }
   else { failed += 1; console.log(`  FAIL  ${name}`) }
@@ -150,15 +192,20 @@ async function main(): Promise<void> {
         // RETARGET (EXLIB-2M migration-027 apply-prep): the reviewed 027
         // candidate extends the exact numeric sequence to 001-027
         // (PREPARED, NOT APPLIED); no gap, no duplicate, no 028+.
-        const expected = Array.from({ length: 27 }, (_, i) => i + 1)
-        return files.length === 27 &&
+        // RETARGET (W11 — weight_time migration 028): the exact numeric sequence extends to
+        // 001-028 (028 = the reviewed weight_time migration, PREPARED, NOT APPLIED); no gap, no
+        // duplicate, no 029+; the 001-027 claim is proven at the closeout tip by w11Migration028Admitted.
+        const expected = Array.from({ length: 28 }, (_, i) => i + 1)
+        return files.length === 28 && w11Migration028Admitted() &&
           !prefixes.some((n) => Number.isNaN(n)) &&
           JSON.stringify(prefixes) === JSON.stringify(expected) &&
           files.filter((f) => f.startsWith('026')).length === 1 &&
           files[25] === '026_exlib_plank_seed_reconciliation.sql' &&
           files.filter((f) => f.startsWith('027')).length === 1 &&
           files[26] === '027_exlib_catalog_content_schema.sql' &&
-          files.filter((f) => f.startsWith('028')).length === 0 &&
+          files.filter((f) => f.startsWith('028')).length === 1 &&
+          files[27] === W11_M028 &&
+          files.filter((f) => f.startsWith('029')).length === 0 &&
           files[24] === '025_exlib_equipment_vocabulary_support.sql' &&
           sha256(M025_FILE) === M025_SHA
       })())
@@ -171,8 +218,10 @@ async function main(): Promise<void> {
           })
         try {
           const files = walk('src')
-          return files.length > 0 &&
-            files.every((f) => !readFileSync(f, 'utf8').includes('weight_time'))
+          // RETARGET (W11 — weight_time implementation boundary): the recursive read still runs (fail-closed
+          // on filesystem error); the "absent from every file" claim is evaluated at the closeout tip and the
+          // reviewed implementation is admitted — see w11WeightTimeBoundaryHolds.
+          return files.length > 0 && w11WeightTimeBoundaryHolds()
         } catch {
           return false
         }
