@@ -1246,7 +1246,18 @@ server would see, reject any non-loopback host, and only then launch
 a browser. Fail closed before browser launch otherwise.
 
 **7. `npm run lint` and `npm run type-check` must both exit 0.** Read
-`$?`; do not grep output to establish a verdict.
+`$?`; do not grep output to establish a verdict. **"Lint 0" means zero
+ERRORS, not zero warnings** (corrected 2026-09-10, W12-A): the repo
+carries an accepted ratchet of **125** `@typescript-eslint/no-explicit-any`
+warnings — a backlog that predates this milestone (139 at the
+lint-baseline commit `0e10d7b`, 125 at the pre-W8 tip `bf3bc020`) and
+that the rule is deliberately set to `warn` to keep visible. The gate is
+therefore: exit 0, **0 errors**, `no-explicit-any` still `warn`, warning
+count **≤ 125**, and **no warning rule ID other than
+`@typescript-eslint/no-explicit-any`**. Reducing real warnings is
+allowed; making them disappear by editing the config, the plugin
+registration, the rule severity, the lint scope or an ignore file is
+**not** — that is a STOP, not a pass.
 
 ## 13. Rollout sequence
 
@@ -1269,8 +1280,8 @@ the W-steps of §16.
 | W10 | UI, including the selectable mode label | local UI verification behind the loopback guard |
 | W10.5 | Stabilisation: the seven design calls as ruled (no scalar direction for a trade-off, `representativeHold`, duration-only guidance, Recent-PR merge with its preservation proof), lint discrepancy explained | local runtime proof + machine-readable lint audit |
 | W11 | Historical verifier retargets per the GENERATED ledger `docs/weight-time-w11-failure-ledger.json` (its own totals are the scope — never restated here) — labelled, historical claims preserved against their tips, **count-neutral** | full suite green |
-| W12 | Review / integration: full suite green; lint 0; type-check 0 | operator |
-| W13 | Hosted application — **Joseph/ChatGPT only**, ShredOS only, under its own explicit instruction | operator |
+| W12 | **Local review / release-package preparation ONLY — NO PUSH.** Full suite green (113 TS + 15 live shell); lint exit 0 with 0 errors and ≤ 125 `no-explicit-any` warnings and no other rule ID; type-check 0; 028 line-by-line release review; application diff + end-to-end trace review; local sanitized production build; local UI QA (or a recorded blocker); frozen candidate + verified review bundle for independent review | local only |
+| W13 | **Coordinated DB-first / app-second hosted release — Joseph/ChatGPT only**, ShredOS (`ttybyljytiwntvorugcv`) only, under its own explicit one-use instruction, in this exact order: (1) apply the exact reviewed migration 028; (2) verify hosted DB state; (3) promote/push the exact independently-reviewed application tip; (4) allow the Git-linked Production deployment; (5) observe READY and perform bounded hosted QA | operator |
 | W14 | Catalog admission of the **five** entries — separate authorization | operator |
 
 **W11 SCOPE (errata, 2026-09-10, W7.5-C).** The eleven suites below
@@ -1457,6 +1468,54 @@ Also note `verify-exlib2c-batch01.ts:95` uses
 Any retarget should take the opportunity to make the path explicit,
 per the standing form rule.
 
+### 13.1 W12 gate and the W13 release order (sequencing correction, 2026-09-10)
+
+**W12 IS LOCAL REVIEW / RELEASE-PACKAGE PREPARATION ONLY. W12 DOES NOT
+PUSH.** The reason is a real ordering hazard created by W10: the mode is
+now user-selectable ("Weight + Time" in `constants.ts`), while hosted
+ShredOS does not yet have migration 028. Pushing `main` before the
+migration is applied would let the Git-linked Production deployment ship
+a UI/API boundary **ahead of its database contract** — a user could
+select a mode the database still rejects. The W4→W6 closed-window
+argument (§16) protected exactly this invariant locally; W12/W13 must
+protect it hosted.
+
+**The W12 gate, exactly:**
+
+- `npm run lint` **exits 0**;
+- lint reports **zero errors**;
+- `@typescript-eslint/no-explicit-any` remains **`warn`** (verified from
+  `eslint --print-config`, not assumed);
+- the warning count **may not exceed the accepted ratchet of 125**;
+- **no additional warning rule ID is accepted** — 125 warnings, all of
+  them that one rule;
+- reducing legitimate existing warnings is allowed; **hiding** them via
+  config, plugin registration, severity, lint scope or an ignore file is
+  a STOP, not a pass;
+- `npm run type-check` exits 0;
+- all 113 tracked `scripts/verify-*.ts` suites and all 15 tracked
+  `scripts/verify-*-live.sh` suites are green, live suites on
+  **local/disposable Postgres only**;
+- **W12 does not push, does not apply 028, and makes no hosted contact.**
+
+At the frozen implementation boundary the expected lint result is
+**125 warnings / 0 errors / all 125
+`@typescript-eslint/no-explicit-any`**. Unrelated `any` cleanup merely to
+lower that number is **out of scope for W12**.
+
+**W13 is a coordinated DB-first / app-second hosted release** —
+Joseph/ChatGPT only, ShredOS only, under its own explicit one-use
+instruction, in this order:
+
+1. apply the exact reviewed migration 028;
+2. verify hosted DB state;
+3. promote/push the exact independently-reviewed application tip;
+4. allow the Git-linked Production deployment;
+5. observe READY and perform bounded hosted QA.
+
+**W14** remains the separate five-entry catalog admission (§1.1). Neither
+W13 nor W14 is authorized by the W12 instruction.
+
 ## 14. Failure and rollback considerations
 
 **Before first adoption** — the migration is reversible: drop the
@@ -1603,8 +1662,8 @@ of them into a larger step would make its proof unreadable.
 | **W10** | **DONE 2026-09-10 (`97442e22`) — UI**: `constants.ts` label **"Weight + Time"** (the step that makes the mode user-reachable), `WeightTimeSetInputs` (Added weight / Duration — minutes / Duration — seconds / RPE; never reps or distance; a stored 0 renders "0"), warm-up toggle from the shared `WARMUP_FORBIDDEN_MODES`, completion refused locally with the contract's own message (`role="alert"`), "Weight-time PR" badges from the 2-D model, Add-set copies 0 as 0, shared Apply contract (`MODE_COPY_FIELDS` / `MODE_APPLY_REQUIRED_FIELDS`, route AND client), exhaustive `COLUMN_HEADERS`, `WeightTimeSections` (longest hold + its weight, heaviest hold + its duration, the frontier as a compact list sorted by added weight with no rank, "Weight-time PR" history; **no trend chart** — no scalar to plot), Weight-time PR events in /progress Recent PRs. Mode-change rejection copy was already surfaced by W7 (409 → `TRACKING_MODE_HISTORY_409_COPY`) | additive | `scripts/verify-weight-time-w10-ui.ts` 53/0 (react-dom/server renders of the two pure components over fixtures + source checks); census **0 pending, 58 = 8 + 17 + 33 + 0** (exit condition met). Browser verification was NOT performed: the app needs an authenticated hosted session and hosted contact is forbidden to Claude |
 | **W10.5** | **DONE 2026-09-10 (`69aa1a8`, `e5f8735`, `a247013`, `92cfec6`, `72c81ac`) — stabilisation under the W8–W10 checkpoint disposition (§13):** the seven design calls resolved as ruled — `representativeHold` is a display selection and no weight_time path names a "best"; an incomparable pair returns the **dimensional** change (`heavier_shorter` / `lighter_longer`), never a scalar direction, with the non-ranking `mixed` status where a typed surface needs a category and `trackingAwareProgressSignal` / `signalFor` **throwing** for the mode; guidance emits the duration sentence only (the next-weight sentence has no truthful trigger yet); Recent PRs merged in `src/lib/recent-pr-tiles.ts` with a zero-weight_time preservation proof against the pre-W8 page text. Lint investigated: **outcome C** — the "0 warnings" claim in the W10 report was a counting error, the 125 `no-explicit-any` warnings are unchanged and the rule is still `warn` | no (corrections to W8–W10 only) | `scripts/verify-weight-time-w10-5-stabilization.ts` 38/0 (incl. a 400-pair grid proving no incomparable pair maps to a scalar, and the zero-weight_time Recent-PR identity); census 0 pending; machine-readable ESLint audit |
 | **W11** | **DONE 2026-09-10 (`76bfffc`, `a2bf3f5`, `7323022`) — retargeted every check in the generated ledger** `docs/weight-time-w11-failure-ledger.json` (the W10.5 ledger: 59 suites / 77 checks — 45 migration-inventory, 15 weight_time-boundary incl. the eleven, 12 UI-surface, 2 route-text, 2 audit-completeness, 1 historical product boundary, 0 requires review — §13) with labelled corrections: every historical claim evaluated against an immutable commit object at its own tip, the reviewed 028 / weight_time state admitted separately by exact identity, no blanket regex, **count-neutral** | no | every ledger check green, every suite at its exact prior check count, ledger regenerated **empty** (0 red / 0 unattributed / 0 crashed, 113 green) |
-| **W12** | Review / integration: full suite green, lint 0, type-check 0 → commit → push (each under its own one-use instruction) | — | operator |
-| **W13** | **Hosted application — Joseph/ChatGPT only**, ShredOS only, separate authorization | — | operator |
+| **W12** | **Local review / release-package preparation ONLY. W12 DOES NOT PUSH** (sequencing correction, 2026-09-10 — see §13): W10 made "Weight + Time" user-selectable, so pushing `main` before 028 is applied would deploy a UI/API boundary ahead of its database contract. Scope: plan gate corrections; the full local review matrix; all 15 live shell verifiers on disposable Postgres; 028's line-by-line release review; the whole `origin/main..HEAD` application diff with end-to-end weight_time traces; a sanitized local production build; local UI QA or a recorded blocker; a frozen candidate and a verified `git bundle` review package | no | local only — every gate read from `$?` |
+| **W13** | **Coordinated DB-first / app-second hosted release — Joseph/ChatGPT only**, ShredOS only, separate one-use authorization, in order: apply exact reviewed 028 → verify hosted DB state → promote/push the exact independently-reviewed application tip → allow the Git-linked Production deployment → observe READY → bounded hosted QA | — | operator |
 | **W14** | **Catalog admission of the five entries** (§1.1) — separate authorization | — | operator |
 
 **Two dependency notes where this plan interprets the review's
