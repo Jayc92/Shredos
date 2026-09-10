@@ -14,7 +14,7 @@
 //      the measurement is always of a CLEAN committed tree, whatever the
 //      main working tree holds) and collects its FAIL lines.
 //   2. For each red suite, runs it in disposable worktrees at the W-step
-//      commits PRE_W4 (795fe1ff) -> W4 -> W5 -> W6 -> W7 -> W8 -> W9 -> W10.
+//      commits PRE_W4 (795fe1ff) -> W4 -> W5 -> W6 -> W7 -> W8 -> W9 -> W10 -> W10.5.
 //      A check already red at PRE_W4 is PRE-EXISTING and is excluded from
 //      the weight_time ledger (listed separately). Otherwise the first
 //      commit at which the check's key fails is recorded.
@@ -57,6 +57,8 @@ const STEPS: Array<{ label: string; sha: string }> = [
   { label: 'W8', sha: 'dc8f10b7ade3ee63c286f4e7ab7d2880cfd4f840' },
   { label: 'W9', sha: '69b7c7c9f918d663dc880d618498d17657931729' },
   { label: 'W10', sha: '97442e22f47b5802c1a9dbd37079bc8ff567ebe5' },
+  // W10.5-A (the W8-W10 checkpoint disposition's seven design-call corrections).
+  { label: 'W10.5', sha: '69aa1a8ef8f6ab11d2ac9d16c2a3ef58d1054312' },
 ]
 
 type Category = 'MIGRATION_INVENTORY_RETARGET' | 'WEIGHT_TIME_BOUNDARY_RETARGET' | 'ROUTE_TEXT_RETARGET' | 'AUDIT_COMPLETENESS_RETARGET' | 'HISTORICAL_PRODUCT_BOUNDARY_RETARGET' | 'UI_SURFACE_RETARGET' | 'OTHER_REQUIRES_REVIEW'
@@ -185,7 +187,7 @@ function main(): number {
         if (matches.includes('ROUTE_TEXT_RETARGET') && first.label === 'W7') category = 'ROUTE_TEXT_RETARGET'
         else if (matches.includes('AUDIT_COMPLETENESS_RETARGET')) category = 'AUDIT_COMPLETENESS_RETARGET'
         else if (matches.includes('HISTORICAL_PRODUCT_BOUNDARY_RETARGET') && first.label === 'W4') category = 'HISTORICAL_PRODUCT_BOUNDARY_RETARGET'
-        else if (matches.includes('UI_SURFACE_RETARGET') && first.label === 'W10') category = 'UI_SURFACE_RETARGET'
+        else if (matches.includes('UI_SURFACE_RETARGET') && (first.label === 'W10' || first.label === 'W10.5')) category = 'UI_SURFACE_RETARGET'
         else if (matches.includes('WEIGHT_TIME_BOUNDARY_RETARGET') && first.label === 'W4') category = 'WEIGHT_TIME_BOUNDARY_RETARGET'
         else if (matches.includes('MIGRATION_INVENTORY_RETARGET') && first.label === 'W6') category = 'MIGRATION_INVENTORY_RETARGET'
         else if (matches.length === 1) category = matches[0]
@@ -199,7 +201,7 @@ function main(): number {
   const byCategory = (category: Category) => entries.filter((entry) => entry.category === category)
   const ledger = {
     generatedAtCommit: headSha,
-    generatedFrom: 'a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10 worktrees',
+    generatedFrom: 'a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7/W8/W9/W10/W10.5 worktrees',
     steps: STEPS,
     totals: {
       suitesRedAtHead: redAtHead.length,
