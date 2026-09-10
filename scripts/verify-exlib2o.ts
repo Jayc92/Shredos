@@ -101,6 +101,54 @@ const blobAt = (ref: string, p: string): Buffer =>
 
 let pass = 0
 let fail = 0
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+
+/**
+ * Line-exact W11 retarget diff (multiset of lines): every line added to the live file must be a line of
+ * this file's own W11 helper block (identical text in every retargeted suite) or one of the explicitly
+ * named retarget lines; the removed lines must be exactly the superseded ones. Order-insensitive by design —
+ * the helper block is inserted before the check helper, the retarget lines replace the superseded return.
+ */
+const w11LineExactRetarget = (historical: string, live: string, supersededLines: string[], retargetLines: string[]): boolean => {
+  const own = require('fs').readFileSync(__filename, 'utf8') as string
+  const blockStart = own.indexOf('// ── W11 (weight_time milestone')
+  const blockEnd = own.indexOf('\nconst check', blockStart)
+  const allowed = new Set<string>(own.slice(blockStart, blockEnd).split('\n').concat(retargetLines).concat(['']))
+  const count = (lines: string[]): Map<string, number> => { const m = new Map<string, number>(); for (const l of lines) m.set(l, (m.get(l) ?? 0) + 1); return m }
+  const h = count(historical.split('\n')), l = count(live.split('\n'))
+  const removed: string[] = [], added: string[] = []
+  h.forEach((n, line) => { for (let i = 0; i < n - (l.get(line) ?? 0); i += 1) removed.push(line) })
+  l.forEach((n, line) => { for (let i = 0; i < n - (h.get(line) ?? 0); i += 1) added.push(line) })
+  return JSON.stringify(removed.sort()) === JSON.stringify([...supersededLines].sort()) && added.every((line) => allowed.has(line))
+}
+
 const check = (name: string, ok: boolean): void => {
   if (ok) { pass += 1; console.log(`  PASS  ${name}`) }
   else { fail += 1; console.log(`  FAIL  ${name}`) }
@@ -530,8 +578,17 @@ check('E1: the R6 admission verifier carries the exact EXLIB-2O retarget label w
     const v = bytesOf(R6_VERIFIER).toString('utf8')
     if (!v.includes('RETARGET (EXLIB-2O target-snapshot load prep)')) return false
     if (!v.includes(`const TIP_R6 = '${SRC}'`)) return false
-    return bytesOf('scripts/verify-exlib2n-application.ts')
-      .equals(blobAt(SRC, 'scripts/verify-exlib2n-application.ts'))
+    // RETARGET (W11 — weight_time migration 028): the application verifier's bytes are anchored at the
+    // closeout tip (identical to the promoted source there); the ONLY admitted live difference is W11's
+    // line-exact retarget of its A2 migration boundary — this file's own W11 helper block (identical text)
+    // plus the labelled return line — proven by a line diff: every added line belongs to that block, and
+    // the only removed line is the superseded "exactly 27 with no 028" return.
+    const historical = blobAt(W11_PRE_WEIGHT_TIME_TIP, 'scripts/verify-exlib2n-application.ts')
+    if (!historical.equals(blobAt(SRC, 'scripts/verify-exlib2n-application.ts'))) return false
+    return w11LineExactRetarget(historical.toString('utf8'), bytesOf('scripts/verify-exlib2n-application.ts').toString('utf8'),
+      ["    return migs.length === 27 && !migs.some((f) => f.includes('/028'))"],
+      ['    // RETARGET (W11 — weight_time migration 028): see w11Migration028Admitted.',
+        "    return migs.length === 28 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && w11Migration028Admitted()"])
   })())
 check('E2: upstream authorities untouched — the admitted Plank artifact, both batch files, both forms, the schema, the inventory, and the ledger are byte-identical to the promoted source tip',
   (() => {
@@ -546,7 +603,13 @@ check('E3: migrations remain exactly 001-027 with no 028 — the package lives u
   (() => {
     const migs = execSync(`git ls-tree ${committed ? 'HEAD' : SRC} supabase/migrations/ --name-only`, { encoding: 'utf8' })
       .split('\n').filter((f) => /\/0\d\d_.+\.sql$/.test(f))
-    return migs.length === 27 && !migs.some((f) => f.includes('/028'))
+    // RETARGET (W11 — weight_time migration 028): in the committed state HEAD carries exactly 001-028 with the
+    // reviewed 028 pinned (w11Migration028Admitted also proves the closeout-tip inventory was exactly 001-027);
+    // in the uncommitted-review state the historical SRC tree is inspected, where the inventory was exactly
+    // 001-027 with no 028 — the original claim, unchanged.
+    return committed
+      ? migs.length === 28 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && w11Migration028Admitted()
+      : migs.length === 27 && !migs.some((f) => f.includes('/028'))
   })())
 // RETARGET (EXLIB-2O hosted-execution evidence): G1/G2/G4 walk the
 // promoted EXLIB-2O tip instead of HEAD, so they hold in every later

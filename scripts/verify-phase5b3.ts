@@ -35,6 +35,35 @@ import type { AdaptiveMaintenanceEstimate } from '../src/lib/energy-model'
 let passed = 0
 let failed = 0
 
+// ── W11 (weight_time milestone, 2026-09-10): historical anchors ──────────
+// The promoted closeout tip — the last commit before the weight_time
+// milestone (origin/main 59e443ba). Historical claims below are evaluated
+// against this immutable commit object, never against the working tree.
+const W11_PRE_WEIGHT_TIME_TIP = '59e443ba3d75e4b2073d709c07d8b3142201c6bd'
+const W11_M028 = '028_weight_time_tracking_mode.sql'
+const W11_M028_SHA = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
+const W11_M028_BYTES = 37162
+/** The migration inventory as it stood at the closeout tip (exactly 001-027, no 028). */
+const w11MigrationsAtClosureTip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W11_PRE_WEIGHT_TIME_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W11 — weight_time migration 028): the historical inventory claim
+ * (exactly 001-027 with no 028) holds at the closeout tip, AND the current
+ * tree admits exactly one 028 — the reviewed weight_time migration authored
+ * in W6 (PREPARED, NOT APPLIED) — pinned by filename, byte length and sha256.
+ * The boundary moves from exactly-27 to exactly-28; nothing else may appear.
+ * History is not rewritten: 028 did not exist at the tip and this says so.
+ */
+const w11Migration028Admitted = (): boolean => {
+  const tip = w11MigrationsAtClosureTip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
+  return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
+    && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
+    && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+
 function check(name: string, condition: boolean, detail?: string) {
   if (condition) {
     passed++
@@ -125,7 +154,7 @@ console.log('\n1. Checkpoint and boundary')
     // workout-reuse migration (create_routine_from_workout +
     // repeat_workout). The boundary moves from exactly-21 to
     // exactly-22; no other migration may appear.
-    (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 27 && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
+    (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ /* RETARGET (W11 — weight_time migration 028, 2026-09-10): 028_weight_time_tracking_mode.sql is the reviewed weight_time migration authored in W6 (PREPARED, NOT APPLIED; 37,162 bytes, sha256 9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3). The historical claim — exactly 001-027 with no 028 — is preserved against the promoted closeout tip 59e443ba (git ls-tree of that immutable commit object, inside w11Migration028Admitted), no longer read from the working tree; the current tree admits exactly one 028 with that filename and fingerprint; the boundary moves from exactly-27 to exactly-28; 023/024/025/026/027/028 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 28 && w11Migration028Admitted() && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
     readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('no new persisted facts',
     CHANGED.every((f) => !stripComments(f).includes('energy_balance_snapshots') &&
