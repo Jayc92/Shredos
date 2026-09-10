@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { lbsToKg } from '@/lib/units'
 import { blockIfWorkoutSetCompleted } from '@/lib/supabase/workout-guards'
 import type { TrackingMode } from '@/types/database'
+import { buildSetPatch } from '@/lib/workout-set-contract'
+import type { ExistingSetRow } from '@/lib/workout-set-contract'
 
 // Phase 2S: see the matching comment in
-// workout-exercises/[id]/sets/route.ts for why this is duplicated
-// rather than shared. W4: the local four-value TrackingMode alias is
-// gone; the shared type from @/types/database is the single vocabulary.
-
-const MODE_ALLOWED_FIELDS: Record<TrackingMode, ReadonlySet<string>> = {
-  weight_reps: new Set(['reps', 'weight_lbs', 'weight_kg', 'rpe', 'is_warmup']),
-  bodyweight:  new Set(['reps', 'weight_lbs', 'weight_kg', 'rpe', 'is_warmup']),
-  cardio:      new Set(['duration_seconds', 'distance_meters']),
-  timed:       new Set(['duration_seconds', 'rpe']),
-  // W4 TEMPORARY, FAIL-CLOSED — NOT the contract. See the matching note
-  // in workout-exercises/[id]/sets/route.ts: this EMPTY set rejects every
-  // weight_time field with 400 until W7 defines the contract, and the
-  // database refuses weight_time exercises until migration 028.
-  weight_time: new Set<string>(),
-}
-const COMMON_FIELDS = new Set(['completed', 'notes'])
+// workout-exercises/[id]/sets/route.ts. W7 moved the per-mode contract
+// into src/lib/workout-set-contract.ts, shared by both routes.
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -52,85 +39,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const body = await request.json().catch(() => ({}))
 
-  const allowed = new Set<string>([
-    ...Array.from(MODE_ALLOWED_FIELDS[trackingMode]),
-    ...Array.from(COMMON_FIELDS),
-  ])
-  const unsupported = Object.keys(body).filter((key) => !allowed.has(key))
-  if (unsupported.length > 0) {
-    return NextResponse.json(
-      { error: "Only fields supported by this exercise's tracking mode can be updated." },
-      { status: 400 }
-    )
-  }
-
-  // Convert weight_lbs to weight_kg if provided — only reachable for
-  // weight_reps/bodyweight, any other mode sending it was rejected above.
-  let incomingWeightKg: number | null | undefined
-  if (typeof body.weight_lbs === 'number') {
-    incomingWeightKg = body.weight_lbs > 0 ? Math.round(lbsToKg(body.weight_lbs) * 100) / 100 : null
-  } else if ('weight_kg' in body) {
-    incomingWeightKg = body.weight_kg
-  }
-
-  // Merge the incoming body onto the existing row to compute the final
-  // state, used only for completion validation below.
-  const finalReps = 'reps' in body ? body.reps : (existing as any).reps
-  const finalIsWarmup = 'is_warmup' in body ? body.is_warmup : (existing as any).is_warmup
-  const finalCompleted = 'completed' in body ? body.completed : (existing as any).completed
-  const finalDuration = 'duration_seconds' in body ? body.duration_seconds : (existing as any).duration_seconds
-
-  // Phase 2S: per-mode completion requirements, validated against the
-  // FINAL merged state, not just this request's own fields.
-  if (finalCompleted) {
-    if (trackingMode === 'bodyweight' && !finalIsWarmup && (finalReps === null || finalReps === undefined)) {
-      return NextResponse.json({ error: 'Reps are required to complete this set.' }, { status: 400 })
-    }
-    if (trackingMode === 'cardio' || trackingMode === 'timed') {
-      if (typeof finalDuration !== 'number' || finalDuration <= 0) {
-        return NextResponse.json({ error: 'Duration is required to complete this set.' }, { status: 400 })
-      }
-    }
-  }
-
-  // Explicit normalized update. Beyond applying whatever this request
-  // actually sent, this also self-heals any stale field left over from
-  // a prior tracking_mode on this row — even if this specific PATCH
-  // never touched it — so the row is always fully consistent with its
-  // CURRENT mode after any successful write.
-  const update: Record<string, unknown> = {}
-  if ('completed' in body) update.completed = body.completed
-  if ('notes' in body) update.notes = body.notes
-
-  if (trackingMode === 'weight_reps' || trackingMode === 'bodyweight') {
-    if ('reps' in body) update.reps = body.reps
-    if (incomingWeightKg !== undefined) update.weight_kg = incomingWeightKg
-    if ('rpe' in body) update.rpe = body.rpe
-    if ('is_warmup' in body) update.is_warmup = body.is_warmup
-    if ((existing as any).duration_seconds !== null) update.duration_seconds = null
-    if ((existing as any).distance_meters !== null) update.distance_meters = null
-  } else if (trackingMode === 'cardio') {
-    if ('duration_seconds' in body) update.duration_seconds = body.duration_seconds
-    if ('distance_meters' in body) update.distance_meters = body.distance_meters
-    if ((existing as any).reps !== null) update.reps = null
-    if ((existing as any).weight_kg !== null) update.weight_kg = null
-    if ((existing as any).rpe !== null) update.rpe = null
-    if ((existing as any).is_warmup !== false) update.is_warmup = false
-  } else if (trackingMode === 'timed') {
-    if ('duration_seconds' in body) update.duration_seconds = body.duration_seconds
-    if ('rpe' in body) update.rpe = body.rpe
-    if ((existing as any).reps !== null) update.reps = null
-    if ((existing as any).weight_kg !== null) update.weight_kg = null
-    if ((existing as any).distance_meters !== null) update.distance_meters = null
-    if ((existing as any).is_warmup !== false) update.is_warmup = false
-  }
-
-  if (Object.keys(update).length === 0) {
-    return NextResponse.json({ error: 'No valid fields to update.' }, { status: 400 })
-  }
+  // W7 — DATA-INTEGRITY RULE (plan §5.2): the update contains ONLY the
+  // fields this request legitimately supplied for the exercise's CURRENT
+  // mode, validated against the FINAL merged state. The pre-W7 "self-heal"
+  // that nulled any stored dimension left over from a prior tracking mode
+  // — even when the request never touched it — is gone: stored history is
+  // preserved exactly, and a mode change on an exercise that has sets is
+  // refused at the database instead (migration 028's history guard).
+  const contract = buildSetPatch(trackingMode, existing as unknown as ExistingSetRow, body)
+  if (!contract.ok) return NextResponse.json({ error: contract.error }, { status: contract.status })
 
   const { data, error } = await supabase
-    .from('workout_sets').update(update)
+    .from('workout_sets').update(contract.update)
     .eq('id', params.id).select().single()
   if (error) {
     if (error.code === 'PGRST116') return NextResponse.json({ error: 'Not found' }, { status: 404 })

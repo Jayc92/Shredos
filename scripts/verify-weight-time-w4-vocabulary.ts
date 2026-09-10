@@ -107,12 +107,17 @@ const constants = read('src/lib/constants.ts')
 const labelBlock = constants.slice(constants.indexOf('export const TRACKING_MODES = ['), constants.indexOf('] as const', constants.indexOf('export const TRACKING_MODES = [')))
 check("C1: src/lib/constants.ts TRACKING_MODES (the user-facing labels) does NOT list weight_time — the mode is not selectable before W10",
   labelBlock.length > 0 && !labelBlock.includes('weight_time'))
-check('C2: the three total Record maps carry an EMPTY weight_time key marked "W4 TEMPORARY, FAIL-CLOSED" — a placeholder, not a contract',
-  ROUTE_FILES.every((file) => {
-    const text = read(file)
-    return text.includes('W4 TEMPORARY, FAIL-CLOSED')
-      && (/weight_time: new Set<string>\(\),/.test(text) || /weight_time: \[\],/.test(text))
-  }))
+// RETARGET (W7): at W4 this check pinned the three EMPTY placeholder keys
+// marked "W4 TEMPORARY, FAIL-CLOSED". W7 replaced them with the real
+// contract: the two set routes now execute src/lib/workout-set-contract.ts
+// (one MODE_ALLOWED_FIELDS map for both), and apply-first-set copies
+// weight_kg, duration_seconds and rpe. No placeholder marker may remain.
+const contractModule = read('src/lib/workout-set-contract.ts')
+check('C2 (W7 RETARGET): the W4 placeholders are gone — no "W4 TEMPORARY" marker remains under src/, both set routes import the shared contract, and its weight_time allowlist is exactly {weight_lbs, weight_kg, duration_seconds, rpe, is_warmup}; apply-first-set copies [weight_kg, duration_seconds, rpe]',
+  !ROUTE_FILES.some((file) => read(file).includes('W4 TEMPORARY')) && !contractModule.includes('W4 TEMPORARY')
+    && read(ROUTE_FILES[1]).includes("from '@/lib/workout-set-contract'") && read(ROUTE_FILES[2]).includes("from '@/lib/workout-set-contract'")
+    && /weight_time: new Set\(\['weight_lbs', 'weight_kg', 'duration_seconds', 'rpe', 'is_warmup'\]\),/.test(contractModule)
+    && /weight_time: \['weight_kg', 'duration_seconds', 'rpe'\],/.test(read(ROUTE_FILES[0])))
 const migrationsDirectory = path.join(repositoryRoot, 'supabase', 'migrations')
 const migrationFiles = readdirSync(migrationsDirectory).filter((name) => /^0\d\d_.*\.sql$/.test(name)).sort()
 // RETARGET (W6): at W4 this check pinned "no 028 yet — the database still

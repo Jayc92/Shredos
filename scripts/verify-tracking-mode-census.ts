@@ -38,7 +38,9 @@
 //   updates the pin in the same commit. Pin history: after W3 = 57;
 //   after W4 = 47 (the seed module's inline union is deliberately left
 //   PENDING — 22 evidence suites pin that module blob-identical; see
-//   verify-weight-time-w4-vocabulary.ts A3).
+//   verify-weight-time-w4-vocabulary.ts A3); after W7 = 40 (the seven
+//   set-route sites moved into src/lib/workout-set-contract.ts and are
+//   decided there; the warmup-forbidden set is an intentional exclusion).
 //
 // CLASSIFICATION (printed per site)
 //   HANDLES_WEIGHT_TIME                 — an explicit 'weight_time' arm/key/member
@@ -104,9 +106,9 @@ const OPTION_VALUE_PROPERTY_NAMES: ReadonlySet<string> = new Set(['value', 'key'
 const NEW_MODE_LITERAL = 'weight_time'
 /**
  * Sites the committed tree is KNOWN to leave pending. Updated in the same
- * commit as any change to decision sites. History: W3 = 57, W4 = 47.
+ * commit as any change to decision sites. History: W3 = 57, W4 = 47, W7 = 40.
  */
-const EXPECTED_PENDING_SITES = 47
+const EXPECTED_PENDING_SITES = 40
 const MARKER_PATTERN = /tracking-mode-census:\s*(allowlist|exempt)\s*(?:—|–|-)+\s*(\S[^\n]*)/
 
 // ── Result types ───────────────────────────────────────────────────────

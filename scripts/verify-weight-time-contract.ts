@@ -225,7 +225,13 @@ async function main(): Promise<number> {
   check('E1: PATCH /api/exercises/[id] prechecks CURRENT workout_sets referencing the exercise before a tracking_mode change',
     /workout_sets/.test(exerciseRoute) && /tracking_mode/.test(exerciseRoute) && /409/.test(exerciseRoute),
     'the route has no workout_sets precheck: a mode change is applied regardless of logged sets')
-  check(`E2: the route maps the database guard's '${HISTORY_TOKEN}' error to 409 (race path)`, exerciseRoute.includes(HISTORY_TOKEN),
+  // (W7 correction to this verifier: written before the contract module
+  // existed, E2 assumed the route would carry the token as a literal; the
+  // route imports the shared constant instead, and G1 proves that constant
+  // IS the token. Either form satisfies the contract.)
+  check(`E2: the route maps the database guard's '${HISTORY_TOKEN}' error to 409 (race path)`,
+    (exerciseRoute.includes(HISTORY_TOKEN) || (exerciseRoute.includes('TRACKING_MODE_HISTORY_ERROR_TOKEN') && contract?.TRACKING_MODE_HISTORY_ERROR_TOKEN === HISTORY_TOKEN))
+      && /includes\(TRACKING_MODE_HISTORY_ERROR_TOKEN\)\)[\s\S]{0,120}status: 409/.test(exerciseRoute),
     'no mapping: a trigger rejection would surface as a generic 500')
   check('E3: the 409 copy speaks of EXTANT sets, not "ever used"', exerciseRoute.includes(HISTORY_COPY) || (contract?.TRACKING_MODE_HISTORY_409_COPY === HISTORY_COPY && exerciseRoute.includes('TRACKING_MODE_HISTORY_409_COPY')),
     'copy absent')

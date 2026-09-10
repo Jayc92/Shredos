@@ -24,12 +24,11 @@ const MODE_COPY_FIELDS: Record<TrackingMode, readonly string[]> = {
   bodyweight:  ['reps', 'weight_kg', 'rpe'],
   cardio:      ['duration_seconds', 'distance_meters'],
   timed:       ['duration_seconds', 'rpe'],
-  // W4 TEMPORARY, FAIL-CLOSED — NOT the contract. Copying NOTHING means a
-  // weight_time exercise (which cannot yet exist: the database CHECK
-  // widens only in migration 028) would get the existing 400 "Enter and
-  // save the first set's values" answer rather than any copy. W7 defines
-  // the real copy set.
-  weight_time: [],
+  // W7: the copyable dimensions of a weighted hold — added weight and
+  // duration, plus rpe like every other rpe-carrying mode. A template
+  // weight of 0 is a real value and copies as 0 (the blank-only predicate
+  // below is IS NULL, so 0 is never treated as blank).
+  weight_time: ['weight_kg', 'duration_seconds', 'rpe'],
 }
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {

@@ -4,6 +4,7 @@ import {
   normalizeExercisePatchPayload, deriveLegacyExerciseType, validateMuscleTargets,
 } from '@/lib/exercise-validation'
 import type { MuscleGroup } from '@/lib/exercise-validation'
+import { TRACKING_MODE_HISTORY_ERROR_TOKEN, TRACKING_MODE_HISTORY_409_COPY } from '@/lib/workout-set-contract'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -24,13 +25,34 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // PATCH calls).
   const { data: existing, error: fetchError } = await supabase
     .from('exercises')
-    .select('is_active, primary_muscle')
+    .select('is_active, primary_muscle, tracking_mode')
     .eq('id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!existing) return NextResponse.json({ error: 'Exercise not found.' }, { status: 404 })
+
+  // W7 — friendly HISTORY PRECHECK (plan §5.3; UX only). Only when the
+  // tracking_mode is ACTUALLY changing: if any CURRENT workout_sets row
+  // references this exercise, answer 409 up front. The invariant is extant
+  // rows, not "ever used": deleting the draft sets makes the change
+  // legal again. The DATABASE is the integrity boundary — migration 028's
+  // trigger rejects the same change atomically and independently of RLS —
+  // and its error is mapped to the same 409 below in case a concurrent
+  // append wins between this read and the update.
+  const trackingModeChanging =
+    result.value.tracking_mode !== undefined && result.value.tracking_mode !== existing.tracking_mode
+  if (trackingModeChanging) {
+    const { count: extantSetCount, error: extantSetError } = await supabase
+      .from('workout_sets')
+      .select('id, workout_exercises!inner ( exercise_id )', { count: 'exact', head: true })
+      .eq('workout_exercises.exercise_id', params.id)
+    if (extantSetError) return NextResponse.json({ error: 'Could not check the exercise history.' }, { status: 500 })
+    if ((extantSetCount ?? 0) > 0) {
+      return NextResponse.json({ error: TRACKING_MODE_HISTORY_409_COPY }, { status: 409 })
+    }
+  }
 
   // Phase 5A.6B: complete the primary-collision rule against the
   // EFFECTIVE primary. Pure validation could only see a primary sent
@@ -72,6 +94,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (error) {
       if (error.code === '23505')
         return NextResponse.json({ error: 'You already have an exercise with this name.' }, { status: 409 })
+      // W7 — RACE PATH: the precheck saw zero rows but a concurrent
+      // append_workout_set committed first; the 028 guard rejected the
+      // change. Controlled 409, never a generic 500.
+      if ((error.message ?? '').includes(TRACKING_MODE_HISTORY_ERROR_TOKEN))
+        return NextResponse.json({ error: TRACKING_MODE_HISTORY_409_COPY }, { status: 409 })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     data = updated
