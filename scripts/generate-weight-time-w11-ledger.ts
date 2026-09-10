@@ -77,7 +77,9 @@ const RULES: Array<{ category: Category; pattern: RegExp }> = [
   // "summary/PR pipeline untouched" (verify-phase5a2) pins the same
   // summarizeWorkout(exercises, prBaseline ?? {}) call that phase4b6a/b pin;
   // W10 passes the 2-D baseline as a third argument.
-  { category: 'UI_SURFACE_RETARGET', pattern: /summary tiles derived|detail client behavior contract|completion summary computed only|warm-up toggle shown only|header aligns with the composition|per-mode copy fields exact|required fields per mode|execution behavior anchors|progress badges|summary\/PR pipeline untouched/i },
+  // W10.5 moved the Recent PRs tile mapping into src/lib/recent-pr-tiles.ts:
+  // three page-text pins on that mapping (phase4b5 ×2, ui4 S22) join the family.
+  { category: 'UI_SURFACE_RETARGET', pattern: /summary tiles derived|detail client behavior contract|completion summary computed only|warm-up toggle shown only|header aligns with the composition|per-mode copy fields exact|required fields per mode|execution behavior anchors|progress badges|summary\/PR pipeline untouched|overview PR line formatting unchanged|per-side suffix preserved|established PR definitions preserved/i },
   { category: 'WEIGHT_TIME_BOUNDARY_RETARGET', pattern: /weight_time|planning-only boundary|NOT-APPLIED boundary|vocabular/i },
   { category: 'MIGRATION_INVENTORY_RETARGET', pattern: /migration|001-02\d|no 028|exactly 2\d\b|numbered migration|inventory/i },
 ]
