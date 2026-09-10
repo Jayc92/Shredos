@@ -1,0 +1,977 @@
+{
+  "generatedAtCommit": "ec1a3362bc4e0eb4aa71c8049088ba4cee627fae",
+  "generatedFrom": "a clean disposable worktree of HEAD; bisected across PRE_W4/W4/W5/W6/W7 worktrees",
+  "steps": [
+    {
+      "label": "PRE_W4",
+      "sha": "795fe1ff0d7ecd272742fe9f56177f79eabb7a01"
+    },
+    {
+      "label": "W4",
+      "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+    },
+    {
+      "label": "W5",
+      "sha": "365e9e3d708c6ff5f8acaa3834de48a514d10300"
+    },
+    {
+      "label": "W6",
+      "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+    },
+    {
+      "label": "W7",
+      "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+    }
+  ],
+  "totals": {
+    "suitesRedAtHead": 55,
+    "weightTimeCausedSuites": 55,
+    "weightTimeCausedChecks": 65,
+    "byCategory": {
+      "MIGRATION_INVENTORY_RETARGET": 45,
+      "WEIGHT_TIME_BOUNDARY_RETARGET": 15,
+      "ROUTE_TEXT_RETARGET": 2,
+      "AUDIT_COMPLETENESS_RETARGET": 2,
+      "OTHER_REQUIRES_REVIEW": 1
+    },
+    "preExistingAtPreW4Checks": 0,
+    "unattributedChecks": 0,
+    "crashedSuites": 0,
+    "greenSuites": 54
+  },
+  "environmentNotes": [
+    "Suites run with LC_ALL=C LANG=C.",
+    "Each worktree sees the repository's node_modules through a link in its PARENT directory (invisible to git) and the Next build output through an ignored real .next/ directory linking to .next/static; verify-ui6c reads .next/static/css."
+  ],
+  "entries": [
+    {
+      "suite": "verify-exlib1a",
+      "verifierPath": "scripts/verify-exlib1a.ts",
+      "checkKey": "D2: migrations remain exactly 001-022 with the 022 fingerprint (no 023)",
+      "observedFailure": "FAIL  D2: migrations remain exactly 001-022 with the 022 fingerprint (no 023)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1b1",
+      "verifierPath": "scripts/verify-exlib1b1.ts",
+      "checkKey": "C1: no SQL authored",
+      "observedFailure": "FAIL  C1: no SQL authored — no CREATE/ALTER/INSERT statements, no sql fences, no migration 023",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1b2",
+      "verifierPath": "scripts/verify-exlib1b2.ts",
+      "checkKey": "A1: migrations are exactly 001-024; 023 and the 024 draft have the pinned filenames",
+      "observedFailure": "FAIL  A1: migrations are exactly 001-024; 023 and the 024 draft have the pinned filenames",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1b3",
+      "verifierPath": "scripts/verify-exlib1b3.ts",
+      "checkKey": "A3: inventory is exactly 001-024",
+      "observedFailure": "FAIL  A3: inventory is exactly 001-024 — one 023, one pinned 024 draft",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0",
+      "verifierPath": "scripts/verify-exlib1c0.ts",
+      "checkKey": "A2: applied migration fingerprints exact; inventory exactly 001-024; NO migration 025",
+      "observedFailure": "FAIL  A2: applied migration fingerprints exact; inventory exactly 001-024; NO migration 025",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0a",
+      "verifierPath": "scripts/verify-exlib1c0a.ts",
+      "checkKey": "A4: migrations exactly 001-024 with exact applied fingerprints; NO migration 025",
+      "observedFailure": "FAIL  A4: migrations exactly 001-024 with exact applied fingerprints; NO migration 025",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b",
+      "verifierPath": "scripts/verify-exlib1c0b.ts",
+      "checkKey": "A3: migrations exactly 001-024 with exact 023/024 fingerprints; NO migration 025",
+      "observedFailure": "FAIL  A3: migrations exactly 001-024 with exact 023/024 fingerprints; NO migration 025",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b",
+      "verifierPath": "scripts/verify-exlib1c0b.ts",
+      "checkKey": "C1: exactly the four vocabulary-bearing migrations exist and each is named in the audit; 024 non-interaction stated",
+      "observedFailure": "FAIL  C1: exactly the four vocabulary-bearing migrations exist and each is named in the audit; 024 non-interaction stated",
+      "category": "AUDIT_COMPLETENESS_RETARGET",
+      "alsoMatches": [
+        "WEIGHT_TIME_BOUNDARY_RETARGET",
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "The byte-frozen pre-implementation audit cannot name artifacts that post-date it; admit the post-audit artifact by exact path/name with proof of absence at the closeout tip 59e443ba (the pattern verify-exlib1c0b already applies three times, most recently W7.5-B D2); the historical completeness claim over pre-existing artifacts is preserved; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b",
+      "verifierPath": "scripts/verify-exlib1c0b.ts",
+      "checkKey": "D1: EVERY src consumer found by fresh mechanical search (26 files) appears verbatim in the audit",
+      "observedFailure": "FAIL  D1: EVERY src consumer found by fresh mechanical search (26 files) appears verbatim in the audit — none missing — missing: src/lib/workout-set-contract.ts",
+      "category": "AUDIT_COMPLETENESS_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W7",
+        "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+      },
+      "disposition": "The byte-frozen pre-implementation audit cannot name artifacts that post-date it; admit the post-audit artifact by exact path/name with proof of absence at the closeout tip 59e443ba (the pattern verify-exlib1c0b already applies three times, most recently W7.5-B D2); the historical completeness claim over pre-existing artifacts is preserved; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b2",
+      "verifierPath": "scripts/verify-exlib1c0b2.ts",
+      "checkKey": "A4: migrations exactly 001-024 with exact applied 023/024 fingerprints; NO migration 025",
+      "observedFailure": "FAIL  A4: migrations exactly 001-024 with exact applied 023/024 fingerprints; NO migration 025",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b3",
+      "verifierPath": "scripts/verify-exlib1c0b3.ts",
+      "checkKey": "A4: migrations exactly 001-025",
+      "observedFailure": "FAIL  A4: migrations exactly 001-025 — 023/024 frozen; 025 has the exact draft filename and fingerprint",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b3",
+      "verifierPath": "scripts/verify-exlib1c0b3.ts",
+      "checkKey": "C6: no weight_time support anywhere in src/ and none in the migration",
+      "observedFailure": "FAIL  C6: no weight_time support anywhere in src/ and none in the migration",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b4",
+      "verifierPath": "scripts/verify-exlib1c0b4.ts",
+      "checkKey": "C1: migration files are EXACTLY the numeric sequence 001-025 (no gap, no duplicate, no 026+), and 025 is byte-identical",
+      "observedFailure": "FAIL  C1: migration files are EXACTLY the numeric sequence 001-025 (no gap, no duplicate, no 026+), and 025 is byte-identical",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b4",
+      "verifierPath": "scripts/verify-exlib1c0b4.ts",
+      "checkKey": "C2: weight_time remains absent from every file under src/",
+      "observedFailure": "FAIL  C2: weight_time remains absent from every file under src/ — direct recursive enumeration and read, fail-closed on any filesystem error (no grep, no swallowed exit code)",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib1c0b5",
+      "verifierPath": "scripts/verify-exlib1c0b5.ts",
+      "checkKey": "D1: migration 026 absent, migrations exactly 001-025 with 025 byte-identical, and weight_time absent from executable product code",
+      "observedFailure": "FAIL  D1: migration 026 absent, migrations exactly 001-025 with 025 byte-identical, and weight_time absent from executable product code",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2a2b",
+      "verifierPath": "scripts/verify-exlib2a2b.ts",
+      "checkKey": "A1: migration 026 absent; migrations exactly 001-025; migration 025 byte-identical",
+      "observedFailure": "FAIL  A1: migration 026 absent; migrations exactly 001-025; migration 025 byte-identical",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2a2b",
+      "verifierPath": "scripts/verify-exlib2a2b.ts",
+      "checkKey": "C1: schema vocabularies are exactly the authoritative supported sets",
+      "observedFailure": "FAIL  C1: schema vocabularies are exactly the authoritative supported sets — equipment and tracking modes match the live validation module (plus weight_time listed only for deferred declarations)",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2a2b",
+      "verifierPath": "scripts/verify-exlib2a2b.ts",
+      "checkKey": "C2: fail-closed rules are structural",
+      "observedFailure": "FAIL  C2: fail-closed rules are structural — content_review pending carries no evidence and decided carries all of it (bound to the content version); original provenance forbids source fields and source provenance requires them; weight_time forces deferred=true; deferred=false locks the four supported modes AND requires deferred_reason=null; deferred=true requires a nonblank reason; import_eligible is a const false",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch01",
+      "verifierPath": "scripts/verify-exlib2c-batch01.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 1 range (design tip..batch 1 tip) touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch02",
+      "verifierPath": "scripts/verify-exlib2c-batch02.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 2 range (batch 1 tip..batch 2 tip) touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch03",
+      "verifierPath": "scripts/verify-exlib2c-batch03.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 3 range (batch 2 tip..batch 3 tip) touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch04",
+      "verifierPath": "scripts/verify-exlib2c-batch04.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 4 range (batch 3 tip..batch 4 tip) touches ONLY this phase's authorized paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch05",
+      "verifierPath": "scripts/verify-exlib2c-batch05.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 5 range (batch 4 tip..batch 5 tip) touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2c-batch06",
+      "verifierPath": "scripts/verify-exlib2c-batch06.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the BATCH 6 range (batch 5 tip..batch 6 tip) touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2d",
+      "verifierPath": "scripts/verify-exlib2d.ts",
+      "checkKey": "A2: planning-only boundary",
+      "observedFailure": "FAIL  A2: planning-only boundary — migration 026 absent, migrations exactly 001-025, zero weight_time in src, no importer artifacts, and the EXLIB-2D range (batch 6 tip..approved 2D tip) touches ONLY this phase's four paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2e",
+      "verifierPath": "scripts/verify-exlib2e.ts",
+      "checkKey": "A2: NOT-APPLIED boundary",
+      "observedFailure": "FAIL  A2: NOT-APPLIED boundary — migrations still exactly 001-025 with NO 026 in supabase/migrations/, the proposal present in docs/ instead, zero weight_time in src, no importer artifacts, seed module byte-identical to promoted main, and the range beyond the approved EXLIB-2D tip touches ONLY this phase's five paths",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2f",
+      "verifierPath": "scripts/verify-exlib2f.ts",
+      "checkKey": "A2: live migration boundary",
+      "observedFailure": "FAIL  A2: live migration boundary — exactly ONE numbered migration 026 with the exact candidate filename. RETARGET (EXLIB-2M migration-027 apply-prep): the contiguous sequence now extends to 001-027, where 027 is the reviewed EXLIB-2M apply-prep candidate (PREPARED, NOT APPLIED); exactly one 027, no gap, no duplicate, no 028+",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2f",
+      "verifierPath": "scripts/verify-exlib2f.ts",
+      "checkKey": "C1: no product change",
+      "observedFailure": "FAIL  C1: no product change — the seed module is byte-identical to the promoted EXLIB-2E tip, the ledger stays 48/48 pending-null, all 26 legacy candidates stay import-ineligible, and all 126 authored records stay pending/evidence-null/import-false/unpublished",
+      "category": "OTHER_REQUIRES_REVIEW",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Not deterministically classifiable by the fixed rules — operator review required before any retarget."
+    },
+    {
+      "suite": "verify-exlib2f-application",
+      "verifierPath": "scripts/verify-exlib2f-application.ts",
+      "checkKey": "B1: product boundary unchanged",
+      "observedFailure": "FAIL  B1: product boundary unchanged — seed byte-identical to the apply-prep tip, migrations exactly 26 with the one 026, ledger 48/48 pending-null, 26/26 legacy candidates ineligible, 126/126 authored records pending/ineligible/unpublished, zero weight_time, no importer; and the record restates every gated follow-up",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [
+        "MIGRATION_INVENTORY_RETARGET"
+      ],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2g",
+      "verifierPath": "scripts/verify-exlib2g.ts",
+      "checkKey": "B5: nothing else moved",
+      "observedFailure": "FAIL  B5: nothing else moved — all 126 promoted records stay pending/evidence-null/import-false/unpublished (batch bytes frozen in A1), the ledger stays 48/48 pending-null, all 26 legacy candidates stay import-ineligible, zero weight_time in src, and no importer or backup artifact was added",
+      "category": "WEIGHT_TIME_BOUNDARY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W4",
+        "sha": "50e7451c9c2ed67053f1aac583187690350ce0f4"
+      },
+      "disposition": "Preserve the historical zero-weight_time boundary against the historical tip (evaluate `weight_time` absence in the tree at the pinned commit object); add a current-state admission for the reviewed weight_time boundary whose live claim is owned by scripts/verify-tracking-mode-census.ts and the contract verifiers; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2k",
+      "verifierPath": "scripts/verify-exlib2k.ts",
+      "checkKey": "A3: the load package lives under docs/ ONLY",
+      "observedFailure": "FAIL  A3: the load package lives under docs/ ONLY — migrations remain exactly 001-027 with no 028 and no new migration file; the package binds both fingerprints and one explicit transaction encloses it (proofs 3, 7)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2k",
+      "verifierPath": "scripts/verify-exlib2k.ts",
+      "checkKey": "F4: the design selection is recorded fail-closed and nothing forbidden was done",
+      "observedFailure": "FAIL  F4: the design selection is recorded fail-closed and nothing forbidden was done — shapes A/B/C evaluated with B SELECTED (zero residual authority) and A/C REJECTED, the deliberately-NOT-done list present, migrations remain exactly 001-027 with no 028, and the artifact and migration 027 stay byte-identical to promoted main",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2k-application",
+      "verifierPath": "scripts/verify-exlib2k-application.ts",
+      "checkKey": "A3: the admitted artifact and migration 027 stay byte-frozen and the repository migration sequence is exactly 001-027 with no 028",
+      "observedFailure": "FAIL  A3: the admitted artifact and migration 027 stay byte-frozen and the repository migration sequence is exactly 001-027 with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2m",
+      "verifierPath": "scripts/verify-exlib2m.ts",
+      "checkKey": "A2: exactly ONE numbered migration 027 exists with the exact candidate filename, NO 028, and exactly 27 numbered files forming the contiguous sequence 001-027 (proof 2)",
+      "observedFailure": "FAIL  A2: exactly ONE numbered migration 027 exists with the exact candidate filename, NO 028, and exactly 27 numbered files forming the contiguous sequence 001-027 (proof 2)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2m-application",
+      "verifierPath": "scripts/verify-exlib2m-application.ts",
+      "checkKey": "A3: repository sequence vs hosted history precisely distinguished",
+      "observedFailure": "FAIL  A3: repository sequence vs hosted history precisely distinguished — repository 001-027 in effect; the hosted migration-history TABLE is a different object; the new entry joins the five verbatim EXLIB-2F-evidenced entries for six total, stated as derived",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2n",
+      "verifierPath": "scripts/verify-exlib2n.ts",
+      "checkKey": "A4: upstream authorities byte-frozen",
+      "observedFailure": "FAIL  A4: upstream authorities byte-frozen — the admitted Plank artifact, the SPENT EXLIB-2K package, and exactly 27 numbered migrations with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2n-application",
+      "verifierPath": "scripts/verify-exlib2n-application.ts",
+      "checkKey": "A2: upstream authorities byte-frozen",
+      "observedFailure": "FAIL  A2: upstream authorities byte-frozen — the admitted Plank artifact, the SPENT EXLIB-2K package, the packets, the preparation record, and exactly 27 migrations with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2o",
+      "verifierPath": "scripts/verify-exlib2o.ts",
+      "checkKey": "E3: migrations remain exactly 001-027 with no 028",
+      "observedFailure": "FAIL  E3: migrations remain exactly 001-027 with no 028 — the package lives under docs/, never under supabase/migrations/",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2o-application",
+      "verifierPath": "scripts/verify-exlib2o-application.ts",
+      "checkKey": "A3: the upstream authorities stay byte-frozen",
+      "observedFailure": "FAIL  A3: the upstream authorities stay byte-frozen — both admitted batch artifacts, both completed review forms, the admitted Plank artifact, migration 027, and the SPENT EXLIB-2K package — and the repository migration sequence is exactly 001-027 with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2p",
+      "verifierPath": "scripts/verify-exlib2p.ts",
+      "checkKey": "E1: migrations remain exactly 001-027 with no 028",
+      "observedFailure": "FAIL  E1: migrations remain exactly 001-027 with no 028 — the package lives under docs/, never under supabase/migrations/",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2p-application",
+      "verifierPath": "scripts/verify-exlib2p-application.ts",
+      "checkKey": "A3: the upstream authorities stay byte-frozen",
+      "observedFailure": "FAIL  A3: the upstream authorities stay byte-frozen — the admitted artifact, the completed human form, the preparation record, the 2O application record, and migration 027 — and the repository migration sequence is exactly 001-027 with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2q",
+      "verifierPath": "scripts/verify-exlib2q.ts",
+      "checkKey": "E1: migrations remain exactly 001-027 with no 028",
+      "observedFailure": "FAIL  E1: migrations remain exactly 001-027 with no 028 — the package lives under docs/, never under supabase/migrations/",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2q-application",
+      "verifierPath": "scripts/verify-exlib2q-application.ts",
+      "checkKey": "A3: the upstream authorities stay byte-frozen",
+      "observedFailure": "FAIL  A3: the upstream authorities stay byte-frozen — the admitted artifact (with its exact reviewed SHA-256), the completed human form, the preparation record, the 2O and 2P application records, the 2O package, and migration 027 — and the repository migration sequence is exactly 001-027 with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2r",
+      "verifierPath": "scripts/verify-exlib2r.ts",
+      "checkKey": "E1: migrations remain exactly 001-027 with no 028",
+      "observedFailure": "FAIL  E1: migrations remain exactly 001-027 with no 028 — the package lives under docs/, never under supabase/migrations/",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-exlib2r-application",
+      "verifierPath": "scripts/verify-exlib2r-application.ts",
+      "checkKey": "A3: the upstream authorities stay byte-frozen",
+      "observedFailure": "FAIL  A3: the upstream authorities stay byte-frozen — the admitted artifact (with its exact reviewed SHA-256), the completed human form, the EXLIB-2R preparation record, the 2Q application record, and migration 027 — and the repository migration sequence is exactly 001-027 with no 028",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-food-log-ux",
+      "verifierPath": "scripts/verify-food-log-ux.ts",
+      "checkKey": "S36: no migration by this correction (exactly 22; 022 = approved UI-5B2 file)",
+      "observedFailure": "FAIL  S36: no migration by this correction (exactly 22; 022 = approved UI-5B2 file)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-phase5a6b",
+      "verifierPath": "scripts/verify-phase5a6b.ts",
+      "checkKey": "PATCH fetches the stored primary for the collision rule",
+      "observedFailure": "FAIL  PATCH fetches the stored primary for the collision rule",
+      "category": "ROUTE_TEXT_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W7",
+        "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+      },
+      "disposition": "Retarget only the exact changed behaviour (the exercises PATCH select now also reads tracking_mode; the set routes' inline validation moved into src/lib/workout-set-contract.ts) and retain the historical source proof against the historical tip; count-neutral."
+    },
+    {
+      "suite": "verify-phase5b3",
+      "verifierPath": "scripts/verify-phase5b3.ts",
+      "checkKey": "migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "observedFailure": "FAIL  migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-phase5b4",
+      "verifierPath": "scripts/verify-phase5b4.ts",
+      "checkKey": "migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "observedFailure": "FAIL  migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-phase5b5",
+      "verifierPath": "scripts/verify-phase5b5.ts",
+      "checkKey": "migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "observedFailure": "FAIL  migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui1a",
+      "verifierPath": "scripts/verify-ui1a.ts",
+      "checkKey": "migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "observedFailure": "FAIL  migration boundary: exactly 22 (021 = UI-5B1B ordering; 022 = UI-5B2 reuse)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui1b",
+      "verifierPath": "scripts/verify-ui1b.ts",
+      "checkKey": "S25: migration boundary (exactly 22; 021 = UI-5B1B, 022 = UI-5B2)",
+      "observedFailure": "FAIL  S25: migration boundary (exactly 22; 021 = UI-5B1B, 022 = UI-5B2)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui2",
+      "verifierPath": "scripts/verify-ui2.ts",
+      "checkKey": "S46: migration boundary (exactly 22; 021 = UI-5B1B, 022 = UI-5B2)",
+      "observedFailure": "FAIL  S46: migration boundary (exactly 22; 021 = UI-5B1B, 022 = UI-5B2)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui3",
+      "verifierPath": "scripts/verify-ui3.ts",
+      "checkKey": "S19: migration 020 exists and remains the only UI-3 migration",
+      "observedFailure": "FAIL  S19: migration 020 exists and remains the only UI-3 migration",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui4",
+      "verifierPath": "scripts/verify-ui4.ts",
+      "checkKey": "S2: UI-4 added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "observedFailure": "FAIL  S2: UI-4 added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui4",
+      "verifierPath": "scripts/verify-ui4.ts",
+      "checkKey": "S47: UI-4 added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "observedFailure": "FAIL  S47: UI-4 added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui5a",
+      "verifierPath": "scripts/verify-ui5a.ts",
+      "checkKey": "G1: UI-5A added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "observedFailure": "FAIL  G1: UI-5A added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1a",
+      "verifierPath": "scripts/verify-ui5b1a.ts",
+      "checkKey": "X5: UI-5B1A added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "observedFailure": "FAIL  X5: UI-5B1A added no migration (exactly 22; 022 = approved UI-5B2 file)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1b",
+      "verifierPath": "scripts/verify-ui5b1b.ts",
+      "checkKey": "B4: migrations exactly 001-022; 021 is the only UI-5B1B addition",
+      "observedFailure": "FAIL  B4: migrations exactly 001-022; 021 is the only UI-5B1B addition",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b1b",
+      "verifierPath": "scripts/verify-ui5b1b.ts",
+      "checkKey": "S4: Add Set keeps every tracking-mode validation and carry-forward rule",
+      "observedFailure": "FAIL  S4: Add Set keeps every tracking-mode validation and carry-forward rule",
+      "category": "ROUTE_TEXT_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W7",
+        "sha": "c22be37cf5b6ee4e4f8791cf4fe37b605b221da8"
+      },
+      "disposition": "Retarget only the exact changed behaviour (the exercises PATCH select now also reads tracking_mode; the set routes' inline validation moved into src/lib/workout-set-contract.ts) and retain the historical source proof against the historical tip; count-neutral."
+    },
+    {
+      "suite": "verify-ui5b2",
+      "verifierPath": "scripts/verify-ui5b2.ts",
+      "checkKey": "S2: migrations exactly 001-022; 022 is the only addition",
+      "observedFailure": "FAIL  S2: migrations exactly 001-022; 022 is the only addition",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui6a",
+      "verifierPath": "scripts/verify-ui6a.ts",
+      "checkKey": "Q1: dependencies and migrations unchanged",
+      "observedFailure": "FAIL  Q1: dependencies and migrations unchanged",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui6b",
+      "verifierPath": "scripts/verify-ui6b.ts",
+      "checkKey": "G4: dependencies and migrations unchanged (exactly 001-022)",
+      "observedFailure": "FAIL  G4: dependencies and migrations unchanged (exactly 001-022)",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui6c",
+      "verifierPath": "scripts/verify-ui6c.ts",
+      "checkKey": "Z1: dependencies unchanged and migrations exactly 001-022 with the 022 fingerprint",
+      "observedFailure": "FAIL  Z1: dependencies unchanged and migrations exactly 001-022 with the 022 fingerprint",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    },
+    {
+      "suite": "verify-ui7",
+      "verifierPath": "scripts/verify-ui7.ts",
+      "checkKey": "K4: migrations exactly 001-022 with the 022 fingerprint",
+      "observedFailure": "FAIL  K4: migrations exactly 001-022 with the 022 fingerprint",
+      "category": "MIGRATION_INVENTORY_RETARGET",
+      "alsoMatches": [],
+      "firstRedCommit": {
+        "label": "W6",
+        "sha": "c785140f27e0169f7c2791c5988f74a7a2c87393"
+      },
+      "disposition": "Preserve the historical migration-set claim against its historical commit (evaluate the inventory at the pinned tip, never at HEAD); admit the reviewed migration 028 — and only 028 — as the current-state boundary by exact filename; never rewrite the phase record to pretend 028 existed then; count-neutral."
+    }
+  ],
+  "preExistingAtPreW4": [],
+  "unattributed": [],
+  "crashed": [],
+  "greenSuites": [
+    "verify-exlib2h",
+    "verify-exlib2i",
+    "verify-exlib2j",
+    "verify-exlib2l",
+    "verify-exlib2n-r6-admission",
+    "verify-exlib2t",
+    "verify-exlib2t-runtime",
+    "verify-exlib2u",
+    "verify-exlib2u-application",
+    "verify-exlib2v",
+    "verify-exlib2w",
+    "verify-exlib2x",
+    "verify-exlib2y",
+    "verify-exlib2y-application",
+    "verify-exlib2z",
+    "verify-exlib2z-application",
+    "verify-exlib3a",
+    "verify-exlib3a-option-a",
+    "verify-exlib3a-option-a-application",
+    "verify-exlib3a-option-b",
+    "verify-exlib3a-option-b-application",
+    "verify-local-date",
+    "verify-phase2w",
+    "verify-phase2x",
+    "verify-phase2y",
+    "verify-phase2z",
+    "verify-phase3a",
+    "verify-phase3b",
+    "verify-phase3c",
+    "verify-phase3d",
+    "verify-phase3e",
+    "verify-phase4a",
+    "verify-phase4b1",
+    "verify-phase4b2",
+    "verify-phase4b3",
+    "verify-phase4b4",
+    "verify-phase4b5",
+    "verify-phase4b6a",
+    "verify-phase4b6b",
+    "verify-phase4b6c",
+    "verify-phase4b6d",
+    "verify-phase5a1",
+    "verify-phase5a2",
+    "verify-phase5a3",
+    "verify-phase5a4",
+    "verify-phase5a5",
+    "verify-phase5a6a",
+    "verify-phase5b1",
+    "verify-phase5b2",
+    "verify-strength-records-allowlist",
+    "verify-tracking-mode-census",
+    "verify-weight-time-contract",
+    "verify-weight-time-migration-028",
+    "verify-weight-time-w4-vocabulary"
+  ]
+}
