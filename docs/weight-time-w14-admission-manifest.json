@@ -1,0 +1,467 @@
+{
+  "artifact": "weight_time W14 five-entry catalog admission manifest",
+  "status": "PREPARED - NOT APPLIED",
+  "generated_by": "scripts/generate-weight-time-w14-package.ts",
+  "recorded_utc": "2026-09-11",
+  "production_base": {
+    "commit": "a54a30c25b1427aee24d00c37bd6a4aec69dd3d0",
+    "tree": "e4838dea0c2ad66a894969ab1c20982d28a6af29"
+  },
+  "hosted_application_has_occurred": false,
+  "eventual_target": {
+    "supabase_project_ref": "ttybyljytiwntvorugcv",
+    "supabase_project_name": "ShredOS",
+    "executor": "Joseph/ChatGPT only - never Claude",
+    "requires": "a later explicit one-use operator instruction"
+  },
+  "loader_boundary": {
+    "identity_function": "public.load_catalog_identity(uuid)",
+    "snapshot_function": "public.load_catalog_snapshot(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,date,text,jsonb,jsonb)",
+    "authority_role": "exlib_catalog_loader",
+    "functions_deliberately_NOT_used": [
+      "public.load_catalog_content_draft",
+      "public.apply_content_review",
+      "public.admit_catalog_content",
+      "public.publish_catalog_content",
+      "public.deliver_catalog_exercises",
+      "public.exlib_content_admission_manifest"
+    ],
+    "no_direct_dml": "the package issues no INSERT/UPDATE/DELETE against any catalog table; every write goes through the migration-027 loader boundary"
+  },
+  "admission_set_size": 5,
+  "manifest_order": [
+    132,
+    133,
+    137,
+    138,
+    139
+  ],
+  "excluded_deferred": {
+    "inventory_file_lines": [
+      134,
+      135,
+      136
+    ],
+    "names": [
+      "Farmer's carry",
+      "Suitcase carry",
+      "Sandbag bear-hug carry"
+    ],
+    "reason": "Carry tracking is a separate, later product decision. No carry mode is named, invented, or reinterpreted, and no carry entry is admitted."
+  },
+  "provenance_split": {
+    "external_source_derived": [
+      132,
+      133
+    ],
+    "forgefitos_original": [
+      137,
+      138,
+      139
+    ],
+    "invariant": "MIXED BY DESIGN - do not normalize. external rows carry all four discovery-source fields non-NULL; forgefitos_original rows carry all four NULL, enforced by exercise_catalog_provenance_sources_chk."
+  },
+  "external_source_url_uniqueness": {
+    "rule": "the external_source_derived rows carry DISTINCT source_url values",
+    "enforced_by": "exercise_catalog_source_url_version_unique_idx — a NON-PARTIAL unique index on (source_url, catalog_version), migration 023",
+    "catalog_version_note": "load_catalog_snapshot's INSERT omits catalog_version, so every newly loaded snapshot is born at the column DEFAULT of 1; a differing version is not reachable through the authorized loader",
+    "history": "a superseded first ruling bound 132 and 133 to one URL; disposable execution proved that impossible, and Correction 1 (decision document section 11) rebound 133 to the second committed external evidence record",
+    "urls": [
+      {
+        "inventory_file_line": 132,
+        "source_url": "https://www.strengthlog.com/weighted-plank/"
+      },
+      {
+        "inventory_file_line": 133,
+        "source_url": "https://marathonhandbook.com/weighted-plank/"
+      }
+    ]
+  },
+  "payload_fingerprint_scheme": {
+    "algorithm": "sha256",
+    "input": "the eighteen load_catalog_snapshot arguments in migration-027 declaration order, each rendered as \"<parameter_name>=<value>\\n\" and concatenated",
+    "null_rendering": "\\N (backslash, capital N)",
+    "anatomy_rendering": "FULLY COMPACT JSON array of {\"muscle\",\"role\"} objects with sorted keys, ordered by (muscle, role) - note the SQL call sites emit a spaced jsonb literal instead, which is cosmetic and NOT the fingerprint input",
+    "aliases_rendering": "compact JSON array, empty for every W14 entry",
+    "recomputable_by": "printf %s \"<payload_canonical_form>\" | shasum -a 256",
+    "independently_recomputed_by": "scripts/verify-weight-time-w14.ts"
+  },
+  "expected_effect": {
+    "logical_identities_created": 5,
+    "snapshots_created": 5,
+    "anatomy_rows_created": 5,
+    "alias_rows_created": 0,
+    "name_claim_rows_created": 5,
+    "content_versions_created": 0,
+    "review_events_created": 0,
+    "relationship_rows_created": 0,
+    "import_runs_created": 0,
+    "run_items_created": 0,
+    "corrections_created": 0,
+    "tenant_exercises_created": 0,
+    "tenant_delivery_aliases_created": 0,
+    "born_state": "review_status=pending, is_active=true, catalog_version=1, reviewed_by/reviewed_at/review_rationale all NULL - the migration-027 freeze trigger guarantees it",
+    "note": "loading is not approval; database review, admission, publication and delivery all remain separately gated authorities"
+  },
+  "source_bindings": [
+    {
+      "path": "docs/exlib2b-release1-inventory.jsonl",
+      "bytes": 103933,
+      "sha256": "d349110f22700a822eb427fc1dcce3e6dbcfd264b6d48ed84936b07b1ca256f5"
+    },
+    {
+      "path": "docs/exlib2b-release1-coverage-matrix.md",
+      "bytes": 10027,
+      "sha256": "c32b7b9e9d3aafab39a9a6d77db09349dd604457274767fe4c880c6bf1fb2fb0"
+    },
+    {
+      "path": "docs/weight-time-coordinated-implementation-plan.md",
+      "bytes": 101661,
+      "sha256": "b6ef2584c29e66c62e9f5e198d1791610ab17ceabd687af19bc3d352af04ecb6"
+    },
+    {
+      "path": "docs/exlib1a-discovery-manifest.jsonl",
+      "bytes": 261526,
+      "sha256": "336cd4253f747cdb3ba73ffa2af5a63e255c7c87cc452d4c43ed59a654673dfa"
+    },
+    {
+      "path": "docs/exlib1c0a-equipment-resolution.jsonl",
+      "bytes": 23078,
+      "sha256": "f9e7a98db6b519e650d5f2b8a231308c0fd76ccb23e1685f497100812fbd2fb4"
+    },
+    {
+      "path": "docs/weight-time-w14-catalog-field-decisions.md",
+      "bytes": 29662,
+      "sha256": "e111c738f2801f058e9f27136d731f6136401745541baf60ceaa26dbd2cf12d4"
+    },
+    {
+      "path": "docs/exlib2k-plank-catalog-load-package.sql",
+      "bytes": 29760,
+      "sha256": "a1b6dd55850c5d544e2f484d1ce4833b41deec7f3dd4d4c2373cb3b50daaccf0"
+    },
+    {
+      "path": "supabase/migrations/023_exlib_catalog_and_delivery_contract.sql",
+      "bytes": 92806,
+      "sha256": "0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2"
+    },
+    {
+      "path": "supabase/migrations/025_exlib_equipment_vocabulary_support.sql",
+      "bytes": 3587,
+      "sha256": "fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c"
+    },
+    {
+      "path": "supabase/migrations/027_exlib_catalog_content_schema.sql",
+      "bytes": 65455,
+      "sha256": "90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f"
+    },
+    {
+      "path": "supabase/migrations/028_weight_time_tracking_mode.sql",
+      "bytes": 37162,
+      "sha256": "9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3"
+    }
+  ],
+  "historical_evidence_preserved": {
+    "files": [
+      "docs/exlib2b-release1-inventory.jsonl",
+      "docs/exlib2b-release1-coverage-matrix.md"
+    ],
+    "rule": "byte-identical; the eight historical deferred rows keep import_eligible=false, review_status=proposed, deferred=true and their original deferred_reason; the coverage matrix keeps its \"8 explicitly deferred\" statement"
+  },
+  "entries": [
+    {
+      "inventory_file_line": 132,
+      "inventory_record_ordinal": 128,
+      "normalized_name": "plate-weighted plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000004",
+      "canonical_name": "Plate-weighted plank",
+      "category": "isolation",
+      "primary_muscle": "abs",
+      "equipment": "weight_plate",
+      "laterality": "bilateral",
+      "tracking_mode": "weight_time",
+      "provenance": "external_source_derived",
+      "movement_pattern": "core_anti_extension",
+      "training_role": "core",
+      "difficulty": "intermediate",
+      "availability": "home_gym",
+      "source_url": "https://www.strengthlog.com/weighted-plank/",
+      "source_page": "https://www.strengthlog.com/exercise-directory/",
+      "retrieved_at": "2026-08-20",
+      "import_confidence": "human_review_required",
+      "anatomy": [
+        {
+          "muscle": "obliques",
+          "role": "secondary"
+        }
+      ],
+      "aliases": [],
+      "payload_fingerprint_sha256": "f1f2843950c1426c5b5b615b50ec97d168e632b7e1c8946f98f5178efd5e1216",
+      "decision_basis": {
+        "class_A_source_derived": [
+          "canonical_name",
+          "primary_muscle",
+          "equipment",
+          "laterality",
+          "tracking_mode",
+          "movement_pattern",
+          "training_role",
+          "difficulty",
+          "availability",
+          "anatomy"
+        ],
+        "carrier_for_class_A": "docs/exlib2b-release1-inventory.jsonl",
+        "operator_ruled": [
+          "logical_id",
+          "category",
+          "provenance",
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence",
+          "aliases"
+        ],
+        "carrier_for_operator_ruled": "docs/weight-time-w14-catalog-field-decisions.md",
+        "provenance_basis": "operator_inheritance"
+      }
+    },
+    {
+      "inventory_file_line": 133,
+      "inventory_record_ordinal": 129,
+      "normalized_name": "weighted vest plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000005",
+      "canonical_name": "Weighted vest plank",
+      "category": "isolation",
+      "primary_muscle": "abs",
+      "equipment": "weighted_vest",
+      "laterality": "bilateral",
+      "tracking_mode": "weight_time",
+      "provenance": "external_source_derived",
+      "movement_pattern": "core_anti_extension",
+      "training_role": "core",
+      "difficulty": "intermediate",
+      "availability": "home_gym",
+      "source_url": "https://marathonhandbook.com/weighted-plank/",
+      "source_page": "https://marathonhandbook.com/weighted-plank/",
+      "retrieved_at": "2026-08-24",
+      "import_confidence": "human_review_required",
+      "anatomy": [
+        {
+          "muscle": "obliques",
+          "role": "secondary"
+        }
+      ],
+      "aliases": [],
+      "payload_fingerprint_sha256": "42f26ff9b4265544bcde194ea1e77c38652abf1b4b0bbee7055e0911fc53fa1e",
+      "decision_basis": {
+        "class_A_source_derived": [
+          "canonical_name",
+          "primary_muscle",
+          "equipment",
+          "laterality",
+          "tracking_mode",
+          "movement_pattern",
+          "training_role",
+          "difficulty",
+          "availability",
+          "anatomy"
+        ],
+        "carrier_for_class_A": "docs/exlib2b-release1-inventory.jsonl",
+        "operator_ruled": [
+          "logical_id",
+          "category",
+          "provenance",
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence",
+          "aliases"
+        ],
+        "carrier_for_operator_ruled": "docs/weight-time-w14-catalog-field-decisions.md",
+        "provenance_basis": "operator_inheritance_over_committed_independent_evidence",
+        "corrected_by": "section 11 (Correction 1) of docs/weight-time-w14-catalog-field-decisions.md",
+        "corrected_fields": [
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence"
+        ],
+        "class_A_within_the_correction": [
+          "source_url",
+          "retrieved_at"
+        ],
+        "operator_ruled_within_the_correction": [
+          "source_page",
+          "import_confidence"
+        ]
+      }
+    },
+    {
+      "inventory_file_line": 137,
+      "inventory_record_ordinal": 133,
+      "normalized_name": "weighted dead hang",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000006",
+      "canonical_name": "Weighted dead hang",
+      "category": "isolation",
+      "primary_muscle": "forearms",
+      "equipment": "weight_plate",
+      "laterality": "bilateral",
+      "tracking_mode": "weight_time",
+      "provenance": "forgefitos_original",
+      "movement_pattern": "grip_forearm",
+      "training_role": "accessory",
+      "difficulty": "intermediate",
+      "availability": "home_gym",
+      "source_url": null,
+      "source_page": null,
+      "retrieved_at": null,
+      "import_confidence": null,
+      "anatomy": [
+        {
+          "muscle": "lats",
+          "role": "secondary"
+        }
+      ],
+      "aliases": [],
+      "payload_fingerprint_sha256": "ed584b1c2a8b224f2367642d8d32e67ee26214abac7e380dabba384a3de9922e",
+      "decision_basis": {
+        "class_A_source_derived": [
+          "canonical_name",
+          "primary_muscle",
+          "equipment",
+          "laterality",
+          "tracking_mode",
+          "movement_pattern",
+          "training_role",
+          "difficulty",
+          "availability",
+          "anatomy"
+        ],
+        "carrier_for_class_A": "docs/exlib2b-release1-inventory.jsonl",
+        "operator_ruled": [
+          "logical_id",
+          "category",
+          "provenance",
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence",
+          "aliases"
+        ],
+        "carrier_for_operator_ruled": "docs/weight-time-w14-catalog-field-decisions.md",
+        "provenance_basis": "operator_decision"
+      }
+    },
+    {
+      "inventory_file_line": 138,
+      "inventory_record_ordinal": 134,
+      "normalized_name": "weighted wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000007",
+      "canonical_name": "Weighted wall sit",
+      "category": "compound",
+      "primary_muscle": "quads",
+      "equipment": "weight_plate",
+      "laterality": "bilateral",
+      "tracking_mode": "weight_time",
+      "provenance": "forgefitos_original",
+      "movement_pattern": "squat",
+      "training_role": "accessory",
+      "difficulty": "beginner",
+      "availability": "minimal",
+      "source_url": null,
+      "source_page": null,
+      "retrieved_at": null,
+      "import_confidence": null,
+      "anatomy": [
+        {
+          "muscle": "glutes",
+          "role": "secondary"
+        }
+      ],
+      "aliases": [],
+      "payload_fingerprint_sha256": "b17b5b6be91df93a4aa17c18aa8384bd61515e4e9f43072d0d41d7c3af10db1e",
+      "decision_basis": {
+        "class_A_source_derived": [
+          "canonical_name",
+          "primary_muscle",
+          "equipment",
+          "laterality",
+          "tracking_mode",
+          "movement_pattern",
+          "training_role",
+          "difficulty",
+          "availability",
+          "anatomy"
+        ],
+        "carrier_for_class_A": "docs/exlib2b-release1-inventory.jsonl",
+        "operator_ruled": [
+          "logical_id",
+          "category",
+          "provenance",
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence",
+          "aliases"
+        ],
+        "carrier_for_operator_ruled": "docs/weight-time-w14-catalog-field-decisions.md",
+        "provenance_basis": "operator_decision"
+      }
+    },
+    {
+      "inventory_file_line": 139,
+      "inventory_record_ordinal": 135,
+      "normalized_name": "weighted vest wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000008",
+      "canonical_name": "Weighted vest wall sit",
+      "category": "compound",
+      "primary_muscle": "quads",
+      "equipment": "weighted_vest",
+      "laterality": "bilateral",
+      "tracking_mode": "weight_time",
+      "provenance": "forgefitos_original",
+      "movement_pattern": "squat",
+      "training_role": "accessory",
+      "difficulty": "beginner",
+      "availability": "home_gym",
+      "source_url": null,
+      "source_page": null,
+      "retrieved_at": null,
+      "import_confidence": null,
+      "anatomy": [
+        {
+          "muscle": "glutes",
+          "role": "secondary"
+        }
+      ],
+      "aliases": [],
+      "payload_fingerprint_sha256": "0366906db6e0399a2993b2c34841fe025293cbc166ea8f90e24b20bc77034d00",
+      "decision_basis": {
+        "class_A_source_derived": [
+          "canonical_name",
+          "primary_muscle",
+          "equipment",
+          "laterality",
+          "tracking_mode",
+          "movement_pattern",
+          "training_role",
+          "difficulty",
+          "availability",
+          "anatomy"
+        ],
+        "carrier_for_class_A": "docs/exlib2b-release1-inventory.jsonl",
+        "operator_ruled": [
+          "logical_id",
+          "category",
+          "provenance",
+          "source_url",
+          "source_page",
+          "retrieved_at",
+          "import_confidence",
+          "aliases"
+        ],
+        "carrier_for_operator_ruled": "docs/weight-time-w14-catalog-field-decisions.md",
+        "provenance_basis": "operator_decision"
+      }
+    }
+  ]
+}
