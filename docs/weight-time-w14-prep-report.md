@@ -49,17 +49,28 @@ dd24dd655d8652fa0a57cc64338068aebe84804b  tree 2a355a5a93ccb5e9ae95afa65afb24156
     W14-P: five-entry catalog admission package, manifest, and both verifiers
 ```
 
-- `git rev-list --count a54a30c2..HEAD` = **3**
-- `git rev-list --count --merges a54a30c2..HEAD` = **0**
-- `git merge-base --is-ancestor a54a30c2 HEAD` exits **0**
+Measured at `dd24dd65`, the tip carrying the five W14 artifacts:
+
+- `git rev-list --count a54a30c2..dd24dd65` = **3**
+- `git rev-list --count --merges a54a30c2..dd24dd65` = **0**
+- `git merge-base --is-ancestor a54a30c2 dd24dd65` exits **0**
 - Every commit has exactly one parent. No amend, no rebase, no squash, no merge.
 
-Both facts are also asserted mechanically by `scripts/verify-weight-time-w14.ts`
-(B6, B7).
+The commits that add and correct this report extend the same single-parent line
+above `dd24dd65`; deliberately, no count stated here includes them, since a
+figure covering the report's own commits is stale the moment the report is
+committed. The final tip, its full chain, and its zero-merge count are recorded
+in `evidence/13-bundle-offline-reconstruction.log`, measured on a reconstruction
+from the bundle rather than on this working copy.
+
+Both properties are also asserted mechanically by
+`scripts/verify-weight-time-w14.ts` (B6, B7), which reads the live chain rather
+than any number written here.
 
 ### 1.2 Changed-path list, base → candidate tip
 
-Six files, all additions. Zero modifications, zero deletions, zero renames.
+At `dd24dd65`: six files, all additions. Zero modifications, zero deletions,
+zero renames.
 
 ```
 A  docs/weight-time-w14-catalog-field-decisions.md
@@ -69,6 +80,11 @@ A  scripts/generate-weight-time-w14-package.ts
 A  scripts/verify-weight-time-w14.ts
 A  scripts/verify-weight-time-w14-live.sh
 ```
+
+This report is the seventh addition at the final tip. The reconstruction log
+lists all seven as read out of the bundle, and the property that matters is
+invariant across both: **every path is an addition, and not one lies under
+`src/` or `supabase/`.**
 
 `git diff --name-only a54a30c2 HEAD -- src supabase` returns **0 lines**: no
 application code and no migration was touched.
@@ -478,8 +494,19 @@ everything.
 
 ## 6. Full local validation matrix
 
-All runs on this machine, against the candidate tip, with a clean working tree.
-Every verdict below is an exit status.
+All runs on this machine, on a clean working tree, against a commit on the
+candidate line. Every verdict below is an exit status, not a grep of a log.
+
+Each gate here was run at `dd24dd65` and then **re-run after this report was
+first committed**, on the tree that also contains it, and every figure held
+unchanged. That second pass is the one that matters: adding a document to
+`docs/` is exactly the kind of change that can trip a pre-existing verifier
+pinning an exact phase inventory, so it was checked rather than reasoned about.
+It did: three verifiers — `verify-exlib1a` (D3), `verify-exlib2n` (B1) and
+`verify-exlib1c0b` (G2) — fail while the report is *uncommitted*, because each
+requires the worktree to hold nothing outside its declared phase scope. All
+three return to green once the file is committed, which is the behaviour those
+assertions are built to have. No pin was retargeted to accommodate the report.
 
 | Gate | Result |
 |---|---|
@@ -563,11 +590,17 @@ suppressed anywhere.
 
 ### 6.5 The sanitized production build
 
-Run in a clean detached worktree at the candidate tip with a synthetic
-`.env.local` containing only non-routable placeholders
-(`http://127.0.0.1:54321`). The developer's real `.env.local` was neither read,
-copied, nor modified, and no `VERCEL*`, `SUPABASE*` or `SB_*` variable was
-present in the environment.
+Run in a clean detached worktree at `dd24dd65` with a synthetic `.env.local`
+containing only non-routable placeholders (`http://127.0.0.1:54321`). The
+developer's real `.env.local` was neither read, copied, nor modified, and no
+`VERCEL*`, `SUPABASE*` or `SB_*` variable was present in the environment.
+
+This is the one gate not re-run at the later commits, and the reason is
+structural rather than convenience: `src/`, `next.config.*` and `package.json`
+are byte-identical across the whole range — §1.2's changed-path list has zero
+entries under `src/`, and the reconstruction log re-proves that from the bundle —
+so the input to the build is unchanged and the later commits add only
+Markdown under `docs/`, which the probes below show is not in the build graph.
 
 `npm run build` exits **0**. Post-build scan of `.next`:
 
@@ -673,12 +706,17 @@ git -C <a-clone-at-a54a30c2> fetch /path/to/forgefit-weight-time-w14-prep.bundle
 
 That reconstruction was performed rather than asserted. Into a bare scratch repo
 holding only the production base commit, with the bundle read as a local file:
-`git bundle verify` exits 0; the fetch exits 0; the reconstructed tip and tree
-match the candidate exactly; the range holds four commits and **zero** merges,
-each with a single parent; the changed-path list is the same seven additions with
-zero paths under `src/` or `supabase/`; migration 028 is byte-identical at
-37,162 bytes / `9b7d3a52…` on both sides; and `git fsck` exits 0 with no output.
-The transcript is `evidence/13-bundle-offline-reconstruction-fetch.log`.
+`git bundle verify` exits 0; the candidate ref is confirmed **absent** before the
+fetch and present after it; the fetch exits 0; `a54a30c2` is an ancestor of the
+reconstructed tip; the range contains **zero** merges and every commit in it has
+exactly one parent; the changed-path list is the seven additions above with
+**zero** paths under `src/` or `supabase/`; migration 028 and all three
+historical-evidence files are byte-identical between base and tip at the exact
+sizes and hashes given in §4.2 and §4.3; and `git fsck` exits 0 with no output.
+
+The transcript — `evidence/13-bundle-offline-reconstruction.log` — is the carrier
+for the final tip, tree and commit count, because those are the figures this
+report cannot state about itself.
 
 The accompanying `forgefit-weight-time-w14-prep-manifest.txt` records the bundle
 and every packaged file by byte size and SHA-256 — including this report, whose
