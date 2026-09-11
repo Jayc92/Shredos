@@ -6,8 +6,23 @@
 // admits weight_reps/bodyweight exercises only) and Weight-time PR events
 // (weight-time-records.ts, weight_time exercises only). Because an
 // exercise has exactly one tracking mode, no set can be counted by both
-// models; the tile keys carry the model name so a collision is
-// impossible even in principle.
+// models, and the model prefix keeps the two namespaces apart.
+//
+// W12-R1-1 correction. The model prefix rules out a CROSS-MODEL collision
+// only — it says nothing about two events of the same model. Within the
+// strength model (exerciseId, workoutDate, type) is NOT unique, because
+// successive same-workout PRs are an explicitly supported state
+// (strength-records.ts processExerciseSession: the running best is updated
+// in place, so a second set can be a new record by beating the first one).
+// Two such events shared one key, which /progress used as its React key.
+// Each strength key therefore now also carries the RECORD METRIC — the
+// exact value that made the event a record — which is a true event
+// identity: a PR requires STRICTLY exceeding the running best, and the
+// running best is then set to that value, so successive events of the same
+// exerciseId/workoutDate/type have strictly increasing metrics and can
+// never repeat one. The metric is carried UNROUNDED on purpose: two
+// successive estimated-1RM PRs can differ by less than a pound, so
+// rounding would reintroduce the very collision this fixes.
 //
 // Merge rule — deterministic and order-preserving: both inputs arrive
 // most-recent-first from their own readers (each already capped at its
@@ -33,13 +48,33 @@ import type { WeightTimePREvent } from '@/lib/weight-time-records'
 export const RECENT_PR_TILE_CAP = 10
 
 export interface RecentPRTile {
-  /** Model-prefixed, unique within the merged list. */
+  /**
+   * Model-prefixed and unique within the merged list, including across
+   * successive same-workout PR events of the same type (W12-R1-1). Used as
+   * the React key on /progress and never displayed.
+   */
   key: string
   model: 'strength' | 'weight_time'
   typeLabel: string
   workoutDate: string
   exerciseName: string
   valueText: string
+}
+
+/**
+ * The metric that made THIS event a record, per PR type — the strength
+ * model's own event identity (W12-R1-1). Returned raw: never rounded,
+ * never formatted, never combined into a score. `null` is unreachable for
+ * an event the engine actually emits (a 'weight' PR always carries its
+ * weight_kg, an 'estimated_1rm' PR its computed 1RM, a 'bodyweight_reps'
+ * PR its reps); the nullable type is PREvent's, not this rule's.
+ */
+function strengthRecordMetric(event: PREvent): number | null {
+  switch (event.type) {
+    case 'weight': return event.weightKg
+    case 'estimated_1rm': return event.estimated1RmKg
+    case 'bodyweight_reps': return event.reps
+  }
 }
 
 /** The pre-W8 /progress mapping of a strength PR event, verbatim (Phase 2D copy). */
@@ -58,7 +93,7 @@ export function strengthPRTile(event: PREvent): RecentPRTile {
       ? `${Math.round(kgToLbs(event.estimated1RmKg as number))} lbs${suffix}`
       : `${event.reps} reps${suffix}`
   return {
-    key: `strength:${event.exerciseId}:${event.workoutDate}:${event.type}`,
+    key: `strength:${event.exerciseId}:${event.workoutDate}:${event.type}:${strengthRecordMetric(event) ?? ''}`,
     model: 'strength',
     typeLabel,
     workoutDate: event.workoutDate,
