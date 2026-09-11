@@ -111,15 +111,25 @@ committed rather than inferred.
 
 ### 133 — Weighted vest plank
 
+> **THE FOUR SOURCE FIELDS IN THIS SUBSECTION ARE SUPERSEDED BY §11
+> (Correction 1).** `category`, `provenance` and `aliases` below are
+> still current. The `source_url`, `source_page`, `retrieved_at` and
+> `import_confidence` values below, and the shared-URL rationale that
+> follows them, were the FIRST decision version; disposable execution
+> proved that binding impossible under a committed unique index. The
+> original text is preserved here as decision history and must not be
+> read as the current binding. **§11 is authoritative for 133's
+> external source binding.**
+
 | field | value | class |
 |---|---|---|
 | `category` | `isolation` | **C** (§5 ruling) |
 | `provenance` | `external_source_derived` | **B** |
 | `aliases` | `[]` | **C** (§4 ruling) |
-| `source_url` | `https://www.strengthlog.com/weighted-plank/` | **B** |
-| `source_page` | `https://www.strengthlog.com/exercise-directory/` | **B** |
-| `retrieved_at` | `2026-08-20` | **B** |
-| `import_confidence` | `human_review_required` | **B** |
+| ~~`source_url`~~ | ~~`https://www.strengthlog.com/weighted-plank/`~~ | superseded → §11 |
+| ~~`source_page`~~ | ~~`https://www.strengthlog.com/exercise-directory/`~~ | superseded → §11 |
+| ~~`retrieved_at`~~ | ~~`2026-08-20`~~ | superseded → §11 |
+| ~~`import_confidence`~~ | ~~`human_review_required`~~ | re-ruled in §11 (same value, different basis) |
 
 Identical values to 132, for the same reason: same source family,
 same classification. **It is intentional and valid for 132 and 133
@@ -210,7 +220,7 @@ provenance.
 | inv line | `provenance` | four source fields |
 |---|---|---|
 | 132 | `external_source_derived` | ALL FOUR non-NULL, exactly the §3 values |
-| 133 | `external_source_derived` | ALL FOUR non-NULL, exactly the §3 values |
+| 133 | `external_source_derived` | ALL FOUR non-NULL, exactly the **§11** values |
 | 137 | `forgefitos_original` | ALL FOUR `NULL` |
 | 138 | `forgefitos_original` | ALL FOUR `NULL` |
 | 139 | `forgefitos_original` | ALL FOUR `NULL` |
@@ -340,10 +350,10 @@ is guessed.
 | 10 | `p_training_role` | inventory `training_role` | A |
 | 11 | `p_difficulty` | inventory `difficulty` | A |
 | 12 | `p_availability` | inventory `availability` | A |
-| 13 | `p_source_url` | §3 of THIS document | B, or NULL by constraint |
-| 14 | `p_source_page` | §3 of THIS document | B, or NULL by constraint |
-| 15 | `p_retrieved_at` | §3 of THIS document | B, or NULL by constraint |
-| 16 | `p_import_confidence` | §3 of THIS document | B, or NULL by constraint |
+| 13 | `p_source_url` | §3 as corrected by §11 | A/B, or NULL by constraint |
+| 14 | `p_source_page` | §3 as corrected by §11 | B/C, or NULL by constraint |
+| 15 | `p_retrieved_at` | §3 as corrected by §11 | A/B, or NULL by constraint |
+| 16 | `p_import_confidence` | §3 as corrected by §11 | B/C, or NULL by constraint |
 | 17 | `p_anatomy` | inventory `muscle_targets` | A |
 | 18 | `p_aliases` | §5 of THIS document (`[]`) | C |
 
@@ -409,3 +419,171 @@ project "ShredOS" (ref `ttybyljytiwntvorugcv`), only under a later
 explicit one-use operator instruction, and only through the
 authorized Joseph/ChatGPT path. Claude does not execute it, does
 not contact hosted Supabase, and does not contact Vercel.
+
+## 11. Correction 1 — 133's external source binding (2026-09-11)
+
+**This section is a later, labeled correction, not a rewrite.** §3's
+133 subsection is preserved verbatim above with its original
+rationale, because the reason a value changed is itself part of the
+governance record. This section supersedes only 133's four external
+source fields, and it is authoritative for them.
+
+This is a plain forward correction. Commit
+`f125308e0a22d935c889691452477b5ac9138f83`, which carries the first
+decision version, is NOT amended.
+
+### 11.1 What happened
+
+1. **The first decision version bound both plank variants to one
+   `source_url`** — `https://www.strengthlog.com/weighted-plank/` for
+   132 and for 133 — and stated that sharing it was intentional and
+   valid.
+2. **Disposable execution proved that binding impossible.** The
+   prepared one-use package was run against a throwaway local
+   PostgreSQL cluster carrying migrations 001–028. It failed at the
+   second snapshot load:
+
+   ```
+   ERROR:  duplicate key value violates unique constraint
+           "exercise_catalog_source_url_version_unique_idx"
+   DETAIL:  Key (source_url, catalog_version)=
+            (https://www.strengthlog.com/weighted-plank/, 1) already exists.
+   CONTEXT: SQL statement "INSERT INTO public.exercise_catalog … RETURNING id"
+            PL/pgSQL function load_catalog_snapshot(…) line 21 at SQL statement
+   ```
+
+   The index is `supabase/migrations/023_exlib_catalog_and_delivery_
+   contract.sql:432`, `ON exercise_catalog (source_url,
+   catalog_version)`. Read back from the applied database it is
+   **non-partial** (it covers every row), `indnullsnotdistinct` is
+   `false`, and no later migration alters or drops it. Two distinct
+   catalog identities therefore cannot share one non-NULL
+   `source_url` at the same `catalog_version` — and
+   `catalog_version` is not reachable as a variable, because
+   `load_catalog_snapshot`'s INSERT omits the column and the function
+   takes no version argument, so every newly loaded snapshot is born
+   at the column DEFAULT of 1. Because the index is non-partial and
+   permanent, this is not a sequencing problem: deferring 133 to a
+   later act would not help, since 132 would hold the URL at version
+   1 indefinitely.
+3. **The package correctly rolled back.** The failure was a refusal,
+   not damage. Post-abort readback showed zero W14 rows in every
+   affected table, the catalog claims invariant intact at `0/0`
+   (`exlib_verify_catalog_claims`), and the transaction's temp
+   pre-state table gone. The package's fail-closed design worked
+   exactly as intended; what the database rejected was the ruling it
+   carried, not its machinery.
+4. **Two single-variable probes on fresh template clones proved the
+   shared URL was the SOLE blocker.** Probe A (a synthetic distinct
+   URL for 133) and probe B (133 as `forgefitos_original`) both
+   reached `5 logical / 5 snapshots / 5 anatomy / 0 aliases / 5 name
+   claims` and exited 0. Every other dimension of the five-entry set
+   — vocabularies, both 027 provenance/discovery CHECKs, anatomy,
+   empty aliases, name claims, the fourteen deltas, the three surface
+   digests, and the authority elevation and restoration — is
+   schema-compatible.
+
+### 11.2 The second external evidence carrier already exists in committed evidence
+
+`docs/exlib1c0a-equipment-resolution.jsonl`, resolution
+`exlib1c0a-eq-02` — the same committed record that splits the
+Weighted Plank family into `Plate-Weighted Plank` and
+`Weighted-Vest Plank` — carries an `independent_evidence` array with
+one entry:
+
+| field | committed value |
+|---|---|
+| `url` | `https://marathonhandbook.com/weighted-plank/` |
+| `retrieved_at` | `2026-08-24` |
+| `classification_fact` | "classified as an isometric plank loaded externally, typically with weight plates on the back or a weighted vest; core musculature target" |
+
+That classification fact names **both** loading methods, which is
+why the record supports two equipment identities rather than one.
+**A real second external provenance carrier therefore already exists
+in the committed corpus. It is not new, not fetched, and not
+invented.** No network access was used to establish it; it was read
+out of the HEAD blob of a file this preparation had already bound by
+size and SHA-256.
+
+**Correction to the earlier STOP report, recorded rather than
+erased:** that report stated no committed evidence supplied a
+distinct real URL, and offered "operator supplies a real, distinct
+URL" as remedy (a) requiring outside authority. That statement was
+wrong. The URL was present in `independent_evidence` of the very
+record that split the family — a file already in the manifest's
+source bindings. The earlier remedy analysis is otherwise unchanged
+and its other conclusions stand; this one finding corrects it. The
+STOP itself was correct: stopping was the required action, and the
+value was closed by the operator rather than by substitution.
+
+### 11.3 Final 133 binding — authoritative
+
+| field | value | class |
+|---|---|---|
+| `category` | `isolation` | **C** (§6 ruling, unchanged) |
+| `provenance` | `external_source_derived` | **B** (unchanged) |
+| `aliases` | `[]` | **C** (§5 ruling, unchanged) |
+| `source_url` | `https://marathonhandbook.com/weighted-plank/` | **A** |
+| `source_page` | `https://marathonhandbook.com/weighted-plank/` | **C** |
+| `retrieved_at` | `2026-08-24` | **A** |
+| `import_confidence` | `human_review_required` | **C** |
+
+Class attribution, stated precisely so no value is credited to a
+source that did not supply it:
+
+- **`source_url` and `retrieved_at` are class A** — read verbatim
+  from `independent_evidence[0]` of `exlib1c0a-eq-02`.
+- **Allocating that family-level evidence to the vest branch
+  specifically is the operator's (class B in kind).** The committed
+  record files the Marathon Handbook article under
+  `independent_evidence` for the whole Weighted Plank family, not
+  under either named candidate. The operator assigned it to 133 and
+  left 132 on the record's primary `source_identity`. The URL and
+  date are committed facts; the allocation is the operator's ruling.
+- **`source_page` is class C, by explicit ruling.** For this
+  standalone external article `source_page` is intentionally the same
+  URL as `source_url`. **The StrengthLog exercise-directory page must
+  NOT be attached to the Marathon Handbook source record** — mixing
+  the two source families would be misleading about where the record
+  came from.
+- **`import_confidence` is class C, by explicit ruling.** Marathon
+  Handbook did not supply that vocabulary value and must not be
+  credited with it. The committed evidence supplies the external
+  source and the retrieval date; W14 supplies the conservative
+  catalog confidence classification for this derived weighted-vest
+  identity.
+
+### 11.4 What this correction does NOT do
+
+- **133 remains `external_source_derived`.** It was not reclassified
+  to `forgefitos_original`.
+- **The five-entry provenance sequence is unchanged:**
+  `external_source_derived`, `external_source_derived`,
+  `forgefitos_original`, `forgefitos_original`,
+  `forgefitos_original`. §4's 2/3 split stands; only 133's external
+  source BINDING changed. 137, 138 and 139 keep all four source
+  fields `NULL`.
+- **No provenance value is changed merely to satisfy a constraint.**
+  The constraint ruled out one *binding*; the fix replaced that
+  binding with a different real committed source, leaving the
+  provenance classification untouched. Bending `provenance` to fit
+  an index would have falsified the record, and was refused.
+- **No schema relaxation is needed, and none is authorized.**
+  `exercise_catalog_source_url_version_unique_idx` is not weakened,
+  partialized, dropped or superseded. No migration 029 exists. 028
+  is untouched. With two distinct URLs the package satisfies the
+  index as committed, and the index is now asserted as a positive
+  protection by the W14 verifiers — including a negative control
+  that restores the shared URL and requires the package to fail
+  closed, leaving zero partial W14 state.
+- **`132` is entirely unchanged** — StrengthLog weighted-plank URL,
+  StrengthLog exercise-directory page, `2026-08-20`,
+  `human_review_required`, `isolation`, `external_source_derived`,
+  `[]`.
+- **No historical file was edited.**
+  `docs/exlib2b-release1-inventory.jsonl` and
+  `docs/exlib2b-release1-coverage-matrix.md` remain byte-identical,
+  and `docs/exlib1c0a-equipment-resolution.jsonl` was read only.
+- **The W14 hosted application still has NOT occurred** and is not
+  authorized. No hosted Supabase contact, no Supabase CLI
+  invocation, no Vercel contact, no push, no deployment.
