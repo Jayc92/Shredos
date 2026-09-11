@@ -1,10 +1,46 @@
 # W14-P preparation report — five-entry catalog admission
 
-**Status: LOCAL PREPARATION COMPLETE. W14 HOSTED APPLICATION HAS NOT OCCURRED.**
+> ## SUPERSESSION NOTICE — added 2026-09-11 (W14-C), after the hosted act
+>
+> **This is a historical W14-P document.** Every statement in it was true when
+> it was written, and it is preserved unedited apart from this notice and the
+> dated annotations marked **`[W14-C]`**. Nothing below has been rewritten
+> merely because time has advanced.
+>
+> **What changed:** the reviewed one-use package has SINCE been executed
+> successfully against hosted Supabase (project ShredOS, ref
+> `ttybyljytiwntvorugcv`) by the operator path — Joseph/ChatGPT, never Claude —
+> under a later operator authorization. **The package is SPENT. DO NOT RERUN
+> IT.** Where this report says the hosted application has not occurred, read
+> that as **true during W14-P and no longer current.**
+>
+> **Post-execution truth lives in
+> [`weight-time-w14-hosted-application-record.md`](./weight-time-w14-hosted-application-record.md)**,
+> which separates reviewed prep facts, operator-supplied hosted facts, and
+> Claude-verified local facts. Claude made no hosted contact in either phase;
+> every hosted figure is operator-supplied.
+>
+> **Deliberately unchanged:** `weight-time-w14-catalog-admission.sql`,
+> `weight-time-w14-admission-manifest.json`, and
+> `weight-time-w14-catalog-field-decisions.md` are byte-identical to the
+> reviewed candidate and carry their original `PREPARED` labels. Those labels
+> are frozen properties of the reviewed artifact, not current claims about the
+> world. The decisions document is additionally one of the manifest's eleven
+> hashed `source_bindings`, so a single byte of annotation in it would break the
+> executed package's own provenance binding.
+
+**Status as of W14-P — historical, now superseded by the notice above: LOCAL
+PREPARATION COMPLETE. W14 HOSTED APPLICATION HAS NOT OCCURRED.**
 
 Nothing in this candidate has been applied, pushed, deployed, or delivered.
 The prepared SQL package has been executed exactly once per proof run against a
 disposable local PostgreSQL cluster and nowhere else.
+
+**`[W14-C]`** The two sentences above were accurate at the W14-P tip. The
+package has since been applied once to hosted Supabase by the operator. It
+still has never been pushed, deployed, or delivered: no content review, no
+publication, and no delivery occurred, `deliver_catalog_exercises` was not
+invoked, and the candidate remains unpublished.
 
 This report is the evidence index for independent review. Every number in it
 was read from a command's exit status or output, not carried from a summary.
@@ -683,10 +719,46 @@ asserts all three). No catalog review, approval, publication or delivery action
 was begun. No tenant exercise and no tenant delivery alias was created.
 `deliver_catalog_exercises` was never invoked.
 
+> **`[W14-C]` SUPERSEDED IN PART, 2026-09-11.** The paragraph above described
+> W14-P and was true then. The hosted application **has since occurred exactly
+> once**, executed by the operator path (Joseph/ChatGPT) against project
+> ShredOS, ref `ttybyljytiwntvorugcv`, and **the package is now SPENT.**
+>
+> Three things in that paragraph remain true and are NOT superseded: the SQL is
+> still labelled `PREPARED - NOT EXECUTED`, it still states it has not been
+> applied, and the manifest still records `hosted_application_has_occurred:
+> false` — because both artifacts are deliberately byte-frozen, so `S13c` still
+> passes. Those are labels of the reviewed artifact, not current world state.
+>
+> Also still true: **no catalog review, approval, publication or delivery action
+> has been begun; no tenant exercise and no tenant delivery alias exists for
+> these five entries; `deliver_catalog_exercises` was never invoked.** The
+> operator's post-commit readback showed content versions, review events, run
+> items, tenant exercises and tenant delivery aliases all at zero for the five
+> targets. The five snapshots are `review_status = pending`.
+>
+> Current status is in
+> [`weight-time-w14-hosted-application-record.md`](./weight-time-w14-hosted-application-record.md).
+
 **What remains gated.** The hosted W14 act is not authorized by this
 preparation. When it is authorized, it is a one-use act: after a successful
 commit the package is spent. If its transport or result is ever ambiguous, read
 state first — never blindly rerun.
+
+> **`[W14-C]` THE GATE HAS SINCE BEEN OPENED, USED, AND CLOSED.** The hosted
+> W14 act was separately authorized, executed once, and **committed
+> successfully. The one-use authorization is consumed.** The operator's final
+> readback proved the spent state: five target logical identities, five target
+> snapshots, and `would_second_run_fail_pre_target = true`.
+>
+> **DO NOT RERUN THE PACKAGE.** The rule this paragraph stated in advance now
+> applies in earnest: if the result ever looks ambiguous, **READ STATE FIRST**
+> — never blindly rerun. A second application is not a benign no-op; the
+> package's preflight is designed to fail closed on an already-existing target.
+>
+> What remains gated after W14: hosted catalog **review** of the five pending
+> snapshots and everything downstream of it, and **publication of these local
+> governance commits to `main`.** Neither has been authorized.
 
 ---
 
