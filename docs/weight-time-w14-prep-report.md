@@ -19,14 +19,19 @@ was read from a command's exit status or output, not carried from a summary.
 | Production base tree | `e4838dea0c2ad66a894969ab1c20982d28a6af29` |
 | `origin/main` at the time of this report | `a54a30c25b1427aee24d00c37bd6a4aec69dd3d0` (**unmoved**) |
 | Candidate branch | `feature/weight-time` (local only, unpublished) |
-| Candidate tip | `dd24dd655d8652fa0a57cc64338068aebe84804b` |
-| Candidate tree | `2a355a5a93ccb5e9ae95afa65afb24156fd8c87c` |
-| Ahead / behind `origin/main` | 3 / 0 |
+| Tip carrying the five W14 artifacts | `dd24dd655d8652fa0a57cc64338068aebe84804b` |
+| Its tree | `2a355a5a93ccb5e9ae95afa65afb24156fd8c87c` |
+| Ahead / behind `origin/main` at that commit | 3 / 0 |
 | Working tree | 0 porcelain lines |
 
-The report's own commit is a fourth plain forward commit on the same line; the
-accompanying package manifest records the resulting tip and this file's bytes
-and SHA-256, which cannot appear inside the file itself.
+Every number below was measured at, or re-measured at, a commit on this same
+line. This report is then added by further plain forward commits on top — a file
+cannot state its own SHA-256 or the commit that introduces it — so **the
+authoritative candidate tip is the one named by
+`forgefit-weight-time-w14-prep-manifest.txt`**, which also carries this file's
+byte size and SHA-256. The bundle in the review package carries that tip. No
+figure in this report is restated from memory: the tables in §5 and §6 were all
+re-run after the report was first committed, and every one held.
 
 ### 1.1 Commit chain, and the zero-merge proof
 
@@ -654,16 +659,27 @@ state first — never blindly rerun.
 
 ## 8. Reconstruction
 
-The review package ships a git bundle carrying the three commits
-`a54a30c2..dd24dd6` (plus this report's commit) with `a54a30c25b1427…` as the
-prerequisite, so the candidate can be reconstructed offline from production
-`main` with no network access:
+The review package ships a git bundle created as
+`a54a30c25b1427aee24d00c37bd6a4aec69dd3d0..feature/weight-time`. It carries one
+ref, `refs/heads/feature/weight-time`, and records
+`a54a30c25b1427aee24d00c37bd6a4aec69dd3d0` as its only prerequisite, so a
+reviewer holding a clone of production `main` needs nothing else — and in
+particular no network access:
 
 ```bash
-git clone --no-local /path/to/shredos recovered   # or use an existing clone at a54a30c2
-git -C recovered fetch /path/to/forgefit-weight-time-w14-prep.bundle 'refs/heads/*:refs/remotes/w14/*'
+git -C <a-clone-at-a54a30c2> fetch /path/to/forgefit-weight-time-w14-prep.bundle \
+    'refs/heads/*:refs/remotes/w14/*'
 ```
 
+That reconstruction was performed rather than asserted. Into a bare scratch repo
+holding only the production base commit, with the bundle read as a local file:
+`git bundle verify` exits 0; the fetch exits 0; the reconstructed tip and tree
+match the candidate exactly; the range holds four commits and **zero** merges,
+each with a single parent; the changed-path list is the same seven additions with
+zero paths under `src/` or `supabase/`; migration 028 is byte-identical at
+37,162 bytes / `9b7d3a52…` on both sides; and `git fsck` exits 0 with no output.
+The transcript is `evidence/13-bundle-offline-reconstruction-fetch.log`.
+
 The accompanying `forgefit-weight-time-w14-prep-manifest.txt` records the bundle
-and every packaged file by byte size and SHA-256, including this report, and
-names the tip the bundle carries.
+and every packaged file by byte size and SHA-256 — including this report, whose
+own hash cannot appear inside it — and names the tip the bundle carries.
