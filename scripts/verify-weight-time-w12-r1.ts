@@ -155,26 +155,45 @@ interface FixtureSession {
  * Covers exactly the chains the two readers under test issue:
  * fetchStrengthRecords (.eq user_id, .eq status, .order asc) and
  * fetchPreviousBests (.eq user_id, .eq status, .neq id, .order desc, .limit).
+ *
+ * W12-R2-2: this fake used to DISCARD the order column and sort on
+ * workout_date whichever column was named. fetchPreviousBests now issues
+ * three chained clauses (workout_date, created_at, id), and under the old
+ * fake every one of them would have collapsed to the same workout_date sort
+ * — the R1 fixtures below all have distinct dates, so the checks would have
+ * kept passing by luck while the fake quietly stopped modelling the query.
+ * It now records each clause in call order and applies a stable multi-key
+ * sort, exactly as PostgREST chains them into one ORDER BY.
  */
 function fakeClientFor(sessions: FixtureSession[]) {
   class FakeQuery {
     private readonly equalities: Array<[string, unknown]> = []
     private readonly inequalities: Array<[string, unknown]> = []
-    private ascending = true
+    private readonly orderClauses: Array<{ column: string; ascending: boolean }> = []
     private maximumRows: number | null = null
     constructor(private readonly table: string) {}
     select(_columns: string): this { return this }
     eq(column: string, value: unknown): this { this.equalities.push([column, value]); return this }
     neq(column: string, value: unknown): this { this.inequalities.push([column, value]); return this }
-    order(_column: string, options?: { ascending?: boolean }): this { this.ascending = options?.ascending ?? true; return this }
+    order(column: string, options?: { ascending?: boolean }): this { this.orderClauses.push({ column, ascending: options?.ascending ?? true }); return this }
     limit(count: number): this { this.maximumRows = count; return this }
     private equalityValue(column: string): unknown { return this.equalities.find(([name]) => name === column)?.[1] }
     private execute(): { data: unknown; error: null } {
       if (this.table !== 'workout_sessions') throw new Error(`FakeQuery: unexpected table ${this.table}`)
+      const columnOf = (session: FixtureSession, column: string): string => {
+        const raw = (session as unknown as Record<string, unknown>)[column]
+        return raw === null || raw === undefined ? '' : String(raw)
+      }
       let rows = structuredClone(sessions)
         .filter((session) => session.user_id === this.equalityValue('user_id') && session.status === this.equalityValue('status'))
         .filter((session) => this.inequalities.every(([column, value]) => (session as unknown as Record<string, unknown>)[column] !== value))
-      rows.sort((a, b) => this.ascending ? a.workout_date.localeCompare(b.workout_date) : b.workout_date.localeCompare(a.workout_date))
+      rows.sort((a, b) => {
+        for (const clause of this.orderClauses) {
+          const comparison = columnOf(a, clause.column).localeCompare(columnOf(b, clause.column))
+          if (comparison !== 0) return clause.ascending ? comparison : -comparison
+        }
+        return 0
+      })
       if (this.maximumRows !== null) rows = rows.slice(0, this.maximumRows)
       return { data: rows, error: null }
     }

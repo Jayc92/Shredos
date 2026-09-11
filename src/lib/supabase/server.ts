@@ -485,10 +485,21 @@ export async function fetchPreviousBests(
   // weight_time selection below needs a deterministic historical order
   // across blocks — set_number alone repeats between two blocks of one
   // session, and was previously not even read from the database here.
+  //
+  // W12-R2-2: the approved session chronology is workout_date, then the
+  // session's created_at, then its id, so the reverse-chronological read is
+  // all three DESC. workout_date alone left every same-date session in
+  // PostgREST's incidental row order, which decided "the most recent
+  // completed session" — and therefore "Last:" — nondeterministically for a
+  // user who trains twice in one day. created_at is now selected as well as
+  // ordered on, so the ordering is visible in the rows it produces rather
+  // than only in the query. workout_date remains the PRIMARY dimension: it
+  // is the user's own date for the session, and created_at only breaks its
+  // ties.
   const { data: history } = await supabase
     .from('workout_sessions')
     .select(`
-      id, workout_date,
+      id, workout_date, created_at,
       workout_exercises (
         exercise_id, order_index,
         exercise:exercises ( tracking_mode ),
@@ -499,6 +510,8 @@ export async function fetchPreviousBests(
     .eq('status', 'completed')
     .neq('id', currentSessionId)
     .order('workout_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(15)
 
   const bests: Record<string, any> = {}
@@ -615,6 +628,11 @@ export async function fetchPreviousBests(
         // Phase 2T: cardio/timed history.
         duration_seconds: representative.duration_seconds ?? null,
         distance_meters: representative.distance_meters ?? null,
+        // DELIBERATELY the session's workout_date, not session.created_at
+        // (which W12-R2-2 also selects, for ordering). Consumers read this
+        // field as "the date this set was performed" and render it as a date;
+        // the session's row-insert timestamp is a different thing and would
+        // disagree with the workout_date shown everywhere else.
         created_at: session.workout_date,
       }
     }
@@ -641,6 +659,11 @@ export async function fetchPreviousBests(
  * representative, so a single session never produces more than one
  * history row.
  *
+ * W12-R2-2: "most-recent-first" is the approved deterministic chronology —
+ * workout_date, then the session's created_at, then its id — the same one
+ * fetchPreviousBests uses, so the "Last:" line and these history rows cannot
+ * disagree about which of two same-date sessions is the recent one.
+ *
  * currentSessionId is optional (Phase 2E): the workout-detail page
  * still passes its own session id to exclude it from "recent history".
  * The standalone exercise-progress-detail page has no current session
@@ -655,14 +678,24 @@ export async function fetchExerciseHistory(
 ): Promise<Record<string, ExerciseHistoryEntry[]>> {
   if (exerciseIds.length === 0) return {}
 
+  // W12-R2-2: the same approved chronology as fetchPreviousBests —
+  // workout_date, then created_at, then id, all DESC for a reverse-
+  // chronological read. Both readers must agree: fetchPreviousBests decides
+  // "Last:" and this decides the recent-history rows underneath it, and with
+  // workout_date alone they could each pick a DIFFERENT same-date session
+  // (whichever PostgREST happened to return first) and contradict each other
+  // on the same screen. set_number and order_index are selected for the same
+  // reason: the weight_time representative's remaining tie-break is the lower
+  // set_number, and pooling two blocks of one exercise must not depend on the
+  // order the nested rows arrive in.
   let query = supabase
     .from('workout_sessions')
     .select(`
-      id, workout_date,
+      id, workout_date, created_at,
       workout_exercises (
-        exercise_id,
+        exercise_id, order_index,
         exercise:exercises ( tracking_mode ),
-        workout_sets ( reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
+        workout_sets ( set_number, reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
       )
     `)
     .eq('user_id', userId)
@@ -674,6 +707,8 @@ export async function fetchExerciseHistory(
 
   const { data: history } = await query
     .order('workout_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(15)
 
   const result: Record<string, ExerciseHistoryEntry[]> = {}
@@ -686,11 +721,20 @@ export async function fetchExerciseHistory(
     const representativeInSession: Record<string, any> = {}
     const trackingModeByExerciseId: Record<string, TrackingMode> = {}
 
-    for (const we of (session.workout_exercises as Array<{
+    // W12-R2-2: the blocks are merged pairwise below, so the order they are
+    // visited in is part of the answer whenever the per-mode representative
+    // rule ends in a tie. Sort by the session's own presentation order rather
+    // than trusting the order the nested rows arrive in. The sort is stable,
+    // so blocks that genuinely share an order_index keep their arrival order
+    // and this can only ever replace an incidental order with the real one.
+    const blocks = [...((session.workout_exercises as Array<{
       exercise_id: string
+      order_index: number | null
       exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[]
-      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean; duration_seconds: number|null; distance_meters: number|null }>
-    }>) ?? []) {
+      workout_sets: Array<{ set_number: number; reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean; duration_seconds: number|null; distance_meters: number|null }>
+    }>) ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+
+    for (const we of blocks) {
       if (!exerciseIds.includes(we.exercise_id)) continue
 
       const trackingMode: TrackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
