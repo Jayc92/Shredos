@@ -271,7 +271,11 @@ async function main() {
     const w11ConsumersAtClosureTip = (require('child_process').execSync(
       `git grep -lE 'equipment|tracking_mode|trackingMode|exercise_type|exerciseType' ${W11_PRE_WEIGHT_TIME_TIP} -- 'src/*.ts' 'src/*.tsx' 'src/*.sql' || true`,
       { encoding: 'utf8' }) as string).split('\n').filter(Boolean).map((l: string) => l.replace(`${W11_PRE_WEIGHT_TIME_TIP}:`, ''))
-    const W11_POST_CLOSEOUT_CONSUMERS = ['src/lib/weight-time-records.ts', 'src/lib/workout-set-contract.ts', 'src/lib/workout-coach.ts']
+    // W12-R1-2 adds a FOURTH post-closeout consumer by the same rule and the same proof: the active-workout
+    // client now reads we.exercise.tracking_mode to label each block for the session-wide weight_time PR
+    // evaluation, so the mechanical search finds it. It was not a consumer at the closeout tip — the gate
+    // below proves that mechanically against the immutable commit object, exactly as for the other three.
+    const W11_POST_CLOSEOUT_CONSUMERS = ['src/lib/weight-time-records.ts', 'src/lib/workout-set-contract.ts', 'src/lib/workout-coach.ts', 'src/components/workout/WorkoutDetailClient.tsx']
     const w11AdmittedPostClosure = (p: string): boolean => W11_POST_CLOSEOUT_CONSUMERS.includes(p) && !w11ConsumersAtClosureTip.includes(p)
     const w11HistoricalUniverseNamed = w11ConsumersAtClosureTip.length >= 20 && w11ConsumersAtClosureTip.every((p) => audit.includes(p))
     const missing = srcConsumers.filter((p) => !audit.includes(p) && !w11AdmittedPostClosure(p)).concat(w11HistoricalUniverseNamed ? [] : ['<historical universe at the closeout tip not fully named>'])

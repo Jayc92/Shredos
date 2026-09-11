@@ -142,9 +142,12 @@ console.log('\n3. Workout states')
     client.includes("const readOnly = session.status === 'completed'"))
   // RETARGET (W11 — UI_SURFACE): the historical expression is anchored at the closeout tip; W10 passes the
   // weight_time 2-D baseline as a THIRD argument — the completed-only gate is unchanged.
+  // RETARGET (W12-R1-2): a FOURTH argument passes the session's already-computed weight_time per-set PR map.
+  // The gate this check exists to prove — a summary ONLY for a completed session, `null` otherwise — is
+  // asserted verbatim as before; only the call it guards grew an argument.
   check('completion summary computed only for completed',
     w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes("session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}) : null") &&
-    client.includes("session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}) : null"))
+    /session\.status === 'completed'\s*\? summarizeWorkout\(exercises, prBaseline \?\? \{\}, weightTimeBaseline \?\? \{\}, weightTimeSetPRs\)\s*: null/.test(client))
   check('add-exercise hidden when read-only',
     client.includes('{!readOnly && <AddExerciseSection'))
   check('complete endpoint unchanged',

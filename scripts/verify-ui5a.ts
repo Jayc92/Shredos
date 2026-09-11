@@ -644,8 +644,10 @@ async function main() {
     check('X4: execution behavior anchors intact',
       // RETARGET (W11 — UI_SURFACE): the historical call is anchored at the closeout tip; W10 passes the
       // weight_time 2-D baseline as a THIRD argument — the strength baseline argument is unchanged.
+      // RETARGET (W12-R1-2): a FOURTH argument passes the session's already-computed weight_time per-set PR
+      // map. The four API/behavior anchors below are untouched, which is what this check is for.
       w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})') &&
-      read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {})') &&
+      read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}, weightTimeSetPRs)') &&
       read('src/components/workout/SetRow.tsx').includes('/api/workout-sets/') &&
       read('src/components/workout/AddExerciseSection.tsx').includes('`/api/workouts/${workoutId}/exercises`') &&
       read('src/app/api/workouts/route.ts').includes('findActiveTrainingSession') &&

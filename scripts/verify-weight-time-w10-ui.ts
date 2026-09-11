@@ -140,8 +140,18 @@ async function main(): Promise<number> {
     && blockCode.includes('const weightTimeComparison = isWeightTime ? compareWeightTimeSets(representativeHold, previousRepresentativeHold) : null')
     && /const curBest = isWeightTime\s*\? null/.test(blockCode) && /const signal  = isWeightTime\s*\? null/.test(blockCode)
     && blockCode.includes('trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)') && /<WeightTimeComparisonBadge comparison=\{weightTimeComparison\}/.test(blockCode))
-  check('E2: Weight-time PR badges come from evaluateWeightTimeSetPRs over the prior 2-D points; evaluateSetPRs runs only for the other modes',
-    /if \(isWeightTime\) \{\s*const weightTimePRs = evaluateWeightTimeSetPRs\(/.test(blockCode) && /\} else \{\s*Object\.assign\(setPRs, evaluateSetPRs\(sets, prBaseline \?\? EMPTY_PR_BASELINE\)\)/.test(blockCode) && blockCode.includes("setPRs[setId] = weightTimePRs[setId] ? 'weight_time' : null"))
+  // W12-R1-2 RETARGET. The W10 assertion is unchanged — weight_time badges come
+  // from the two-dimensional model and evaluateSetPRs runs only for the other
+  // modes. What changed is WHERE the 2-D evaluation happens: a block cannot
+  // evaluate its own weight_time PRs, because the same exercise may appear in
+  // several blocks of one session and each block would restart from the
+  // historical frontier. The parent now evaluates the whole session once and
+  // this block only maps the answer onto its own set ids, so the negative
+  // conjunct below (no per-block evaluateWeightTimeSetPRs) is the correction.
+  check('E2: Weight-time PR badges come from the session-wide 2-D evaluation the parent computed; evaluateSetPRs runs only for the other modes',
+    /if \(isWeightTime\) \{\s*for \(const s of sets as WorkoutSet\[\]\) \{\s*if \(!isQualifyingWeightTimeSet\(s\)\) continue\s*setPRs\[s\.id\] = weightTimeSetPRs\?\.\[s\.id\] \? 'weight_time' : null/.test(blockCode)
+    && /\} else \{\s*Object\.assign\(setPRs, evaluateSetPRs\(sets, prBaseline \?\? EMPTY_PR_BASELINE\)\)/.test(blockCode)
+    && !blockCode.includes('evaluateWeightTimeSetPRs('))
   const addSet = blockCode.slice(blockCode.indexOf('async function handleAddSet'), blockCode.indexOf('async function handleRemove'))
   const weightTimeArm = addSet.slice(addSet.indexOf("trackingMode === 'weight_time'"), addSet.indexOf('} else {', addSet.indexOf("trackingMode === 'weight_time'")))
   check('E3: Add set for weight_time copies added weight with an explicit null check (0 copies as 0), duration and rpe; never reps, never distance; is_warmup false',
@@ -155,11 +165,22 @@ async function main(): Promise<number> {
     && /bodyweight: \[\s*\{ label: 'Reps', className: 'flex-1 text-center' \},\s*\{ label: 'RPE', className: 'w-12 text-center' \},\s*\{ label: '', className: 'hidden w-11 sm:inline-block' \},\s*\]/.test(blockCode)
     && /cardio: \[\s*\{ label: 'Duration', className: 'flex-1 text-center' \},\s*\{ label: 'Distance', className: 'flex-1 text-center' \},\s*\]/.test(blockCode)
     && /timed: \[\s*\{ label: 'Duration', className: 'flex-1 text-center' \},\s*\{ label: 'RPE', className: 'w-12 text-center' \},\s*\]/.test(blockCode))
-  check('E7: the weight_time baseline prop flows page → WorkoutDetailClient → block, and the completion summary receives it',
+  // W12-R1-2 RETARGET. The W10 assertion is unchanged in intent — the weight_time
+  // baseline flows from the page down, and the completion summary and the badges
+  // are fed from it. The correction makes the shared truth explicit: instead of
+  // handing the raw baseline to the summary and separately to each block (two
+  // independent evaluations that disagreed once an exercise appeared twice),
+  // WorkoutDetailClient derives ONE session-wide per-set PR map and passes that
+  // same object to summarizeWorkout and to every block. This is what makes the
+  // summary's PR count and the visible per-set badges the same truth by
+  // construction rather than by coincidence.
+  const detailClient = read('src/components/workout/WorkoutDetailClient.tsx')
+  check('E7: the weight_time baseline flows page → WorkoutDetailClient, which derives ONE session-wide per-set PR map and hands the SAME map to summarizeWorkout and to every block',
     read('src/app/(app)/workouts/[id]/page.tsx').includes('fetchWeightTimePRBaselines(supabase, user.id, exerciseIds, params.id)')
     && read('src/app/(app)/workouts/[id]/page.tsx').includes('weightTimeBaseline={weightTimeBaseline}')
-    && read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {})')
-    && read('src/components/workout/WorkoutDetailClient.tsx').includes('weightTimeBaseline={weightTimeBaseline?.[we.exercise_id]}'))
+    && detailClient.includes('const weightTimeSetPRs = evaluateWeightTimeSessionPRs(')
+    && detailClient.includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}, weightTimeSetPRs)')
+    && detailClient.includes('weightTimeSetPRs={weightTimeSetPRs}'))
 
   console.log('\nF. Progress detail — WeightTimeSections rendered (three distinct concepts, frontier order, PR copy)')
   let counter = 0
@@ -171,7 +192,9 @@ async function main(): Promise<number> {
   const summary = summarizeWeightTimePerformances(performances)
   const detail: WeightTimeExerciseDetail = {
     exerciseId: 'ex', exerciseName: 'Plate plank', isUnilateral: false, summary,
-    history: [], latestQualifying: performances[3], previousSessionQualifying: performances[2],
+    // W12-R1-3(B) rename only — sessions 'c' and 'b' hold one qualifying set each,
+    // so performances[3] and performances[2] ARE their sessions' representatives.
+    history: [], latestSessionRepresentative: performances[3], previousSessionRepresentative: performances[2],
   }
   const recentEntries = [{ workoutDate: '2026-08-15', weightKg: lbsToKg(30), reps: null, rpe: null, estimated1RmKg: null, durationSeconds: 40, distanceMeters: null }, { workoutDate: '2026-08-08', weightKg: 0, reps: null, rpe: 7, estimated1RmKg: null, durationSeconds: 120, distanceMeters: null }]
   const sections = renderToStaticMarkup(React.createElement(WeightTimeSections, { detail, recentEntries, isUnilateral: false }))

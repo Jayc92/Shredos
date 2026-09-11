@@ -226,7 +226,19 @@ async function main(): Promise<number> {
   check('I5: setScore, bestSet, epley1RM and evaluateSetPRs contain no weight_time path (excluded, not extended)', ['setScore', 'bestSet', 'epley1RM', 'evaluateSetPRs'].every((name) => functionBody(workout, name) !== '' && !functionBody(workout, name).includes('weight_time')))
   check('I6: no weight × duration scalar anywhere in the domain layer', ['src/lib/workout.ts', 'src/lib/progress-overview.ts', 'src/lib/supabase/server.ts', 'src/lib/workout-coach.ts', 'src/lib/weight-time-records.ts'].every((file) => !/(weight_kg|weightKg)\s*\*\s*(duration_seconds|durationSeconds)|(duration_seconds|durationSeconds)\s*\*\s*(weight_kg|weightKg)/.test(stripComments(read(file)))))
   check('I7: strength-records.ts is byte-identical to its W3 blob-pinned state (no weight_time extension)', !read('src/lib/strength-records.ts').includes("'weight_time'") || /allowlist/.test(read('src/lib/strength-records.ts')))
-  check('I8: summarizeWorkout routes weight_time to evaluateWeightTimeSetPRs and strength modes to evaluateSetPRs', functionBody(workout, 'summarizeWorkout').includes("tracking_mode === 'weight_time'") && functionBody(workout, 'summarizeWorkout').includes('evaluateWeightTimeSetPRs(') && functionBody(workout, 'summarizeWorkout').includes('STRENGTH_SCORING_MODES.has(we.exercise.tracking_mode)'))
+  // W12-R1-2 RETARGET. The W9 assertion is unchanged — summarizeWorkout must
+  // route weight_time to the two-dimensional engine and strength modes to
+  // evaluateSetPRs. Only the entry point moved: the per-block
+  // evaluateWeightTimeSetPRs call became one session-wide
+  // evaluateWeightTimeSessionPRs pre-pass, because evaluating each block
+  // independently restarted every block from the historical frontier and
+  // inflated the PR set count. The negative half is now explicit: the
+  // per-block entry point must NOT survive inside summarizeWorkout.
+  check('I8: summarizeWorkout routes weight_time to the session-wide evaluateWeightTimeSessionPRs and strength modes to evaluateSetPRs',
+    functionBody(workout, 'summarizeWorkout').includes("tracking_mode === 'weight_time'")
+    && functionBody(workout, 'summarizeWorkout').includes('evaluateWeightTimeSessionPRs(')
+    && !functionBody(workout, 'summarizeWorkout').includes('evaluateWeightTimeSetPRs(')
+    && functionBody(workout, 'summarizeWorkout').includes('STRENGTH_SCORING_MODES.has(we.exercise.tracking_mode)'))
 
   console.log(`\n${passed} passed, ${failed} failed`)
   return failed === 0 ? 0 : 1

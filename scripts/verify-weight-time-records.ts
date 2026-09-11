@@ -234,7 +234,10 @@ async function main(): Promise<number> {
   check('J6: recent PR events carry exercise name and are most recent first', records.recentPREvents.length === 4 && records.recentPREvents[0].setId === 'w7' && records.recentPREvents[0].exerciseName === 'Plate plank')
   const detail = await fetchWeightTimeExerciseDetail(fake, 'user-1', 'ex-wt')
   check('J7: detail history shows the warm-up (flagged) and every completed set, but not the incomplete set', detail !== null && detail.history.some((entry) => entry.setId === 'w2' && entry.isWarmup) && !detail.history.some((entry) => entry.setId === 'w6') && detail.history.length === 5)
-  check('J8: detail latest qualifying = w7 and the previous-session qualifying = w5', detail?.latestQualifying?.setId === 'w7' && detail?.previousSessionQualifying?.setId === 'w5')
+  // W12-R1-3(B) rename only: both sessions have exactly ONE qualifying set,
+  // so each session's representativeHold IS that set — the expected values
+  // w7 and w5 are unchanged by the session-grouping correction.
+  check('J8: detail latest session representative = w7 and the previous session representative = w5', detail?.latestSessionRepresentative?.setId === 'w7' && detail?.previousSessionRepresentative?.setId === 'w5')
   check('J9: detail for an exercise with no history → null', (await fetchWeightTimeExerciseDetail(fake, 'user-1', 'ex-none')) === null)
   const baselines = await fetchWeightTimePRBaselines(fake, 'user-1', ['ex-wt', 'ex-wr'], 's3')
   check('J10: PR baselines exclude the current session s3 and non-weight_time exercises: ex-wt → (20,60),(0,120),(25,70); no ex-wr entry',

@@ -102,8 +102,21 @@ async function main(): Promise<number> {
     block.includes('const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null') && block.includes('const previousRepresentativeHold = isWeightTime ? previousBest : null')
     && /const curBest = isWeightTime\s*\? null/.test(block) && /const signal  = isWeightTime\s*\? null/.test(block))
   const server = stripComments(read('src/lib/supabase/server.ts'))
+  // W12-R1-3(A) RETARGET. The W10.5 vocabulary assertion is unchanged and
+  // strengthened: no localBest/bestInSession local survives, legacy modes still
+  // route through the shared pickRepresentativeSet rule, and its weight_time arm
+  // still returns pickRepresentativeHold. Only the declaration moved — the
+  // single `const representative = pickRepresentativeSet(...)` became a `let`
+  // assigned in either arm, because fetchPreviousBests now merges every block of
+  // a session before selecting that session's representative instead of letting
+  // the first block PostgREST happened to return decide it. The declaration is
+  // typed `PreviousBestSetRow | null` rather than `any`: the merged arm needs a
+  // named row type for its id->row map, so annotating it cost nothing and kept
+  // the lint warning budget from growing.
   check('1f: server.ts speaks of representatives — no localBest/bestInSession locals remain; the weight_time arm uses pickRepresentativeHold',
-    !/localBest|bestInSession/.test(server) && server.includes('const representative = pickRepresentativeSet(working, trackingMode)') && /case 'weight_time':\s*return pickRepresentativeHold\(/.test(server))
+    !/localBest|bestInSession/.test(server) && /let representative: PreviousBestSetRow \| null = null/.test(server)
+    && server.includes('representative = pickRepresentativeSet(working, trackingMode)') && /case 'weight_time':\s*return pickRepresentativeHold\(/.test(server)
+    && server.includes('const hold = selectLongestHold(performances)'))
   check('1g: the representativeHold feeds no scalar — workout.ts has no weight × duration product and the hold is never passed to setScore/progressSignal/classifyTrend',
     !/(weight_kg|weightKg)\s*\*\s*(duration_seconds|durationSeconds)/.test(stripComments(workoutSource)) && !/setScore\(representativeHold|progressSignal\(representativeHold|classifyTrend\(.*representativeHold/.test(block))
 
@@ -168,8 +181,9 @@ async function main(): Promise<number> {
     strip(mixedBadge).includes('Heavier, shorter') && /lucide-arrow-left-right/.test(mixedBadge) && /bg-surface-sunken text-ink-muted border-edge/.test(mixedBadge) && !/lucide-trending|lucide-move-right|success|critical/.test(mixedBadge)
     && strip(improvedBadge).includes('Improved') && /lucide-trending-up/.test(improvedBadge))
   const detail = { exerciseId: 'ex', exerciseName: 'Carry', isUnilateral: false, summary: { longestHold: null, heaviestHold: null, frontier: [], prEvents: [], qualifyingCount: 2 }, history: [],
-    latestQualifying: { setId: 'a', exerciseId: 'ex', sessionId: 's2', workoutDate: '2026-09-08', sessionCreatedAt: '2026-09-08T10:00:00Z', orderIndex: 0, setNumber: 1, weightKg: lbsToKg(30), durationSeconds: 40, rpe: null },
-    previousSessionQualifying: { setId: 'b', exerciseId: 'ex', sessionId: 's1', workoutDate: '2026-09-01', sessionCreatedAt: '2026-09-01T10:00:00Z', orderIndex: 0, setNumber: 1, weightKg: lbsToKg(20), durationSeconds: 60, rpe: null } }
+    // W12-R1-3(B) rename only — one hold per session, so each is its session's representative.
+    latestSessionRepresentative: { setId: 'a', exerciseId: 'ex', sessionId: 's2', workoutDate: '2026-09-08', sessionCreatedAt: '2026-09-08T10:00:00Z', orderIndex: 0, setNumber: 1, weightKg: lbsToKg(30), durationSeconds: 40, rpe: null },
+    previousSessionRepresentative: { setId: 'b', exerciseId: 'ex', sessionId: 's1', workoutDate: '2026-09-01', sessionCreatedAt: '2026-09-01T10:00:00Z', orderIndex: 0, setNumber: 1, weightKg: lbsToKg(20), durationSeconds: 60, rpe: null } }
   const sectionsText = strip(renderToStaticMarkup(React.createElement(WeightTimeSections, { detail, recentEntries: [], isUnilateral: false })))
   check('3m: the progress detail page says "Vs. previous session: Heavier, shorter" — never Same/Steady/Improved/Declined for a trade-off', sectionsText.includes('Vs. previous session: Heavier, shorter') && !/Vs\. previous session: (Same|Steady|Improved|Declined)/.test(sectionsText))
 

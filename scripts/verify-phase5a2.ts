@@ -544,9 +544,12 @@ console.log('\n14. Exercise/set machinery')
     !read('src/app/api/workout-exercises/[id]/route.ts').includes('source'))
   // RETARGET (W11 — UI_SURFACE): the historical call is anchored at the closeout tip; W10 passes the
   // weight_time 2-D baseline as a THIRD argument — the strength baseline argument is unchanged.
+  // RETARGET (W12-R1-2): a FOURTH argument passes the session's already-computed weight_time per-set PR map.
+  // 5A.2's boundary is that DRAFTS do not touch this pipeline; that is unaffected — the argument added here
+  // is derived from session data for every status alike, with no draft-specific path.
   check('summary/PR pipeline untouched',
     w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})') &&
-    detailClient.includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {})'))
+    detailClient.includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}, weightTimeSetPRs)'))
   check('drafts flow through the same exercise machinery (no special-casing)',
     !detailClient.includes("'manual'") && !detailClient.includes('workoutStatusLabel'))
   check('sets on a finalized historical workout count like any completed workout',

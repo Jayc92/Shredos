@@ -492,8 +492,11 @@ console.log('\n13. Phase boundary')
     // invariant is the client's behavior anchor.
     // RETARGET (W11 — UI_SURFACE): the historical call is anchored at the closeout tip; W10 passes the
     // weight_time 2-D baseline as a THIRD argument — the strength baseline argument is unchanged.
+    // RETARGET (W12-R1-2): a FOURTH argument passes the session's already-computed weight_time per-set PR
+    // map, so the summary and the visible badges share one truth. The strength baseline argument and the
+    // historical anchor are still unchanged; this check's subject is the call, not its arity.
     w11AtClosureTip('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {})') &&
-    read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {})'))
+    read('src/components/workout/WorkoutDetailClient.tsx').includes('summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}, weightTimeSetPRs)'))
   check('workout API routes unchanged (anchors)',
     read('src/app/api/workouts/route.ts').includes('findActiveTrainingSession') &&
     read('src/app/api/routines/[id]/start/route.ts').includes('findActiveTrainingSession'))
