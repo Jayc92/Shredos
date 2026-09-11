@@ -98,8 +98,17 @@ async function main(): Promise<number> {
   check('1d: no weight_time module or component calls its object a best set / best performance / top set (executable text)',
     weightTimeFiles.every((file) => !/best set|best performance|top set|\bbestSet\b|\bbest\b/i.test(stripComments(read(file)))))
   const block = stripComments(read('src/components/workout/WorkoutExerciseBlock.tsx'))
-  check('1e: the exercise block holds the hold in representativeHold / previousRepresentativeHold and weight_time never flows through curBest or bestSet',
-    block.includes('const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null') && block.includes('const previousRepresentativeHold = isWeightTime ? previousBest : null')
+  // W12-R2-1 RETARGET. The W10.5 assertion is unchanged: the exercise block
+  // keeps the hold in its own named local, and weight_time never flows through
+  // curBest or bestSet. Only the two NAMES moved. The F5 ruling accepted this
+  // comparison's behaviour but required the terminology to state its scope,
+  // because `representativeHold` read as "this session's" and this local has
+  // never been that — it is ONE workout_exercises block's anchor, used only for
+  // that block's comparison badge. The scope contract itself (block-local,
+  // never the session representative, never PR truth) is asserted in
+  // verify-weight-time-w12-r2.ts.
+  check('1e: the exercise block holds the hold in blockRepresentativeHold / previousSessionRepresentativeHold and weight_time never flows through curBest or bestSet',
+    block.includes('const blockRepresentativeHold = isWeightTime ? pickRepresentativeHold(sets) : null') && block.includes('const previousSessionRepresentativeHold = isWeightTime ? previousBest : null')
     && /const curBest = isWeightTime\s*\? null/.test(block) && /const signal  = isWeightTime\s*\? null/.test(block))
   const server = stripComments(read('src/lib/supabase/server.ts'))
   // W12-R1-3(A) RETARGET. The W10.5 vocabulary assertion is unchanged and
@@ -117,8 +126,14 @@ async function main(): Promise<number> {
     !/localBest|bestInSession/.test(server) && /let representative: PreviousBestSetRow \| null = null/.test(server)
     && server.includes('representative = pickRepresentativeSet(working, trackingMode)') && /case 'weight_time':\s*return pickRepresentativeHold\(/.test(server)
     && server.includes('const hold = selectLongestHold(performances)'))
-  check('1g: the representativeHold feeds no scalar — workout.ts has no weight × duration product and the hold is never passed to setScore/progressSignal/classifyTrend',
-    !/(weight_kg|weightKg)\s*\*\s*(duration_seconds|durationSeconds)/.test(stripComments(workoutSource)) && !/setScore\(representativeHold|progressSignal\(representativeHold|classifyTrend\(.*representativeHold/.test(block))
+  // W12-R2-1: the negative regexes matched the literal name `representativeHold`
+  // and would have gone on passing vacuously once the local became
+  // blockRepresentativeHold — the ban would have covered a name that no longer
+  // exists. They now match ANY *representativeHold local, which is strictly more
+  // than the W10.5 version covered: a strengthening, not an admission.
+  check('1g: no *representativeHold feeds a scalar — workout.ts has no weight × duration product and no such local is ever passed to setScore/progressSignal/classifyTrend',
+    !/(weight_kg|weightKg)\s*\*\s*(duration_seconds|durationSeconds)/.test(stripComments(workoutSource))
+    && !/setScore\([A-Za-z]*[Rr]epresentativeHold|progressSignal\([A-Za-z]*[Rr]epresentativeHold|classifyTrend\(.*[Rr]epresentativeHold/.test(block))
 
   console.log('\n2. First-ever qualifying hold is a Weight-time PR — preserved')
   const first: WeightTimePerformance = { setId: 'p1', exerciseId: 'ex', sessionId: 's1', workoutDate: '2026-09-01', sessionCreatedAt: '2026-09-01T10:00:00Z', orderIndex: 0, setNumber: 1, weightKg: 0, durationSeconds: 30, rpe: null }

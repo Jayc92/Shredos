@@ -339,11 +339,22 @@ export function pickRepresentativeCardioSet(
 // ── W9/W10.5: the weight_time representativeHold (display anchor only) ─
 
 /**
- * The representativeHold: the ONE hold that stands for a session where an
- * existing surface structurally needs a single set ("Last: ...", the
- * "Recent" history rows, the overview's latest-vs-previous comparison).
+ * The representativeHold: the ONE hold that stands for the qualifying sets
+ * it is GIVEN, where an existing surface structurally needs a single set
+ * ("Last: ...", the "Recent" history rows, the overview's latest-vs-previous
+ * comparison, the active card's comparison badge).
+ *
+ * W12-R2-1: the SCOPE is the caller's, and the two scopes in the app are
+ * deliberately different. The history readers pass a whole session's
+ * qualifying sets, merged across every workout_exercises block, and get that
+ * session's representative. WorkoutExerciseBlock passes ONE block's sets and
+ * gets a block-local anchor for that block's comparison badge only (see the
+ * contract stated at its blockRepresentativeHold). This helper cannot tell
+ * the two apart and must not be described as inherently per-session.
+ *
  * Rule (W10.5-A ruling 1): longest duration; tie → higher added weight;
- * remaining tie → deterministic historical order (the lower set_number).
+ * remaining tie → deterministic historical order (the lower set_number —
+ * which the caller must therefore actually select).
  * It is NOT a "best set", "best performance" or "top set" — it feeds no
  * scalar ranking, no progression ladder and no trend; it never combines
  * the two dimensions and never calls setScore. All-time records, the

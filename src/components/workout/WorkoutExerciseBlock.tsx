@@ -158,16 +158,38 @@ export function WorkoutExerciseBlock({
   // tracking-mode-census: exempt — weight_time is routed by isWeightTime below to the 2-D helpers; this predicate stays cardio/timed only
   const isCardioOrTimed = we.exercise.tracking_mode === 'cardio' || we.exercise.tracking_mode === 'timed'
   // W10/W10.5: weight_time never flows through curBest, bestSet or any
-  // ProgressSignal. This session's representativeHold (longest hold; tie →
-  // heavier — a display anchor, never a "best set") is compared in two
-  // dimensions with the previous session's representativeHold, which
-  // arrives in the mode-generic previousBest prop (fetchPreviousBests).
-  // Weight-time PR badges come from the W8 model — never evaluateSetPRs
-  // (D4: no scalar for a weighted hold).
+  // ProgressSignal. The comparison badge is two-dimensional (longest hold;
+  // tie → heavier — a display anchor, never a scalar) against the previous
+  // session's representative, which arrives in the mode-generic previousBest
+  // prop (fetchPreviousBests). Weight-time PR badges come from the W8 model
+  // — never evaluateSetPRs (D4: no scalar for a weighted hold).
+  //
+  // W12-R2-1 (independent-review F5 ruling: the block-local comparison is
+  // ACCEPTED behaviour; only the terminology was wrong — this used to call
+  // itself "this session's representativeHold", which it is not). The
+  // contract of blockRepresentativeHold, exactly:
+  //
+  //   - it represents THIS workout_exercises block's own sets, nothing else;
+  //   - it is used ONLY for this block's comparison badge;
+  //   - it is NOT the session representative that progress/history read —
+  //     that one is selected across ALL of a session's blocks, by
+  //     fetchPreviousBests and selectRecentSessionRepresentatives;
+  //   - it does NOT determine weight_time PR truth: that arrives already
+  //     computed, session-wide and per EXERCISE, in the weightTimeSetPRs
+  //     prop (evaluateWeightTimeSessionPRs);
+  //   - it does NOT feed summarizeWorkout's PR count, which counts that same
+  //     shared map.
+  //
+  // Consequence, and it is intended: two blocks of the same exercise in one
+  // session may show DIFFERENT comparison badges while their PR badges and
+  // the completion summary's count both come from the one shared map. A
+  // badge describes the block the user is looking at, so it is deliberately
+  // NOT aggregated across duplicate blocks — and this file must never grow a
+  // second PR evaluator to "fix" the difference.
   const isWeightTime = we.exercise.tracking_mode === 'weight_time'
-  const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null
-  const previousRepresentativeHold = isWeightTime ? previousBest : null
-  const weightTimeComparison = isWeightTime ? compareWeightTimeSets(representativeHold, previousRepresentativeHold) : null
+  const blockRepresentativeHold = isWeightTime ? pickRepresentativeHold(sets) : null
+  const previousSessionRepresentativeHold = isWeightTime ? previousBest : null
+  const weightTimeComparison = isWeightTime ? compareWeightTimeSets(blockRepresentativeHold, previousSessionRepresentativeHold) : null
   const curBest = isWeightTime
     ? null
     : isCardioOrTimed
@@ -178,7 +200,10 @@ export function WorkoutExerciseBlock({
     : isCardioOrTimed
       ? trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)
       : progressSignal(curBest, previousBest)
-  const hasCurrentSessionAnchor = isWeightTime ? representativeHold !== null : curBest !== null
+  // W12-R2-1: "does this BLOCK have anything to compare yet" — block-scoped
+  // for every mode (both arms read only this block's sets), so the name no
+  // longer says "session".
+  const hasCurrentBlockAnchor = isWeightTime ? blockRepresentativeHold !== null : curBest !== null
   const prevSummary = formatPreviousBest(previousBest, we.exercise.tracking_mode)
   const nextTarget = suggestNextTarget(
     previousBest,
@@ -459,7 +484,7 @@ export function WorkoutExerciseBlock({
               session -> no meaningful comparison exists, so show no
               badge at all rather than a misleading "Same". New-exercise
               behavior (no previousBest) is unaffected either way. */}
-          {(hasCurrentSessionAnchor || !previousBest) && (
+          {(hasCurrentBlockAnchor || !previousBest) && (
             isWeightTime && weightTimeComparison !== null
               ? <WeightTimeComparisonBadge comparison={weightTimeComparison} previousSummary={prevSummary} />
               : signal !== null && <ProgressBadge signal={signal} previousSummary={prevSummary} />

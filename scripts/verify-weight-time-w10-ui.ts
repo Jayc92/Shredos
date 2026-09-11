@@ -135,9 +135,15 @@ async function main(): Promise<number> {
 
   console.log('\nE. WorkoutExerciseBlock — routing, badges, add-set, headers')
   const blockCode = stripComments(block)
-  check('E1: weight_time routes to its representativeHold and the 2-D comparison badge, never through curBest/bestSet/ProgressSignal; strength modes keep bestSet/progressSignal',
-    blockCode.includes("const isWeightTime = we.exercise.tracking_mode === 'weight_time'") && blockCode.includes('const representativeHold = isWeightTime ? pickRepresentativeHold(sets) : null')
-    && blockCode.includes('const weightTimeComparison = isWeightTime ? compareWeightTimeSets(representativeHold, previousRepresentativeHold) : null')
+  // W12-R2-1 RETARGET. The W10 assertion is unchanged — weight_time routes to a
+  // hold and the two-dimensional badge, never through curBest/bestSet/a
+  // ProgressSignal. Only the two local NAMES moved, so that each states its
+  // scope: the current side is this ONE block's anchor (blockRepresentativeHold)
+  // and the previous side is the previous SESSION's representative, which
+  // arrives in the mode-generic previousBest prop.
+  check('E1: weight_time routes to its blockRepresentativeHold and the 2-D comparison badge, never through curBest/bestSet/ProgressSignal; strength modes keep bestSet/progressSignal',
+    blockCode.includes("const isWeightTime = we.exercise.tracking_mode === 'weight_time'") && blockCode.includes('const blockRepresentativeHold = isWeightTime ? pickRepresentativeHold(sets) : null')
+    && blockCode.includes('const weightTimeComparison = isWeightTime ? compareWeightTimeSets(blockRepresentativeHold, previousSessionRepresentativeHold) : null')
     && /const curBest = isWeightTime\s*\? null/.test(blockCode) && /const signal  = isWeightTime\s*\? null/.test(blockCode)
     && blockCode.includes('trackingAwareProgressSignal(curBest, previousBest, we.exercise.tracking_mode)') && /<WeightTimeComparisonBadge comparison=\{weightTimeComparison\}/.test(blockCode))
   // W12-R1-2 RETARGET. The W10 assertion is unchanged — weight_time badges come
