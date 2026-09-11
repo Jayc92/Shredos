@@ -132,9 +132,22 @@ export interface WeightTimeExerciseRecord {
 export interface WeightTimeExerciseDetail extends WeightTimeExerciseRecord {
   /** Most recent first. Warm-ups included and flagged; they are excluded from `summary`. */
   history: WeightTimeHistoryEntry[]
-  /** The most recent qualifying performance and the most recent one from an EARLIER session. */
-  latestQualifying: WeightTimePerformance | null
-  previousSessionQualifying: WeightTimePerformance | null
+  /**
+   * W12-R1-3(B). The representativeHold of the latest qualifying session and
+   * of the one immediately before it — selected from ALL of that session's
+   * qualifying sets, across every block (longest hold; tie → heavier; tie →
+   * deterministic historical order). These are the two session anchors the
+   * detail page compares.
+   *
+   * Named for what they are: NOT the last physical set. The fields were
+   * previously latestQualifying / previousSessionQualifying and held the
+   * last chronological SET, which contradicted the session-level
+   * representativeHold semantics every other surface uses — a session whose
+   * final set was its shortest hold was described by that final set.
+   * Neither field is a scalar "best".
+   */
+  latestSessionRepresentative: WeightTimePerformance | null
+  previousSessionRepresentative: WeightTimePerformance | null
 }
 
 // ── Qualifying rule ──────────────────────────────────────────────────
@@ -222,6 +235,39 @@ export function selectHeaviestHold(performances: WeightTimePerformance[]): Weigh
     if (candidate.durationSeconds !== leading.durationSeconds) return candidate.durationSeconds > leading.durationSeconds ? candidate : leading
     return compareChronologically(candidate, leading) < 0 ? candidate : leading
   }, null)
+}
+
+/**
+ * W12-R1-3(B). The representativeHold of the latest qualifying SESSION and
+ * of the session immediately before it, in that order.
+ *
+ * Grouping is by session, so every qualifying set of a session counts —
+ * including the sets of a second block for the same exercise — and the
+ * representative is then selected by the one shared rule (selectLongestHold:
+ * longest hold; tie → heavier; tie → deterministic historical order). The
+ * last chronological SET is deliberately NOT the answer: a session that
+ * ended on its shortest hold would otherwise be represented by that hold.
+ *
+ * Sorting chronologically first makes each session's performances
+ * contiguous — workoutDate, sessionCreatedAt and sessionId are the first
+ * three comparison keys and are constant within a session, so two sessions
+ * can never interleave — which is why the Map's insertion order is the
+ * sessions' own chronological order.
+ */
+export function selectRecentSessionRepresentatives(
+  performances: WeightTimePerformance[]
+): [WeightTimePerformance | null, WeightTimePerformance | null] {
+  const bySession = new Map<string, WeightTimePerformance[]>()
+  for (const performance of [...performances].sort(compareChronologically)) {
+    const collected = bySession.get(performance.sessionId)
+    if (collected) collected.push(performance)
+    else bySession.set(performance.sessionId, [performance])
+  }
+  const sessions = Array.from(bySession.values())
+  return [
+    sessions.length > 0 ? selectLongestHold(sessions[sessions.length - 1]) : null,
+    sessions.length > 1 ? selectLongestHold(sessions[sessions.length - 2]) : null,
+  ]
 }
 
 /**
@@ -379,6 +425,65 @@ export function weightTimePerformancesFromSessionSets(
   }))
 }
 
+/**
+ * One workout_exercises block of ONE session, as the cross-block session
+ * evaluation below needs it. `sets` are that block's raw rows; the
+ * qualifying rule is applied per set, so warm-ups and incomplete sets need
+ * no filtering by the caller.
+ */
+export interface WeightTimeSessionBlock {
+  exerciseId: string
+  /** exercises.tracking_mode — non-weight_time blocks are skipped entirely. */
+  trackingMode: string
+  sets: WeightTimeRawSet[]
+}
+
+/**
+ * W12-R1-2. The ONE per-set Weight-time PR truth for a whole session,
+ * grouped BY EXERCISE across EVERY workout_exercises block.
+ *
+ * The app supports the same exercise appearing in more than one block of a
+ * single session (the strength reader already merges that case). Evaluating
+ * each block on its own restarted it from the historical frontier, so a
+ * later block could not see a qualifying point set in an earlier one: with
+ * a 20 lb x 1:00 frontier, block A's 25 lb x 1:10 was a PR and block B's
+ * 25 lb x 1:05 was reported as another one, even though block A dominates
+ * it. Grouping first makes the earlier block's points part of the pool the
+ * later block is judged against, so a dominated point and an exact repeat
+ * are both correctly refused, and a genuinely incomparable or better hold
+ * in a later block is still a PR.
+ *
+ * `blocks` MUST be given in ACTUAL SESSION ORDER (the order
+ * fetchSessionWithDetails establishes by sorting on order_index, which is
+ * also the order the blocks render in). Each block's POSITION in that array
+ * is the cross-block ordering key, so two blocks that somehow share an
+ * order_index still cannot interleave. Within a block, ordering is
+ * set_number then set id, exactly as before.
+ *
+ * The result maps set id -> is a Weight-time PR, and contains an entry for
+ * every QUALIFYING set of every weight_time block — the same key set the
+ * per-block call produced, so callers map it straight back onto their own
+ * sets for rendering.
+ */
+export function evaluateWeightTimeSessionPRs(
+  blocks: WeightTimeSessionBlock[],
+  priorPointsByExerciseId: Record<string, WeightTimePoint[]>,
+): Record<string, boolean> {
+  const byExercise = new Map<string, WeightTimePerformance[]>()
+  blocks.forEach((block, position) => {
+    if (block.trackingMode !== 'weight_time') return
+    const performances = weightTimePerformancesFromSessionSets(block.sets, block.exerciseId, { orderIndex: position })
+    const collected = byExercise.get(block.exerciseId)
+    if (collected) collected.push(...performances)
+    else byExercise.set(block.exerciseId, performances)
+  })
+  const result: Record<string, boolean> = {}
+  for (const [exerciseId, performances] of Array.from(byExercise.entries())) {
+    Object.assign(result, evaluateWeightTimeSetPRs(performances, priorPointsByExerciseId[exerciseId] ?? []))
+  }
+  return result
+}
+
 const SESSION_SELECT = `
   id, workout_date, created_at,
   workout_exercises (
@@ -451,13 +556,9 @@ export async function fetchWeightTimeExerciseDetail(
   const collected = collectWeightTimePerformances((sessions ?? []) as WeightTimeRawSession[]).get(exerciseId)
   if (!collected) return null
   const summary = summarizeWeightTimePerformances(collected.performances)
-  const chronological = [...collected.performances].sort(compareChronologically)
-  const latestQualifying = chronological.length > 0 ? chronological[chronological.length - 1] : null
-  const previousSessionQualifying = latestQualifying
-    ? [...chronological].reverse().find((performance) => performance.sessionId !== latestQualifying.sessionId) ?? null
-    : null
+  const [latestSessionRepresentative, previousSessionRepresentative] = selectRecentSessionRepresentatives(collected.performances)
   const history = [...collected.history].sort((a, b) => compareStrings(b.workoutDate, a.workoutDate) || compareStrings(b.setId, a.setId))
-  return { exerciseId: collected.exerciseId, exerciseName: collected.exerciseName, isUnilateral: collected.isUnilateral, summary, history, latestQualifying, previousSessionQualifying }
+  return { exerciseId: collected.exerciseId, exerciseName: collected.exerciseName, isUnilateral: collected.isUnilateral, summary, history, latestSessionRepresentative, previousSessionRepresentative }
 }
 
 /**

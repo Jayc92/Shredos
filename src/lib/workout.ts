@@ -10,8 +10,7 @@ import type { ProgressionTrend } from '@/lib/workout-coach'
 import {
   isQualifyingWeightTimeSet,
   compareWeightTimeHolds,
-  evaluateWeightTimeSetPRs,
-  weightTimePerformancesFromSessionSets,
+  evaluateWeightTimeSessionPRs,
 } from '@/lib/weight-time-records'
 import type { WeightTimePoint, WeightTimeComparison } from '@/lib/weight-time-records'
 
@@ -1282,7 +1281,14 @@ export function summarizeWorkout(
   // W9: prior qualifying (weight, duration) points per weight_time
   // exercise (fetchWeightTimePRBaselines). weight_time exercises are
   // scored by the 2-D model ONLY; they never enter evaluateSetPRs.
-  weightTimeBaselineByExerciseId: Record<string, WeightTimePoint[]> = {}
+  weightTimeBaselineByExerciseId: Record<string, WeightTimePoint[]> = {},
+  // W12-R1-2: the session's weight_time PR truth, already grouped BY
+  // EXERCISE across every block. The active-workout page passes the exact
+  // map its visible per-set badges render from, so the summary's PR set
+  // count and those badges can never disagree. Omitted (verifiers, any
+  // other caller) it is derived here from `exercises` by the same shared
+  // function, so this summary is correct standalone as well.
+  weightTimeSetPRs?: Record<string, boolean>
 ): WorkoutCompletionSummary {
   const exerciseCount = exercises.length
   let completedExerciseCount = 0
@@ -1295,6 +1301,20 @@ export function summarizeWorkout(
   let prSetCount = 0
 
   const exerciseSummaries: ExerciseCompletionSummary[] = []
+
+  // W12-R1-2: ONE weight_time PR result per exercise for the whole session,
+  // computed across every block before the per-block loop begins, then
+  // mapped back onto each block's own set ids below. Evaluating inside the
+  // loop restarted each block from the historical frontier and inflated
+  // prSetCount whenever an exercise appeared in more than one block.
+  const sessionWeightTimeSetPRs = weightTimeSetPRs ?? evaluateWeightTimeSessionPRs(
+    exercises.map((we) => ({
+      exerciseId: we.exercise_id,
+      trackingMode: we.exercise.tracking_mode,
+      sets: (we.workout_sets ?? []) as WorkoutSet[],
+    })),
+    weightTimeBaselineByExerciseId
+  )
 
   for (const we of exercises) {
     const sets = (we.workout_sets ?? []) as WorkoutSet[]
@@ -1312,10 +1332,7 @@ export function summarizeWorkout(
       maxBodyweightReps: null,
     }
     const setPRs: Record<string, PRType | boolean> = we.exercise.tracking_mode === 'weight_time'
-      ? evaluateWeightTimeSetPRs(
-          weightTimePerformancesFromSessionSets(workingSets, we.exercise_id),
-          weightTimeBaselineByExerciseId[we.exercise_id] ?? []
-        )
+      ? sessionWeightTimeSetPRs
       : STRENGTH_SCORING_MODES.has(we.exercise.tracking_mode)
         ? evaluateSetPRs(workingSets, baseline)
         : {}

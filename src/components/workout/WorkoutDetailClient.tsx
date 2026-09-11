@@ -10,10 +10,12 @@ import { WorkoutSessionNotes } from '@/components/workout/WorkoutSessionNotes'
 import { SaveAsRoutineButton } from '@/components/workout/SaveAsRoutineButton'
 import { RepeatWorkoutButton } from '@/components/workout/RepeatWorkoutButton'
 import { summarizeWorkout } from '@/lib/workout'
+import { evaluateWeightTimeSessionPRs } from '@/lib/weight-time-records'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ProgressionTrend } from '@/lib/workout-coach'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
 import type { WeightTimePoint } from '@/lib/weight-time-records'
+import type { WorkoutExerciseWithDetails } from '@/types/database'
 
 interface WorkoutDetailClientProps {
   session: any
@@ -105,13 +107,39 @@ export function WorkoutDetailClient({
     )
   }
 
+  // W12-R1-2: the session's Weight-time PR truth, computed ONCE here, per
+  // EXERCISE, across every block — in the order the blocks actually appear.
+  // Each block used to evaluate its own sets alone, so a second block of
+  // the same exercise restarted from the historical frontier and could
+  // badge a hold an earlier block already dominated. This single map feeds
+  // both the visible per-set badges and the completion summary, so the two
+  // cannot disagree.
+  //
+  // `orderedExercises` (not `exercises`) is deliberate: it is what the user
+  // sees, and an in-flight optimistic reorder must not put the badges in a
+  // different order from the blocks. The two arrays are identical whenever
+  // a completed workout is being summarised, since reordering a workout
+  // clears to server truth on refresh.
+  const weightTimeSetPRs = evaluateWeightTimeSessionPRs(
+    orderedExercises.map((we: WorkoutExerciseWithDetails) => ({
+      exerciseId: we.exercise_id,
+      trackingMode: we.exercise.tracking_mode,
+      sets: we.workout_sets ?? [],
+    })),
+    weightTimeBaseline ?? {}
+  )
+
   // Phase 2H: recomputed every render from already-loaded session data —
   // no persisted summary blob, so reopening a completed workout later
   // shows the identical summary automatically.
   // W10: weight_time exercises are summarised by the 2-D model through the
-  // third argument; the strength baseline map is untouched.
+  // third argument; the strength baseline map is untouched. W12-R1-2: the
+  // fourth argument hands over the exact same per-set PR truth the badges
+  // render from, rather than letting the summary re-derive its own.
   const completionSummary =
-    session.status === 'completed' ? summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}) : null
+    session.status === 'completed'
+      ? summarizeWorkout(exercises, prBaseline ?? {}, weightTimeBaseline ?? {}, weightTimeSetPRs)
+      : null
 
   // Phase 2I: a completed workout is read-only in the UI, mirroring
   // the same lock enforced server-side by the mutation guards.
@@ -172,7 +200,7 @@ export function WorkoutDetailClient({
           trend={exerciseTrends?.[we.exercise_id]}
           history={exerciseHistory?.[we.exercise_id]}
           prBaseline={prBaseline?.[we.exercise_id]}
-          weightTimeBaseline={weightTimeBaseline?.[we.exercise_id]}
+          weightTimeSetPRs={weightTimeSetPRs}
           readOnly={readOnly}
           isFirst={index === 0}
           isLast={index === orderedExercises.length - 1}

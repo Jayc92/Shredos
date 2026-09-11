@@ -72,13 +72,18 @@ export function WeightTimeSections({ detail, recentEntries, isUnilateral }: Weig
   const summary = detail?.summary ?? null
   const hasAnyRecord = summary !== null && summary.qualifyingCount > 0
 
-  // Coaching from the latest completed qualifying hold only (this read-only
-  // page has no session context): the approved neutral guidance, and the
-  // two-dimensional comparison against the previous session's
-  // representativeHold — an incomparable pair is reported as the actual
-  // dimensional change ("Heavier, shorter"), never as a direction.
-  const latest = detail?.latestQualifying ?? null
-  const previous = detail?.previousSessionQualifying ?? null
+  // Coaching from the latest completed qualifying SESSION's representativeHold
+  // (this read-only page has no session context): the approved neutral
+  // guidance, and the two-dimensional comparison against the previous
+  // session's representativeHold — an incomparable pair is reported as the
+  // actual dimensional change ("Heavier, shorter"), never as a direction.
+  //
+  // W12-R1-3(B): both anchors are session representatives, selected from all
+  // of their session's qualifying sets across every block. They used to be
+  // the last chronological SET of each session, which contradicted the
+  // representativeHold semantics this same comparison claims to use.
+  const latest = detail?.latestSessionRepresentative ?? null
+  const previous = detail?.previousSessionRepresentative ?? null
   const latestSet = latest ? toSyntheticSet(latest) : null
   const nextTarget = suggestNextTarget(latestSet, isUnilateral, 'weight_time', null)
   const comparison = latest && previous

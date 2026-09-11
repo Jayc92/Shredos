@@ -9,6 +9,10 @@ import {
   pickRepresentativeHold, STRENGTH_SCORING_MODES, CARDIO_TIMED_MODES,
 } from '@/lib/workout'
 import type { ExerciseHistoryEntry, PRBaseline } from '@/lib/workout'
+// W12-R1-3(A): the shared weight_time representative rule, so the merged
+// per-session selection is the SAME implementation the records model uses.
+import { selectLongestHold, weightTimePerformancesFromSessionSets } from '@/lib/weight-time-records'
+import type { WeightTimePerformance } from '@/lib/weight-time-records'
 import type { ActivitySession, WorkoutSet, TrackingMode } from '@/types/database'
 
 /**
@@ -456,6 +460,17 @@ export async function resolveActiveWorkoutConflict(
  * duration rule; weight_time returns the session's representativeHold
  * (W10.5-A ruling 1) — a display anchor, never a "best set". The exported
  * name and the returned map keep their historical, mode-generic shape.
+ *
+ * W12-R1-3(A): an exercise may appear in more than one workout_exercises
+ * block of the SAME session. This walk used to record the first block it
+ * met and skip the rest, so for weight_time the session's
+ * representativeHold was chosen from ONE block's sets — and which block was
+ * not even deterministic, since the nested rows carry no order guarantee.
+ * A weight_time exercise's blocks are therefore merged per session before
+ * the representative is selected, using the shared selectLongestHold
+ * (duration → added weight → deterministic historical order: block
+ * order_index, then set_number, then set id). The legacy modes keep their
+ * existing first-block-with-working-sets behaviour untouched.
  */
 export async function fetchPreviousBests(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -465,15 +480,19 @@ export async function fetchPreviousBests(
 ) {
   if (exerciseIds.length === 0) return {}
 
-  // Fetch last 15 completed sessions with exercises and sets
+  // Fetch last 15 completed sessions with exercises and sets. W12-R1-3(A):
+  // order_index, the set id and set_number are selected because the merged
+  // weight_time selection below needs a deterministic historical order
+  // across blocks — set_number alone repeats between two blocks of one
+  // session, and was previously not even read from the database here.
   const { data: history } = await supabase
     .from('workout_sessions')
     .select(`
       id, workout_date,
       workout_exercises (
-        exercise_id,
+        exercise_id, order_index,
         exercise:exercises ( tracking_mode ),
-        workout_sets ( reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
+        workout_sets ( id, set_number, reps, weight_kg, rpe, is_warmup, completed, duration_seconds, distance_meters )
       )
     `)
     .eq('user_id', userId)
@@ -484,29 +503,52 @@ export async function fetchPreviousBests(
 
   const bests: Record<string, any> = {}
 
+  type PreviousBestSetRow = {
+    id: string
+    set_number: number
+    reps: number | null
+    weight_kg: number | null
+    rpe: number | null
+    is_warmup: boolean
+    completed: boolean
+    duration_seconds: number | null
+    distance_meters: number | null
+  }
+  type PreviousBestBlock = {
+    exercise_id: string
+    order_index: number | null
+    exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[]
+    workout_sets: PreviousBestSetRow[]
+  }
+
+  // Phase 2T: include weighted, bodyweight, AND duration-based
+  // (cardio/timed) sets -- previously only the first two, which
+  // meant a cardio/timed exercise's history was silently invisible
+  // here, not merely unlabeled.
+  const workingSetsOf = (block: PreviousBestBlock): PreviousBestSetRow[] => (block.workout_sets ?? []).filter(
+    (s) => s.completed && !s.is_warmup && (
+      (s.weight_kg !== null && s.weight_kg > 0) ||
+      (s.reps !== null && s.reps > 0) ||
+      (s.duration_seconds !== null && s.duration_seconds > 0)
+    )
+  )
+
   for (const session of history ?? []) {
-    for (const we of (session.workout_exercises as Array<{
-      exercise_id: string
-      exercise: { tracking_mode: TrackingMode } | { tracking_mode: TrackingMode }[]
-      workout_sets: Array<{ reps: number|null; weight_kg: number|null; rpe: number|null; is_warmup: boolean; completed: boolean; duration_seconds: number|null; distance_meters: number|null }>
-    }>) ?? []) {
+    // W12-R1-3(A): group this session's blocks by exercise, in the array's
+    // own order, so an exercise logged in two blocks is decided ONCE per
+    // session rather than by whichever block happened to arrive first.
+    const blocksByExercise = new Map<string, PreviousBestBlock[]>()
+    for (const we of (session.workout_exercises as PreviousBestBlock[]) ?? []) {
       if (!exerciseIds.includes(we.exercise_id)) continue
       if (bests[we.exercise_id]) continue // already found a more recent session
+      const blocks = blocksByExercise.get(we.exercise_id)
+      if (blocks) blocks.push(we)
+      else blocksByExercise.set(we.exercise_id, [we])
+    }
 
-      const trackingMode: TrackingMode = Array.isArray(we.exercise) ? we.exercise[0]?.tracking_mode : we.exercise?.tracking_mode
-
-      // Phase 2T: include weighted, bodyweight, AND duration-based
-      // (cardio/timed) sets -- previously only the first two, which
-      // meant a cardio/timed exercise's history was silently invisible
-      // here, not merely unlabeled.
-      const working = (we.workout_sets ?? []).filter(
-        (s: any) => s.completed && !s.is_warmup && (
-          (s.weight_kg !== null && s.weight_kg > 0) ||
-          (s.reps !== null && s.reps > 0) ||
-          (s.duration_seconds !== null && s.duration_seconds > 0)
-        )
-      )
-      if (working.length === 0) continue
+    for (const [exerciseId, blocks] of Array.from(blocksByExercise.entries())) {
+      const first = blocks[0]
+      const trackingMode: TrackingMode = Array.isArray(first.exercise) ? first.exercise[0]?.tracking_mode : first.exercise?.tracking_mode
 
       // Pick the representative set — the same per-mode rule
       // fetchExerciseHistory uses, so the session's representative means
@@ -514,12 +556,50 @@ export async function fetchPreviousBests(
       // duplicated this scoring inline). Phase 2T: routes through
       // pickRepresentativeSet, which uses duration for cardio/timed
       // instead of setScore; W9/W10.5: the representativeHold for weight_time.
-      const representative = pickRepresentativeSet(working, trackingMode)
+      let representative: PreviousBestSetRow | null = null
+      if (trackingMode === 'weight_time') {
+        // Every qualifying hold of this exercise IN THIS SESSION, across
+        // every block, then the session's representativeHold over the lot.
+        // The block's position in the array is the cross-block ordering key
+        // when two blocks share an order_index, so the tie-break stays a
+        // total order. Not a "best set" and not a score — the same display
+        // anchor rule, applied to the whole session instead of one block.
+        const rawById = new Map<string, PreviousBestSetRow>()
+        const performances: WeightTimePerformance[] = []
+        blocks.forEach((block, position) => {
+          const working = workingSetsOf(block)
+          for (const s of working) rawById.set(s.id, s)
+          performances.push(...weightTimePerformancesFromSessionSets(working, exerciseId, {
+            sessionId: session.id,
+            workoutDate: session.workout_date,
+            orderIndex: block.order_index ?? position,
+          }))
+        })
+        const hold = selectLongestHold(performances)
+        if (hold) representative = rawById.get(hold.setId) ?? null
+        // No qualifying hold in the whole session: the historical fallback
+        // is pickRepresentativeSet's own — the first working set of the
+        // first block that has one.
+        if (!representative) {
+          for (const block of blocks) {
+            const working = workingSetsOf(block)
+            if (working.length > 0) { representative = pickRepresentativeSet(working, trackingMode); break }
+          }
+        }
+      } else {
+        // Legacy modes: unchanged — the first block that has working sets
+        // decides the session, exactly as before.
+        for (const block of blocks) {
+          const working = workingSetsOf(block)
+          if (working.length > 0) { representative = pickRepresentativeSet(working, trackingMode); break }
+        }
+      }
+      if (!representative) continue
 
-      bests[we.exercise_id] = {
+      bests[exerciseId] = {
         // Full WorkoutSet-compatible shape
         id: '',
-        workout_exercise_id: we.exercise_id,
+        workout_exercise_id: exerciseId,
         set_number: 0,
         weight_kg: representative.weight_kg,
         reps: representative.reps,

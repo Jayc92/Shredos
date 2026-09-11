@@ -4,8 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { bestSet, progressSignal, formatPreviousBest, displayWeight, suggestNextTarget, evaluateSetPRs, evaluateSetTargetFeedback, pickRepresentativeCardioSet, trackingAwareProgressSignal, pickRepresentativeHold, compareWeightTimeSets } from '@/lib/workout'
-import { evaluateWeightTimeSetPRs, weightTimePerformancesFromSessionSets } from '@/lib/weight-time-records'
-import type { WeightTimePoint } from '@/lib/weight-time-records'
+import { isQualifyingWeightTimeSet } from '@/lib/weight-time-records'
 import { MODE_COPY_FIELDS, applyTemplateReady } from '@/lib/workout-set-contract'
 import { ProgressBadge } from './ProgressBadge'
 import { WeightTimeComparisonBadge } from './WeightTimeComparisonBadge'
@@ -91,8 +90,15 @@ interface WorkoutExerciseBlockProps {
   trend?: ProgressionTrend
   history?: ExerciseHistoryEntry[]
   prBaseline?: PRBaseline
-  /** W10: prior qualifying (weight, duration) points for a weight_time exercise (fetchWeightTimePRBaselines). */
-  weightTimeBaseline?: WeightTimePoint[]
+  /**
+   * W12-R1-2: the whole session's Weight-time PR truth, set id -> is a PR,
+   * evaluated by the parent per EXERCISE across every block (the same map
+   * the completion summary counts). A block cannot compute this itself: an
+   * exercise may appear in more than one block of the session, and each
+   * block evaluating its own sets alone restarts from the historical
+   * frontier. This block reads only its own qualifying sets out of it.
+   */
+  weightTimeSetPRs?: Record<string, boolean>
   readOnly?: boolean
   /** UI-5B1B reordering: presentational move controls; the parent
    *  owns the optimistic order and the transactional endpoint call.
@@ -106,7 +112,7 @@ interface WorkoutExerciseBlockProps {
 }
 
 export function WorkoutExerciseBlock({
-  we, previousBest, trend, history, prBaseline, weightTimeBaseline, readOnly = false,
+  we, previousBest, trend, history, prBaseline, weightTimeSetPRs, readOnly = false,
   isFirst = false, isLast = false, isReordering = false, onMoveUp, onMoveDown,
 }: WorkoutExerciseBlockProps) {
   const router = useRouter()
@@ -183,15 +189,17 @@ export function WorkoutExerciseBlock({
     { min: we.target_reps_min ?? null, max: we.target_reps_max ?? null }
   )
   // Strength modes: evaluateSetPRs against the all-time strength baseline.
-  // weight_time: evaluateWeightTimeSetPRs against the prior 2-D points; a
-  // true result is labelled 'weight_time' ("Weight-time PR" in SetRow).
+  // weight_time (W12-R1-2): the PR truth is the parent's session-wide,
+  // per-EXERCISE map — this block only maps its own qualifying sets out of
+  // it, so a second block of the same exercise sees the earlier block's
+  // points instead of restarting from the historical frontier. A true
+  // result is labelled 'weight_time' ("Weight-time PR" in SetRow).
   const setPRs: Record<string, SetRowPRType> = {}
   if (isWeightTime) {
-    const weightTimePRs = evaluateWeightTimeSetPRs(
-      weightTimePerformancesFromSessionSets(sets as WorkoutSet[], we.exercise_id),
-      weightTimeBaseline ?? []
-    )
-    for (const setId of Object.keys(weightTimePRs)) setPRs[setId] = weightTimePRs[setId] ? 'weight_time' : null
+    for (const s of sets as WorkoutSet[]) {
+      if (!isQualifyingWeightTimeSet(s)) continue
+      setPRs[s.id] = weightTimeSetPRs?.[s.id] ? 'weight_time' : null
+    }
   } else {
     Object.assign(setPRs, evaluateSetPRs(sets, prBaseline ?? EMPTY_PR_BASELINE))
   }
