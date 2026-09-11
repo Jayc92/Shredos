@@ -320,11 +320,18 @@ async function main() {
     // record-model proof, the W9 domain-integration proof and the W10 UI
     // proof carry vocabulary pins by construction, exactly like the five
     // above. Count-neutral; no pre-existing suite is touched.
+    // RETARGET (W12-R1, 2026-09-10 — the same admission a third time, for the
+    // suite the independent review's corrections required): the W12-R1 proof
+    // carries vocabulary pins by construction (it drives the weight_time PR
+    // engine and the tracking_mode-keyed session grouping directly), it was
+    // authored by the same milestone this frozen audit proposed, and it is
+    // admitted under the identical proof — by name, and only while ABSENT at
+    // the closeout tip. No pre-existing suite is touched or moved.
     const WEIGHT_TIME_MILESTONE_SUITES = [
       'verify-strength-records-allowlist', 'verify-tracking-mode-census', 'verify-weight-time-w4-vocabulary',
       'verify-weight-time-contract', 'verify-weight-time-migration-028',
       'verify-weight-time-records', 'verify-weight-time-w9-integration', 'verify-weight-time-w10-ui',
-      'verify-weight-time-w10-5-stabilization',
+      'verify-weight-time-w10-5-stabilization', 'verify-weight-time-w12-r1',
     ]
     const admittedPostAuditSuite = (n: string): boolean =>
       WEIGHT_TIME_MILESTONE_SUITES.includes(n) && !existedAtClosureTip(`scripts/${n}.ts`)
