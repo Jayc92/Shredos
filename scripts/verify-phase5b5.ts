@@ -56,11 +56,44 @@ const w11MigrationsAtClosureTip = (): string[] =>
  */
 const w11Migration028Admitted = (): boolean => {
   const tip = w11MigrationsAtClosureTip()
-  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  // RETARGET (W14-E — migration 029): W11's "current tree" claim (exactly 001-028 with the pinned
+  // 028) is anchored to the published production base 54a9d128 — the last tip where it was true —
+  // and evaluated against that immutable commit, never the working tree (see w14eMigration029Admitted).
+  const live = w14eMigrationsAtPreM029Tip()
   const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
   return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
     && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
     && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+// ── W14-E (F-E8 remediation, migration 029, 2026-09-12): current-tree anchor ──
+// The published production base — the last commit before migration 029 (origin/main
+// 54a9d128). W11's historical claim (exactly 001-028) is evaluated against this
+// immutable commit object, never against the working tree.
+const W14E_PRE_M029_TIP = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
+const W14E_M029 = '029_exlib_plank_cross_run_idempotency.sql'
+const W14E_M029_SHA = '23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc'
+const W14E_M029_BYTES = 9102
+/** The migration inventory as it stood at the published base (exactly 001-028, no 029). */
+const w14eMigrationsAtPreM029Tip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W14E_PRE_M029_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W14-E — migration 029): the W11 inventory claim (exactly 001-028 with the
+ * pinned 028) holds at the published base 54a9d128, AND the current tree admits exactly
+ * one 029 — the reviewed F-E8 remediation (exact-snapshot prior-run provenance for the
+ * Plank link helper; PREPARED, NOT APPLIED hosted) — pinned by filename, byte length and
+ * sha256, in position 29 behind the byte-identical 028. The boundary moves from
+ * exactly-28 to exactly-29; nothing else (no 030) may appear. History is not rewritten:
+ * 029 did not exist at the base and this says so.
+ */
+const w14eMigration029Admitted = (): boolean => {
+  const base = w14eMigrationsAtPreM029Tip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const b029 = require('fs').readFileSync(`supabase/migrations/${W14E_M029}`) as Buffer
+  return base.length === 28 && base[27] === W11_M028 && !base.some((f) => f.startsWith('029'))
+    && live.length === 29 && live[27] === W11_M028 && live[28] === W14E_M029
+    && live.filter((f) => f.startsWith('029')).length === 1 && !live.some((f) => f.startsWith('03'))
+    && b029.length === W14E_M029_BYTES && require('crypto').createHash('sha256').update(b029).digest('hex') === W14E_M029_SHA
 }
 
 function check(name: string, condition: boolean, detail?: string) {
@@ -150,7 +183,8 @@ console.log('\n1. Checkpoint and boundary')
     // workout-reuse migration (create_routine_from_workout +
     // repeat_workout). The boundary moves from exactly-21 to
     // exactly-22; no other migration may appear.
-    (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ /* RETARGET (W11 — weight_time migration 028, 2026-09-10): 028_weight_time_tracking_mode.sql is the reviewed weight_time migration authored in W6 (PREPARED, NOT APPLIED; 37,162 bytes, sha256 9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3). The historical claim — exactly 001-027 with no 028 — is preserved against the promoted closeout tip 59e443ba (git ls-tree of that immutable commit object, inside w11Migration028Admitted), no longer read from the working tree; the current tree admits exactly one 028 with that filename and fingerprint; the boundary moves from exactly-27 to exactly-28; 023/024/025/026/027/028 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 28 && w11Migration028Admitted() && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
+    // RETARGET (W14-E — migration 029): exactly-28 (proven at the published base 54a9d128 by w14eMigration029Admitted) becomes exactly-29 with 029 — the reviewed F-E8 remediation, PREPARED, NOT APPLIED hosted — pinned by filename and fingerprint; nothing else may appear.
+    (/* RETARGET (EXLIB-1B2): 023_exlib_catalog_and_delivery_contract.sql is the approved-for-drafting EXLIB catalog migration (DRAFT, not applied); the boundary moves from exactly-22 to exactly-23; no other migration may appear. */ /* RETARGET (EXLIB-1B3B migration 024 draft): 024_exlib_post_application_hardening.sql is the approved-scope hardening draft (DRAFT, not applied; sha256 190550ecdb99df702ab03d1b07592f861070141e5091eb25bc5bf45f211cc980); the boundary moves from exactly-23 to exactly-24; both filenames stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-1C0B3 migration 025 draft): 025_exlib_equipment_vocabulary_support.sql is the authorized equipment-vocabulary draft (DRAFT, not applied; sha256 fbda16f4d25cacd1715b199050506a4da15896355d96700876b76c68826d304c); the boundary moves from exactly-24 to exactly-25; 024 and 025 both stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2F migration 026 apply-prep candidate): 026_exlib_plank_seed_reconciliation.sql is the reviewed apply-prep candidate prepared by EXLIB-2F (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2E proposal sha256 a6696066d178ced7e53bf81e7106cce64a87e2c73d9b342464d930a2fe3c2108, candidate file sha256 620185b62c589c55fb30a237589589f46002a9d6c391b9ab936e07a6641cf4bc); the boundary moves from exactly-25 to exactly-26; 023/024/025/026 all stay pinned; no other migration may appear. */ /* RETARGET (EXLIB-2M migration-027 apply-prep): 027_exlib_catalog_content_schema.sql is the reviewed apply-prep candidate prepared by EXLIB-2M (PREPARED, NOT APPLIED; its executable SQL is byte-identical to the promoted EXLIB-2L proposal sha256 9a0505c8f2fea3f4330e7c80e22ffd8bc6867760b335a7468ea4587f0bd70553, candidate file sha256 90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f); the boundary moves from exactly-26 to exactly-27; 023/024/025/026/027 all stay pinned; no other migration may appear. */ /* RETARGET (W11 — weight_time migration 028, 2026-09-10): 028_weight_time_tracking_mode.sql is the reviewed weight_time migration authored in W6 (PREPARED, NOT APPLIED; 37,162 bytes, sha256 9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3). The historical claim — exactly 001-027 with no 028 — is preserved against the promoted closeout tip 59e443ba (git ls-tree of that immutable commit object, inside w11Migration028Admitted), no longer read from the working tree; the current tree admits exactly one 028 with that filename and fingerprint; the boundary moves from exactly-27 to exactly-28; 023/024/025/026/027/028 all stay pinned; no other migration may appear. */ readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).length === 29 && w11Migration028Admitted() && w14eMigration029Admitted() && readdirSync('supabase/migrations').some((f) => f === '026_exlib_plank_seed_reconciliation.sql') && readdirSync('supabase/migrations').some((f) => f === '027_exlib_catalog_content_schema.sql') && readdirSync('supabase/migrations').some((f) => f === '023_exlib_catalog_and_delivery_contract.sql') && readdirSync('supabase/migrations').some((f) => f === '024_exlib_post_application_hardening.sql') && readdirSync('supabase/migrations').some((f) => f === '025_exlib_equipment_vocabulary_support.sql')) &&
     readdirSync('supabase/migrations').filter((f) => f.startsWith('020')).length === 1 &&
     readdirSync('supabase/migrations').some((f) => f === '020_ui3_dashboard_preferences.sql'))
   check('exactly 4 feature files carry 5B.5 markers',

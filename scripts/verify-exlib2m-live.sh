@@ -50,12 +50,35 @@ W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 W11_M028_BYTES=37162
 w11_m028_pinned() {
   local n028 n029 bytes sha
-  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
-  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  # RETARGET (W14-E migration 029): W11's inventory claim (exactly one 028, no 029) is anchored to the
+  # published production base 54a9d128 - an immutable commit, never the working tree; the current
+  # tree is governed by w14e_m029_pinned below.
+  n028=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/028_' || true)
+  n029=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/029_' || true)
   [ -f "$W11_M028" ] || return 1
   bytes=$(wc -c < "$W11_M028" | tr -d ' ')
   sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
   [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+# RETARGET (W14-E migration 029): the CURRENT-tree contract. The tree admits EXACTLY ONE 029 -
+# the reviewed F-E8 remediation 029_exlib_plank_cross_run_idempotency.sql (exact-snapshot prior-run
+# provenance for the Plank link helper; PREPARED, NOT APPLIED hosted) - pinned by filename, byte
+# length and sha256, behind the byte-identical 028; no 030. W11's exactly-28 claim above is anchored
+# to the published production base 54a9d128, the last tip where it was true. A further migration
+# (030+) still fails this gate loudly.
+W14E_M029='supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+W14E_M029_SHA='23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc'
+W14E_M029_BYTES=9102
+w14e_m029_pinned() {
+  local n n028 n029 n030 bytes sha b028 s028
+  n=$(ls supabase/migrations/ | grep -c '\.sql$' || true)
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  n030=$(ls supabase/migrations/ | grep -c '^03' || true)
+  [ -f "$W14E_M029" ] && [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W14E_M029" | tr -d ' '); sha=$(shasum -a 256 "$W14E_M029" | awk '{print $1}')
+  b028=$(wc -c < "$W11_M028" | tr -d ' '); s028=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n/$n028/$n029/$n030/$bytes/$sha/$b028/$s028" = "29/1/1/0/$W14E_M029_BYTES/$W14E_M029_SHA/$W11_M028_BYTES/$W11_M028_SHA" ]
 }
 
 TMP="$(mktemp -d /tmp/exlib2l-pg.XXXXXX)"
@@ -98,13 +121,16 @@ echo "=== A. Candidate identity, sequence, and the executable-body drift gate"
   || { bad "A1: migration candidate missing"; exit 1; }
 NMIG=$(ls supabase/migrations/0*.sql 2>/dev/null | wc -l | tr -d ' ')
 N027=$(ls supabase/migrations/ | grep -c '^027' || true)
-N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
+N028=$(ls supabase/migrations/ | grep -c '^028' || true)
+N029=$(ls supabase/migrations/ | grep -c '^029' || true)
 # W11-LIVE RETARGET: the sequence is 001-028 now. The historical claim
 # "exactly one numbered migration 027" is preserved; the added weight_time
 # milestone is pinned by exact identity rather than asserted absent.
-[ "$NMIG/$N027/$N028" = "28/1/1" ] && w11_m028_pinned \
-  && ok "A2: exactly one numbered migration 027 and exactly one 028 - the sequence is exactly 001-028 (28 files: the 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256)" \
-  || bad "A2: expected 28/1/1 with the pinned weight_time 028, found $NMIG/$N027/$N028"
+# RETARGET (W14-E migration 029): the sequence is 001-029 now; the F-E8 remediation 029 is pinned by
+# exact identity (w14e_m029_pinned) rather than asserted absent; W11's claim is anchored to the base.
+[ "$NMIG/$N027/$N028/$N029" = "29/1/1/1" ] && w11_m028_pinned && w14e_m029_pinned \
+  && ok "A2 (RETARGET W14-E migration 029): exactly one numbered migration 027, one 028 and one 029 - the sequence is exactly 001-029 (29 files: the 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256 + the F-E8 remediation 029 at its pinned 9102 bytes/sha256)" \
+  || bad "A2: expected 29/1/1/1 with the pinned 028 and 029, found $NMIG/$N027/$N028/$N029"
 MSHA=$(shasum -a 256 "$MIGRATION" | awk '{print $1}')
 MBYTES=$(wc -c < "$MIGRATION" | tr -d ' ')
 ok "A3: migration candidate under test: $MBYTES bytes, sha256 $MSHA"
@@ -158,12 +184,14 @@ for f in supabase/migrations/0*.sql; do
   # B3's whole premise is the exact PRE-027 legacy state; applying the
   # weight_time milestone into it would destroy that premise. The historical
   # claim "migrations 001-026" and its count (26) are preserved verbatim.
-  case "$f" in supabase/migrations/027_*|supabase/migrations/028_*) continue;; esac
+  # RETARGET (W14-E migration 029): 029 is excluded HERE TOO for the same reason - B3's premise is the
+  # exact PRE-027 legacy state; the historical claim "migrations 001-026" and its count (26) stand.
+  case "$f" in supabase/migrations/027_*|supabase/migrations/028_*|supabase/migrations/029_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
     || { bad "B3: migration failed in postgres: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "26" ] && w11_m028_pinned && ok "B3: migrations 001-026 applied cleanly in order to 'postgres' (the nonempty-start database; 027 follows in section D; the weight_time milestone 028 is excluded and pinned, so this is the exact PRE-027 legacy state)" \
+[ "$APPLIED" = "26" ] && w11_m028_pinned && w14e_m029_pinned && ok "B3: migrations 001-026 applied cleanly in order to 'postgres' (the nonempty-start database; 027 follows in section D; the weight_time milestone 028 and the F-E8 remediation 029 (RETARGET W14-E) are excluded and pinned, so this is the exact PRE-027 legacy state)" \
   || bad "B3: expected 26 migrations in postgres, applied $APPLIED"
 APPLIED=0
 for f in supabase/migrations/0*.sql; do
@@ -172,8 +200,9 @@ for f in supabase/migrations/0*.sql; do
   APPLIED=$((APPLIED+1))
 done
 # W11-LIVE RETARGET: the full committed chain from empty is 001-028 now.
-[ "$APPLIED" = "28" ] && w11_m028_pinned && ok "B4: migrations 001-028 applied cleanly in order to 'emptycase' FROM supabase/migrations exactly once - explicit applied count = 28 (the 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256; proof: the empty legitimate starting state)" \
-  || bad "B4: expected 28 migrations in emptycase (001-027 + the pinned weight_time 028), applied $APPLIED"
+# RETARGET (W14-E migration 029): the full committed chain from empty is 001-029 now.
+[ "$APPLIED" = "29" ] && w11_m028_pinned && w14e_m029_pinned && ok "B4 (RETARGET W14-E migration 029): migrations 001-029 applied cleanly in order to 'emptycase' FROM supabase/migrations exactly once - explicit applied count = 29 (the F-E8 remediation 029 at its pinned 9102 bytes/sha256 on top ofthe 27 historical + the weight_time milestone 028 at its pinned 37162 bytes/sha256; proof: the empty legitimate starting state)" \
+  || bad "B4: expected 29 migrations in emptycase (001-028 + the pinned F-E8 remediation 029), applied $APPLIED"
 
 echo "=== C. A legitimate NONEMPTY migration-023 external catalog, seeded BEFORE the proposal (seeded BEFORE migration 027)"
 GL1='11111111-2222-3333-4444-555555555001'

@@ -76,12 +76,35 @@ W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 W11_M028_BYTES=37162
 w11_m028_pinned() {
   local n028 n029 bytes sha
-  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
-  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  # RETARGET (W14-E migration 029): W11's inventory claim (exactly one 028, no 029) is anchored to the
+  # published production base 54a9d128 - an immutable commit, never the working tree; the current
+  # tree is governed by w14e_m029_pinned below.
+  n028=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/028_' || true)
+  n029=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/029_' || true)
   [ -f "$W11_M028" ] || return 1
   bytes=$(wc -c < "$W11_M028" | tr -d ' ')
   sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
   [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+# RETARGET (W14-E migration 029): the CURRENT-tree contract. The tree admits EXACTLY ONE 029 -
+# the reviewed F-E8 remediation 029_exlib_plank_cross_run_idempotency.sql (exact-snapshot prior-run
+# provenance for the Plank link helper; PREPARED, NOT APPLIED hosted) - pinned by filename, byte
+# length and sha256, behind the byte-identical 028; no 030. W11's exactly-28 claim above is anchored
+# to the published production base 54a9d128, the last tip where it was true. A further migration
+# (030+) still fails this gate loudly.
+W14E_M029='supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+W14E_M029_SHA='23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc'
+W14E_M029_BYTES=9102
+w14e_m029_pinned() {
+  local n n028 n029 n030 bytes sha b028 s028
+  n=$(ls supabase/migrations/ | grep -c '\.sql$' || true)
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  n030=$(ls supabase/migrations/ | grep -c '^03' || true)
+  [ -f "$W14E_M029" ] && [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W14E_M029" | tr -d ' '); sha=$(shasum -a 256 "$W14E_M029" | awk '{print $1}')
+  b028=$(wc -c < "$W11_M028" | tr -d ' '); s028=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n/$n028/$n029/$n030/$bytes/$sha/$b028/$s028" = "29/1/1/0/$W14E_M029_BYTES/$W14E_M029_SHA/$W11_M028_BYTES/$W11_M028_SHA" ]
 }
 
 TMP="$(mktemp -d /tmp/exlib2q-pg.XXXXXX)"
@@ -199,8 +222,10 @@ done
 # milestone is applied WITH the chain — which is what proves it composes —
 # and is pinned by exact identity, so this gate is strictly stronger than
 # the 27-file version it replaces.
-[ "$APPLIED" = "28" ] && w11_m028_pinned && ok "B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)" \
-  || bad "B2: expected 28 migrations (001-027 + the pinned weight_time 028), applied $APPLIED"
+# RETARGET (W14-E migration 029): the committed chain is 001-029 now; 029 is applied WITH the chain
+# (which is what proves it composes) and pinned by exact identity.
+[ "$APPLIED" = "29" ] && w11_m028_pinned && w14e_m029_pinned && ok "B2 (RETARGET W14-E migration 029): migrations 001-029 applied exactly once in order (29 files = the F-E8 remediation 029 at its pinned 9102 bytes/sha256 on top of the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)" \
+  || bad "B2: expected 29 migrations (001-028 at the published base + the pinned F-E8 remediation 029), applied $APPLIED"
 [ "$(Q "$ADM_BASELINE_SQL")" = "$BASELINE_OK" ] \
   && ok "B3: the ADMISSION-role membership is EXACTLY the hosted baseline row (implicit creator membership: grantor supabase_admin -> postgres, ADMIN TRUE / INHERIT FALSE / SET FALSE)" \
   || bad "B3: admission baseline wrong ($(Q "$ADM_BASELINE_SQL"))"

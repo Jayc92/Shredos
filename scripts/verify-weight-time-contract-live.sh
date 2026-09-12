@@ -281,7 +281,11 @@ if [ -z "$MIG028" ]; then
   done
 else
   N028=$(ls supabase/migrations/028_*.sql | wc -l | tr -d ' ')
-  [ "$N028" = "1" ] && [ "$MIG_COUNT" = "28" ] && ok "S1: exactly one 028 migration, 28 committed migrations in total ($(basename "$MIG028"))" || bad "S1: expected exactly one 028 and 28 migrations, found $N028 / $MIG_COUNT"
+  # RETARGET (W14-E migration 029): the committed inventory is 29 now - 028 plus exactly one 029, the reviewed
+  # F-E8 remediation 029_exlib_plank_cross_run_idempotency.sql (PREPARED, NOT APPLIED hosted), pinned by bytes/sha256.
+  N029=$(ls supabase/migrations/029_*.sql 2>/dev/null | wc -l | tr -d ' ')
+  M029_ID="$(wc -c < supabase/migrations/029_exlib_plank_cross_run_idempotency.sql | tr -d ' ')/$(shasum -a 256 supabase/migrations/029_exlib_plank_cross_run_idempotency.sql | awk '{print $1}')"
+  [ "$N028" = "1" ] && [ "$N029" = "1" ] && [ "$MIG_COUNT" = "29" ] && [ "$M029_ID" = "9102/23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc" ] && ok "S1 (RETARGET W14-E migration 029): exactly one 028 migration and exactly one pinned 029, 29 committed migrations in total ($(basename "$MIG028"), 029_exlib_plank_cross_run_idempotency.sql)" || bad "S1: expected exactly one 028, one pinned 029 and 29 migrations, found $N028 / $N029 / $MIG_COUNT / $M029_ID"
   CONDEF_SQL="SELECT t.relname || '|' || c.conname || '|' || pg_get_constraintdef(c.oid) FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid WHERE c.contype='c' AND pg_get_constraintdef(c.oid) ILIKE '%tracking_mode%' ORDER BY 1;"
   Q postgres "$CONDEF_SQL" > "$TMP/condefs.txt"
   grep -qF "exercises|exercises_tracking_mode_check|$EXPECT5" "$TMP/condefs.txt" && grep -qF "exercise_catalog|exercise_catalog_tracking_mode_check|$EXPECT5" "$TMP/condefs.txt" && [ "$(wc -l < "$TMP/condefs.txt" | tr -d ' ')" = "2" ] \

@@ -107,6 +107,83 @@ const ALLOWED_CHANGED_PATHS = [
   MIGRATION_029, MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH,
   ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`),
 ]
+/**
+ * RETARGET (W14-E — migration 029) surface: the 65 NON-FROZEN historical suites whose migration-inventory
+ * pins (exactly 22/24/25/26/27/28 files, no 023/025/026/028/029, nothing under supabase/) were tripped by the
+ * authorized migration 029 and retargeted under the MIGRATION_INVENTORY_RETARGET authorization — the same
+ * treatment W11 (76bfffcc) and W12-C (ff2e6ee4) applied for 028. Derived mechanically from the inventory-pin
+ * census of the 40e12a42 tip (79 failing checks in 67 suites, 0 unclassified), minus the two FROZEN verifiers.
+ * Each is admitted into the change surface ONLY if its diff from the production base carries the W14-E
+ * retarget label; nothing else may appear.
+ */
+const RETARGET_SURFACE = [
+  'scripts/verify-exlib1a.ts',
+  'scripts/verify-exlib1b1.ts',
+  'scripts/verify-exlib1b2.ts',
+  'scripts/verify-exlib1b3.ts',
+  'scripts/verify-exlib1c0.ts',
+  'scripts/verify-exlib1c0a.ts',
+  'scripts/verify-exlib1c0b.ts',
+  'scripts/verify-exlib1c0b2.ts',
+  'scripts/verify-exlib1c0b3.ts',
+  'scripts/verify-exlib1c0b4.ts',
+  'scripts/verify-exlib1c0b5.ts',
+  'scripts/verify-exlib2a2b.ts',
+  'scripts/verify-exlib2c-batch01.ts',
+  'scripts/verify-exlib2c-batch02.ts',
+  'scripts/verify-exlib2c-batch03.ts',
+  'scripts/verify-exlib2c-batch04.ts',
+  'scripts/verify-exlib2c-batch05.ts',
+  'scripts/verify-exlib2c-batch06.ts',
+  'scripts/verify-exlib2d.ts',
+  'scripts/verify-exlib2f.ts',
+  'scripts/verify-exlib2f-application.ts',
+  'scripts/verify-exlib2f-live.sh',
+  'scripts/verify-exlib2k.ts',
+  'scripts/verify-exlib2k-application.ts',
+  'scripts/verify-exlib2k-live.sh',
+  'scripts/verify-exlib2m.ts',
+  'scripts/verify-exlib2m-application.ts',
+  'scripts/verify-exlib2m-live.sh',
+  'scripts/verify-exlib2n.ts',
+  'scripts/verify-exlib2n-application.ts',
+  'scripts/verify-exlib2o.ts',
+  'scripts/verify-exlib2o-application.ts',
+  'scripts/verify-exlib2o-live.sh',
+  'scripts/verify-exlib2p.ts',
+  'scripts/verify-exlib2p-application.ts',
+  'scripts/verify-exlib2p-live.sh',
+  'scripts/verify-exlib2q.ts',
+  'scripts/verify-exlib2q-application.ts',
+  'scripts/verify-exlib2q-live.sh',
+  'scripts/verify-exlib2r.ts',
+  'scripts/verify-exlib2r-application.ts',
+  'scripts/verify-exlib2r-live.sh',
+  'scripts/verify-exlib2u-live.sh',
+  'scripts/verify-exlib2y-live.sh',
+  'scripts/verify-exlib2z-live.sh',
+  'scripts/verify-food-log-ux.ts',
+  'scripts/verify-phase5b3.ts',
+  'scripts/verify-phase5b4.ts',
+  'scripts/verify-phase5b5.ts',
+  'scripts/verify-ui1a.ts',
+  'scripts/verify-ui1b.ts',
+  'scripts/verify-ui2.ts',
+  'scripts/verify-ui3.ts',
+  'scripts/verify-ui4.ts',
+  'scripts/verify-ui5a.ts',
+  'scripts/verify-ui5b1a.ts',
+  'scripts/verify-ui5b1b.ts',
+  'scripts/verify-ui5b2.ts',
+  'scripts/verify-ui6a.ts',
+  'scripts/verify-ui6b.ts',
+  'scripts/verify-ui6c.ts',
+  'scripts/verify-ui7.ts',
+  'scripts/verify-weight-time-contract-live.sh',
+  'scripts/verify-weight-time-migration-028.ts',
+  'scripts/verify-weight-time-w14-live.sh',
+]
+const RETARGET_LABEL = 'RETARGET (W14-E'
 /** Deferred non-blocking maintenance findings (F2/F2a/F2b/F3/F4). Explicitly out of scope. */
 const DEFERRED_MAINTENANCE_FILES = [
   'scripts/verify-exlib1c0b3-live.sh', 'scripts/verify-exlib2e-live.sh', 'scripts/verify-exlib2l-live.sh',
@@ -456,8 +533,15 @@ function verifyBoundaries(world: World): void {
   const porcelainRaw = execFileSync('git', ['-C', repositoryRoot, 'status', '--porcelain'], { encoding: 'utf8' })
   const working = porcelainRaw.split('\n').filter((l) => l.length > 3).flatMap((l) => l.slice(3).split(' -> ')).map((p) => p.trim().replace(/^"|"$/g, ''))
   const surface = Array.from(new Set(committed.concat(working))).sort()
-  const outside = surface.filter((p) => !ALLOWED_CHANGED_PATHS.includes(p) && p !== `${PACKAGE_DIR}/`)
-  check('B6 the ENTIRE change surface - committed and uncommitted - is five-entry endgame preparation and nothing else', outside.length === 0, `outside: ${outside.join(', ')}`)
+  const retargeted = surface.filter((p) => RETARGET_SURFACE.includes(p))
+  const outside = surface.filter((p) => !ALLOWED_CHANGED_PATHS.includes(p) && !RETARGET_SURFACE.includes(p) && p !== `${PACKAGE_DIR}/`)
+  check('B6 the ENTIRE change surface - committed and uncommitted - is five-entry endgame preparation plus the labelled migration-029 inventory retarget of the 65 census-derived historical suites, and nothing else', outside.length === 0, `outside: ${outside.join(', ')}`)
+  const unlabelled = retargeted.filter((p) => !(git('diff', PRODUCTION_BASE_COMMIT, '--', p).includes(RETARGET_LABEL)))
+  check('B6b RETARGET (W14-E migration 029): every retargeted historical suite differs from the production base ONLY with the W14-E retarget label present in its diff, the retarget surface is exactly the 65 census-derived non-frozen suites (no more, no fewer), and the two FROZEN verifiers are NOT among them',
+    retargeted.length === 65 && RETARGET_SURFACE.length === 65 && unlabelled.length === 0
+    && !RETARGET_SURFACE.includes('scripts/verify-weight-time-w14.ts') && !RETARGET_SURFACE.includes('scripts/verify-weight-time-w14-closeout.ts')
+    && !surface.includes('scripts/verify-weight-time-w14.ts') && !surface.includes('scripts/verify-weight-time-w14-closeout.ts'),
+    `retargeted ${retargeted.length}; unlabelled: ${unlabelled.join(', ')}`)
   check('B7 no src/ application code is touched', surface.every((p) => !p.startsWith('src/')))
   check('B8 under supabase/ only the authorized migration 029 is touched (no other migration, no 026/027/028 edit)', surface.filter((p) => p.startsWith('supabase/')).every((p) => p === MIGRATION_029))
   check('B9 the deferred F2/F2a/F2b/F3/F4 maintenance sites are NOT modified on account of this work', DEFERRED_MAINTENANCE_FILES.every((p) => !surface.includes(p)))

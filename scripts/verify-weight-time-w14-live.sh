@@ -135,14 +135,20 @@ MSHA=$(shasum -a 256 "$MANIFEST" | awk '{print $1}')
 ok "A2: package under test: $PBYTES bytes, sha256 $PSHA"
 ok "A2b: manifest under test: $MBYTES bytes, sha256 $MSHA"
 
-# P10 - migration 028 byte-identical, and no 029 has appeared.
+# P10 - migration 028 byte-identical. HISTORICAL: at the published base 54a9d128 no 029 existed (W14
+# itself added no numbered migration). RETARGET (W14-E migration 029): the current tree admits EXACTLY
+# ONE 029 - the reviewed F-E8 remediation (PREPARED, NOT APPLIED hosted) - pinned by bytes and sha256.
 N028=$(ls supabase/migrations/ | grep -c '^028' || true)
 N029=$(ls supabase/migrations/ | grep -c '^029' || true)
+N029_BASE=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/029_' || true)
 B028=$(wc -c < "$M028" | tr -d ' ')
 S028=$(shasum -a 256 "$M028" | awk '{print $1}')
-[ "$N028/$N029/$B028/$S028" = "1/0/$M028_BYTES/$M028_SHA" ] \
-  && ok "P10: migration 028 is byte-identical at its pinned identity ($M028_BYTES B / ${M028_SHA:0:8}...) and NO migration 029 exists - this work adds no numbered migration and modifies none" \
-  || bad "P10: the 028 pin failed ($N028/$N029/$B028/$S028)"
+M029='supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+B029=$(wc -c < "$M029" | tr -d ' ')
+S029=$(shasum -a 256 "$M029" | awk '{print $1}')
+[ "$N028/$N029_BASE/$B028/$S028" = "1/0/$M028_BYTES/$M028_SHA" ] && [ "$N029/$B029/$S029" = "1/9102/23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc" ] \
+  && ok "P10 (RETARGET W14-E migration 029): migration 028 is byte-identical at its pinned identity ($M028_BYTES B / ${M028_SHA:0:8}...); NO 029 existed at the published base 54a9d128 (W14 added no numbered migration); the current tree carries EXACTLY ONE 029, the F-E8 remediation, at its pinned identity (9102 B / 23bbd3aa...)" \
+  || bad "P10: the migration pins failed (028: $N028/$B028/$S028; 029 at base: $N029_BASE; 029 now: $N029/$B029/$S029)"
 
 # ── Static reading is done with awk and with grep -F, NEVER with a bare
 # BRE. On this machine `grep` resolves to ugrep, which treats a `$` in
@@ -240,9 +246,10 @@ for f in supabase/migrations/0*.sql; do
     || { bad "B2: migration failed: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "28" ] \
-  && ok "B2: migrations 001-028 applied exactly once in order, ALL as the non-superuser postgres" \
-  || bad "B2: expected 28 migrations, applied $APPLIED"
+# RETARGET (W14-E migration 029): the committed chain is 001-029 now; 029 is applied WITH the chain.
+[ "$APPLIED" = "29" ] \
+  && ok "B2 (RETARGET W14-E migration 029): migrations 001-029 applied exactly once in order, ALL as the non-superuser postgres" \
+  || bad "B2: expected 29 migrations, applied $APPLIED"
 expect_eq "B3: the loader-role membership baseline is the exact hosted row, grantor included" "$BASELINE_SQL" "$BASELINE_OK"
 
 # The unique index Correction 1 depends on, read FROM THE APPLIED DATABASE

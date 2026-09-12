@@ -123,11 +123,44 @@ const w11MigrationsAtClosureTip = (): string[] =>
  */
 const w11Migration028Admitted = (): boolean => {
   const tip = w11MigrationsAtClosureTip()
-  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  // RETARGET (W14-E — migration 029): W11's "current tree" claim (exactly 001-028 with the pinned
+  // 028) is anchored to the published production base 54a9d128 — the last tip where it was true —
+  // and evaluated against that immutable commit, never the working tree (see w14eMigration029Admitted).
+  const live = w14eMigrationsAtPreM029Tip()
   const bytes = require('fs').readFileSync(`supabase/migrations/${W11_M028}`) as Buffer
   return tip.length === 27 && !tip.some((f) => f.startsWith('028')) && tip[26] === '027_exlib_catalog_content_schema.sql'
     && live.length === 28 && live.filter((f) => f.startsWith('028')).length === 1 && live[27] === W11_M028
     && bytes.length === W11_M028_BYTES && require('crypto').createHash('sha256').update(bytes).digest('hex') === W11_M028_SHA
+}
+// ── W14-E (F-E8 remediation, migration 029, 2026-09-12): current-tree anchor ──
+// The published production base — the last commit before migration 029 (origin/main
+// 54a9d128). W11's historical claim (exactly 001-028) is evaluated against this
+// immutable commit object, never against the working tree.
+const W14E_PRE_M029_TIP = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
+const W14E_M029 = '029_exlib_plank_cross_run_idempotency.sql'
+const W14E_M029_SHA = '23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc'
+const W14E_M029_BYTES = 9102
+/** The migration inventory as it stood at the published base (exactly 001-028, no 029). */
+const w14eMigrationsAtPreM029Tip = (): string[] =>
+  (require('child_process').execSync(`git ls-tree ${W14E_PRE_M029_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string)
+    .split('\n').filter((p: string) => p.endsWith('.sql')).map((p: string) => p.split('/').pop() as string).sort()
+/**
+ * RETARGET (W14-E — migration 029): the W11 inventory claim (exactly 001-028 with the
+ * pinned 028) holds at the published base 54a9d128, AND the current tree admits exactly
+ * one 029 — the reviewed F-E8 remediation (exact-snapshot prior-run provenance for the
+ * Plank link helper; PREPARED, NOT APPLIED hosted) — pinned by filename, byte length and
+ * sha256, in position 29 behind the byte-identical 028. The boundary moves from
+ * exactly-28 to exactly-29; nothing else (no 030) may appear. History is not rewritten:
+ * 029 did not exist at the base and this says so.
+ */
+const w14eMigration029Admitted = (): boolean => {
+  const base = w14eMigrationsAtPreM029Tip()
+  const live = (require('fs').readdirSync('supabase/migrations') as string[]).filter((f) => f.endsWith('.sql')).sort()
+  const b029 = require('fs').readFileSync(`supabase/migrations/${W14E_M029}`) as Buffer
+  return base.length === 28 && base[27] === W11_M028 && !base.some((f) => f.startsWith('029'))
+    && live.length === 29 && live[27] === W11_M028 && live[28] === W14E_M029
+    && live.filter((f) => f.startsWith('029')).length === 1 && !live.some((f) => f.startsWith('03'))
+    && b029.length === W14E_M029_BYTES && require('crypto').createHash('sha256').update(b029).digest('hex') === W14E_M029_SHA
 }
 
 /**
@@ -585,10 +618,16 @@ check('E1: the R6 admission verifier carries the exact EXLIB-2O retarget label w
     // the only removed line is the superseded "exactly 27 with no 028" return.
     const historical = blobAt(W11_PRE_WEIGHT_TIME_TIP, 'scripts/verify-exlib2n-application.ts')
     if (!historical.equals(blobAt(SRC, 'scripts/verify-exlib2n-application.ts'))) return false
+    // RETARGET (W14-E — migration 029): the application verifier's admitted live difference now ALSO includes
+    // W14-E's line-exact retarget of the same A2 boundary — this file's own W14-E helper block (identical text in
+    // every retargeted suite, and W11's helper anchored to the published base 54a9d128 in the same way), the W14-E
+    // label line, and the exactly-29 return line. The only removed line is still the superseded exactly-27 return;
+    // W11's exactly-28 return was itself an added line and is simply no longer present.
     return w11LineExactRetarget(historical.toString('utf8'), bytesOf('scripts/verify-exlib2n-application.ts').toString('utf8'),
       ["    return migs.length === 27 && !migs.some((f) => f.includes('/028'))"],
       ['    // RETARGET (W11 — weight_time migration 028): see w11Migration028Admitted.',
-        "    return migs.length === 28 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && w11Migration028Admitted()"])
+        '    // RETARGET (W14-E — migration 029): exactly-28 (proven at the published base 54a9d128 by w14eMigration029Admitted) becomes exactly-29 with 029 — the reviewed F-E8 remediation, PREPARED, NOT APPLIED hosted — pinned by filename and fingerprint; nothing else may appear.',
+        "    return migs.length === 29 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && migs.filter((f) => f.includes('/029_')).length === 1 && migs.some((f) => f.endsWith(`/${W14E_M029}`)) && w11Migration028Admitted() && w14eMigration029Admitted()"])
   })())
 check('E2: upstream authorities untouched — the admitted Plank artifact, both batch files, both forms, the schema, the inventory, and the ledger are byte-identical to the promoted source tip',
   (() => {
@@ -608,7 +647,8 @@ check('E3: migrations remain exactly 001-027 with no 028 — the package lives u
     // in the uncommitted-review state the historical SRC tree is inspected, where the inventory was exactly
     // 001-027 with no 028 — the original claim, unchanged.
     return committed
-      ? migs.length === 28 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && w11Migration028Admitted()
+      // RETARGET (W14-E — migration 029): exactly-28 (proven at the published base 54a9d128 by w14eMigration029Admitted) becomes exactly-29 with 029 — the reviewed F-E8 remediation, PREPARED, NOT APPLIED hosted — pinned by filename and fingerprint; nothing else may appear.
+      ? migs.length === 29 && migs.filter((f) => f.includes('/028_')).length === 1 && migs.some((f) => f.endsWith(`/${W11_M028}`)) && migs.filter((f) => f.includes('/029_')).length === 1 && migs.some((f) => f.endsWith(`/${W14E_M029}`)) && w11Migration028Admitted() && w14eMigration029Admitted()
       : migs.length === 27 && !migs.some((f) => f.includes('/028'))
   })())
 // RETARGET (EXLIB-2O hosted-execution evidence): G1/G2/G4 walk the

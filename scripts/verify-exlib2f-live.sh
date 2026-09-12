@@ -56,12 +56,35 @@ W11_M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 W11_M028_BYTES=37162
 w11_m028_pinned() {
   local n028 n029 bytes sha
-  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
-  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  # RETARGET (W14-E migration 029): W11's inventory claim (exactly one 028, no 029) is anchored to the
+  # published production base 54a9d128 - an immutable commit, never the working tree; the current
+  # tree is governed by w14e_m029_pinned below.
+  n028=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/028_' || true)
+  n029=$(git ls-tree 54a9d128bca659ec89d3ae149d47450e74a2ad2e supabase/migrations/ --name-only | grep -c '/029_' || true)
   [ -f "$W11_M028" ] || return 1
   bytes=$(wc -c < "$W11_M028" | tr -d ' ')
   sha=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
   [ "$n028/$n029/$bytes/$sha" = "1/0/$W11_M028_BYTES/$W11_M028_SHA" ]
+}
+# RETARGET (W14-E migration 029): the CURRENT-tree contract. The tree admits EXACTLY ONE 029 -
+# the reviewed F-E8 remediation 029_exlib_plank_cross_run_idempotency.sql (exact-snapshot prior-run
+# provenance for the Plank link helper; PREPARED, NOT APPLIED hosted) - pinned by filename, byte
+# length and sha256, behind the byte-identical 028; no 030. W11's exactly-28 claim above is anchored
+# to the published production base 54a9d128, the last tip where it was true. A further migration
+# (030+) still fails this gate loudly.
+W14E_M029='supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+W14E_M029_SHA='23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc'
+W14E_M029_BYTES=9102
+w14e_m029_pinned() {
+  local n n028 n029 n030 bytes sha b028 s028
+  n=$(ls supabase/migrations/ | grep -c '\.sql$' || true)
+  n028=$(ls supabase/migrations/ | grep -c '^028' || true)
+  n029=$(ls supabase/migrations/ | grep -c '^029' || true)
+  n030=$(ls supabase/migrations/ | grep -c '^03' || true)
+  [ -f "$W14E_M029" ] && [ -f "$W11_M028" ] || return 1
+  bytes=$(wc -c < "$W14E_M029" | tr -d ' '); sha=$(shasum -a 256 "$W14E_M029" | awk '{print $1}')
+  b028=$(wc -c < "$W11_M028" | tr -d ' '); s028=$(shasum -a 256 "$W11_M028" | awk '{print $1}')
+  [ "$n/$n028/$n029/$n030/$bytes/$sha/$b028/$s028" = "29/1/1/0/$W14E_M029_BYTES/$W14E_M029_SHA/$W11_M028_BYTES/$W11_M028_SHA" ]
 }
 
 TMP="$(mktemp -d /tmp/exlib2e-pg.XXXXXX)"
@@ -98,13 +121,19 @@ ok "candidate under test: $CANDIDATE ($CANDBYTES bytes, sha256 $CANDSHA)"
 # EXCLUDED from every loop in this suite; this suite's claims stay
 # exactly "migrations 001-026 + the reviewed 026 candidate". No 028+.
 CAND_COUNT=$(ls supabase/migrations/ | grep -c '^026' || true)
-N028=$(ls supabase/migrations/ | grep -c '^02[8-9]' || true)
+N028=$(ls supabase/migrations/ | grep -c '^028' || true)
+N029=$(ls supabase/migrations/ | grep -c '^029' || true)
 # W11-LIVE RETARGET: 028 (the weight_time milestone) now exists and is
 # EXCLUDED from every loop in this suite by the 02[7-9] filters below, so
 # this suite's claims stay exactly "migrations 001-026 + the reviewed 026
 # candidate". The historical ABSENCE bound ("no 028+") is replaced by the
 # EXACT current inventory, which a further migration (029+) still fails.
-[ "$CAND_COUNT/$N028" = "1/1" ] && w11_m028_pinned || { bad "expected exactly one 026 candidate and exactly the pinned weight_time 028, found $CAND_COUNT/$N028"; exit 1; }
+# RETARGET (W14-E migration 029): 029 (the F-E8 remediation of the Plank link
+# helper) now exists and is likewise EXCLUDED from every historical loop by the
+# same 02[7-9] filters; it is pinned by exact identity (w14e_m029_pinned) and a
+# further migration (030+) still fails. Its CURRENT contract is proven in the
+# 001-029 world built for Review 1 below.
+[ "$CAND_COUNT/$N028/$N029" = "1/1/1" ] && w11_m028_pinned && w14e_m029_pinned || { bad "expected exactly one 026 candidate, exactly the pinned weight_time 028 and exactly the pinned F-E8 remediation 029, found $CAND_COUNT/$N028/$N029"; exit 1; }
 python3 - <<'PYEQ' && ok "exactly one 026 candidate; its executable SQL is byte-identical to the reviewed docs proposal (only the leading status header differs)" || { bad "026 candidate executable SQL drifted from the reviewed docs proposal"; exit 1; }
 def body(p):
     ls = open(p, encoding='utf-8').read().splitlines(keepends=True)
@@ -326,16 +355,73 @@ CNT=$(Q postgres "SELECT count(*) FROM public.exercises WHERE user_id='$U11' AND
 
 echo
 echo "Review 1: strict run-provenance invariant (different existing run id)"
+echo "  HISTORICAL contract (this suite's 001-026 world = the migration-026 helper): a link carrying a DIFFERENT existing run id is rejected, exactly as originally proven."
+echo "  CURRENT contract - RETARGET (W14-E migration 029): in a 001-029 world a DIFFERENT run validates ONLY when it is approved, non-dry, sealed, unrevoked AND carries EXACTLY the same catalog snapshot; every other posture still fails."
 RUN2='exlib2e-proof-run-0002'
 RID2=$(Q postgres "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('$RUN2', false, 'local-product', NOW(), 'local-legal', NOW(), 'local disposable fixture 2') RETURNING id;")
 Q postgres "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$RID2','$SP'), ('$RID2','$SN');" >/dev/null
 Q postgres "SELECT exlib_approve_and_seal_run('$RUN2');" >/dev/null
 UXR=$(mkuser)
 QU postgres "$UXR" "SELECT deliver_catalog_exercises('$RUN2');" >/dev/null
+# ── CURRENT arm (RETARGET W14-E migration 029): a SEPARATE database holding the exact
+#    committed chain 001-029 (29 files, 029 pinned) and the SAME catalog fixtures. The
+#    matrix below is the exact 029 rule; it is folded into the historical check so the
+#    suite stays count-neutral. Any setup failure surfaces as a non-matching matrix. ──
+M029_EXPECT="applied=29 deliver_prior_exact=already_valid_idempotent row_kept=true|timed current=true prior_exact=true nonexistent=false unapproved=false dry=false unsealed=false revoked=false unrelated=false different_snapshot_same_logical=false"
+m029_current_matrix() {
+  local n=0 f rid rid2 u e ok1 row cur pri nonx unap dry uns rev unr r_unap r_dry r_uns r_rev r_unr sp2 r_v2 dif
+  Q template1 "CREATE DATABASE m029w OWNER postgres;" >/dev/null 2>&1 || { echo "CREATE_DATABASE_FAILED"; return; }
+  # the cluster-wide roles already exist (created by the historical STUBS); only the per-database auth stub is needed here
+  Q m029w "CREATE SCHEMA auth; CREATE TABLE auth.users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT); CREATE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;" >/dev/null 2>"$TMP/m029w-stubs.log" || { echo "STUBS_FAILED:$(head -1 "$TMP/m029w-stubs.log")"; return; }
+  for f in supabase/migrations/0*.sql; do
+    psql -h "$SOCK" -U postgres -d m029w -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/m029w-apply.log" || { echo "APPLY_FAILED:$(basename "$f"):$(head -1 "$TMP/m029w-apply.log")"; return; }
+    n=$((n+1))
+  done
+  w14e_m029_pinned || { echo "PIN_FAILED"; return; }
+  # the same fixtures as the historical world (catalog rows, anatomy, alias, approval, sealed run)
+  Q m029w "INSERT INTO exercise_catalog_logical (id) VALUES ('$LP'), ('$LN');
+    INSERT INTO exercise_catalog (id, logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence) VALUES
+      ('$SP','$LP','Plank','isolation','abs','bodyweight','bilateral','timed','https://example.test/plank','https://example.test/dir','2026-08-30','high'),
+      ('$SN','$LN','Test Row NP','compound','lats','barbell','bilateral','weight_reps','https://example.test/np','https://example.test/dir','2026-08-30','high');
+    INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) VALUES ('$SP','obliques','secondary'), ('$SP','lower_back','tertiary'), ('$SN','triceps','secondary');
+    INSERT INTO exercise_catalog_aliases (id, logical_id, alias) VALUES ('$AP','$LP','Front plank test');
+    UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer', reviewed_at=NOW(), review_rationale='local disposable fixture' WHERE id IN ('$SP','$SN');" >/dev/null 2>&1 || { echo "FIXTURES_FAILED"; return; }
+  mk() { Q m029w "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('$1', ${3:-false}, 'local-product', NOW(), 'local-legal', NOW(), 'local disposable fixture') RETURNING id;"; }
+  rid=$(mk "$RUN") || { echo "RUN_FAILED"; return; }
+  Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$rid','$SP'), ('$rid','$SN'); INSERT INTO exercise_catalog_run_items (run_id, catalog_alias_id) VALUES ('$rid','$AP'); SELECT exlib_approve_and_seal_run('$RUN');" >/dev/null 2>&1 || { echo "SEAL_FAILED"; return; }
+  rid2=$(mk "$RUN2"); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$rid2','$SP'), ('$rid2','$SN'); SELECT exlib_approve_and_seal_run('$RUN2');" >/dev/null 2>&1 || { echo "SEAL2_FAILED"; return; }
+  u=$(Q m029w "INSERT INTO auth.users DEFAULT VALUES RETURNING id;")
+  QU m029w "$u" "SELECT deliver_catalog_exercises('$RUN2');" >/dev/null 2>&1 || { echo "PRIOR_DELIVERY_FAILED"; return; }
+  # THE 029 RULE through deliver_catalog_exercises: the link was delivered by a DIFFERENT prior run
+  # (approved, sealed, unrevoked, carrying EXACTLY the Plank snapshot) -> idempotent skip, no repair
+  ok1=$(QU m029w "$u" "SELECT deliver_catalog_exercises('$RUN');" 2>&1 | python3 -c "import json,sys; t=sys.stdin.read().strip(); print(json.loads(t)['plank_disposition'] if t.startswith('{') else 'ERROR:'+t.splitlines()[0][:80])")
+  row=$(Q m029w "SELECT (import_run_id='$rid2')||'|'||tracking_mode FROM public.exercises WHERE user_id='$u' AND catalog_logical_id='$LP';")
+  e=$(Q m029w "SELECT id FROM public.exercises WHERE user_id='$u' AND catalog_logical_id='$LP';")
+  # the forbidden postures, one run each; nonexistent through an in-memory composite (the FK forbids a stored row)
+  r_unap=$(Q m029w "INSERT INTO exercise_catalog_import_runs (run_key) VALUES ('exlib2f-029-unapproved') RETURNING id;"); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_unap','$SP');" >/dev/null
+  r_dry=$(mk exlib2f-029-dry true); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_dry','$SP');" >/dev/null
+  r_uns=$(mk exlib2f-029-unsealed); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_uns','$SP');" >/dev/null
+  r_rev=$(mk exlib2f-029-revoked); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_rev','$SP'); SELECT exlib_approve_and_seal_run('exlib2f-029-revoked'); SELECT exlib_revoke_run_delivery('exlib2f-029-revoked');" >/dev/null
+  r_unr=$(mk exlib2f-029-unrelated); Q m029w "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_unr','$SN'); SELECT exlib_approve_and_seal_run('exlib2f-029-unrelated');" >/dev/null
+  H() { Q m029w "SELECT coalesce(exlib_plank_link_valid('$u', jsonb_populate_record(e, jsonb_build_object('import_run_id', $1)), '$SP', '$LP', 'Plank', '$rid')::text, 'null') FROM public.exercises e WHERE e.id='$e';"; }
+  cur=$(H "'$rid'"); pri=$(H "'$rid2'"); nonx=$(H "'00000000-0000-4000-a000-00000000dead'"); unap=$(H "'$r_unap'"); dry=$(H "'$r_dry'"); uns=$(H "'$r_uns'"); rev=$(H "'$r_rev'"); unr=$(H "'$r_unr'")
+  # a sealed run carrying a DIFFERENT snapshot of the SAME logical identity (Plank v2), on a clone
+  Q template1 "CREATE DATABASE m029w2 TEMPLATE m029w OWNER postgres;" >/dev/null 2>&1
+  Q m029w2 "UPDATE exercise_catalog SET is_active=false WHERE id='$SP';" >/dev/null 2>&1
+  sp2=$(Q m029w2 "INSERT INTO exercise_catalog (logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence, catalog_version) SELECT logical_id, canonical_name, category, primary_muscle, equipment, laterality, tracking_mode, source_url, source_page, retrieved_at, import_confidence, 2 FROM exercise_catalog WHERE id='$SP' RETURNING id;" 2>&1)
+  Q m029w2 "INSERT INTO exercise_catalog_muscles (catalog_id, muscle, role) SELECT '$sp2', muscle, role FROM exercise_catalog_muscles WHERE catalog_id='$SP'; UPDATE exercise_catalog SET review_status='approved', reviewed_by='local-proof-reviewer', reviewed_at=NOW(), review_rationale='second Plank snapshot' WHERE id='$sp2';" >/dev/null 2>&1
+  r_v2=$(Q m029w2 "INSERT INTO exercise_catalog_import_runs (run_key, dry_run, product_approved_by, product_approved_at, legal_approved_by, legal_approved_at, approval_rationale) VALUES ('exlib2f-029-plank-v2', false, 'local-product', NOW(), 'local-legal', NOW(), 'run carrying Plank v2') RETURNING id;")
+  Q m029w2 "INSERT INTO exercise_catalog_run_items (run_id, catalog_id) VALUES ('$r_v2','$sp2'); SELECT exlib_approve_and_seal_run('exlib2f-029-plank-v2');" >/dev/null 2>&1
+  dif=$(Q m029w2 "SELECT coalesce(exlib_plank_link_valid('$u', jsonb_populate_record(e, jsonb_build_object('import_run_id','$r_v2')), '$SP', '$LP', 'Plank', '$rid')::text, 'null') FROM public.exercises e WHERE e.id='$e';")
+  echo "applied=$n deliver_prior_exact=$ok1 row_kept=$row current=$cur prior_exact=$pri nonexistent=$nonx unapproved=$unap dry=$dry unsealed=$uns revoked=$rev unrelated=$unr different_snapshot_same_logical=$dif"
+}
+M029_MATRIX=$(m029_current_matrix 2>&1 | tail -1)
 if OUT=$(DLV "$UXR" 2>&1); then
-  bad "different-run link validated as idempotent: $OUT"
+  bad "different-run link validated as idempotent in the 001-026 world: $OUT"
 else
-  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation"     && ok "strict run invariant: a link carrying a DIFFERENT existing run id aborts fail-closed"     || bad "different-run link failed with the wrong error: $OUT"
+  printf '%s' "$OUT" | grep -q "inconsistent prior Plank reconciliation" && [ "$M029_MATRIX" = "$M029_EXPECT" ] \
+    && ok "strict run invariant - HISTORICAL (001-026 world): a link carrying a DIFFERENT existing run id aborts fail-closed; CURRENT (RETARGET W14-E migration 029, 001-029 world): $M029_MATRIX" \
+    || bad "strict run invariant: historical arm '$(printf '%s' "$OUT" | head -c 120)' / current-arm matrix '$M029_MATRIX' (expected '$M029_EXPECT')"
 fi
 ROW=$(Q postgres "SELECT (import_run_id='$RID2')||'|'||tracking_mode FROM public.exercises WHERE user_id='$UXR' AND catalog_logical_id='$LP';")
 [ "$ROW" = "true|timed" ] && ok "strict run invariant: the differently-run row was not repaired or relinked" || bad "different-run row mutated: $ROW"

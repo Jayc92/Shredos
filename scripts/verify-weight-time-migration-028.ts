@@ -51,8 +51,17 @@ console.log(`${MIGRATION_028}: ${Buffer.byteLength(text028)} bytes, sha256 ${cre
 
 console.log('\nA. Identity and scope')
 const migrationFiles = readdirSync(path.join(repositoryRoot, 'supabase', 'migrations')).filter((name) => /^0\d\d_.*\.sql$/.test(name)).sort()
-check('A1: exactly 28 numbered migrations; 028 is the only file numbered 028 and the last one',
-  migrationFiles.length === 28 && migrationFiles.filter((name) => name.startsWith('028_')).length === 1 && migrationFiles[27] === '028_weight_time_tracking_mode.sql')
+// RETARGET (W14-E — migration 029): the exactly-28 claim held through the published base 54a9d128 and is
+// evaluated there; the current tree admits exactly one 029 (the reviewed F-E8 remediation, PREPARED, NOT
+// APPLIED hosted) pinned by filename, bytes and sha256, behind the byte-identical 028; no 030.
+const W14E_M029_BASE_TIP = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
+const w14eBaseMigrations = (execSync(`git ls-tree ${W14E_M029_BASE_TIP} supabase/migrations/ --name-only`, { encoding: 'utf8' }) as string).split('\n').filter((p) => p.endsWith('.sql')).map((p) => p.split('/').pop() as string).sort()
+const w14eM029 = readFileSync('supabase/migrations/029_exlib_plank_cross_run_idempotency.sql')
+check('A1: exactly 28 numbered migrations at the published base 54a9d128 with 028 the last one; RETARGET (W14-E migration 029): the current tree is exactly 29 with 028 at index 27 and the pinned 029 (9,102 B, sha256 23bbd3aa…) last, no 030',
+  w14eBaseMigrations.length === 28 && w14eBaseMigrations[27] === '028_weight_time_tracking_mode.sql'
+  && migrationFiles.length === 29 && migrationFiles.filter((name) => name.startsWith('028_')).length === 1 && migrationFiles[27] === '028_weight_time_tracking_mode.sql'
+  && migrationFiles.filter((name) => name.startsWith('029_')).length === 1 && migrationFiles[28] === '029_exlib_plank_cross_run_idempotency.sql' && !migrationFiles.some((name) => name.startsWith('030'))
+  && w14eM029.length === 9102 && createHash('sha256').update(w14eM029).digest('hex') === '23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc')
 check('A2: one transaction — exactly one BEGIN; and one COMMIT;, BEGIN before COMMIT',
   (text028.match(/^BEGIN;$/gm) ?? []).length === 1 && (text028.match(/^COMMIT;$/gm) ?? []).length === 1 && text028.indexOf('BEGIN;') < text028.indexOf('COMMIT;'))
 check('A3: no NOTIFY (no PostgREST-visible signature changes), no new column, no new table, no DROP TABLE, no catalog data statement',
