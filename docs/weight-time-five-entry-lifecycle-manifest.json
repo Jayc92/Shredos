@@ -1,0 +1,1492 @@
+{
+  "artifact": "weight-time-five-entry-lifecycle-manifest",
+  "status": "PREPARED - NOT REVIEWED, NOT EXECUTED, NOT DELIVERED",
+  "generated_by": "scripts/generate-weight-time-five-entry-manifest.ts",
+  "determinism": "Regenerate with the generator and compare; --check exits non-zero on any drift. Every value is derived from a bound input, so this manifest is independently recomputable from the repository alone.",
+  "production_base": {
+    "commit": "54a9d128bca659ec89d3ae149d47450e74a2ad2e",
+    "tree": "0b438079693867fd1757cec383a2bc986b1c905c",
+    "note": "The published main this preparation descends from. Recorded, not verified against any remote: this generator spawns no network commands."
+  },
+  "boundary_statement": {
+    "hosted_supabase_contact": "NONE",
+    "supabase_cli_invocation": "NONE",
+    "vercel_contact": "NONE",
+    "git_push": "NONE",
+    "human_approval": "NOT GIVEN, NOT INFERRED, NOT PREFILLED",
+    "execution": "NONE - no package in this round has been executed anywhere hosted",
+    "delivery": "NOT TRIGGERED"
+  },
+  "scope": {
+    "identity_count": 5,
+    "governed_logical_ids": [
+      "e21b2c00-0000-4000-a000-000000000004",
+      "e21b2c00-0000-4000-a000-000000000005",
+      "e21b2c00-0000-4000-a000-000000000006",
+      "e21b2c00-0000-4000-a000-000000000007",
+      "e21b2c00-0000-4000-a000-000000000008"
+    ],
+    "deferred_out_of_scope": {
+      "inventory_lines": [
+        134,
+        135,
+        136
+      ],
+      "names": [
+        "Farmer's carry",
+        "Suitcase carry",
+        "Sandbag bear-hug carry"
+      ],
+      "logical_ids": [
+        "e21b2c00-0000-4000-a000-000000000009",
+        "e21b2c00-0000-4000-a000-00000000000a",
+        "e21b2c00-0000-4000-a000-00000000000b"
+      ],
+      "assertion": "No carry identity appears in any content payload, package, run membership or delivery expectation in this round."
+    }
+  },
+  "tracking_contract": {
+    "mode": "weight_time",
+    "dimensions": [
+      "added weight",
+      "duration"
+    ],
+    "reps": "NOT TRACKED",
+    "scalar_score": "NONE - the model is two-dimensional (Pareto), by design",
+    "unchanged_by_this_round": true
+  },
+  "fingerprint_scheme": {
+    "subject": "candidate content payload per identity",
+    "algorithm": "sha256 over UTF-8 bytes of the canonical form",
+    "canonical_form": "the thirteen load_catalog_content_draft arguments in migration-027 declaration order, each rendered as <parameter_name>=<value> followed by a newline, concatenated",
+    "parameter_order": [
+      "p_logical_id",
+      "p_content_id",
+      "p_content_version",
+      "p_authored_by",
+      "p_authored_at",
+      "p_setup_steps",
+      "p_execution_steps",
+      "p_breathing_cue",
+      "p_common_mistakes",
+      "p_safety_guidance",
+      "p_equipment_setup",
+      "p_accessibility_alternative",
+      "p_expected_relationships"
+    ],
+    "null_rendering": "\\N",
+    "json_rendering": "compact JSON, keys sorted, no whitespace",
+    "independently_recomputable": true,
+    "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256",
+    "deliberately_mirrors": "the frozen W14 snapshot payload_fingerprint_scheme, so a reviewer fluent in that scheme needs no new rules here"
+  },
+  "why_admission_fingerprints_are_absent": "exlib_content_admission_manifest binds the human review tuple (content_status, reviewed_by, reviewed_at as an epoch, review_rationale), so the admission fingerprint is NOT computable before the human content decision exists. This manifest therefore publishes payload fingerprints, which are computable now, and admitted_source_sha256, which is the carrier digest. Real admission fingerprints appear only inside the disposable local proof, under synthetic decisions that must never reach a governing production artifact.",
+  "human_decision_families": [
+    {
+      "family": "A",
+      "what": "snapshot review",
+      "consumed_at_stage": 1,
+      "cardinality": "once per identity (5)",
+      "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+      "filled": false
+    },
+    {
+      "family": "B",
+      "what": "content review",
+      "consumed_at_stage": 3,
+      "cardinality": "once per identity (5)",
+      "form": "docs/weight-time-five-entry-content-review-form.json",
+      "filled": false
+    },
+    {
+      "family": "C",
+      "what": "delivery run authority",
+      "consumed_at_stage": 6,
+      "cardinality": "once for the run",
+      "form": "docs/weight-time-five-entry-run-authority-form.json",
+      "filled": false
+    }
+  ],
+  "package_sequence": [
+    {
+      "ordinal": 1,
+      "stage": "snapshot_review",
+      "needs_human_family": "A",
+      "separation": "sequential"
+    },
+    {
+      "ordinal": 2,
+      "stage": "content_draft",
+      "needs_human_family": null,
+      "separation": "sequential"
+    },
+    {
+      "ordinal": 3,
+      "stage": "content_review",
+      "needs_human_family": "B",
+      "separation": "LOAD-BEARING: a review decision may not travel with a payload change"
+    },
+    {
+      "ordinal": 4,
+      "stage": "content_admission",
+      "needs_human_family": null,
+      "separation": "LOAD-BEARING: admission must travel alone"
+    },
+    {
+      "ordinal": 5,
+      "stage": "content_publication",
+      "needs_human_family": null,
+      "separation": "LOAD-BEARING: publication must travel alone"
+    },
+    {
+      "ordinal": 6,
+      "stage": "run_staging",
+      "needs_human_family": "C",
+      "separation": "sequential"
+    },
+    {
+      "ordinal": 7,
+      "stage": "run_seal",
+      "needs_human_family": null,
+      "separation": "LOAD-BEARING: membership is permanent after the seal"
+    }
+  ],
+  "delivery_run": {
+    "proposed_run_key": "w14e-weight-time-release1-staged-v1",
+    "proposed_run_key_status": "PROPOSAL ONLY. run_key_literal is a human decision leaf in family C and is blank in the form. This value is a derivation offered for confirmation, not a choice made on the operator behalf.",
+    "derivation": "Mirrors the one promoted run key exlib2u-plank-release1-staged-v1 segment for segment: <staging milestone>-<subject>-release<N>-staged-v<M>. Here the staging milestone is the W14 endgame (w14e), the subject is weight-time, it is the first release of that subject, and it is v1.",
+    "length": 35,
+    "length_constraint": "8..200 after btrim",
+    "must_not_reuse": {
+      "forbidden_run_key": "exlib2u-plank-release1-staged-v1",
+      "reason": "That key identifies the plank release and is UNIQUE forever. Reusing it is structurally impossible and was named a high-risk boundary by the governing instruction."
+    },
+    "dry_run_at_creation": false,
+    "dry_run_note": "Derived from the promoted staged-run package: the run is created with dry_run = false because the seal refuses a dry run and dry_run is immutable once sealed. Non-deliverability before sealing comes from approved_for_delivery = false and sealed_at IS NULL, which is proven by EVALUATING the delivery predicate, never by calling the delivery function.",
+    "approval_evidence_written_at": "creation",
+    "approval_evidence_note": "Also derived from the promoted package: product/legal approval evidence is written in the run INSERT, not at seal time. exlib_approve_and_seal_run only validates it. That is why run staging requires the completed family C form.",
+    "expected_membership": {
+      "exercise_members": 5,
+      "alias_members": 0,
+      "total_items": 5,
+      "exact_logical_ids": [
+        "e21b2c00-0000-4000-a000-000000000004",
+        "e21b2c00-0000-4000-a000-000000000005",
+        "e21b2c00-0000-4000-a000-000000000006",
+        "e21b2c00-0000-4000-a000-000000000007",
+        "e21b2c00-0000-4000-a000-000000000008"
+      ],
+      "contains_carry": false
+    },
+    "seal_preconditions_recheck": {
+      "note": "exlib_approve_and_seal_run re-checks every exercise member independently of stage 1, so a defective snapshot review surfaces here as a refusal.",
+      "per_member_required": [
+        "review_status = 'approved'",
+        "is_active = true",
+        "reviewed_by non-blank",
+        "review_rationale non-blank"
+      ],
+      "not_checked_by_seal": "reviewed_at (the catalog review-audit CHECK covers it instead)"
+    }
+  },
+  "expected_delivery_effect_for_a_fresh_user": {
+    "function": "deliver_catalog_exercises",
+    "definition_source": "migration 028 section D",
+    "plank_gate_armed": false,
+    "plank_disposition": "not_in_run",
+    "plank_gate_reasoning": "the gate arms only when some catalog row has lower(canonical_name) = 'plank'; the two plank-family entries here are \"plate-weighted plank\" and \"weighted vest plank\", neither of which equals it",
+    "summary": {
+      "eligible": 5,
+      "inserted": 5,
+      "skipped_already_delivered": 0,
+      "skipped_name_collision": 0,
+      "collision_names": [],
+      "alias_inserted": 0,
+      "alias_added_to_existing": 0,
+      "alias_already_delivered": 0,
+      "alias_skipped_no_exercise": 0,
+      "alias_skipped_inactive_exercise": 0,
+      "alias_skipped_collision": 0,
+      "inserted_catalog_logical_id_count": 5
+    },
+    "accounting_offset": 0,
+    "exercise_muscles_rows_inserted": 5,
+    "idempotency": "a second delivery for the same user skips all five as already delivered"
+  },
+  "delivery_configuration_dependency": {
+    "required": true,
+    "proven_from": "src/lib/supabase/deliver-catalog.ts and the UNIQUE run_key column",
+    "variable": "CATALOG_DELIVERY_RUN_KEY",
+    "current_value_configured_in_production": "exlib2u-plank-release1-staged-v1",
+    "current_value_provenance": "OPERATOR-SUPPLIED via the EXLIB-3A activation record; not verified here",
+    "why": "the application reads ONE scalar run key and passes it straight to the RPC, and run_key is UNIQUE, so exactly one run is deliverable per deployment",
+    "claude_performed_the_change": false,
+    "detail_document": "docs/weight-time-five-entry-delivery-configuration-dependency.md"
+  },
+  "hosted_pre_state": {
+    "provenance": "OPERATOR-SUPPLIED via docs/weight-time-w14-hosted-application-record.md (bound by bytes below). Never read from hosted by Claude. The disposable proof rebuilds this exact vector by replaying the spent package chain 2K, 2O, 2P, 2Q, 2R, 2Y, 2U, 2Z and W14.",
+    "vector_order": [
+      "exercise_catalog_logical",
+      "exercise_catalog",
+      "exercise_catalog_muscles",
+      "exercise_catalog_aliases",
+      "exercise_catalog_name_claims",
+      "exercise_catalog_content",
+      "exercise_catalog_content_expected_relationships",
+      "exercise_catalog_relationships",
+      "exercise_catalog_import_runs",
+      "exercise_catalog_run_items",
+      "exercise_catalog_review_events"
+    ],
+    "vector": "8/8/10/3/11/1/2/2/1/6/3",
+    "five_targets": "each pending, active, catalog_version 1, all three review-audit fields NULL; 0 content versions, 0 review events, 0 run items, 0 tenant rows",
+    "historical_run": {
+      "run_key": "exlib2u-plank-release1-staged-v1",
+      "posture": "sealed, approved, dry_run false, unrevoked; 3 exercise members + 3 alias members; MUST be byte-identical after every package"
+    },
+    "authority_baseline": "each of exlib_catalog_loader / exlib_catalog_reviewer / exlib_catalog_admission / exlib_catalog_admin carries exactly one membership: postgres granted BY supabase_admin, ADMIN TRUE, INHERIT FALSE, SET FALSE"
+  },
+  "stage_vectors": [
+    {
+      "stage": 1,
+      "name": "snapshot_review",
+      "before": "8/8/10/3/11/1/2/2/1/6/3",
+      "after": "8/8/10/3/11/1/2/2/1/6/8",
+      "moves": "review_events 3 -> 8 (one trigger-appended event per identity)"
+    },
+    {
+      "stage": 2,
+      "name": "content_draft",
+      "before": "8/8/10/3/11/1/2/2/1/6/8",
+      "after": "8/8/10/3/11/6/2/2/1/6/8",
+      "moves": "content 1 -> 6; expected_rel stays 2 because every five-entry expected set is empty"
+    },
+    {
+      "stage": 3,
+      "name": "content_review",
+      "before": "8/8/10/3/11/6/2/2/1/6/8",
+      "after": "8/8/10/3/11/6/2/2/1/6/8",
+      "moves": "nothing; five content rows change in place"
+    },
+    {
+      "stage": 4,
+      "name": "content_admission",
+      "before": "8/8/10/3/11/6/2/2/1/6/8",
+      "after": "8/8/10/3/11/6/2/2/1/6/8",
+      "moves": "nothing; five content rows change in place"
+    },
+    {
+      "stage": 5,
+      "name": "content_publication",
+      "before": "8/8/10/3/11/6/2/2/1/6/8",
+      "after": "8/8/10/3/11/6/2/2/1/6/8",
+      "moves": "nothing; relationships stay 2 because every projected set is empty"
+    },
+    {
+      "stage": 6,
+      "name": "run_staging",
+      "before": "8/8/10/3/11/6/2/2/1/6/8",
+      "after": "8/8/10/3/11/6/2/2/2/11/8",
+      "moves": "runs 1 -> 2; run_items 6 -> 11 (five exercise members, zero alias members)"
+    },
+    {
+      "stage": 7,
+      "name": "run_seal",
+      "before": "8/8/10/3/11/6/2/2/2/11/8",
+      "after": "8/8/10/3/11/6/2/2/2/11/8",
+      "moves": "nothing; the new run row changes in place (approved_for_delivery, sealed_at)"
+    }
+  ],
+  "stage_packages": [
+    {
+      "stage": 1,
+      "path": "docs/weight-time-five-entry-packages/01-snapshot-review.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 2,
+      "path": "docs/weight-time-five-entry-packages/02-content-draft-load.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 3,
+      "path": "docs/weight-time-five-entry-packages/03-content-review.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 4,
+      "path": "docs/weight-time-five-entry-packages/04-content-admission.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 5,
+      "path": "docs/weight-time-five-entry-packages/05-content-publication.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 6,
+      "path": "docs/weight-time-five-entry-packages/06-run-staging.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    },
+    {
+      "stage": 7,
+      "path": "docs/weight-time-five-entry-packages/07-run-seal.sql",
+      "generated_by": "scripts/generate-weight-time-five-entry-packages.ts",
+      "rendering_rule": "rendered as a NON-EXECUTABLE TEMPLATE while any human decision leaf is null; rendered executable only from COMPLETED forms, by the same generator, in a later commit"
+    }
+  ],
+  "admission_source_sha256": {
+    "value": "fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921",
+    "bytes": 12870,
+    "meaning": "the third argument of every admit_catalog_content call: the SHA-256 of the exact reviewed content carrier bytes (comments included). A byte change to the carrier changes this value and voids the content-review form."
+  },
+  "bound_artifacts": [
+    {
+      "path": "supabase/migrations/023_exlib_catalog_and_delivery_contract.sql",
+      "bytes": 92806,
+      "sha256": "0991448c39a558385431c78cef6d6063df208312a3f53866756ba730066c42f2"
+    },
+    {
+      "path": "supabase/migrations/027_exlib_catalog_content_schema.sql",
+      "bytes": 65455,
+      "sha256": "90d53aaf8fd341dd99bab22b7d1ca280ec24b8ccee2a28efca6e835e0585a14f"
+    },
+    {
+      "path": "supabase/migrations/028_weight_time_tracking_mode.sql",
+      "bytes": 37162,
+      "sha256": "9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3"
+    },
+    {
+      "path": "src/lib/supabase/deliver-catalog.ts",
+      "bytes": 13036,
+      "sha256": "5143e7996efac7e428a5e7b06a3d204d802730bb2400e0e222b5cd2090a70049"
+    },
+    {
+      "path": "docs/weight-time-w14-admission-manifest.json",
+      "bytes": 16537,
+      "sha256": "8951f3cf6a808113b9a5d99f3e0c1f0db50e59ef953a55a539bb8b7c4cce4f49"
+    },
+    {
+      "path": "docs/weight-time-five-entry-content.jsonl",
+      "bytes": 12870,
+      "sha256": "fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921"
+    },
+    {
+      "path": "docs/weight-time-w14-catalog-field-decisions.md",
+      "bytes": 29662,
+      "sha256": "e111c738f2801f058e9f27136d731f6136401745541baf60ceaa26dbd2cf12d4"
+    },
+    {
+      "path": "docs/weight-time-five-entry-endgame-discovery-matrix.md",
+      "bytes": 20674,
+      "sha256": "7021f6a45209bf19e2aaf146112df6112319d3b027087832165da50152eba16a"
+    },
+    {
+      "path": "docs/weight-time-five-entry-snapshot-review-form.json",
+      "bytes": 9980,
+      "sha256": "51af2238ff1c5d4437b2072872a8e71bfe56cc2d8d3ecaba57bbe57d4b253834"
+    },
+    {
+      "path": "docs/weight-time-five-entry-content-review-form.json",
+      "bytes": 10116,
+      "sha256": "753db5e62ef53d209544767db13670d0b85c673aad29791c8d5903334c433c41"
+    },
+    {
+      "path": "docs/weight-time-five-entry-run-authority-form.json",
+      "bytes": 7886,
+      "sha256": "559b4c4668ebd437eaa901a2e05357e7ff02430ece090877cb8ad4c4a3698234"
+    },
+    {
+      "path": "docs/weight-time-five-entry-delivery-configuration-dependency.md",
+      "bytes": 13379,
+      "sha256": "ce61a3a18ec195960d38055b2921cd97dccbe549a9c0508195bdd2c9dd58df1d"
+    },
+    {
+      "path": "docs/weight-time-w14-hosted-application-record.md",
+      "bytes": 21869,
+      "sha256": "4579b742087fc5836ca0203d4fb23b977c16f31516d5b3d333f519b2273b57c5"
+    },
+    {
+      "path": "docs/exlib2u-staged-run-package.sql",
+      "bytes": 38582,
+      "sha256": "ceb4964f3537f49ef987e77876c3106917abc3edf2fc9bff3991fb644c90722f"
+    },
+    {
+      "path": "docs/exlib2z-s5-seal-package.sql",
+      "bytes": 42012,
+      "sha256": "701302cb3baa36a510f96163ca5393ac63475d78463607757b02bd46b5015e6a"
+    }
+  ],
+  "entries": [
+    {
+      "inventory_file_line": 132,
+      "canonical_name": "Plate-weighted plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000004",
+      "content_id": "e21b2c00-0000-4000-a000-000000000104",
+      "content_version": 1,
+      "existing_snapshot_fingerprint": {
+        "payload_fingerprint_sha256": "f1f2843950c1426c5b5b615b50ec97d168e632b7e1c8946f98f5178efd5e1216",
+        "binding_note": "The snapshot payload fingerprint of the ALREADY-ADMITTED hosted snapshot, copied from the frozen W14 admission manifest which this manifest binds by bytes. It is NOT recomputed here, because recomputing it would silently redefine what W14 froze.",
+        "expected_pre_state": {
+          "review_status": "pending",
+          "is_active": true,
+          "catalog_version": 1,
+          "reviewed_by": null,
+          "reviewed_at": null,
+          "review_rationale": null
+        },
+        "governed_fields": {
+          "category": "isolation",
+          "primary_muscle": "abs",
+          "equipment": "weight_plate",
+          "laterality": "bilateral",
+          "tracking_mode": "weight_time",
+          "provenance": "external_source_derived",
+          "movement_pattern": "core_anti_extension",
+          "training_role": "core",
+          "difficulty": "intermediate",
+          "availability": "home_gym",
+          "source_url": "https://www.strengthlog.com/weighted-plank/",
+          "source_page": "https://www.strengthlog.com/exercise-directory/",
+          "retrieved_at": "2026-08-20",
+          "import_confidence": "human_review_required",
+          "anatomy": [
+            {
+              "muscle": "obliques",
+              "role": "secondary"
+            }
+          ],
+          "aliases": []
+        }
+      },
+      "candidate_content_payload": {
+        "authored_by": "ForgeFitOS content program (AI-drafted original prose; pending human specialist review)",
+        "authored_at": "2026-09-11",
+        "setup_steps": [
+          "Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.",
+          "Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.",
+          "Choose a plate you could hold for at least half your unweighted plank time; the added load raises the difficulty and does not replace the position."
+        ],
+        "execution_steps": [
+          "Brace your abs and squeeze your glutes so your hips stay level with your shoulders and the plate sits flat without rocking.",
+          "Hold the position and keep breathing; a plate that stays still is the clearest sign your torso is not shifting underneath it.",
+          "End the hold the moment your hips sag or your lower back starts to arch, and have the plate lifted off before you come down.",
+          "Record the weight you held and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."
+        ],
+        "breathing_cue": "Take smaller breaths than usual and keep them continuous through the hold; never hold your breath to brace, because a long hold needs steady airflow.",
+        "common_mistakes": [
+          "Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.",
+          "Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.",
+          "Reaching for a heavier plate before the unweighted hold is solid, so the position fails before the trunk is actually challenged."
+        ],
+        "safety_guidance": "Have the plate placed and removed by another person whenever you can, because sliding a plate on or off alone tends to twist the torso under load. Keep the plate off the neck and off the lower back, and end the hold at the first loss of a flat, level torso rather than pushing to failure with weight on your back.",
+        "equipment_setup": "One flat weight plate and a mat. A bumper plate sits more stably than a thin iron plate, and a training partner to place and remove it is strongly preferred.",
+        "accessibility_alternative": "Hold an unweighted plank for the same duration, or hold the position with your knees on the floor and no plate, adding time before you add any load.",
+        "expected_relationships": []
+      },
+      "content_payload_fingerprint": {
+        "sha256": "7008e7faa08908d3aad56a76ab9dd600a47cd0b098b409b57ed54798ac362bb0",
+        "canonical_form": "p_logical_id=e21b2c00-0000-4000-a000-000000000004\np_content_id=e21b2c00-0000-4000-a000-000000000104\np_content_version=1\np_authored_by=ForgeFitOS content program (AI-drafted original prose; pending human specialist review)\np_authored_at=2026-09-11\np_setup_steps=[\"Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.\",\"Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.\",\"Choose a plate you could hold for at least half your unweighted plank time; the added load raises the difficulty and does not replace the position.\"]\np_execution_steps=[\"Brace your abs and squeeze your glutes so your hips stay level with your shoulders and the plate sits flat without rocking.\",\"Hold the position and keep breathing; a plate that stays still is the clearest sign your torso is not shifting underneath it.\",\"End the hold the moment your hips sag or your lower back starts to arch, and have the plate lifted off before you come down.\",\"Record the weight you held and the duration you completed; this exercise is scored as added weight plus time, never as repetitions.\"]\np_breathing_cue=Take smaller breaths than usual and keep them continuous through the hold; never hold your breath to brace, because a long hold needs steady airflow.\np_common_mistakes=[\"Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.\",\"Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.\",\"Reaching for a heavier plate before the unweighted hold is solid, so the position fails before the trunk is actually challenged.\"]\np_safety_guidance=Have the plate placed and removed by another person whenever you can, because sliding a plate on or off alone tends to twist the torso under load. Keep the plate off the neck and off the lower back, and end the hold at the first loss of a flat, level torso rather than pushing to failure with weight on your back.\np_equipment_setup=One flat weight plate and a mat. A bumper plate sits more stably than a thin iron plate, and a training partner to place and remove it is strongly preferred.\np_accessibility_alternative=Hold an unweighted plank for the same duration, or hold the position with your knees on the floor and no plate, adding time before you add any load.\np_expected_relationships=[]\n",
+        "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256   (the canonical form already ends in a newline; do not add one)"
+      },
+      "human_decision_slots": {
+        "snapshot_review": {
+          "family": "A",
+          "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        },
+        "content_review": {
+          "family": "B",
+          "form": "docs/weight-time-five-entry-content-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        }
+      },
+      "expected_transitions": {
+        "snapshot_review": {
+          "stage": 1,
+          "mechanism": "direct owner UPDATE on public.exercise_catalog",
+          "controlled_function": null,
+          "authority": "table owner (postgres)",
+          "from": {
+            "review_status": "pending",
+            "audit_fields": "all NULL"
+          },
+          "to": {
+            "review_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "side_effect": "exactly ONE trigger-appended exercise_catalog_review_events row",
+          "one_use": "pre-state assertion refuses a second application"
+        },
+        "content_draft": {
+          "stage": 2,
+          "mechanism": "load_catalog_content_draft",
+          "authority": "exlib_catalog_loader",
+          "from": {
+            "content_row": "absent"
+          },
+          "to": {
+            "content_status": "pending",
+            "publication_status": "draft",
+            "import_admitted": false,
+            "audit_fields": "all NULL",
+            "admission_fields": "all NULL"
+          },
+          "one_use": "UNIQUE (logical_id, content_version) refuses a second load"
+        },
+        "content_review": {
+          "stage": 3,
+          "mechanism": "apply_content_review",
+          "authority": "exlib_catalog_reviewer",
+          "from": {
+            "content_status": "pending"
+          },
+          "to": {
+            "content_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way edge set refuses re-decision of a decided version"
+        },
+        "content_admission": {
+          "stage": 4,
+          "mechanism": "admit_catalog_content",
+          "authority": "exlib_catalog_admission",
+          "from": {
+            "import_admitted": false,
+            "content_status": "approved",
+            "publication_status": "draft"
+          },
+          "to": {
+            "import_admitted": true,
+            "admitted_source_sha256": "the content carrier digest, known now",
+            "admitted_fingerprint": "exlib_content_admission_fingerprint recomputed by the database; NOT precomputable, because the manifest it hashes binds the human review tuple"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way; refuses an already-admitted version"
+        },
+        "content_publication": {
+          "stage": 5,
+          "mechanism": "publish_catalog_content",
+          "authority": "exlib_catalog_admin",
+          "from": {
+            "publication_status": "draft"
+          },
+          "to": {
+            "publication_status": "published"
+          },
+          "side_effect": "atomic relationship projection swap for this identity; with an empty expected set the projected set becomes empty",
+          "must_travel_alone": true,
+          "one_use": "one-way; at most one published version per logical identity"
+        }
+      },
+      "expected_delivery_run_membership": {
+        "member_kind": "exercise",
+        "resolved_by": "logical_id AND is_active = true",
+        "alias_members": 0,
+        "alias_members_reason": "this identity carries no aliases"
+      },
+      "expected_tenant_delivery_effect": {
+        "target_table": "public.exercises",
+        "path": "generic (non-Plank) insert path",
+        "name": "Plate-weighted plank",
+        "category": "isolation",
+        "primary_muscle": "abs",
+        "equipment": "weight_plate",
+        "exercise_type": "strength",
+        "exercise_type_derivation": "the explicit WHEN 'weight_time' THEN 'strength' arm added by migration 028 section D (Decision 3)",
+        "tracking_mode": "weight_time",
+        "unilateral": false,
+        "unilateral_derivation": "(laterality <> 'bilateral') and laterality is bilateral",
+        "is_active": true,
+        "is_system": true,
+        "provenance_columns": [
+          "catalog_id",
+          "catalog_logical_id",
+          "import_run_id"
+        ],
+        "exercise_muscles_rows": 1
+      }
+    },
+    {
+      "inventory_file_line": 133,
+      "canonical_name": "Weighted vest plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000005",
+      "content_id": "e21b2c00-0000-4000-a000-000000000105",
+      "content_version": 1,
+      "existing_snapshot_fingerprint": {
+        "payload_fingerprint_sha256": "42f26ff9b4265544bcde194ea1e77c38652abf1b4b0bbee7055e0911fc53fa1e",
+        "binding_note": "The snapshot payload fingerprint of the ALREADY-ADMITTED hosted snapshot, copied from the frozen W14 admission manifest which this manifest binds by bytes. It is NOT recomputed here, because recomputing it would silently redefine what W14 froze.",
+        "expected_pre_state": {
+          "review_status": "pending",
+          "is_active": true,
+          "catalog_version": 1,
+          "reviewed_by": null,
+          "reviewed_at": null,
+          "review_rationale": null
+        },
+        "governed_fields": {
+          "category": "isolation",
+          "primary_muscle": "abs",
+          "equipment": "weighted_vest",
+          "laterality": "bilateral",
+          "tracking_mode": "weight_time",
+          "provenance": "external_source_derived",
+          "movement_pattern": "core_anti_extension",
+          "training_role": "core",
+          "difficulty": "intermediate",
+          "availability": "home_gym",
+          "source_url": "https://marathonhandbook.com/weighted-plank/",
+          "source_page": "https://marathonhandbook.com/weighted-plank/",
+          "retrieved_at": "2026-08-24",
+          "import_confidence": "human_review_required",
+          "anatomy": [
+            {
+              "muscle": "obliques",
+              "role": "secondary"
+            }
+          ],
+          "aliases": []
+        }
+      },
+      "candidate_content_payload": {
+        "authored_by": "ForgeFitOS content program (AI-drafted original prose; pending human specialist review)",
+        "authored_at": "2026-09-11",
+        "setup_steps": [
+          "Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.",
+          "Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.",
+          "Choose a vest load you could hold for at least half your unweighted plank time, and check that the weight is even front to back."
+        ],
+        "execution_steps": [
+          "Brace your abs and squeeze your glutes so the vest's load stays over your mid-torso instead of dragging your hips toward the floor.",
+          "Hold the position and keep breathing; a vest that rides forward means the straps need tightening, not that you should push on.",
+          "End the hold when your hips sag or your lower back arches, then lower your knees before standing so the vest does not swing.",
+          "Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."
+        ],
+        "breathing_cue": "Take smaller breaths than usual and keep them continuous; a snug vest limits how far the ribcage can expand, so do not brace by holding your breath.",
+        "common_mistakes": [
+          "Wearing the vest loose, so it slides toward the shoulders and moves the load off the mid-torso partway through the hold.",
+          "Letting the hips sag under the extra load, which turns a trunk hold into a lower-back hold.",
+          "Adding vest weight in large jumps, because a spread-out load is easy to underestimate until the position fails.",
+          "Treating the vest as a way to extend a hold rather than as a separate, shorter, heavier effort."
+        ],
+        "safety_guidance": "Check the straps and weight pockets before every set, because a pocket that comes loose during a hold drops load unpredictably. Keep the load balanced front to back, and end the hold at the first loss of a flat, level torso instead of pushing to failure while wearing weight.",
+        "equipment_setup": "A weighted vest with secured, evenly distributed weight pockets, and a mat. Confirm the straps are snug and every pocket is closed before you start the hold.",
+        "accessibility_alternative": "Hold an unweighted plank for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.",
+        "expected_relationships": []
+      },
+      "content_payload_fingerprint": {
+        "sha256": "9ca1a52048ed2f8d3ab51453c6684a1dfb5007541101edecea1c6dc458009694",
+        "canonical_form": "p_logical_id=e21b2c00-0000-4000-a000-000000000005\np_content_id=e21b2c00-0000-4000-a000-000000000105\np_content_version=1\np_authored_by=ForgeFitOS content program (AI-drafted original prose; pending human specialist review)\np_authored_at=2026-09-11\np_setup_steps=[\"Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.\",\"Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.\",\"Choose a vest load you could hold for at least half your unweighted plank time, and check that the weight is even front to back.\"]\np_execution_steps=[\"Brace your abs and squeeze your glutes so the vest's load stays over your mid-torso instead of dragging your hips toward the floor.\",\"Hold the position and keep breathing; a vest that rides forward means the straps need tightening, not that you should push on.\",\"End the hold when your hips sag or your lower back arches, then lower your knees before standing so the vest does not swing.\",\"Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions.\"]\np_breathing_cue=Take smaller breaths than usual and keep them continuous; a snug vest limits how far the ribcage can expand, so do not brace by holding your breath.\np_common_mistakes=[\"Wearing the vest loose, so it slides toward the shoulders and moves the load off the mid-torso partway through the hold.\",\"Letting the hips sag under the extra load, which turns a trunk hold into a lower-back hold.\",\"Adding vest weight in large jumps, because a spread-out load is easy to underestimate until the position fails.\",\"Treating the vest as a way to extend a hold rather than as a separate, shorter, heavier effort.\"]\np_safety_guidance=Check the straps and weight pockets before every set, because a pocket that comes loose during a hold drops load unpredictably. Keep the load balanced front to back, and end the hold at the first loss of a flat, level torso instead of pushing to failure while wearing weight.\np_equipment_setup=A weighted vest with secured, evenly distributed weight pockets, and a mat. Confirm the straps are snug and every pocket is closed before you start the hold.\np_accessibility_alternative=Hold an unweighted plank for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.\np_expected_relationships=[]\n",
+        "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256   (the canonical form already ends in a newline; do not add one)"
+      },
+      "human_decision_slots": {
+        "snapshot_review": {
+          "family": "A",
+          "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        },
+        "content_review": {
+          "family": "B",
+          "form": "docs/weight-time-five-entry-content-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        }
+      },
+      "expected_transitions": {
+        "snapshot_review": {
+          "stage": 1,
+          "mechanism": "direct owner UPDATE on public.exercise_catalog",
+          "controlled_function": null,
+          "authority": "table owner (postgres)",
+          "from": {
+            "review_status": "pending",
+            "audit_fields": "all NULL"
+          },
+          "to": {
+            "review_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "side_effect": "exactly ONE trigger-appended exercise_catalog_review_events row",
+          "one_use": "pre-state assertion refuses a second application"
+        },
+        "content_draft": {
+          "stage": 2,
+          "mechanism": "load_catalog_content_draft",
+          "authority": "exlib_catalog_loader",
+          "from": {
+            "content_row": "absent"
+          },
+          "to": {
+            "content_status": "pending",
+            "publication_status": "draft",
+            "import_admitted": false,
+            "audit_fields": "all NULL",
+            "admission_fields": "all NULL"
+          },
+          "one_use": "UNIQUE (logical_id, content_version) refuses a second load"
+        },
+        "content_review": {
+          "stage": 3,
+          "mechanism": "apply_content_review",
+          "authority": "exlib_catalog_reviewer",
+          "from": {
+            "content_status": "pending"
+          },
+          "to": {
+            "content_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way edge set refuses re-decision of a decided version"
+        },
+        "content_admission": {
+          "stage": 4,
+          "mechanism": "admit_catalog_content",
+          "authority": "exlib_catalog_admission",
+          "from": {
+            "import_admitted": false,
+            "content_status": "approved",
+            "publication_status": "draft"
+          },
+          "to": {
+            "import_admitted": true,
+            "admitted_source_sha256": "the content carrier digest, known now",
+            "admitted_fingerprint": "exlib_content_admission_fingerprint recomputed by the database; NOT precomputable, because the manifest it hashes binds the human review tuple"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way; refuses an already-admitted version"
+        },
+        "content_publication": {
+          "stage": 5,
+          "mechanism": "publish_catalog_content",
+          "authority": "exlib_catalog_admin",
+          "from": {
+            "publication_status": "draft"
+          },
+          "to": {
+            "publication_status": "published"
+          },
+          "side_effect": "atomic relationship projection swap for this identity; with an empty expected set the projected set becomes empty",
+          "must_travel_alone": true,
+          "one_use": "one-way; at most one published version per logical identity"
+        }
+      },
+      "expected_delivery_run_membership": {
+        "member_kind": "exercise",
+        "resolved_by": "logical_id AND is_active = true",
+        "alias_members": 0,
+        "alias_members_reason": "this identity carries no aliases"
+      },
+      "expected_tenant_delivery_effect": {
+        "target_table": "public.exercises",
+        "path": "generic (non-Plank) insert path",
+        "name": "Weighted vest plank",
+        "category": "isolation",
+        "primary_muscle": "abs",
+        "equipment": "weighted_vest",
+        "exercise_type": "strength",
+        "exercise_type_derivation": "the explicit WHEN 'weight_time' THEN 'strength' arm added by migration 028 section D (Decision 3)",
+        "tracking_mode": "weight_time",
+        "unilateral": false,
+        "unilateral_derivation": "(laterality <> 'bilateral') and laterality is bilateral",
+        "is_active": true,
+        "is_system": true,
+        "provenance_columns": [
+          "catalog_id",
+          "catalog_logical_id",
+          "import_run_id"
+        ],
+        "exercise_muscles_rows": 1
+      }
+    },
+    {
+      "inventory_file_line": 137,
+      "canonical_name": "Weighted dead hang",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000006",
+      "content_id": "e21b2c00-0000-4000-a000-000000000106",
+      "content_version": 1,
+      "existing_snapshot_fingerprint": {
+        "payload_fingerprint_sha256": "ed584b1c2a8b224f2367642d8d32e67ee26214abac7e380dabba384a3de9922e",
+        "binding_note": "The snapshot payload fingerprint of the ALREADY-ADMITTED hosted snapshot, copied from the frozen W14 admission manifest which this manifest binds by bytes. It is NOT recomputed here, because recomputing it would silently redefine what W14 froze.",
+        "expected_pre_state": {
+          "review_status": "pending",
+          "is_active": true,
+          "catalog_version": 1,
+          "reviewed_by": null,
+          "reviewed_at": null,
+          "review_rationale": null
+        },
+        "governed_fields": {
+          "category": "isolation",
+          "primary_muscle": "forearms",
+          "equipment": "weight_plate",
+          "laterality": "bilateral",
+          "tracking_mode": "weight_time",
+          "provenance": "forgefitos_original",
+          "movement_pattern": "grip_forearm",
+          "training_role": "accessory",
+          "difficulty": "intermediate",
+          "availability": "home_gym",
+          "source_url": null,
+          "source_page": null,
+          "retrieved_at": null,
+          "import_confidence": null,
+          "anatomy": [
+            {
+              "muscle": "lats",
+              "role": "secondary"
+            }
+          ],
+          "aliases": []
+        }
+      },
+      "candidate_content_payload": {
+        "authored_by": "ForgeFitOS content program (AI-drafted original prose; pending human specialist review)",
+        "authored_at": "2026-09-11",
+        "setup_steps": [
+          "Attach the weight to a dipping belt around your hips, or set a plate to hold between your feet, before you reach for the bar.",
+          "Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.",
+          "Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once."
+        ],
+        "execution_steps": [
+          "Hang with your arms straight and your shoulders active rather than fully slack, keeping your body still.",
+          "Keep your grip closed and your legs quiet so the weight hangs plumb underneath you instead of swinging.",
+          "Release when your grip starts to open, then step down under control; never drop from the bar with weight attached.",
+          "Record the added weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."
+        ],
+        "breathing_cue": "Breathe steadily and evenly through the hang; holding your breath to squeeze the bar ends the hold well before your grip actually gives out.",
+        "common_mistakes": [
+          "Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.",
+          "Letting the body swing, so the grip fights momentum instead of holding one steady load.",
+          "Using a thumbless grip under added weight, which gives up the most secure part of the hold.",
+          "Adding weight before an unweighted hang is comfortable for a full minute."
+        ],
+        "safety_guidance": "Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Carry the load on a belt or held firmly between the feet rather than balanced, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.",
+        "equipment_setup": "A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt with a weight plate, or a plate held securely between the feet.",
+        "accessibility_alternative": "Hang from the bar with no added weight for the same duration, or use a lower bar with your feet on the floor so your legs carry part of the load.",
+        "expected_relationships": []
+      },
+      "content_payload_fingerprint": {
+        "sha256": "6bb9d0783c669fdf36a86229fcdbe3b9c34c4093fbb1ee1870872d80bc074fea",
+        "canonical_form": "p_logical_id=e21b2c00-0000-4000-a000-000000000006\np_content_id=e21b2c00-0000-4000-a000-000000000106\np_content_version=1\np_authored_by=ForgeFitOS content program (AI-drafted original prose; pending human specialist review)\np_authored_at=2026-09-11\np_setup_steps=[\"Attach the weight to a dipping belt around your hips, or set a plate to hold between your feet, before you reach for the bar.\",\"Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.\",\"Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once.\"]\np_execution_steps=[\"Hang with your arms straight and your shoulders active rather than fully slack, keeping your body still.\",\"Keep your grip closed and your legs quiet so the weight hangs plumb underneath you instead of swinging.\",\"Release when your grip starts to open, then step down under control; never drop from the bar with weight attached.\",\"Record the added weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions.\"]\np_breathing_cue=Breathe steadily and evenly through the hang; holding your breath to squeeze the bar ends the hold well before your grip actually gives out.\np_common_mistakes=[\"Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.\",\"Letting the body swing, so the grip fights momentum instead of holding one steady load.\",\"Using a thumbless grip under added weight, which gives up the most secure part of the hold.\",\"Adding weight before an unweighted hang is comfortable for a full minute.\"]\np_safety_guidance=Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Carry the load on a belt or held firmly between the feet rather than balanced, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.\np_equipment_setup=A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt with a weight plate, or a plate held securely between the feet.\np_accessibility_alternative=Hang from the bar with no added weight for the same duration, or use a lower bar with your feet on the floor so your legs carry part of the load.\np_expected_relationships=[]\n",
+        "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256   (the canonical form already ends in a newline; do not add one)"
+      },
+      "human_decision_slots": {
+        "snapshot_review": {
+          "family": "A",
+          "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        },
+        "content_review": {
+          "family": "B",
+          "form": "docs/weight-time-five-entry-content-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        }
+      },
+      "expected_transitions": {
+        "snapshot_review": {
+          "stage": 1,
+          "mechanism": "direct owner UPDATE on public.exercise_catalog",
+          "controlled_function": null,
+          "authority": "table owner (postgres)",
+          "from": {
+            "review_status": "pending",
+            "audit_fields": "all NULL"
+          },
+          "to": {
+            "review_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "side_effect": "exactly ONE trigger-appended exercise_catalog_review_events row",
+          "one_use": "pre-state assertion refuses a second application"
+        },
+        "content_draft": {
+          "stage": 2,
+          "mechanism": "load_catalog_content_draft",
+          "authority": "exlib_catalog_loader",
+          "from": {
+            "content_row": "absent"
+          },
+          "to": {
+            "content_status": "pending",
+            "publication_status": "draft",
+            "import_admitted": false,
+            "audit_fields": "all NULL",
+            "admission_fields": "all NULL"
+          },
+          "one_use": "UNIQUE (logical_id, content_version) refuses a second load"
+        },
+        "content_review": {
+          "stage": 3,
+          "mechanism": "apply_content_review",
+          "authority": "exlib_catalog_reviewer",
+          "from": {
+            "content_status": "pending"
+          },
+          "to": {
+            "content_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way edge set refuses re-decision of a decided version"
+        },
+        "content_admission": {
+          "stage": 4,
+          "mechanism": "admit_catalog_content",
+          "authority": "exlib_catalog_admission",
+          "from": {
+            "import_admitted": false,
+            "content_status": "approved",
+            "publication_status": "draft"
+          },
+          "to": {
+            "import_admitted": true,
+            "admitted_source_sha256": "the content carrier digest, known now",
+            "admitted_fingerprint": "exlib_content_admission_fingerprint recomputed by the database; NOT precomputable, because the manifest it hashes binds the human review tuple"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way; refuses an already-admitted version"
+        },
+        "content_publication": {
+          "stage": 5,
+          "mechanism": "publish_catalog_content",
+          "authority": "exlib_catalog_admin",
+          "from": {
+            "publication_status": "draft"
+          },
+          "to": {
+            "publication_status": "published"
+          },
+          "side_effect": "atomic relationship projection swap for this identity; with an empty expected set the projected set becomes empty",
+          "must_travel_alone": true,
+          "one_use": "one-way; at most one published version per logical identity"
+        }
+      },
+      "expected_delivery_run_membership": {
+        "member_kind": "exercise",
+        "resolved_by": "logical_id AND is_active = true",
+        "alias_members": 0,
+        "alias_members_reason": "this identity carries no aliases"
+      },
+      "expected_tenant_delivery_effect": {
+        "target_table": "public.exercises",
+        "path": "generic (non-Plank) insert path",
+        "name": "Weighted dead hang",
+        "category": "isolation",
+        "primary_muscle": "forearms",
+        "equipment": "weight_plate",
+        "exercise_type": "strength",
+        "exercise_type_derivation": "the explicit WHEN 'weight_time' THEN 'strength' arm added by migration 028 section D (Decision 3)",
+        "tracking_mode": "weight_time",
+        "unilateral": false,
+        "unilateral_derivation": "(laterality <> 'bilateral') and laterality is bilateral",
+        "is_active": true,
+        "is_system": true,
+        "provenance_columns": [
+          "catalog_id",
+          "catalog_logical_id",
+          "import_run_id"
+        ],
+        "exercise_muscles_rows": 1
+      }
+    },
+    {
+      "inventory_file_line": 138,
+      "canonical_name": "Weighted wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000007",
+      "content_id": "e21b2c00-0000-4000-a000-000000000107",
+      "content_version": 1,
+      "existing_snapshot_fingerprint": {
+        "payload_fingerprint_sha256": "b17b5b6be91df93a4aa17c18aa8384bd61515e4e9f43072d0d41d7c3af10db1e",
+        "binding_note": "The snapshot payload fingerprint of the ALREADY-ADMITTED hosted snapshot, copied from the frozen W14 admission manifest which this manifest binds by bytes. It is NOT recomputed here, because recomputing it would silently redefine what W14 froze.",
+        "expected_pre_state": {
+          "review_status": "pending",
+          "is_active": true,
+          "catalog_version": 1,
+          "reviewed_by": null,
+          "reviewed_at": null,
+          "review_rationale": null
+        },
+        "governed_fields": {
+          "category": "compound",
+          "primary_muscle": "quads",
+          "equipment": "weight_plate",
+          "laterality": "bilateral",
+          "tracking_mode": "weight_time",
+          "provenance": "forgefitos_original",
+          "movement_pattern": "squat",
+          "training_role": "accessory",
+          "difficulty": "beginner",
+          "availability": "minimal",
+          "source_url": null,
+          "source_page": null,
+          "retrieved_at": null,
+          "import_confidence": null,
+          "anatomy": [
+            {
+              "muscle": "glutes",
+              "role": "secondary"
+            }
+          ],
+          "aliases": []
+        }
+      },
+      "candidate_content_payload": {
+        "authored_by": "ForgeFitOS content program (AI-drafted original prose; pending human specialist review)",
+        "authored_at": "2026-09-11",
+        "setup_steps": [
+          "Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.",
+          "Check that your knees sit above your heels rather than ahead of your toes, and that your whole back stays against the wall.",
+          "Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands."
+        ],
+        "execution_steps": [
+          "Press your back into the wall and drive through both feet evenly so the plate stays level across your thighs.",
+          "Hold with your knees at roughly a right angle and your weight through the whole foot rather than the toes.",
+          "End the hold when your thighs rise out of parallel or your back peels off the wall, then set the plate down before standing.",
+          "Record the plate weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."
+        ],
+        "breathing_cue": "Keep breathing evenly the whole way through; the burn will tempt you to hold your breath, which ends the hold sooner than your legs would.",
+        "common_mistakes": [
+          "Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.",
+          "Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.",
+          "Letting the knees travel forward past the toes, which moves the effort off the thighs.",
+          "Coming out of the hold by standing up with the plate still resting on the thighs."
+        ],
+        "safety_guidance": "Get into the seated position first and have the plate placed afterwards, because picking a plate up while already holding a wall sit tends to pull you out of position. Keep both hands on the plate so it cannot slide off your thighs, and set it down before you stand.",
+        "equipment_setup": "A flat wall and one weight plate held on the thighs near the hips. A bumper plate is easier to keep flat than a thin iron plate.",
+        "accessibility_alternative": "Hold the wall sit with no plate for the same duration, or sit higher than parallel and add depth before you add any weight.",
+        "expected_relationships": []
+      },
+      "content_payload_fingerprint": {
+        "sha256": "e7c49468df9de0c5c6ab26b0acfc1a20256a167a928d2da8ce7cb059213e1c39",
+        "canonical_form": "p_logical_id=e21b2c00-0000-4000-a000-000000000007\np_content_id=e21b2c00-0000-4000-a000-000000000107\np_content_version=1\np_authored_by=ForgeFitOS content program (AI-drafted original prose; pending human specialist review)\np_authored_at=2026-09-11\np_setup_steps=[\"Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.\",\"Check that your knees sit above your heels rather than ahead of your toes, and that your whole back stays against the wall.\",\"Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands.\"]\np_execution_steps=[\"Press your back into the wall and drive through both feet evenly so the plate stays level across your thighs.\",\"Hold with your knees at roughly a right angle and your weight through the whole foot rather than the toes.\",\"End the hold when your thighs rise out of parallel or your back peels off the wall, then set the plate down before standing.\",\"Record the plate weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions.\"]\np_breathing_cue=Keep breathing evenly the whole way through; the burn will tempt you to hold your breath, which ends the hold sooner than your legs would.\np_common_mistakes=[\"Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.\",\"Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.\",\"Letting the knees travel forward past the toes, which moves the effort off the thighs.\",\"Coming out of the hold by standing up with the plate still resting on the thighs.\"]\np_safety_guidance=Get into the seated position first and have the plate placed afterwards, because picking a plate up while already holding a wall sit tends to pull you out of position. Keep both hands on the plate so it cannot slide off your thighs, and set it down before you stand.\np_equipment_setup=A flat wall and one weight plate held on the thighs near the hips. A bumper plate is easier to keep flat than a thin iron plate.\np_accessibility_alternative=Hold the wall sit with no plate for the same duration, or sit higher than parallel and add depth before you add any weight.\np_expected_relationships=[]\n",
+        "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256   (the canonical form already ends in a newline; do not add one)"
+      },
+      "human_decision_slots": {
+        "snapshot_review": {
+          "family": "A",
+          "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        },
+        "content_review": {
+          "family": "B",
+          "form": "docs/weight-time-five-entry-content-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        }
+      },
+      "expected_transitions": {
+        "snapshot_review": {
+          "stage": 1,
+          "mechanism": "direct owner UPDATE on public.exercise_catalog",
+          "controlled_function": null,
+          "authority": "table owner (postgres)",
+          "from": {
+            "review_status": "pending",
+            "audit_fields": "all NULL"
+          },
+          "to": {
+            "review_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "side_effect": "exactly ONE trigger-appended exercise_catalog_review_events row",
+          "one_use": "pre-state assertion refuses a second application"
+        },
+        "content_draft": {
+          "stage": 2,
+          "mechanism": "load_catalog_content_draft",
+          "authority": "exlib_catalog_loader",
+          "from": {
+            "content_row": "absent"
+          },
+          "to": {
+            "content_status": "pending",
+            "publication_status": "draft",
+            "import_admitted": false,
+            "audit_fields": "all NULL",
+            "admission_fields": "all NULL"
+          },
+          "one_use": "UNIQUE (logical_id, content_version) refuses a second load"
+        },
+        "content_review": {
+          "stage": 3,
+          "mechanism": "apply_content_review",
+          "authority": "exlib_catalog_reviewer",
+          "from": {
+            "content_status": "pending"
+          },
+          "to": {
+            "content_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way edge set refuses re-decision of a decided version"
+        },
+        "content_admission": {
+          "stage": 4,
+          "mechanism": "admit_catalog_content",
+          "authority": "exlib_catalog_admission",
+          "from": {
+            "import_admitted": false,
+            "content_status": "approved",
+            "publication_status": "draft"
+          },
+          "to": {
+            "import_admitted": true,
+            "admitted_source_sha256": "the content carrier digest, known now",
+            "admitted_fingerprint": "exlib_content_admission_fingerprint recomputed by the database; NOT precomputable, because the manifest it hashes binds the human review tuple"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way; refuses an already-admitted version"
+        },
+        "content_publication": {
+          "stage": 5,
+          "mechanism": "publish_catalog_content",
+          "authority": "exlib_catalog_admin",
+          "from": {
+            "publication_status": "draft"
+          },
+          "to": {
+            "publication_status": "published"
+          },
+          "side_effect": "atomic relationship projection swap for this identity; with an empty expected set the projected set becomes empty",
+          "must_travel_alone": true,
+          "one_use": "one-way; at most one published version per logical identity"
+        }
+      },
+      "expected_delivery_run_membership": {
+        "member_kind": "exercise",
+        "resolved_by": "logical_id AND is_active = true",
+        "alias_members": 0,
+        "alias_members_reason": "this identity carries no aliases"
+      },
+      "expected_tenant_delivery_effect": {
+        "target_table": "public.exercises",
+        "path": "generic (non-Plank) insert path",
+        "name": "Weighted wall sit",
+        "category": "compound",
+        "primary_muscle": "quads",
+        "equipment": "weight_plate",
+        "exercise_type": "strength",
+        "exercise_type_derivation": "the explicit WHEN 'weight_time' THEN 'strength' arm added by migration 028 section D (Decision 3)",
+        "tracking_mode": "weight_time",
+        "unilateral": false,
+        "unilateral_derivation": "(laterality <> 'bilateral') and laterality is bilateral",
+        "is_active": true,
+        "is_system": true,
+        "provenance_columns": [
+          "catalog_id",
+          "catalog_logical_id",
+          "import_run_id"
+        ],
+        "exercise_muscles_rows": 1
+      }
+    },
+    {
+      "inventory_file_line": 139,
+      "canonical_name": "Weighted vest wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000008",
+      "content_id": "e21b2c00-0000-4000-a000-000000000108",
+      "content_version": 1,
+      "existing_snapshot_fingerprint": {
+        "payload_fingerprint_sha256": "0366906db6e0399a2993b2c34841fe025293cbc166ea8f90e24b20bc77034d00",
+        "binding_note": "The snapshot payload fingerprint of the ALREADY-ADMITTED hosted snapshot, copied from the frozen W14 admission manifest which this manifest binds by bytes. It is NOT recomputed here, because recomputing it would silently redefine what W14 froze.",
+        "expected_pre_state": {
+          "review_status": "pending",
+          "is_active": true,
+          "catalog_version": 1,
+          "reviewed_by": null,
+          "reviewed_at": null,
+          "review_rationale": null
+        },
+        "governed_fields": {
+          "category": "compound",
+          "primary_muscle": "quads",
+          "equipment": "weighted_vest",
+          "laterality": "bilateral",
+          "tracking_mode": "weight_time",
+          "provenance": "forgefitos_original",
+          "movement_pattern": "squat",
+          "training_role": "accessory",
+          "difficulty": "beginner",
+          "availability": "home_gym",
+          "source_url": null,
+          "source_page": null,
+          "retrieved_at": null,
+          "import_confidence": null,
+          "anatomy": [
+            {
+              "muscle": "glutes",
+              "role": "secondary"
+            }
+          ],
+          "aliases": []
+        }
+      },
+      "candidate_content_payload": {
+        "authored_by": "ForgeFitOS content program (AI-drafted original prose; pending human specialist review)",
+        "authored_at": "2026-09-11",
+        "setup_steps": [
+          "Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.",
+          "Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.",
+          "Check that your knees sit above your heels and that the vest is not bunched between your back and the wall."
+        ],
+        "execution_steps": [
+          "Press your back into the wall and drive through both feet evenly, keeping the vest's load centred over your hips.",
+          "Hold with your knees at roughly a right angle and your hands free at your sides or folded across your chest.",
+          "End the hold when your thighs rise out of parallel or your back peels off the wall, then stand up under control.",
+          "Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."
+        ],
+        "breathing_cue": "Breathe evenly and continuously; a snug vest restricts the ribcage, so a held breath will end the hold before your legs do.",
+        "common_mistakes": [
+          "Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.",
+          "Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.",
+          "Adding vest weight when sitting above parallel is what is really limiting the hold.",
+          "Letting the knees drift forward past the toes as fatigue sets in."
+        ],
+        "safety_guidance": "Fit the vest before you get into position and check that its pockets are closed, because load shifting partway through a wall sit tends to pull the torso off the wall. Keep the whole foot planted and end the hold at the first loss of parallel rather than pushing to failure under load.",
+        "equipment_setup": "A flat wall and a weighted vest with secured, evenly distributed pockets. Because the hands stay free, a vest suits longer holds than a plate held on the thighs.",
+        "accessibility_alternative": "Hold the wall sit with no vest for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.",
+        "expected_relationships": []
+      },
+      "content_payload_fingerprint": {
+        "sha256": "98ffeb222d2514a8c338ba85bae4cbb9b67769a0760261a756c1d399647573cd",
+        "canonical_form": "p_logical_id=e21b2c00-0000-4000-a000-000000000008\np_content_id=e21b2c00-0000-4000-a000-000000000108\np_content_version=1\np_authored_by=ForgeFitOS content program (AI-drafted original prose; pending human specialist review)\np_authored_at=2026-09-11\np_setup_steps=[\"Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.\",\"Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.\",\"Check that your knees sit above your heels and that the vest is not bunched between your back and the wall.\"]\np_execution_steps=[\"Press your back into the wall and drive through both feet evenly, keeping the vest's load centred over your hips.\",\"Hold with your knees at roughly a right angle and your hands free at your sides or folded across your chest.\",\"End the hold when your thighs rise out of parallel or your back peels off the wall, then stand up under control.\",\"Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions.\"]\np_breathing_cue=Breathe evenly and continuously; a snug vest restricts the ribcage, so a held breath will end the hold before your legs do.\np_common_mistakes=[\"Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.\",\"Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.\",\"Adding vest weight when sitting above parallel is what is really limiting the hold.\",\"Letting the knees drift forward past the toes as fatigue sets in.\"]\np_safety_guidance=Fit the vest before you get into position and check that its pockets are closed, because load shifting partway through a wall sit tends to pull the torso off the wall. Keep the whole foot planted and end the hold at the first loss of parallel rather than pushing to failure under load.\np_equipment_setup=A flat wall and a weighted vest with secured, evenly distributed pockets. Because the hands stay free, a vest suits longer holds than a plate held on the thighs.\np_accessibility_alternative=Hold the wall sit with no vest for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.\np_expected_relationships=[]\n",
+        "recomputation_command": "printf %s \"<canonical_form>\" | shasum -a 256   (the canonical form already ends in a newline; do not add one)"
+      },
+      "human_decision_slots": {
+        "snapshot_review": {
+          "family": "A",
+          "form": "docs/weight-time-five-entry-snapshot-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        },
+        "content_review": {
+          "family": "B",
+          "form": "docs/weight-time-five-entry-content-review-form.json",
+          "required_leaves": [
+            "decision",
+            "reviewer",
+            "reviewer_role_or_credential",
+            "reviewed_at",
+            "rationale"
+          ],
+          "optional_leaves": [
+            "evidence"
+          ],
+          "filled": false,
+          "values": null
+        }
+      },
+      "expected_transitions": {
+        "snapshot_review": {
+          "stage": 1,
+          "mechanism": "direct owner UPDATE on public.exercise_catalog",
+          "controlled_function": null,
+          "authority": "table owner (postgres)",
+          "from": {
+            "review_status": "pending",
+            "audit_fields": "all NULL"
+          },
+          "to": {
+            "review_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "side_effect": "exactly ONE trigger-appended exercise_catalog_review_events row",
+          "one_use": "pre-state assertion refuses a second application"
+        },
+        "content_draft": {
+          "stage": 2,
+          "mechanism": "load_catalog_content_draft",
+          "authority": "exlib_catalog_loader",
+          "from": {
+            "content_row": "absent"
+          },
+          "to": {
+            "content_status": "pending",
+            "publication_status": "draft",
+            "import_admitted": false,
+            "audit_fields": "all NULL",
+            "admission_fields": "all NULL"
+          },
+          "one_use": "UNIQUE (logical_id, content_version) refuses a second load"
+        },
+        "content_review": {
+          "stage": 3,
+          "mechanism": "apply_content_review",
+          "authority": "exlib_catalog_reviewer",
+          "from": {
+            "content_status": "pending"
+          },
+          "to": {
+            "content_status": "approved",
+            "audit_fields": "complete, non-blank"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way edge set refuses re-decision of a decided version"
+        },
+        "content_admission": {
+          "stage": 4,
+          "mechanism": "admit_catalog_content",
+          "authority": "exlib_catalog_admission",
+          "from": {
+            "import_admitted": false,
+            "content_status": "approved",
+            "publication_status": "draft"
+          },
+          "to": {
+            "import_admitted": true,
+            "admitted_source_sha256": "the content carrier digest, known now",
+            "admitted_fingerprint": "exlib_content_admission_fingerprint recomputed by the database; NOT precomputable, because the manifest it hashes binds the human review tuple"
+          },
+          "must_travel_alone": true,
+          "one_use": "one-way; refuses an already-admitted version"
+        },
+        "content_publication": {
+          "stage": 5,
+          "mechanism": "publish_catalog_content",
+          "authority": "exlib_catalog_admin",
+          "from": {
+            "publication_status": "draft"
+          },
+          "to": {
+            "publication_status": "published"
+          },
+          "side_effect": "atomic relationship projection swap for this identity; with an empty expected set the projected set becomes empty",
+          "must_travel_alone": true,
+          "one_use": "one-way; at most one published version per logical identity"
+        }
+      },
+      "expected_delivery_run_membership": {
+        "member_kind": "exercise",
+        "resolved_by": "logical_id AND is_active = true",
+        "alias_members": 0,
+        "alias_members_reason": "this identity carries no aliases"
+      },
+      "expected_tenant_delivery_effect": {
+        "target_table": "public.exercises",
+        "path": "generic (non-Plank) insert path",
+        "name": "Weighted vest wall sit",
+        "category": "compound",
+        "primary_muscle": "quads",
+        "equipment": "weighted_vest",
+        "exercise_type": "strength",
+        "exercise_type_derivation": "the explicit WHEN 'weight_time' THEN 'strength' arm added by migration 028 section D (Decision 3)",
+        "tracking_mode": "weight_time",
+        "unilateral": false,
+        "unilateral_derivation": "(laterality <> 'bilateral') and laterality is bilateral",
+        "is_active": true,
+        "is_system": true,
+        "provenance_columns": [
+          "catalog_id",
+          "catalog_logical_id",
+          "import_run_id"
+        ],
+        "exercise_muscles_rows": 1
+      }
+    }
+  ]
+}
