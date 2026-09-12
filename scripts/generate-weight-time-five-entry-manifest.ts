@@ -60,6 +60,8 @@ const BOUND_ARTIFACT_RELATIVE_PATHS: readonly string[] = [
   'supabase/migrations/023_exlib_catalog_and_delivery_contract.sql',
   'supabase/migrations/027_exlib_catalog_content_schema.sql',
   'supabase/migrations/028_weight_time_tracking_mode.sql',
+  'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql',
+  'supabase/migrations/026_exlib_plank_seed_reconciliation.sql',
   'src/lib/supabase/deliver-catalog.ts',
   W14_MANIFEST_RELATIVE_PATH,
   CONTENT_CARRIER_RELATIVE_PATH,
@@ -798,13 +800,40 @@ const manifestObject = {
     },
     case_existing_plank_user_from_historical_run: {
       description: 'a user who ALREADY received the plank release through exlib2u-plank-release1-staged-v1',
-      expectation:
-        'the committed function REFUSES the whole delivery: the existing Plank link carries the HISTORICAL run id, ' +
-        'and exlib_plank_link_valid (migration 026) demands import_run_id = THIS run, so the existing-link path ' +
-        'raises "inconsistent prior Plank reconciliation requires separate investigation" and the transaction rolls ' +
-        'back with no new rows. This is finding F-E8 and is MEASURED by the disposable proof; it is a repository ' +
-        'dependency outside this round\'s authority (a migration or an application change would be required to change it).',
+      before_migration_029:
+        'REFUSED (finding F-E8, measured in C1): the existing Plank link carries the HISTORICAL run id and ' +
+        'the migration-026 helper demanded import_run_id = THIS run, so the existing-link path raised ' +
+        '"inconsistent prior Plank reconciliation requires separate investigation" and rolled back.',
+      after_migration_029: {
+        summary: {
+          eligible: 8, inserted: 5, skipped_already_delivered: 3, skipped_name_collision: 0, collision_names: [],
+          alias_inserted: 0, alias_added_to_existing: 0, alias_already_delivered: 3, alias_skipped_no_exercise: 0,
+          alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0, inserted_catalog_logical_id_count: 5,
+          plank_disposition: 'already_valid_idempotent',
+        },
+        accounting_offset: 0,
+        preserved: 'the Plank row keeps its HISTORICAL import_run_id (provenance is never rewritten); no duplicate Plank, Dead bug or Ab wheel row; the three aliases are not duplicated',
+        repeat: 'a second and third delivery: skipped_already_delivered 8, alias_already_delivered 3, inserted 0',
+        requires: 'migration 029 live and verified (READ STATE FIRST via the probe row migration_029_plank_cross_run_idempotency = APPLIED)',
+      },
     },
+  },
+
+  migration_029: {
+    path: 'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql',
+    status: 'PREPARED - NOT APPLIED hosted; applied only on disposable local clusters',
+    fixes: 'F-E8: exlib_plank_link_valid (migration 026, called from both paths of the migration-028 delivery body) required import_run_id = the delivering run',
+    new_rule:
+      'the existing Plank link is valid when its import_run_id is THIS run, OR identifies a PRIOR run that exists, ' +
+      'is approved_for_delivery, non-dry, sealed, unrevoked AND carries EXACTLY p_cat_id in its membership. The exact ' +
+      'snapshot is the compatibility boundary; a different snapshot of the same logical identity does not qualify.',
+    unchanged: 'every non-provenance invariant, the signature, SECURITY DEFINER, the internal-only posture, the lock discipline; deliver_catalog_exercises is not redefined',
+    hosted_order_dependency:
+      'MUST be live and verified BEFORE the run-key repoint (stage 8) and before any user receives the cumulative run. ' +
+      'NOT a precondition of stages 1-7: none of the seven packages calls the helper. Least coupled safe order: ' +
+      'stages 1-7 in either order relative to 029; 029 strictly before stage 8.',
+    spent_check: 'docs/weight-time-five-entry-read-state.sql row migration_029_plank_cross_run_idempotency (APPLIED / NOT_APPLIED / MIXED); never re-run blind',
+    verifiers: ['scripts/verify-weight-time-migration-029.ts', 'scripts/verify-weight-time-migration-029-live.sh'],
   },
 
   delivery_configuration_dependency: {

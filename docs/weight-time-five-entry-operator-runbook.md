@@ -134,6 +134,24 @@ generator refuses it in the form; stage 6 refuses it at the gate; the database r
 - **Nothing has been delivered to any user.** Delivery is stage 8, below, and is gated on a
   production configuration change that is a separate operator act.
 
+## 5a. Migration 029: where it sits in the hosted order
+
+Migration 029 is a ONE-USE hosted database act of its own (Joseph/ChatGPT, ShredOS
+`ttybyljytiwntvorugcv`, the hosted migration path used for 028), under its own one-use instruction with
+a spent-check first. Dependency, determined mechanically:
+
+- **Not a precondition of stages 1 to 7.** None of the seven packages calls `exlib_plank_link_valid`;
+  the disposable proof runs all seven with 029 applied first and with 029 applied after, to identical
+  results. The least coupled safe order is therefore: stages 1 to 7 and 029 in either order.
+- **Strictly before stage 8.** 029 MUST be live and verified before `CATALOG_DELIVERY_RUN_KEY` is
+  repointed to the cumulative run and before any user receives it.
+
+Spent-check and READ STATE FIRST: run the probe; the row `migration_029_plank_cross_run_idempotency`
+reads `APPLIED` (the live helper carries the exact-snapshot prior-run clause), `NOT_APPLIED` (it still
+carries the strict clause), or `MIXED` (neither shape: STOP and report). 029 is one transaction, so an
+ambiguous apply is resolved by reading that row, never by re-running blind. Its bytes must be
+re-measured against the reviewed SHA-256 immediately before execution.
+
 ## 6. Stage 8: the Vercel run-key repoint (operator act; Claude never performs it)
 
 Proven from `src/lib/supabase/deliver-catalog.ts`: the application reads ONE scalar run key and
@@ -143,26 +161,28 @@ the new run is CUMULATIVE, repointing no longer de-selects the plank release's e
 users: the historical six are carried forward, and the disposable proof shows a fresh user receives
 the complete cumulative release (eligible 8, inserted 8, alias_inserted 3) idempotently.
 
-**BLOCKING FINDING F-E8 (measured; read before any repoint).** For a user who ALREADY received the
-plank release through `exlib2u-plank-release1-staged-v1`, delivery of the cumulative run is REFUSED by
-the committed function: the existing Plank link carries the historical run id, and migration 026's
-`exlib_plank_link_valid` demands the delivering run's own id, so the function raises `inconsistent
-prior Plank reconciliation requires separate investigation` and rolls back (the five are not added
-either). The refusal is deterministic, so every initialization of such a user fails closed while the
-configured key names the cumulative run. The number of such users is UNKNOWN until re-measured hosted.
-Changing this needs a migration or an application change, both outside this round. **Do not repoint
-until F-E8 is adjudicated and resolved by an authorized change.** See
-`docs/weight-time-five-entry-delivery-configuration-dependency.md` sections 5 and 5b.
+**FINDING F-E8 AND ITS REMEDIATION (read before any repoint).** Under migrations 026/028, a user who
+ALREADY received the plank release through `exlib2u-plank-release1-staged-v1` is REFUSED the
+cumulative run: the existing Plank link carries the historical run id and `exlib_plank_link_valid`
+demanded the delivering run's own id. The independent review adjudicated this a database-contract
+defect and authorized **migration 029** (`supabase/migrations/029_exlib_plank_cross_run_idempotency.sql`,
+PREPARED, NOT APPLIED hosted), which replaces only that helper so a prior approved, non-dry, sealed,
+unrevoked run carrying EXACTLY the same catalog snapshot also validates. With 029 live, such a user
+receives exactly the five new identities (measured: eligible 8, inserted 5, skipped 3,
+alias_already_delivered 3, `already_valid_idempotent`, historical rows and provenance untouched).
+**Do not repoint until migration 029 reads APPLIED in the probe.** See
+`docs/weight-time-five-entry-delivery-configuration-dependency.md` sections 5b and 5c.
 
 The enablement variable is written here as fragments, `CATALOG` + `_DELIVERY` + `_ENABLED`, following
 the EXLIB-3A records (a committed verifier censuses that literal). The run-key variable is
 `CATALOG_DELIVERY_RUN_KEY`.
 
-Exact operator sequence, once and only once, after stage 7 is APPLIED and F-E8 has been adjudicated
-and resolved:
+Exact operator sequence, once and only once, after stage 7 is APPLIED and migration 029 is APPLIED
+and verified:
 
-1. Re-measure delivered counts hosted (read-only): the number of users who received the plank release
-   is the number F-E8 affects. Do not continue while F-E8 stands unresolved.
+1. Re-measure delivered counts hosted (read-only), and confirm with the probe that the row
+   `migration_029_plank_cross_run_idempotency` reads APPLIED. Do not continue while it reads
+   NOT_APPLIED or MIXED: every existing plank user would be refused initialization (F-E8).
 2. Confirm the enablement variable (`CATALOG` + `_DELIVERY` + `_ENABLED`) is still exactly `true` and
    Production-scoped. Do not touch it.
 3. Confirm hosted, with the probe, that stage 7 reads `APPLIED` and the new run's key is exactly the
@@ -197,13 +217,15 @@ run to be sealed/approved/non-dry/unrevoked, and inserts one `public.exercises` 
 and `import_run_id`. For the carried-forward historical members it behaves exactly as it did for the
 plank release, including migration 026's Plank reconciliation (a pristine legacy seed is corrected in
 place; a fresh user receives Plank canonical and timed) and the three alias behaviours. It is
-idempotent per user by `catalog_logical_id` - EXCEPT that an existing Plank link from a DIFFERENT run
-is refused, not skipped (F-E8). The disposable proof performs the cumulative delivery for a fresh
-user, a pristine-seed user and an existing plank user and checks every one of those facts; nothing
-hosted has been delivered.
+idempotent per user by `catalog_logical_id`; with migration 029 live an existing Plank link delivered by
+a prior approved, sealed run carrying the same snapshot is skipped as already delivered (before 029 it
+was refused: F-E8). The disposable proof performs the cumulative delivery for a fresh user, a
+pristine-seed user, an existing plank user (refused on the pre-029 world, served after 029) and a raced
+logical-index scenario, and checks every one of those facts; nothing hosted has been delivered.
 
 ## 8. What this runbook does not authorize
 
-No push, no tag, no deployment, no hosted SQL, no configuration change, no delivery, no content
-review, admission or publication, no human decision. Each hosted act above needs its own one-use
-instruction with a spent-check first. Claude performs none of them.
+No push, no tag, no deployment, no hosted SQL, no hosted migration apply (029 is PREPARED only), no
+configuration change, no delivery, no content review, admission or publication, no human decision.
+Each hosted act above needs its own one-use instruction with a spent-check first. Claude performs none
+of them.

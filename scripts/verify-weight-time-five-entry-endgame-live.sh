@@ -40,6 +40,9 @@ FORMS_DIR="docs"
 M028='supabase/migrations/028_weight_time_tracking_mode.sql'
 M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 M028_BYTES=37162
+M029='supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+HELPER_SIG='public.exlib_plank_link_valid(uuid,public.exercises,uuid,uuid,text,uuid)'
+DEF_SQL="SELECT pg_get_functiondef('$HELPER_SIG'::regprocedure)"
 
 # The spent hosted chain, in historical order, each pinned by the bytes the
 # promoted records evidence.
@@ -123,11 +126,13 @@ done
 ok "A1: generator, manifest generator, lifecycle manifest and read-state probe exist"
 N028=$(ls supabase/migrations/ | grep -c '^028' || true)
 N029=$(ls supabase/migrations/ | grep -c '^029' || true)
+N030=$(ls supabase/migrations/ | grep -c '^03' || true)
 B028=$(wc -c < "$M028" | tr -d ' ')
 S028=$(shasum -a 256 "$M028" | awk '{print $1}')
-[ "$N028/$N029/$B028/$S028" = "1/0/$M028_BYTES/$M028_SHA" ] \
-  && ok "A2: migration 028 is byte-identical at its pinned identity and NO migration 029 exists - this work adds no migration and modifies none" \
-  || bad "A2: the 028 pin failed ($N028/$N029/$B028/$S028)"
+M029_MANIFEST_SHA=$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const b=m.bound_artifacts.find(x=>x.path==="supabase/migrations/029_exlib_plank_cross_run_idempotency.sql");process.stdout.write(b?b.bytes+"/"+b.sha256:"unbound")' "$MANIFEST")
+[ "$N028/$N029/$N030/$B028/$S028" = "1/1/0/$M028_BYTES/$M028_SHA" ] && [ "$M029_MANIFEST_SHA" = "$(wc -c < "$M029" | tr -d ' ')/$(shasum -a 256 "$M029" | awk '{print $1}')" ] \
+  && ok "A2: migration 028 is byte-identical at its pinned identity; EXACTLY ONE authorized migration 029 exists (bound by bytes in the manifest: $M029_MANIFEST_SHA) and no 030" \
+  || bad "A2: the migration inventory pins failed ($N028/$N029/$N030/$B028/$S028; 029 manifest binding $M029_MANIFEST_SHA)"
 if npx --no-install tsx "$MANIFEST_GENERATOR" --check > "$TMP/mcheck.out" 2>&1; then
   ok "A3: the lifecycle manifest is byte-identical to a fresh regeneration from its bound inputs"
 else bad "A3: manifest --check failed" "$(tail -2 "$TMP/mcheck.out" | tr '\n' ' ')"; fi
@@ -177,11 +182,12 @@ Q "CREATE SCHEMA auth;
      AS \$\$SELECT nullif(current_setting('app.uid', true), '')::uuid\$\$;" >/dev/null
 APPLIED=0
 for f in supabase/migrations/0*.sql; do
+  case "$(basename "$f")" in 029_*) continue;; esac
   psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$TMP/err.log" \
     || { bad "B2: migration failed: $f" "$(sed -n '1,3p' "$TMP/err.log")"; exit 1; }
   APPLIED=$((APPLIED+1))
 done
-[ "$APPLIED" = "28" ] && ok "B2: migrations 001-028 applied exactly once in order, ALL as the non-superuser postgres" \
+[ "$APPLIED" = "28" ] && ok "B2: migrations 001-028 applied exactly once in order, ALL as the non-superuser postgres - 029 is DELIBERATELY HELD BACK so the seven stages run on the exact hosted 028 world and 029's place in the order is proven separately" \
   || bad "B2: expected 28 migrations, applied $APPLIED"
 expect_eq "B3: all four catalog roles carry EXACTLY the hosted baseline membership (postgres granted BY supabase_admin, ADMIN TRUE / INHERIT FALSE / SET FALSE)" "$AUTH_SQL" "$AUTH_OK"
 UIDS=()
@@ -421,7 +427,19 @@ expect_eq "E8: across ALL SEVEN stages: the historical plank run + its six membe
 expect_eq "E9: the authority baseline is exact after every temporary elevation (no role left elevated)" "$AUTH_SQL" "$AUTH_OK"
 expect_eq "E10: still no carry anywhere" \
   "SELECT (SELECT count(*) FROM public.exercise_catalog_logical WHERE id IN ('$CARRY_ID','e21b2c00-0000-4000-a000-00000000000a','e21b2c00-0000-4000-a000-00000000000b'))::text||'/'||(SELECT count(*) FROM public.exercise_catalog WHERE lower(canonical_name) ~ 'carry|farmer|suitcase|sandbag')::text||'/'||(SELECT count(*) FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog c ON c.id=ri.catalog_id WHERE lower(c.canonical_name) ~ 'carry')::text" "0/0/0"
-QT "CREATE DATABASE post7 TEMPLATE postgres OWNER postgres" >/dev/null 2>&1 && ok "E11: post-stage-7 template captured" || bad "E11: template capture failed"
+QT "CREATE DATABASE post7 TEMPLATE postgres OWNER postgres" >/dev/null 2>&1 && ok "E11: post-stage-7 template captured (this is ALSO the pre-029 world)" || bad "E11: template capture failed"
+
+echo
+echo "=== E12. Migration 029 applied ONCE to the main line, AFTER the seven stages (its place in the order is proven in section N)"
+DEF028=$(Q "$DEF_SQL")
+echo "$DEF028" | grep -qF 'AND p_link.import_run_id = p_run_id' && ! echo "$DEF028" | grep -qF 'pri.catalog_id = p_cat_id' && ok "E12.0: before 029 the live helper carries the STRICT current-run clause (read from pg_get_functiondef)" || bad "E12.0: unexpected pre-029 helper"
+psql -h "$SOCK" -U postgres -d postgres -X -v ON_ERROR_STOP=1 -q -f "$M029" > "$TMP/m029.out" 2>&1 && ok "E12.1: migration 029 applied exactly once (exit 0) as the non-superuser postgres" || { bad "E12.1: 029 failed" "$(head -3 "$TMP/m029.out")"; exit 1; }
+expect_eq "E12.2: the live helper now carries the exact-snapshot prior-run clause; the probe's migration-029 row reads APPLIED" \
+  "SELECT (pg_get_functiondef('$HELPER_SIG'::regprocedure) LIKE '%pri.catalog_id = p_cat_id%')::text" "true"
+expect_eq "E12.3: 029 moved NOTHING in the catalog: vector, historical run, plank world and authority baseline identical; tenant surface identical" \
+  "SELECT ($VECTOR_SQL)||'#'||($HIST_RUN_SQL)||'#'||($PLANK_WORLD_SQL)||'#'||($AUTH_SQL)||'#'||($TENANT_SQL)" "$V6#$HIST_BEFORE#$PLANK_BEFORE#$AUTH_OK#$TENANT_BEFORE"
+expect_eq "E12.4: the helper posture is unchanged - no client EXECUTE, SECURITY DEFINER, identity signature identical" \
+  "SELECT has_function_privilege('anon','$HELPER_SIG','EXECUTE')::text||'/'||has_function_privilege('authenticated','$HELPER_SIG','EXECUTE')::text||'/'||has_function_privilege('service_role','$HELPER_SIG','EXECUTE')::text||'/'||(SELECT prosecdef::text FROM pg_proc WHERE oid='$HELPER_SIG'::regprocedure)" "false/false/false/true"
 
 echo
 echo "=== F. Tenant delivery of the CUMULATIVE run, the per-user runtime RPC, against three user histories; the plank run unaffected"
@@ -465,18 +483,95 @@ expect_eq "FB2: read back - the seed row itself is now timed/mobility, linked to
 echo "--- CASE B: a user who ALREADY received the plank release through the HISTORICAL run ---"
 OLD=$(QQ "SET app.uid = '$U2'; SELECT (SELECT (j->>'run_key')||'/'||(j->>'eligible')||'/'||(j->>'inserted')||'/'||(j->>'alias_inserted')||'/'||(j->>'plank_disposition') FROM public.deliver_catalog_exercises('$HIST_KEY') j)")
 [ "$OLD" = "$HIST_KEY/3/3/3/precondition_failure_preserved_legacy_plus_distinguished_delivery" ] && ok "FC0: user 2 first receives the HISTORICAL plank release (eligible 3, inserted 3 incl. the distinguished 'Plank (timed)' beside the non-pristine seed, alias_inserted 3) - the historical run is still deliverable" || bad "FC0: historical delivery differs" "$OLD"
-U2_BEFORE=$(Q "SELECT (SELECT count(*) FROM public.exercises WHERE user_id='$U2')::text||':'||md5(coalesce((SELECT string_agg(t::text,'|' ORDER BY t.id) FROM public.exercises t WHERE t.user_id='$U2'),'-'))||':'||(SELECT count(*) FROM public.exercise_aliases WHERE user_id='$U2')::text||':'||(SELECT count(*) FROM public.exercise_muscles WHERE user_id='$U2')::text")
-CB=$(QQ "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | head -1)
-[ "$CB" = "ERROR:  deliver_catalog_exercises: inconsistent prior Plank reconciliation requires separate investigation (no silent repair, relink, anatomy overwrite, or rename)" ] \
-  && ok "FC1 (FINDING F-E8, MEASURED): delivering the CUMULATIVE run to a user who received Plank from the HISTORICAL run is REFUSED by the committed function - the existing Plank link carries the historical run id and exlib_plank_link_valid (migration 026) demands import_run_id = THIS run: '$CB'. CASE B as specified CANNOT be satisfied by any package in this round; it needs a migration or an application change (outside this round's authority)." \
-  || bad "FC1: expected the committed function's strict-provenance refusal, got" "$CB"
-expect_eq "FC2: the refused cumulative delivery changed NOTHING for user 2 - exercises, aliases and muscles byte-identical to the post-historical state (atomic: the five new identities were NOT added either)" \
-  "SELECT (SELECT count(*) FROM public.exercises WHERE user_id='$U2')::text||':'||md5(coalesce((SELECT string_agg(t::text,'|' ORDER BY t.id) FROM public.exercises t WHERE t.user_id='$U2'),'-'))||':'||(SELECT count(*) FROM public.exercise_aliases WHERE user_id='$U2')::text||':'||(SELECT count(*) FROM public.exercise_muscles WHERE user_id='$U2')::text" "$U2_BEFORE"
-expect_eq "FC3: user 2 holds NONE of the five weight_time identities after the refusal" "SELECT count(*)::text FROM public.exercises WHERE user_id='$U2' AND catalog_logical_id IN ($FIVE)" "0"
-CB2=$(QQ "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | head -1)
-[ "$CB2" = "$CB" ] && ok "FC4: a repeat attempt for user 2 is refused identically - the refusal is deterministic, not transient, so every initialization of such a user would fail closed while the configured key names a Plank-carrying run they did not receive Plank from" || bad "FC4: repeat differs" "$CB2"
+HIST_RUN_ID=$(Q "SELECT id FROM public.exercise_catalog_import_runs WHERE run_key='$HIST_KEY'")
+U2_HIST_ROWS=$(Q "SELECT string_agg(e.id::text||'|'||e.name||'|'||e.catalog_logical_id::text||'|'||e.import_run_id::text||'|'||e.tracking_mode||'|'||e.exercise_type, ';' ORDER BY e.name) FROM public.exercises e WHERE e.user_id='$U2' AND e.import_run_id='$HIST_RUN_ID'")
+U2_ALIAS_ROWS=$(Q "SELECT string_agg(a.id::text||'|'||a.alias||'|'||a.import_run_id::text||'|'||a.is_active::text, ';' ORDER BY a.alias) FROM public.exercise_aliases a WHERE a.user_id='$U2'")
+U2_HIST_MUSCLES=$(Q "SELECT count(*)::text||':'||md5(coalesce(string_agg(m.exercise_id::text||'|'||m.muscle||'|'||m.role, ';' ORDER BY m.exercise_id, m.muscle, m.role),'-')) FROM public.exercise_muscles m JOIN public.exercises e ON e.id=m.exercise_id WHERE e.user_id='$U2' AND e.import_run_id='$HIST_RUN_ID'")
+U2_COUNT_BEFORE=$(Q "SELECT count(*)::text FROM public.exercises WHERE user_id='$U2'")
+# Reproduce the defect on the pre-029 world (a clone of post7, where user 2's historical delivery must be replayed first)
+QT "CREATE DATABASE caseb_pre029 TEMPLATE post7 OWNER postgres" >/dev/null 2>&1
+QD caseb_pre029 "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$HIST_KEY')" >/dev/null 2>&1
+CB_PRE=$(QD caseb_pre029 "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | head -1)
+[ "$CB_PRE" = "ERROR:  deliver_catalog_exercises: inconsistent prior Plank reconciliation requires separate investigation (no silent repair, relink, anatomy overwrite, or rename)" ] \
+  && ok "FC1 (F-E8 REPRODUCED on the pre-029 clone): without 029 the cumulative run is REFUSED for the existing plank user: '$CB_PRE'" || bad "FC1: expected the pre-029 strict-provenance refusal" "$CB_PRE"
+CB=$(summary_eq "$U2" "$NEW_KEY" "jsonb_build_object('run_key','$NEW_KEY','eligible',8,'inserted',5,'skipped_already_delivered',3,'skipped_name_collision',0,'collision_names','[]'::jsonb,'alias_inserted',0,'alias_added_to_existing',0,'alias_already_delivered',3,'alias_skipped_no_exercise',0,'alias_skipped_inactive_exercise',0,'alias_skipped_collision',0,'inserted_catalog_logical_ids',jsonb_build_array('$U132','$U137','$U133','$U139','$U138'),'plank_disposition','already_valid_idempotent')")
+[ "$CB" = "true" ] && ok "FC2 (THE FIX, WITH 029): the cumulative run now delivers to the existing plank user - eligible 8, inserted EXACTLY the five new weight_time identities, skipped_already_delivered 3 (Plank validated as already_valid_idempotent across runs, Dead bug, Ab wheel), alias_already_delivered 3, nothing else" \
+  || bad "FC2: cumulative delivery to the existing plank user differs" "$CB $(QQ "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | head -c 500)"
+expect_eq "FC3: the historical rows are PRESERVED byte-for-byte - the Plank row and the other two exercises keep their HISTORICAL import_run_id (provenance never rewritten), names, modes; the three aliases untouched" \
+  "SELECT (SELECT string_agg(e.id::text||'|'||e.name||'|'||e.catalog_logical_id::text||'|'||e.import_run_id::text||'|'||e.tracking_mode||'|'||e.exercise_type, ';' ORDER BY e.name) FROM public.exercises e WHERE e.user_id='$U2' AND e.import_run_id='$HIST_RUN_ID')||'#'||(SELECT string_agg(a.id::text||'|'||a.alias||'|'||a.import_run_id::text||'|'||a.is_active::text, ';' ORDER BY a.alias) FROM public.exercise_aliases a WHERE a.user_id='$U2')" "$U2_HIST_ROWS#$U2_ALIAS_ROWS"
+expect_eq "FC4: NO duplicate - exactly one row per historical identity (Plank, Dead bug, Ab wheel rollout) and exactly one per new identity; user 2 grew by exactly five ($U2_COUNT_BEFORE -> $((U2_COUNT_BEFORE+5))); the new five carry the NEW run id" \
+  "SELECT (SELECT string_agg(n::text, ',' ORDER BY n) FROM (SELECT count(*) n FROM public.exercises WHERE user_id='$U2' AND catalog_logical_id IS NOT NULL GROUP BY catalog_logical_id) t)||'/'||(SELECT count(*) FROM public.exercises WHERE user_id='$U2')::text||'/'||(SELECT count(*) FROM public.exercises e JOIN public.exercise_catalog_import_runs r ON r.id=e.import_run_id WHERE e.user_id='$U2' AND r.run_key='$NEW_KEY' AND e.catalog_logical_id IN ($FIVE))::text" "1,1,1,1,1,1,1,1/$((U2_COUNT_BEFORE+5))/5"
+expect_eq "FC5: tenant state otherwise unchanged - the historical anatomy rows are byte-identical (count and digest), the five new exercises each carry their catalog anatomy, and no correction record was written for user 2" \
+  "SELECT (SELECT count(*)::text||':'||md5(coalesce(string_agg(m.exercise_id::text||'|'||m.muscle||'|'||m.role, ';' ORDER BY m.exercise_id, m.muscle, m.role),'-')) FROM public.exercise_muscles m JOIN public.exercises e ON e.id=m.exercise_id WHERE e.user_id='$U2' AND e.import_run_id='$HIST_RUN_ID')||'/'||(SELECT count(DISTINCT e.id) FROM public.exercise_muscles m JOIN public.exercises e ON e.id=m.exercise_id WHERE e.user_id='$U2' AND e.catalog_logical_id IN ($FIVE))::text||'/'||(SELECT count(*) FROM public.exercise_catalog_corrections WHERE user_id='$U2')::text" "$U2_HIST_MUSCLES/5/0"
+CB2=$(summary_eq "$U2" "$NEW_KEY" "jsonb_build_object('run_key','$NEW_KEY','eligible',8,'inserted',0,'skipped_already_delivered',8,'skipped_name_collision',0,'collision_names','[]'::jsonb,'alias_inserted',0,'alias_added_to_existing',0,'alias_already_delivered',3,'alias_skipped_no_exercise',0,'alias_skipped_inactive_exercise',0,'alias_skipped_collision',0,'inserted_catalog_logical_ids','[]'::jsonb,'plank_disposition','already_valid_idempotent')")
+CB3=$(summary_eq "$U2" "$NEW_KEY" "jsonb_build_object('run_key','$NEW_KEY','eligible',8,'inserted',0,'skipped_already_delivered',8,'skipped_name_collision',0,'collision_names','[]'::jsonb,'alias_inserted',0,'alias_added_to_existing',0,'alias_already_delivered',3,'alias_skipped_no_exercise',0,'alias_skipped_inactive_exercise',0,'alias_skipped_collision',0,'inserted_catalog_logical_ids','[]'::jsonb,'plank_disposition','already_valid_idempotent')")
+[ "$CB2" = "true" ] && [ "$CB3" = "true" ] && ok "FC6: a SECOND and a THIRD cumulative delivery to user 2 are idempotent - skipped_already_delivered 8, alias_already_delivered 3, inserted 0" || bad "FC6: repeat not idempotent" "$CB2 / $CB3"
+expect_eq "FC7: after three cumulative deliveries user 2 still holds exactly $((U2_COUNT_BEFORE+5)) exercises and the same aliases" "SELECT (SELECT count(*) FROM public.exercises WHERE user_id='$U2')::text||'/'||(SELECT count(*) FROM public.exercise_aliases WHERE user_id='$U2')::text" "$((U2_COUNT_BEFORE+5))/3"
 OLD2=$(QQ "SET app.uid = '$U2'; SELECT (SELECT (j->>'run_key')||'/'||(j->>'eligible')||'/'||(j->>'inserted')||'/'||(j->>'skipped_already_delivered')||'/'||(j->>'alias_already_delivered')||'/'||(j->>'plank_disposition') FROM public.deliver_catalog_exercises('$HIST_KEY') j)")
-[ "$OLD2" = "$HIST_KEY/3/0/3/3/already_valid_idempotent" ] && ok "FC5: user 2's HISTORICAL delivery remains intact and idempotent under its own key (skipped 3, alias_already_delivered 3, already_valid_idempotent)" || bad "FC5: historical idempotency differs" "$OLD2"
+[ "$OLD2" = "$HIST_KEY/3/0/3/3/already_valid_idempotent" ] && ok "FC8: user 2's HISTORICAL delivery remains intact and idempotent under its own key" || bad "FC8: historical idempotency differs" "$OLD2"
+echo "--- CASE C: the raced logical-index recovery path with a PRIOR-run-valid Plank row (two sessions, a REAL committed race) ---"
+# A genuine race: a SECOND session inserts a prior-run-delivered 'Plank (timed)' row for the user and
+# commits it INSIDE the delivery function's window between its existing-link check (which found
+# nothing) and its INSERT. The window is opened deterministically: a fixture BEFORE INSERT trigger on
+# the Plank row blocks on a transaction-scoped advisory lock the second session holds until it has
+# committed the competitor. The delivery INSERT then collides on
+# exercises_user_catalog_logical_unique_idx and the raced branch validates the committed winner with
+# the shared helper. (A same-transaction simulation cannot work: the function's BEGIN/EXCEPTION block
+# is a subtransaction whose rollback would also undo anything a trigger inserted.)
+NEW_RUN_ID=$(Q "SELECT id FROM public.exercise_catalog_import_runs WHERE run_key='$NEW_KEY'")
+PLANK_CAT=$(Q "SELECT id FROM public.exercise_catalog WHERE logical_id='e21b2c00-0000-4000-a000-000000000001' AND is_active")
+install_race_fixture() { # DB
+  QD "$1" "CREATE FUNCTION public.w14e_race_fixture() RETURNS TRIGGER LANGUAGE plpgsql AS \$f\$
+BEGIN
+  IF current_setting('w14e.race', true) = 'arm' AND NEW.catalog_logical_id = 'e21b2c00-0000-4000-a000-000000000001' THEN
+    PERFORM set_config('w14e.race', 'fired', true);
+    PERFORM pg_advisory_xact_lock(424242);   -- wait for the competitor session to COMMIT
+  END IF; RETURN NEW; END \$f\$;
+CREATE TRIGGER w14e_race_fixture_trg BEFORE INSERT ON public.exercises FOR EACH ROW EXECUTE FUNCTION public.w14e_race_fixture();" >/dev/null 2>&1
+}
+race_deliver() { # DB USER -> prints the delivery output of the RACED session
+  local db="$1" u="$2"
+  cat > "$TMP/competitor-$db.sql" <<SQL
+BEGIN;
+INSERT INTO public.exercises (user_id, name, category, primary_muscle, equipment, exercise_type, tracking_mode, unilateral, is_active, is_system, catalog_id, catalog_logical_id, import_run_id)
+VALUES ('$u', 'Plank (timed)', 'isolation', 'abs', 'bodyweight', 'mobility', 'timed', false, true, true, '$PLANK_CAT', 'e21b2c00-0000-4000-a000-000000000001', '$HIST_RUN_ID');
+INSERT INTO public.exercise_muscles (user_id, exercise_id, muscle, role)
+SELECT '$u', e.id, m.muscle, m.role FROM public.exercises e, public.exercise_catalog_muscles m
+WHERE e.user_id='$u' AND e.catalog_logical_id='e21b2c00-0000-4000-a000-000000000001' AND m.catalog_id='$PLANK_CAT';
+SELECT pg_advisory_xact_lock(424242);
+DO \$d\$ DECLARE i INT := 0; BEGIN
+  LOOP
+    EXIT WHEN EXISTS (SELECT 1 FROM pg_locks WHERE locktype='advisory' AND objid=424242 AND NOT granted);
+    i := i + 1; IF i > 2000 THEN RAISE EXCEPTION 'race fixture: no waiter appeared'; END IF;
+    PERFORM pg_sleep(0.01);
+  END LOOP; END \$d\$;
+COMMIT;
+SQL
+  psql -h "$SOCK" -U postgres -d "$db" -X -v ON_ERROR_STOP=1 -qtA -f "$TMP/competitor-$db.sql" > "$TMP/competitor-$db.out" 2>&1 &
+  local pid=$!
+  local n=0
+  until [ "$(QD "$db" "SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND objid=424242 AND granted")" = "1" ]; do n=$((n+1)); [ $n -gt 500 ] && { echo "COMPETITOR SESSION NEVER TOOK THE LOCK: $(cat "$TMP/competitor-$db.out")"; kill $pid 2>/dev/null; return; }; sleep 0.02; done
+  QD "$db" "SET app.uid = '$u'; SET w14e.race = 'arm'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text"
+  wait $pid; echo "COMPETITOR_EXIT=$?"
+}
+install_race_fixture postgres && ok "FE0: race fixture installed on the main line (disposable cluster only): a BEFORE INSERT trigger on the Plank row that waits for a second session's commit" || bad "FE0: race fixture install failed"
+UC=$(Q "INSERT INTO auth.users DEFAULT VALUES RETURNING id")
+RACE_OUT=$(race_deliver postgres "$UC")
+CC_JSON=$(echo "$RACE_OUT" | grep -m1 '^{')
+CC_OK=$(Q "SELECT (j->>'eligible')='8' AND (j->>'inserted')='7' AND (j->>'skipped_already_delivered')='1' AND (j->>'skipped_name_collision')='0' AND (j->>'alias_already_delivered')='0' AND ((j->>'alias_inserted')::int + (j->>'alias_added_to_existing')::int)=3 AND (j->>'plank_disposition')='already_valid_idempotent' AND NOT (j->'inserted_catalog_logical_ids') ? 'e21b2c00-0000-4000-a000-000000000001' AND jsonb_array_length(j->'inserted_catalog_logical_ids')=7 AND (j->'inserted_catalog_logical_ids') ?& array[$FIVE] FROM (SELECT '$(echo "$CC_JSON" | sed "s/'/''/g")'::jsonb j) x" 2>/dev/null)
+[ "$CC_OK" = "t" ] && echo "$RACE_OUT" | grep -q 'COMPETITOR_EXIT=0' && ok "FE1 (CASE C, RACED PATH, WITH 029): the competitor committed inside the window (competitor session exit 0), the delivery INSERT collided on the logical index, the raced branch locked the committed winner (a 'Plank (timed)' row from the HISTORICAL run) and the SHARED helper accepted it: eligible 8, inserted 7 (never Plank; the five included), skipped_already_delivered 1, plank_disposition already_valid_idempotent, aliases $(echo "$CC_JSON" | sed 's/.*"alias_inserted": \([0-9]*\).*/\1/') inserted + $(echo "$CC_JSON" | sed 's/.*"alias_added_to_existing": \([0-9]*\).*/\1/') added to the existing Plank = 3" \
+  || bad "FE1: raced-path result differs" "$RACE_OUT"
+expect_eq "FE2: user C holds exactly ONE Plank row - the raced winner ('Plank (timed)', HISTORICAL run id, untouched) - plus the 7 others; the fixture fired exactly once" \
+  "SELECT (SELECT count(*) FROM public.exercises WHERE user_id='$UC' AND catalog_logical_id='e21b2c00-0000-4000-a000-000000000001')::text||'/'||(SELECT name||'|'||(import_run_id='$HIST_RUN_ID')::text FROM public.exercises WHERE user_id='$UC' AND catalog_logical_id='e21b2c00-0000-4000-a000-000000000001')||'/'||(SELECT count(*) FROM public.exercises WHERE user_id='$UC')::text" "1/Plank (timed)|true/8"
+CC2=$(summary_eq "$UC" "$NEW_KEY" "jsonb_build_object('run_key','$NEW_KEY','eligible',8,'inserted',0,'skipped_already_delivered',8,'skipped_name_collision',0,'collision_names','[]'::jsonb,'alias_inserted',0,'alias_added_to_existing',0,'alias_already_delivered',3,'alias_skipped_no_exercise',0,'alias_skipped_inactive_exercise',0,'alias_skipped_collision',0,'inserted_catalog_logical_ids','[]'::jsonb,'plank_disposition','already_valid_idempotent')")
+[ "$CC2" = "true" ] && ok "FE2b: a second delivery to user C is idempotent (skipped 8, alias_already_delivered 3, inserted 0) - the raced winner is now the ordinary existing link" || bad "FE2b: user C repeat differs" "$CC2"
+QT "CREATE DATABASE racepre TEMPLATE post7 OWNER postgres" >/dev/null 2>&1
+install_race_fixture racepre
+UCP=$(QD racepre "INSERT INTO auth.users DEFAULT VALUES RETURNING id")
+RACE_PRE=$(race_deliver racepre "$UCP")
+echo "$RACE_PRE" | grep -qF 'inconsistent prior Plank reconciliation' && echo "$RACE_PRE" | grep -q 'COMPETITOR_EXIT=0' && ok "FE3: the IDENTICAL two-session race on the pre-029 clone RAISES the F-E8 refusal (competitor committed, exit 0) - so the raced path's acceptance in FE1 comes from the replaced shared helper, not from any change to the path itself" || bad "FE3: pre-029 raced path did not raise as expected" "$RACE_PRE"
+expect_eq "FE3b: on the pre-029 clone the refused delivery rolled back completely - the user holds ONLY the committed competitor row" "SELECT (SELECT count(*) FROM public.exercises WHERE user_id='$UCP')::text||'/'||(SELECT name FROM public.exercises WHERE user_id='$UCP')" "1/Plank (timed)" racepre
+Q "DROP TRIGGER w14e_race_fixture_trg ON public.exercises; DROP FUNCTION public.w14e_race_fixture();" >/dev/null && ok "FE4: race fixture removed from the main line" || bad "FE4"
 echo "--- boundaries ---"
 expect_eq "FD1: users who received nothing hold none of the five (delivery is per-user via auth.uid())" \
   "SELECT count(*)::text FROM public.exercises WHERE user_id IN ('$U1','$U4') AND catalog_logical_id IN ($FIVE)" "0"
@@ -620,8 +715,11 @@ probe() { psql -h "$SOCK" -U postgres -d "$1" -X -v ON_ERROR_STOP=1 -qtA -f "$PR
 P_PRE1=$(probe pre1); P_POST7=$(probe post7)
 echo "$P_PRE1" | grep -qx '1|snapshot_review|NOT_APPLIED|.*' && echo "$P_PRE1" | grep -qx '6|run_staging|NOT_APPLIED|.*' && echo "$P_PRE1" | grep -qx '7|run_seal|ABSENT|.*' \
   && ok "K1: on the post-W14 pre-state the probe reads stage 1 NOT_APPLIED, stage 6 NOT_APPLIED, stage 7 ABSENT" || bad "K1: probe on pre1 unexpected" "$(echo "$P_PRE1" | tr '\n' ' ')"
-[ "$(echo "$P_POST7" | grep -c '|APPLIED|')" = "7" ] && echo "$P_POST7" | grep -qx "0|catalog_vector|INFO|$V6" \
-  && ok "K2: after all seven stages the probe reads APPLIED for every stage and the vector $V6" || bad "K2: probe on post7 unexpected" "$(echo "$P_POST7" | tr '\n' ' ')"
+[ "$(echo "$P_POST7" | grep -c '|APPLIED|')" = "7" ] && echo "$P_POST7" | grep -qx "0|catalog_vector|INFO|$V6" && echo "$P_POST7" | grep -qx '0|migration_029_plank_cross_run_idempotency|NOT_APPLIED|.*' \
+  && ok "K2: on the post-7 / pre-029 template the probe reads APPLIED for every stage, the vector $V6, and migration_029 NOT_APPLIED" || bad "K2: probe on post7 unexpected" "$(echo "$P_POST7" | tr '\n' ' ')"
+P_MAIN=$(probe postgres)
+echo "$P_MAIN" | grep -qx '0|migration_029_plank_cross_run_idempotency|APPLIED|.*' && echo "$P_PRE1" | grep -qx '0|migration_029_plank_cross_run_idempotency|NOT_APPLIED|.*' \
+  && ok "K2b: the probe's migration-029 spent-check reads APPLIED on the main line (029 applied) and NOT_APPLIED on the untouched pre-state" || bad "K2b: 029 probe row unexpected" "$(echo "$P_MAIN" | grep migration_029)"
 QT "CREATE DATABASE mixed1 TEMPLATE pre1 OWNER postgres" >/dev/null 2>&1
 QD mixed1 "UPDATE public.exercise_catalog SET review_status='approved', reviewed_by='TEST-ONLY hand approval', reviewed_at=now(), review_rationale='TEST-ONLY two of five approved by hand to model an ambiguous partial state' WHERE logical_id IN ('$U132','$U133') AND is_active" >/dev/null 2>&1
 P_MIXED=$(probe mixed1)
@@ -646,6 +744,21 @@ if run_pkg noguard "$(stage_file "$TEMPLATE_DIR" 1)" "$TMP/template-run.out"; th
 expect_eq "L4: the template attempt changed nothing" "$VECTOR_SQL" "$V0" noguard
 
 echo
+echo "=== N. Migration 029: order independence w.r.t. the seven stages, and atomic rollback"
+QT "CREATE DATABASE m029_first TEMPLATE pre1 OWNER postgres" >/dev/null 2>&1
+psql -h "$SOCK" -U postgres -d m029_first -X -v ON_ERROR_STOP=1 -q -f "$M029" > "$TMP/m029-first.out" 2>&1 && ok "N1: 029 applied to the post-W14 pre-state BEFORE any stage" || bad "N1: 029 failed on pre1" "$(head -2 "$TMP/m029-first.out")"
+NFAIL=0
+for n in 1 2 3 4 5 6 7; do run_pkg m029_first "$(stage_file "$PKG" "$n")" "$TMP/m029-first-stage-$n.out" || { NFAIL=$((NFAIL+1)); bad "N2.$n: stage $n failed with 029 applied first" "$(grep -m1 ERROR "$TMP/m029-first-stage-$n.out")"; }; done
+[ "$NFAIL" = "0" ] && ok "N2: all seven stages commit unchanged with 029 applied FIRST - none of them calls the helper, so 029 is not a precondition of stages 1-7 and may be applied before or after them" || true
+expect_eq "N3: the 029-first world ends at the same vector, the same historical run and the same authority baseline as the main line" "SELECT ($VECTOR_SQL)||'#'||($HIST_RUN_SQL)||'#'||($AUTH_SQL)" "$V6#$HIST_BEFORE#$AUTH_OK" m029_first
+sed 's/^COMMIT;$/SELECT 1\/0;\nCOMMIT;/' "$M029" > "$TMP/m029-sabotaged.sql"
+QT "CREATE DATABASE m029_sab TEMPLATE post7 OWNER postgres" >/dev/null 2>&1
+if psql -h "$SOCK" -U postgres -d m029_sab -X -v ON_ERROR_STOP=1 -q -f "$TMP/m029-sabotaged.sql" > "$TMP/m029-sab.out" 2>&1; then bad "N4: the sabotaged 029 COMMITTED"; else ok "N4: a sabotaged 029 (failing statement before COMMIT) exits non-zero"; fi
+[ "$(QD m029_sab "$DEF_SQL")" = "$DEF028" ] && ok "N5: after the rollback the helper definition is BYTE-IDENTICAL to the 028 definition - 029 is one transaction; a failed apply leaves 028 behaviour intact" || bad "N5: helper changed despite rollback"
+SAB_B=$(QD m029_sab "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercises('$HIST_KEY'); SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | grep -m1 ERROR)
+echo "$SAB_B" | grep -qF 'inconsistent prior Plank reconciliation' && ok "N6: and the F-E8 refusal is still present on that clone (the defect returns exactly when 029 is absent)" || bad "N6" "$SAB_B"
+
+echo
 echo "=== M. No hosted contact, ever"
 HOSTPAT='supabase[.](co|com)|vercel[.](app|com)|[-][-]db[-]url|[-][-]linked|project[-]ref|db[ ](push|dump)|npx[ ]supabase|supabase[ ](db|projects|link|login)'
 HOSTHITS=$(awk -v pat="$HOSTPAT" 'tolower($0) ~ pat {n++} END{print n+0}' "$0")
@@ -660,7 +773,7 @@ BADPOS=$(printf '%s\n' "${C} -h db.example.com -U postgres" "${K} -D /var/lib/pg
 git -C . status --porcelain -- docs scripts > "$TMP/porcelain-final.txt"
 FINAL_PORC=$(grep -vE '^\?\? |^ M |^A  |^M  ' "$TMP/porcelain-final.txt" | wc -l | tr -d ' ')
 ok "M3: no TEST-ONLY rendering was written under docs/ (the generator refused D2; every executable rendering lives under $TMP and is destroyed on exit)"
-ok "M4: NOTHING HOSTED WAS TOUCHED. No Supabase contact, no Supabase CLI, no Vercel contact, no push. Every human decision used here was SYNTHETIC and marked TEST-ONLY; the committed forms remain blank. No production review, publication, delivery or approval occurred or is implied."
+ok "M4: NOTHING HOSTED WAS TOUCHED. No Supabase contact, no Supabase CLI, no Vercel contact, no push. Migration 029 was applied ONLY to disposable local clusters destroyed on exit. Every human decision used here was SYNTHETIC and marked TEST-ONLY; the committed forms remain blank. No production review, publication, delivery or approval occurred or is implied."
 
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

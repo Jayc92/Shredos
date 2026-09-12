@@ -15,6 +15,17 @@ STATUS: DISCOVERY RECORD. Read-only derivation. No hosted contact, no execution,
 > including finding **F-E8**: the committed delivery function REFUSES the cumulative run for a user
 > who already received Plank from the historical run (`exlib_plank_link_valid` demands the delivering
 > run's own id). Everything else in this record stands.
+>
+> **Correction, 2026-09-12, F-E8 remediation (a labelled later correction).** Independent review
+> adjudicated F-E8 a confirmed database-contract defect and authorized exactly one new migration,
+> `supabase/migrations/029_exlib_plank_cross_run_idempotency.sql`: it replaces ONLY the shared helper
+> `exlib_plank_link_valid` (existing signature) so that an existing Plank link is valid when its
+> `import_run_id` is the delivering run OR a PRIOR run that is approved, non-dry, sealed, unrevoked
+> and carries EXACTLY the same catalog snapshot in its membership. Row H's delivery contract for an
+> existing plank user therefore becomes: eligible 8, inserted 5, skipped_already_delivered 3,
+> alias_already_delivered 3, `already_valid_idempotent` (measured; see the report). 029 is PREPARED,
+> NOT APPLIED hosted; it must be live before the run-key repoint and is not a precondition of stages
+> 1 to 7. Migrations 026, 027 and 028 are untouched.
 
 ## What this is
 

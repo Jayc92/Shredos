@@ -6,7 +6,9 @@ STATUS: ANALYSIS AND PREPARATION. Nothing here has been performed.
 > first analysed was REJECTED: the five are additive, not a replacement. The prepared run is now
 > CUMULATIVE (section 5). Its consequence for users who already received the plank release was then
 > MEASURED on the disposable proof and is finding **F-E8** (section 5b): the committed delivery function
-> refuses the cumulative run for those users. The repoint must not proceed until F-E8 is adjudicated.
+> refuses the cumulative run for those users. **Adjudicated 2026-09-12: a confirmed database-contract
+> defect, remediated by migration 029 (section 5c), PREPARED and not yet applied hosted.** The repoint
+> must not proceed until migration 029 is live and verified hosted.
 
 **Claude has had no Vercel contact of any kind, has invoked no Vercel CLI, has changed no environment
 variable, and has triggered no deployment.** Every production figure in this document is
@@ -129,8 +131,12 @@ Precisely, after a future repoint of `CATALOG_DELIVERY_RUN_KEY` to the cumulativ
   (skipped_already_delivered 8, alias_already_delivered 3); a user carrying the pristine legacy
   bodyweight Plank seed receives the migration-026 in-place correction (inserted 7, accounting offset 1,
   alias_inserted 1, alias_added_to_existing 2);
-- **users who already received the plank release through the historical run do NOT receive only the
-  missing effects. Their delivery of the cumulative run is REFUSED.** See 5b.
+- **users who already received the plank release through the historical run**: under migrations 026/028
+  their delivery of the cumulative run is REFUSED (5b, finding F-E8); with migration 029 live they
+  receive ONLY the missing effects - MEASURED: eligible 8, inserted 5 (exactly the five new identities),
+  skipped_already_delivered 3, alias_already_delivered 3, `plank_disposition = already_valid_idempotent`,
+  their historical rows byte-identical with their historical `import_run_id` intact, no duplicate, and
+  a second and third initialization idempotent (5c).
 
 ## 5b. Finding F-E8, measured: the cumulative run is refused for existing plank users
 
@@ -153,12 +159,38 @@ key names a Plank-carrying run they did not receive Plank from. The disposable p
 this (checks FC1 to FC5) and also proves the user's historical delivery stays intact and idempotent
 under the historical key.
 
-This is a property of the committed function, not of any package in this round. Changing it needs a
-migration (a relaxed provenance rule for cross-run idempotency) or an application change (for example
-delivering the historical key first for such users), and both are outside this round's authority. No
-migration 029 exists or is prepared. **Until F-E8 is adjudicated, the run-key repoint must not proceed:
-the number of existing plank users is UNKNOWN (section 8), and for every one of them the repoint would
-be a live initialization outage, not a de-selection.**
+This is a property of the committed function, not of any package in this round. The independent review
+adjudicated it a confirmed database-contract defect and authorized its remediation at the database
+layer: migration 029 (section 5c). Until 029 is live and verified hosted, the statement above remains
+the production truth, so **the run-key repoint must not proceed before migration 029 is applied and
+verified**: the number of existing plank users is UNKNOWN (section 8), and for every one of them a
+premature repoint would be a live initialization outage, not a de-selection.
+
+## 5c. Migration 029: the remediation (PREPARED, NOT APPLIED hosted)
+
+`supabase/migrations/029_exlib_plank_cross_run_idempotency.sql` replaces ONLY the shared helper
+`exlib_plank_link_valid`, with its existing signature, SECURITY DEFINER posture and internal-only
+execution posture. Every non-provenance invariant is carried verbatim (ownership, timed, mobility, exact
+`catalog_id`, exact `catalog_logical_id`, exact anatomy, exact canonical / "(timed)" name and claim
+ownership). Only the provenance clause changes:
+
+- OLD: `p_link.import_run_id = p_run_id` (the delivering run only);
+- NEW: `import_run_id` is not NULL, and EITHER equals the delivering run OR identifies a PRIOR run that
+  exists, is `approved_for_delivery`, is not a dry run, is sealed, is not revoked, AND carries EXACTLY
+  `p_cat_id` in its membership. The exact catalog snapshot is the compatibility boundary; a run carrying
+  only a different snapshot of the same logical identity does not qualify; nothing is mutated.
+
+`deliver_catalog_exercises` is not redefined: migration 028's body calls the helper from both the
+existing-link path and the raced logical-index recovery path, so both gain the rule through the helper.
+The focused verifiers `scripts/verify-weight-time-migration-029.ts` and
+`scripts/verify-weight-time-migration-029-live.sh` pin the exact relaxation and prove every forbidden
+prior-run posture is still refused. Migrations 026, 027 and 028 are untouched.
+
+**Hosted order.** 029 is not a precondition of stages 1 to 7 (none of the seven packages calls the
+helper; the disposable proof runs all seven with 029 applied first and with 029 applied after, to the
+same result). It MUST be live and verified BEFORE `CATALOG_DELIVERY_RUN_KEY` is repointed and before
+any user receives the cumulative run. Its spent-check is the probe row
+`migration_029_plank_cross_run_idempotency` (APPLIED / NOT_APPLIED / MIXED); never re-run it blind.
 
 ## 6. Ordering: configuration activation versus delivery
 
@@ -270,9 +302,9 @@ authorization: each hosted act still needs its own one-use instruction with a sp
 Before touching configuration:
 
 1. Re-measure delivered counts hosted, replacing the stale pre-activation figures in section 8.
-2. Adjudicate F-E8 (section 5b) knowing that number: every existing plank user would be refused
-   initialization under the cumulative run. Do NOT proceed past this step until that is resolved by an
-   authorized change outside this round.
+2. Confirm hosted, with the probe, that migration 029 reads APPLIED (section 5c): without it every
+   existing plank user would be refused initialization under the cumulative run (F-E8). Do NOT proceed
+   past this step while 029 reads NOT_APPLIED or MIXED.
 3. Confirm the enablement variable (fragments `CATALOG` + `_DELIVERY` + `_ENABLED`) is still exactly `true` and Production-scoped.
 4. Confirm the run key literal chosen in family C, and that stages 1 through 7 all completed.
 5. Confirm hosted that the new run is sealed, approved, not dry, not revoked, and has exactly eight
@@ -303,6 +335,6 @@ After:
 ## 11. What was not done here, stated plainly
 
 No Vercel contact. No Vercel CLI. No environment variable created, read, or changed. No deployment
-triggered. No migration. No application change. No hosted Supabase contact. No Supabase CLI invocation, for any subcommand. No delivery
+triggered. No hosted migration apply (029 is PREPARED only). No application change. No hosted Supabase contact. No Supabase CLI invocation, for any subcommand. No delivery
 called anywhere, hosted or local, outside the disposable local proof. No git push. No human decision
 filled or inferred.

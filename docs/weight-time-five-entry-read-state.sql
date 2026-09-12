@@ -14,7 +14,8 @@
 --   MIXED        an impossible-by-design partial state - STOP, do not run any
 --                package, report the exact rows; a retry will not fix it
 --   ABSENT       (stage 7 only) no five-entry run exists yet
--- plus the eleven-term catalog vector and the new cumulative run's posture (the historical
+-- plus the eleven-term catalog vector, the new cumulative run's posture, and the
+-- migration-029 spent-check (APPLIED / NOT_APPLIED / MIXED) read from the live helper (the historical
 -- plank run's six members carried forward plus the five: 8 exercise + 3 alias members).
 --
 -- Hosted execution of this probe is READ ONLY and is still an operator act
@@ -123,6 +124,13 @@ SELECT 0, 'catalog_vector', 'INFO',
        || '/' || (SELECT count(*) FROM public.exercise_catalog_import_runs)::text
        || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
        || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
+UNION ALL
+SELECT 0, 'migration_029_plank_cross_run_idempotency',
+       CASE WHEN pg_get_functiondef('public.exlib_plank_link_valid(uuid,public.exercises,uuid,uuid,text,uuid)'::regprocedure) LIKE '%pri.catalog_id = p_cat_id%'
+                 AND pg_get_functiondef('public.exlib_plank_link_valid(uuid,public.exercises,uuid,uuid,text,uuid)'::regprocedure) LIKE '%pr.revoked_at IS NULL%' THEN 'APPLIED'
+            WHEN pg_get_functiondef('public.exlib_plank_link_valid(uuid,public.exercises,uuid,uuid,text,uuid)'::regprocedure) LIKE '%AND p_link.import_run_id = p_run_id%' THEN 'NOT_APPLIED'
+            ELSE 'MIXED' END,
+       'the shared Plank link validator: APPLIED = carries the prior-run exact-snapshot clause (029); NOT_APPLIED = the strict current-run clause (026/028); MIXED = neither shape - STOP. 029 must read APPLIED before the run key is repointed to a Plank-carrying run.'
 UNION ALL
 SELECT 0, 'historical_plank_run', 'INFO',
        coalesce((SELECT r.run_key || ' approved=' || r.approved_for_delivery::text || ' sealed=' || (r.sealed_at IS NOT NULL)::text

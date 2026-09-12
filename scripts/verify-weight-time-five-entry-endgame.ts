@@ -63,6 +63,9 @@ const PRODUCTION_BASE_COMMIT = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
 const PRODUCTION_BASE_TREE = '0b438079693867fd1757cec383a2bc986b1c905c'
 
 const MIGRATION_028 = 'supabase/migrations/028_weight_time_tracking_mode.sql'
+const MIGRATION_029 = 'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+const MIGRATION_029_VERIFIER_PATH = 'scripts/verify-weight-time-migration-029.ts'
+const MIGRATION_029_LIVE_VERIFIER_PATH = 'scripts/verify-weight-time-migration-029-live.sh'
 const MIGRATION_028_BYTES = 37162
 const MIGRATION_028_SHA256 = '9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 
@@ -101,6 +104,7 @@ const ALLOWED_CHANGED_PATHS = [
   CARRIER_PATH, MATRIX_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, DEPENDENCY_PATH, MANIFEST_PATH,
   HUMAN_REVIEW_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
   MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, STATIC_VERIFIER_PATH,
+  MIGRATION_029, MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH,
   ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`),
 ]
 /** Deferred non-blocking maintenance findings (F2/F2a/F2b/F3/F4). Explicitly out of scope. */
@@ -182,6 +186,8 @@ type ManifestShape = {
   boundary_statement: { human_approval: string }
   delivery_configuration_dependency: { required: boolean; claude_performed_the_change: boolean; variable: string }
   bound_artifacts: { path: string; bytes: number; sha256: string }[]
+  migration_029?: { path: string; status: string; new_rule: string; hosted_order_dependency: string }
+  expected_delivery_effect?: { case_existing_plank_user_from_historical_run?: { after_migration_029?: { summary?: { inserted: number; skipped_already_delivered: number; plank_disposition: string } } } }
 }
 type W14EntryShape = Record<string, unknown> & { logical_id: string; canonical_name: string; anatomy: unknown; payload_fingerprint_sha256: string }
 type W14Shape = { entries: W14EntryShape[] }
@@ -306,6 +312,9 @@ function assertArtifacts(w: World, out: Finding[]): void {
     && JSON.stringify([...(em?.expected_member_lines ?? [])].sort()) === JSON.stringify(six.concat(GOVERNED.map((g) => `exercise#${g.logicalId}`)).sort())
     && em?.exercise_members === 8 && em?.alias_members === 3 && em?.total_items === 11
     && six.every((l) => !GOVERNED.some((g) => l.includes(g.logicalId)) && !CARRY_IDS.some((id) => l.includes(id))))
+  c('M15 the manifest carries the migration-029 block (path, PREPARED - NOT APPLIED, the exact-snapshot prior-run rule, the hosted-order dependency: before stage 8, not a precondition of stages 1-7) and the existing-plank-user expectation AFTER 029 (eligible 8, inserted 5, skipped 3, alias_already 3, already_valid_idempotent)',
+    m.migration_029?.path === MIGRATION_029 && String(m.migration_029?.status).includes('NOT APPLIED') && String(m.migration_029?.new_rule).includes('EXACTLY p_cat_id') && String(m.migration_029?.hosted_order_dependency).includes('BEFORE the run-key repoint') && String(m.migration_029?.hosted_order_dependency).includes('NOT a precondition of stages 1-7')
+    && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.inserted === 5 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.skipped_already_delivered === 3 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.plank_disposition === 'already_valid_idempotent')
   c('M13 the manifest records that a production configuration change IS required and that Claude did not perform it',
     m.delivery_configuration_dependency?.required === true && m.delivery_configuration_dependency?.claude_performed_the_change === false && m.delivery_configuration_dependency?.variable === 'CATALOG_DELIVERY_RUN_KEY')
 
@@ -427,7 +436,14 @@ function verifyBoundaries(world: World): void {
   const m028 = readFileSync(path.join(repositoryRoot, MIGRATION_028))
   check('B1 migration 028 is byte-identical at its pinned size and sha256 - this work modifies no migration', m028.length === MIGRATION_028_BYTES && sha256(m028) === MIGRATION_028_SHA256)
   const migrations = readdirSync(path.join(repositoryRoot, 'supabase/migrations')).filter((f) => f.endsWith('.sql'))
-  check('B2 there are exactly 28 numbered migrations and NO migration 029 - no migration 029 is authorized or present', migrations.length === 28 && !migrations.some((f) => f.startsWith('029')), `${migrations.length}`)
+  // Migration 029 (F-E8 remediation) is AUTHORIZED and present: exactly one, last, bound by bytes in the manifest.
+  const m029Binding = (world.manifest.bound_artifacts ?? []).find((b) => b.path === MIGRATION_029)
+  const m029Disk = readFileSync(path.join(repositoryRoot, MIGRATION_029))
+  check('B2 there are exactly 29 numbered migrations: 001-028 plus EXACTLY ONE authorized 029 (Plank cross-run idempotency), last in order, bound by bytes in the lifecycle manifest and byte-identical on disk; no 030',
+    migrations.length === 29 && migrations.filter((f) => f.startsWith('029')).length === 1 && migrations[28] === path.basename(MIGRATION_029) && !migrations.some((f) => f.startsWith('030'))
+    && !!m029Binding && m029Binding.bytes === m029Disk.length && m029Binding.sha256 === sha256(m029Disk), `${migrations.length} migrations; 029 bound: ${!!m029Binding}`)
+  check('B2b migration 029 is the ONLY change under supabase/: 001-028 are byte-identical to the production base',
+    git('diff', '--name-only', PRODUCTION_BASE_COMMIT, '--', 'supabase').split('\n').concat(git('ls-files', '--others', '--exclude-standard', '--', 'supabase').split('\n')).filter(Boolean).sort().filter((p, i, a) => a.indexOf(p) === i).join(',') === MIGRATION_029)
   check('B3 HEAD descends from the published production main 54a9d128 with ZERO merge commits - plain forward commits only',
     gitSucceeds('merge-base', '--is-ancestor', PRODUCTION_BASE_COMMIT, 'HEAD') && git('rev-list', '--count', '--merges', `${PRODUCTION_BASE_COMMIT}..HEAD`) === '0')
   check('B4 the production base commit still resolves to its pinned tree', git('rev-parse', `${PRODUCTION_BASE_COMMIT}^{tree}`) === PRODUCTION_BASE_TREE)
@@ -443,7 +459,7 @@ function verifyBoundaries(world: World): void {
   const outside = surface.filter((p) => !ALLOWED_CHANGED_PATHS.includes(p) && p !== `${PACKAGE_DIR}/`)
   check('B6 the ENTIRE change surface - committed and uncommitted - is five-entry endgame preparation and nothing else', outside.length === 0, `outside: ${outside.join(', ')}`)
   check('B7 no src/ application code is touched', surface.every((p) => !p.startsWith('src/')))
-  check('B8 no file under supabase/ is touched', surface.every((p) => !p.startsWith('supabase/')))
+  check('B8 under supabase/ only the authorized migration 029 is touched (no other migration, no 026/027/028 edit)', surface.filter((p) => p.startsWith('supabase/')).every((p) => p === MIGRATION_029))
   check('B9 the deferred F2/F2a/F2b/F3/F4 maintenance sites are NOT modified on account of this work', DEFERRED_MAINTENANCE_FILES.every((p) => !surface.includes(p)))
   for (const f of FROZEN) {
     const onDisk = readFileSync(path.join(repositoryRoot, f.path))
@@ -452,13 +468,13 @@ function verifyBoundaries(world: World): void {
   }
   const bindings: { path: string; bytes: number; sha256: string }[] = world.manifest.bound_artifacts ?? []
   const drifted = bindings.filter((b) => { const d = readFileSync(path.join(repositoryRoot, b.path)); return d.length !== b.bytes || sha256(d) !== b.sha256 })
-  check(`B11 all ${bindings.length} artifacts the lifecycle manifest binds still match their recorded bytes and sha256 on disk`, bindings.length >= 15 && drifted.length === 0, drifted.map((b) => b.path).join(', '))
+  check(`B11 all ${bindings.length} artifacts the lifecycle manifest binds still match their recorded bytes and sha256 on disk (migrations 026, 028 and 029 included)`, bindings.length >= 17 && drifted.length === 0 && bindings.some((b) => b.path === MIGRATION_029) && bindings.some((b) => b.path === 'supabase/migrations/026_exlib_plank_seed_reconciliation.sql'), drifted.map((b) => b.path).join(', '))
   // The swept literals are assembled from fragments so this file never carries
   // them: verify-exlib1c0b.ts D2 sweeps scripts/verify-*.ts for them and requires
   // every hit to be named in a byte-frozen audit this file cannot join.
   const sweptLiterals = new RegExp(`${['weight', '_reps'].join('')}|${['resistance', '_band'].join('')}`)
   check('B12 the exlib1c0b vocabulary-pin sweep would not classify this verifier or the two generators as suites carrying vocabulary pins (neither swept literal appears in these files)',
-    ![STATIC_VERIFIER_PATH, MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH].some((p) => sweptLiterals.test(read(p))))
+    ![STATIC_VERIFIER_PATH, MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, MIGRATION_029_VERIFIER_PATH].some((p) => sweptLiterals.test(read(p))))
   check('B13 the enablement-variable census (verify-exlib2t B1) is undisturbed: no five-entry document spells the enablement variable literally (the fragment convention of the EXLIB-3A records is followed)',
     ![...readdirSync(path.join(repositoryRoot, 'docs')).filter((f) => f.includes('five-entry') && statSync(path.join(repositoryRoot, 'docs', f)).isFile()).map((f) => `docs/${f}`),
       ...readdirSync(path.join(repositoryRoot, 'scripts')).filter((f) => f.includes('five-entry')).map((f) => `scripts/${f}`),
@@ -497,6 +513,11 @@ function verifyGovernance(): void {
   const mod = read('src/lib/supabase/deliver-catalog.ts')
   check('S12 the application selects the run from ONE scalar env var and passes it straight to the RPC - so exactly one run is deliverable per deployment and a configuration change is REQUIRED to deliver the five',
     mod.includes('const key = process.env.CATALOG_DELIVERY_RUN_KEY') && mod.includes('supabase.rpc("deliver_catalog_exercises", { p_run_key: runKey })') && !mod.includes('CATALOG_DELIVERY_RUN_KEYS'))
+  const m029 = read(MIGRATION_029)
+  check('S15 migration 029 replaces ONLY exlib_plank_link_valid (existing signature, internal-only posture re-asserted) and does not redefine deliver_catalog_exercises; migration 028 still calls the shared helper from both paths, so both gain the new provenance rule through the helper',
+    (m029.split('\n').map((l) => { const at = l.indexOf('--'); return at === -1 ? l : l.slice(0, at) }).join('\n').match(/CREATE OR REPLACE FUNCTION/g) ?? []).length === 1 && m029.includes('CREATE OR REPLACE FUNCTION exlib_plank_link_valid(') && !m029.includes('CREATE OR REPLACE FUNCTION deliver_catalog_exercises')
+    && m029.includes('REVOKE ALL ON FUNCTION exlib_plank_link_valid(UUID, public.exercises, UUID, UUID, TEXT, UUID)\n  FROM PUBLIC, anon, authenticated;') && m029.includes('AND pri.catalog_id = p_cat_id') && m029.includes('AND p_link.import_run_id IS NOT NULL')
+    && (m028.match(/exlib_plank_link_valid\(v_uid, v_linked, v_cat\.id, v_cat\.logical_id,\n\s+v_cat\.canonical_name, v_run\.id\)/g) ?? []).length === 2)
   const m2k = read('docs/exlib2k-plank-catalog-load-package.sql')
   check('S13 the +0x100 content-id convention is the plank precedent\'s: the spent 2K package loaded content …0101 for identity …0001',
     /load_catalog_content_draft\(\n\s+'e21b2c00-0000-4000-a000-000000000001',\n\s+'e21b2c00-0000-4000-a000-000000000101',\n\s+1,/.test(m2k))
@@ -519,22 +540,25 @@ function verifyDocuments(world: World): void {
   check('D2 the human review page carries no synthetic marker and no filled decision', !review.includes(SYNTHETIC_MARKER) && review.includes('Nothing here is approved'))
   const dep = read(DEPENDENCY_PATH)
   check('D3 the dependency document proves the configuration change is required from committed code, states repointing DE-SELECTS the plank release, says delivered counts are UNKNOWN, and records no Vercel contact',
-    dep.includes('a configuration change IS required') && dep.includes('CUMULATIVE') && dep.includes('F-E8') && dep.includes('Delivered counts are UNKNOWN') && dep.includes('no Vercel contact') && dep.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
+    dep.includes('a configuration change IS required') && dep.includes('CUMULATIVE') && dep.includes('F-E8') && dep.includes('029') && dep.includes('Delivered counts are UNKNOWN') && dep.includes('no Vercel contact') && dep.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
   const runbook = existsSync(path.join(repositoryRoot, RUNBOOK_PATH)) ? read(RUNBOOK_PATH) : ''
   check('D4 the operator runbook exists and states the seven packages in order, the spent-check probe before each, the READ STATE FIRST rule, the Vercel repoint as an operator-only act, and that Claude performs none of it',
-    runbook.length > 0 && PACKAGE_FILES.every((f) => runbook.includes(f)) && runbook.includes(PROBE_PATH) && runbook.includes('READ STATE FIRST') && runbook.includes('Claude performs none') && runbook.includes(HISTORICAL_RUN_KEY) && runbook.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`') && runbook.includes('F-E8') && runbook.includes('8/8/10/3/11/6/2/2/2/17/8'))
+    runbook.length > 0 && PACKAGE_FILES.every((f) => runbook.includes(f)) && runbook.includes(PROBE_PATH) && runbook.includes('READ STATE FIRST') && runbook.includes('Claude performs none') && runbook.includes(HISTORICAL_RUN_KEY) && runbook.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`') && runbook.includes('F-E8') && runbook.includes('8/8/10/3/11/6/2/2/2/17/8') && runbook.includes('029_exlib_plank_cross_run_idempotency.sql') && runbook.includes('migration_029_plank_cross_run_idempotency'))
   check('D5 the runbook indexes the seven package files by their exact position and forbids running any package twice',
     runbook.includes('01-snapshot-review.sql') && runbook.indexOf('01-snapshot-review.sql') < runbook.indexOf('07-run-seal.sql') && /never run (a|any|the same) package\s+(a second time|twice)/i.test(runbook))
   const probe = read(PROBE_PATH)
-  check('D6 the read-state probe is READ ONLY by declaration, ends in ROLLBACK, classifies all seven stages, and contains no write statement',
-    probe.includes('SET TRANSACTION READ ONLY;') && probe.trim().endsWith('ROLLBACK;') && [1, 2, 3, 4, 5, 6, 7].every((n) => probe.includes(`SELECT ${n}, '`) || probe.includes(`SELECT ${n} AS stage`)) && !/^\s*(UPDATE|INSERT|DELETE|GRANT|REVOKE|ALTER|DROP|CREATE|SET ROLE)\b/m.test(probe))
+  check('D6 the read-state probe is READ ONLY by declaration, ends in ROLLBACK, classifies all seven stages plus the migration-029 spent-check, and contains no write statement',
+    probe.includes('SET TRANSACTION READ ONLY;') && probe.trim().endsWith('ROLLBACK;') && probe.includes("'migration_029_plank_cross_run_idempotency'") && probe.includes('pri.catalog_id = p_cat_id') && [1, 2, 3, 4, 5, 6, 7].every((n) => probe.includes(`SELECT ${n}, '`) || probe.includes(`SELECT ${n} AS stage`)) && !/^\s*(UPDATE|INSERT|DELETE|GRANT|REVOKE|ALTER|DROP|CREATE|SET ROLE)\b/m.test(probe))
   const matrix = read(MATRIX_PATH)
   check('D7 the discovery matrix records the two places where no controlled function exists and the field-name disagreement (breathing_cue, not cues)',
     matrix.includes('Two places where "use the controlled function" has no function to use') && matrix.includes('There is **no `cues` field**'))
+  check('D13 the focused migration-029 verifiers exist (static and disposable live), the live one is executable, and neither names a hosted endpoint',
+    existsSync(path.join(repositoryRoot, MIGRATION_029_VERIFIER_PATH)) && existsSync(path.join(repositoryRoot, MIGRATION_029_LIVE_VERIFIER_PATH)) && (statSync(path.join(repositoryRoot, MIGRATION_029_LIVE_VERIFIER_PATH)).mode & 0o111) !== 0
+    && ![MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH].some((p) => /supabase\.(co|com)|vercel\.(app|com)|npx supabase|supabase (db|projects|link|login)/i.test(read(p))))
   const live = read(LIVE_VERIFIER_PATH)
   check('D8 the live verifier exists, is executable, replays the nine spent packages pinned by bytes, renders the TEST-ONLY packages through the real generator, and contains no hosted reference',
     (statSync(path.join(repositoryRoot, LIVE_VERIFIER_PATH)).mode & 0o111) !== 0 && ['exlib2k', 'exlib2o', 'exlib2p', 'exlib2q', 'exlib2r', 'exlib2y', 'exlib2u', 'exlib2z', 'weight-time-w14-catalog-admission'].every((s) => live.includes(s))
-    && live.includes('FIVE_ENTRY_FORMS_DIR') && live.includes('FIVE_ENTRY_VARIANT') && !/supabase\.(co|com)|vercel\.(app|com)|npx supabase|supabase (db|projects|link|login)/i.test(live))
+    && live.includes('FIVE_ENTRY_FORMS_DIR') && live.includes('FIVE_ENTRY_VARIANT') && live.includes('029_') && !/supabase\.(co|com)|vercel\.(app|com)|npx supabase|supabase (db|projects|link|login)/i.test(live))
   check('D9 the manifest generator regenerates the committed manifest byte-for-byte (--check)', tsx([MANIFEST_GENERATOR_PATH, '--check']).ok)
   const pkgCheck = tsx([PACKAGE_GENERATOR_PATH, '--check'])
   check('D10 the package generator regenerates the seven committed templates and the human review page byte-for-byte from the BLANK forms (--check)', pkgCheck.ok, pkgCheck.out.slice(-200))
