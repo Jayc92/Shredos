@@ -420,3 +420,184 @@ this round: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no p
 decision, no production review, publication or delivery; 029 was applied ONLY to disposable local
 clusters destroyed on exit. The next authorization decision is the W11-style migration-inventory
 retarget of the historical verifiers for 029.
+
+## 14. Final cleanup round (authorized after the independent review approved migration 029)
+
+Plain forward commits over the remediation tip `40e12a4204eb16a6e061f6ce25d6e91cffed0a0d` (an UNAMENDED
+ancestor of this section's commit; `54a9d128`, `9acd869f`, `4684874a`, `833ed54f` remain ancestors):
+
+1. `7e81362` MIGRATION_INVENTORY_RETARGET for migration 029 (65 suites) and the EXLIB-2F semantic retarget
+2. `20d1690` second order: the three static suites that pin their live harness's inventory text or blob
+3. this section
+
+Every figure below was measured at `20d1690` (static matrix) and `7e81362` (live suites; no live suite changed
+after it). The final tip and its re-measured gates are in the package manifest
+`~/Downloads/forgefit-weight-time-five-entry-endgame-m029/forgefit-weight-time-five-entry-endgame-manifest.txt`.
+
+### 14.A Migration 029: substantively APPROVED, byte-unchanged
+
+The independent review accepted 029 as designed (same signature and posture; exact current-run provenance
+kept; exact-snapshot prior approved/non-dry/sealed/unrevoked run accepted; different snapshot of the same
+logical identity, nonexistent, unapproved, dry, unsealed, revoked and unrelated runs rejected; every
+non-provenance invariant retained; no mutation; both delivery call paths inherit; no `src/` change; 026,
+027, 028 unchanged). This round did not touch it: 9,102 B, sha256
+`23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc`, still PREPARED, NOT APPLIED hosted.
+Focused verifiers unchanged at 17/0 and 48/0; endgame live unchanged at 202/0 (CASE A, A2, B before and
+after 029, C raced); endgame static 175/0 (174 plus one explicitly authorized check, B6b, below).
+
+### 14.B MIGRATION_INVENTORY_RETARGET (W14-E migration 029)
+
+The worklist was generated mechanically from the inventory-pin census of `40e12a42` (79 failing checks in
+67 suites, 0 unclassified) minus the two FROZEN verifiers: 65 non-frozen suites, 53 TypeScript and 12 live.
+The treatment is the one W11 (`76bfffcc`) and W12-C (`ff2e6ee4`) applied for 028, labelled
+`RETARGET (W14-E — migration 029)` at every edited expression:
+
+- **History preserved by anchoring.** W11's helper keeps its "exactly 001-028 with the pinned 028" claim
+  but evaluates it against the immutable published base `54a9d128` (`git ls-tree`), never the working
+  tree. The live-shell `w11_m028_pinned` does the same.
+- **Current contract added.** A self-contained W14-E block (`w14eMigration029Admitted` /
+  `w14e_m029_pinned`) admits EXACTLY ONE 029, pinned by filename, byte length and sha256, at position 29
+  behind the byte-identical 028, and refuses 030+. Boundaries move exactly-28 to exactly-29; "no 029" becomes
+  "exactly one pinned 029 and no 030"; apply-loop counts 28 to 29 (029 applied WITH the chain, which proves it
+  composes). `verify-exlib2m-live` B3 excludes 029 exactly as it excludes 027/028, because its premise is the
+  pre-027 legacy state.
+- **Second order.** `verify-exlib2k` D3 and `verify-exlib2m` C1 pin their live harness's inventory TEXT, and
+  `verify-exlib2o-application` D5 pins its live harness's BLOB; `verify-exlib2o` E1 admits the line-exact
+  retarget of `verify-exlib2n-application`. Each now anchors the W12-C state at the base and pins the W14-E
+  state now (both directions asserted). `verify-exlib1c0b` C1 lists 029 as a ninth vocabulary-bearing
+  migration. `verify-weight-time-migration-028` A1 evaluates exactly-28 at the base and exactly-29 now.
+- **Count-neutral everywhere.** No check was deleted; no allowlist was widened beyond the exact successor
+  surface. The endgame static verifier's B6 admits the 65 files ONLY where the diff from the base carries
+  the label, and B6b pins the surface at exactly those 65 and excludes the frozen two.
+
+| suite | before (40e12a42) | after |
+| --- | --- | --- |
+| `verify-exlib1a` | 25/1 | 26/0 |
+| `verify-exlib1b1` | 28/1 | 29/0 |
+| `verify-exlib1b2` | 114/1 | 115/0 |
+| `verify-exlib1b3` | 40/1 | 41/0 |
+| `verify-exlib1c0` | 41/1 | 42/0 |
+| `verify-exlib1c0a` | 23/1 | 24/0 |
+| `verify-exlib1c0b` | 24/2 | 26/0 |
+| `verify-exlib1c0b2` | 15/1 | 16/0 |
+| `verify-exlib1c0b3` | 27/1 | 28/0 |
+| `verify-exlib1c0b4` | 11/1 | 12/0 |
+| `verify-exlib1c0b5` | 11/1 | 12/0 |
+| `verify-exlib2a2b` | 25/1 | 26/0 |
+| `verify-exlib2c-batch01` | 18/1 | 19/0 |
+| `verify-exlib2c-batch02` | 18/1 | 19/0 |
+| `verify-exlib2c-batch03` | 14/1 | 15/0 |
+| `verify-exlib2c-batch04` | 15/1 | 16/0 |
+| `verify-exlib2c-batch05` | 15/1 | 16/0 |
+| `verify-exlib2c-batch06` | 16/1 | 17/0 |
+| `verify-exlib2d` | 13/1 | 14/0 |
+| `verify-exlib2f` | 11/1 | 12/0 |
+| `verify-exlib2f-application` | 8/1 | 9/0 |
+| `verify-exlib2f-live` | aborted at its inventory gate (no tally; C1 baseline 100/0) | 100/0 |
+| `verify-exlib2k` | 25/2 | 27/0 |
+| `verify-exlib2k-application` | 20/1 | 21/0 |
+| `verify-exlib2k-live` | 79/1 | 80/0 |
+| `verify-exlib2m` | 19/1 | 20/0 |
+| `verify-exlib2m-application` | 12/1 | 13/0 |
+| `verify-exlib2m-live` | 148/3 | 151/0 |
+| `verify-exlib2n` | 24/1 | 25/0 |
+| `verify-exlib2n-application` | 24/1 | 25/0 |
+| `verify-exlib2o` | 34/1 | 35/0 |
+| `verify-exlib2o-application` | 23/1 | 24/0 |
+| `verify-exlib2o-live` | 92/1 | 93/0 |
+| `verify-exlib2p` | 31/1 | 32/0 |
+| `verify-exlib2p-application` | 23/1 | 24/0 |
+| `verify-exlib2p-live` | 84/1 | 85/0 |
+| `verify-exlib2q` | 32/1 | 33/0 |
+| `verify-exlib2q-application` | 23/1 | 24/0 |
+| `verify-exlib2q-live` | 94/1 | 95/0 |
+| `verify-exlib2r` | 32/1 | 33/0 |
+| `verify-exlib2r-application` | 20/1 | 21/0 |
+| `verify-exlib2r-live` | 117/1 | 118/0 |
+| `verify-exlib2u-live` | 99/1 | 100/0 |
+| `verify-exlib2y-live` | 63/1 | 64/0 |
+| `verify-exlib2z-live` | 121/1 | 122/0 |
+| `verify-food-log-ux` | 42/1 | 43/0 |
+| `verify-phase5b3` | 181/1 | 182/0 |
+| `verify-phase5b4` | 88/1 | 89/0 |
+| `verify-phase5b5` | 101/1 | 102/0 |
+| `verify-ui1a` | 125/1 | 126/0 |
+| `verify-ui1b` | 83/1 | 84/0 |
+| `verify-ui2` | 72/1 | 73/0 |
+| `verify-ui3` | 77/1 | 78/0 |
+| `verify-ui4` | 52/2 | 54/0 |
+| `verify-ui5a` | 108/1 | 109/0 |
+| `verify-ui5b1a` | 72/1 | 73/0 |
+| `verify-ui5b1b` | 137/1 | 138/0 |
+| `verify-ui5b2` | 101/1 | 102/0 |
+| `verify-ui6a` | 57/1 | 58/0 |
+| `verify-ui6b` | 36/1 | 37/0 |
+| `verify-ui6c` | 66/1 | 67/0 |
+| `verify-ui7` | 53/1 | 54/0 |
+| `verify-weight-time-contract-live` | 52/1 | 53/0 |
+| `verify-weight-time-migration-028` | 24/1 | 25/0 |
+| `verify-weight-time-w14-live` | 65/2 | 67/0 |
+
+Every row is count-neutral (passed + failed identical before and after); `verify-exlib2f-live` returns to
+its C1 baseline of 100/0.
+
+### 14.C `verify-exlib2f-live`: a SEMANTIC retarget, count-neutral
+
+Its inventory gate exited the suite before the strict-provenance test ever ran. The gate now admits the
+pinned 029; the "Review 1: strict run-provenance invariant" ok/bad pair now asserts BOTH contracts:
+
+- **HISTORICAL** (this suite's own 001-026 world, the migration-026 helper): a link carrying a DIFFERENT
+  existing run id aborts fail-closed, exactly as originally proven; the row is not repaired or relinked.
+- **CURRENT** (RETARGET W14-E migration 029; a separate database holding the committed chain 001-029 with
+  the same fixtures): measured `applied=29 deliver_prior_exact=already_valid_idempotent row_kept=true|timed
+  current=true prior_exact=true nonexistent=false unapproved=false dry=false unsealed=false revoked=false
+  unrelated=false different_snapshot_same_logical=false`. That is the exact 029 rule: same/current run and
+  a different PRIOR run that is approved, non-dry, sealed, unrevoked and carries EXACTLY the same catalog
+  snapshot pass; nonexistent, unapproved, dry, unsealed, revoked, unrelated (no `p_cat_id`) and a
+  different snapshot under the same logical identity fail.
+
+No other EXLIB-2F behaviour changed; the suite is 100/0, its pre-029 baseline.
+
+### 14.D External package-manifest generator and audit: defect corrected
+
+The review found that the package manifest's frozen section carried `DIFFERS <-- INVESTIGATE` with the
+empty-stream sha256 for a NONEXISTENT path (`027_exlib_catalog_content_lifecycle.sql`; the real frozen
+file is `027_exlib_catalog_content_schema.sql`), and the audit still reported 95/0. Corrections, all in
+the external package tooling (nothing in the repository):
+
+- the generator resolves every frozen path at BOTH refs (`rev-parse --verify`) before any digest; a missing
+  object ABORTS the generator and no manifest (or temp file) is written; `IDENTICAL` is derived only after
+  both resolutions succeed; the empty-stream digest is refused in section 3; a finalized manifest may not
+  carry an `INVESTIGATE`/`MISSING` literal. The frozen set now proves base-to-tip byte identity for 026,
+  027 (`027_exlib_catalog_content_schema.sql`), 028, the two frozen verifiers, the W14 admission package
+  and manifest, the seed module, the three deferred-maintenance live suites and the promoted EXLIB-2U
+  package; 029 is recorded separately as the one authorized new migration;
+- the audit re-resolves EVERY frozen-section line at both refs, requires equal blob ids and the stated
+  digest, fails on any non-IDENTICAL verdict, any `INVESTIGATE`/`MISSING` literal, or the empty-stream
+  digest in section 3, and requires the three frozen migrations by name;
+- a new ablation (`w14e-manifest-missing-path-ablation.sh`) substitutes the nonexistent 027 path into a
+  copy of the generator and proves it aborts for the named reason with no manifest written, and injects
+  the `DIFFERS <-- INVESTIGATE` line into a copy of the manifest and proves the audit fails naming the
+  literal, the empty-stream digest and the nonexistent path (7/0);
+- the ancestry evidence is now produced by a tool that resolves every frozen path at both refs (the earlier
+  ad-hoc command measured "026/027/028 untouched" with the wrong 027 path, and `git diff` on a nonexistent
+  path is silently empty).
+
+### 14.E Current-battery result at `20d1690`
+
+| gate | result |
+| --- | --- |
+| full `verify-*.ts` matrix (119) | **117 exit 0; 2 non-zero (the two FROZEN verifiers only)**; 8,193 passed / 9 failed |
+| all 18 `verify-*-live.sh` suites (at `7e81362`) | **18 exit 0**; 1,656 passed / 0 failed |
+| inventory-pin census | 2 suites with failures (both frozen), 9 inventory-gate checks, **0 unclassified** |
+| `verify-weight-time-w14.ts` (frozen) | 209/3 here: B2, B8, B10 (migration count / no 029, W14-P surface, nothing under supabase/migrations); **212/0 at its own tip `361bca01`** |
+| `verify-weight-time-w14-closeout.ts` (frozen) | 106/6 here: X4b, X4c, X5a, X5c, X5d and X5e (closeout modifies exactly one file; the 65 retargeted suites are modifications, the same change-surface class); **112/0 at its own tip `54a9d128`** |
+| focused 029 static / live | 17/0 / 48/0 (unchanged) |
+| endgame static / live | 175/0 (174 + B6b) / 202/0 (unchanged) |
+| type-check / lint / targeted ESLint | 0 / 0 errors / 0 errors |
+
+X5e is a NEW frozen-descendant failure surfaced by this round; it is the same change-surface class as X5a
+and X5d and is classified, not fixed. Neither frozen verifier was modified.
+
+Nothing hosted was touched: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag,
+no human decision, no production review, publication or delivery; migration 029 was NOT applied hosted.
