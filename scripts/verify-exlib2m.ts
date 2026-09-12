@@ -107,9 +107,25 @@ const w14eMigration029Admitted = (): boolean => {
  */
 const w11LiveTextRetargeted = (path: string, historical: string, current: string): boolean => {
   const atTip = execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:${path}`, { encoding: 'utf8' })
-  const now = read(path)
+  // RETARGET (W14-E — migration 029): W12-C's "now" is the published production base 54a9d128 — the
+  // last tip where the 001-028 text was current — read from that immutable commit, never the working
+  // tree; the CURRENT text is governed by w14eLiveTextRetargeted below.
+  const now = execSync(`git show ${W14E_PRE_M029_TIP}:${path}`, { encoding: 'utf8' })
   return atTip.includes(historical) && !atTip.includes(current)
     && now.includes(current) && !now.includes(historical)
+}
+/**
+ * RETARGET (W14-E — migration 029): the live harness's inventory message moved again, from W12-C's
+ * 001-028 text to the labelled 001-029 text, because migration 029 (the F-E8 remediation, PREPARED,
+ * NOT APPLIED hosted) made the "28 files" claim false. BOTH directions are asserted between the
+ * immutable published base and the current tree: the W12-C text is present at the base and absent
+ * now, the W14-E text is present now and absent at the base. A further migration cannot be absorbed.
+ */
+const w14eLiveTextRetargeted = (path: string, w12c: string, w14e: string): boolean => {
+  const atBase = execSync(`git show ${W14E_PRE_M029_TIP}:${path}`, { encoding: 'utf8' })
+  const now = read(path)
+  return atBase.includes(w12c) && !atBase.includes(w14e)
+    && now.includes(w14e) && !now.includes(w12c)
 }
 
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -305,6 +321,10 @@ async function main(): Promise<void> {
           w11LiveTextRetargeted(LIVE,
             'B4: migrations 001-027 applied cleanly in order to',
             'B4: migrations 001-028 applied cleanly in order to') &&
+          // RETARGET (W14-E — migration 029): the full-chain-from-empty count moved 28 -> 29 (the pinned 029 WITH the chain).
+          w14eLiveTextRetargeted(LIVE,
+            'B4: migrations 001-028 applied cleanly in order to',
+            'B4 (RETARGET W14-E migration 029): migrations 001-029 applied cleanly in order to') &&
           live.includes('A5: DRIFT GATE') &&
           live.includes('A7: this suite sources the docs proposal EXACTLY ONCE')
       })())

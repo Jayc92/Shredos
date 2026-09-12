@@ -121,9 +121,25 @@ const w14eMigration029Admitted = (): boolean => {
  */
 const w11LiveTextRetargeted = (path: string, historical: string, current: string): boolean => {
   const atTip = execSync(`git show ${W11_PRE_WEIGHT_TIME_TIP}:${path}`, { encoding: 'utf8' })
-  const now = read(path)
+  // RETARGET (W14-E — migration 029): W12-C's "now" is the published production base 54a9d128 — the
+  // last tip where the 001-028 text was current — read from that immutable commit, never the working
+  // tree; the CURRENT text is governed by w14eLiveTextRetargeted below.
+  const now = execSync(`git show ${W14E_PRE_M029_TIP}:${path}`, { encoding: 'utf8' })
   return atTip.includes(historical) && !atTip.includes(current)
     && now.includes(current) && !now.includes(historical)
+}
+/**
+ * RETARGET (W14-E — migration 029): the live harness's inventory message moved again, from W12-C's
+ * 001-028 text to the labelled 001-029 text, because migration 029 (the F-E8 remediation, PREPARED,
+ * NOT APPLIED hosted) made the "28 files" claim false. BOTH directions are asserted between the
+ * immutable published base and the current tree: the W12-C text is present at the base and absent
+ * now, the W14-E text is present now and absent at the base. A further migration cannot be absorbed.
+ */
+const w14eLiveTextRetargeted = (path: string, w12c: string, w14e: string): boolean => {
+  const atBase = execSync(`git show ${W14E_PRE_M029_TIP}:${path}`, { encoding: 'utf8' })
+  const now = read(path)
+  return atBase.includes(w12c) && !atBase.includes(w14e)
+    && now.includes(w14e) && !now.includes(w12c)
 }
 
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -337,6 +353,10 @@ async function main(): Promise<void> {
       w11LiveTextRetargeted(LIVE,
         'B2: migrations 001-027 applied exactly once in order (27 files, ALL as the non-superuser postgres)',
         'B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)') &&
+      // RETARGET (W14-E — migration 029): the harness now applies 001-029 (29 files, the pinned 029 WITH the chain).
+      w14eLiveTextRetargeted(LIVE,
+        'B2: migrations 001-028 applied exactly once in order (28 files = the 27 historical migrations',
+        'B2 (RETARGET W14-E migration 029): migrations 001-029 applied exactly once in order (29 files = the F-E8 remediation 029 at its pinned 9102 bytes/sha256 on top of the 27 historical migrations + the weight_time milestone 028 at its pinned 37162 bytes/sha256, ALL as the non-superuser postgres)') &&
       live.includes('B3: the database begins with ZERO catalog/content state') &&
       live.includes('B4: representative tenant fixture in place - exactly 84 exercises') &&
       live.includes('C4: EVERY loaded value equals the admitted artifact byte for byte') &&

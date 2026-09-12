@@ -173,10 +173,19 @@ const frozenVsSource = (p: string): boolean =>
  * anyone, still fails this check loudly.
  */
 const W11_LIVE_RETARGETED_BLOB = 'eb0bdabdf2ef2be9cf1fb361b9f78f0e099fb399'
+/**
+ * RETARGET (W14-E — migration 029): W12-C's exact current-blob pin (eb0bdabd) is now evaluated at the
+ * immutable published production base 54a9d128 — the last tip where it was the harness's blob — and
+ * the CURRENT blob is pinned exactly to W14-E's labelled inventory retarget of the same harness
+ * (029 applied WITH the chain: 28 -> 29 files, the pinned 029 required, no 030). The freeze claim is
+ * neither dropped nor weakened: any further edit to the harness, by anyone, still fails loudly.
+ */
+const W14E_LIVE_RETARGETED_BLOB = 'aade69aaf55166b819d87dd699b7b2c543f087d5'
 const frozenThroughClosureVsSource = (p: string): boolean =>
   execSync(`git rev-parse ${W11_PRE_WEIGHT_TIME_TIP}:${p}`, { encoding: 'utf8' }).trim() ===
     execSync(`git rev-parse ${SOURCE_TIP}:${p}`, { encoding: 'utf8' }).trim() &&
-  execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim() === W11_LIVE_RETARGETED_BLOB
+  execSync(`git rev-parse ${W14E_PRE_M029_TIP}:${p}`, { encoding: 'utf8' }).trim() === W11_LIVE_RETARGETED_BLOB &&
+  execSync(`git hash-object "${p}"`, { encoding: 'utf8' }).trim() === W14E_LIVE_RETARGETED_BLOB
 
 async function main(): Promise<void> {
   console.log('EXLIB-2O hosted-load application-evidence verification (EXECUTED ONCE by ChatGPT; LOCAL-ONLY)')
