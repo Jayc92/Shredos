@@ -1,6 +1,13 @@
 # weight_time five-entry endgame: local preparation report (W14-E)
 
-STATUS: LOCAL PREPARATION COMPLETE. FROZEN FOR ONE INDEPENDENT REVIEW. NOTHING HOSTED WAS TOUCHED.
+STATUS: LOCAL PREPARATION COMPLETE. CORRECTED ONCE AFTER INDEPENDENT REVIEW (section 12). FROZEN FOR A
+DELTA REVIEW. NOTHING HOSTED WAS TOUCHED.
+
+> **Correction round C1 (2026-09-12).** Sections 1 to 11 below are the original W14-E report, kept as
+> history. Where they describe a five-only delivery run (section 3 items I and J, section 6's stage-6
+> vector, section 7, section 9's figures) they are SUPERSEDED by section 12, which records the
+> cumulative run required by review finding R-E1, the content corrections, the new artifact tip and
+> its re-measured gates, and the new blocking finding **F-E8**.
 
 Every figure in this report is attributed to the named commit it was measured at. A report cannot
 state its own hash or the tip it will be committed into, so the **final candidate tip, the SHA-256 of
@@ -183,3 +190,118 @@ verifier, to the W14 closeout verifier, or to any migration. Any human decision.
 3. The same generator renders the executable packages; a new commit; a second independent review.
 4. Seven one-use hosted acts, each with a spent-check first, by Joseph/ChatGPT only; then the separate
    Vercel run-key act. Claude performs none of them.
+
+## 12. Correction round C1 (independent review of `9acd869f`)
+
+Plain forward commits over the reviewed tip `9acd869f9ff875a0310bf42841339d0608228c70` (tree
+`12161a985e993f2c0ce482a9294c2970f4f8c188`), which is an UNAMENDED ancestor of the correction tip:
+
+1. `ac41ba7216abed900d54597b3620274fefce0022` content corrections, cumulative-run authority form, corrected documents
+2. `2cdb010ca12387715c1f958c7f017c82c036f7fb` (tree `099c2267841cb59272e799ae3dfdd55cd9ba1e01`) cumulative stage 6/7, regenerated manifest and templates, probe, both verifiers
+
+Every figure in this section was measured at `2cdb010c`. The final tip (this section's commit) and its
+re-measured gates are in the correction package manifest
+`~/Downloads/forgefit-weight-time-five-entry-endgame-c1/forgefit-weight-time-five-entry-endgame-manifest.txt`.
+The prior package `~/Downloads/forgefit-weight-time-five-entry-endgame/` is unchanged historical evidence.
+
+### 12.1 R-E1: the delivery run is now CUMULATIVE
+
+The five-only run was rejected as a replacement of the plank release. Stage 6 now creates one run whose
+membership is the SIX membership rows of the sealed historical run `exlib2u-plank-release1-staged-v1`
+(3 exercise + 3 alias members) COPIED from that run's own rows, plus the five weight_time identities:
+8 exercise + 3 alias = 11 rows. The six lines are DERIVED, not retyped: the manifest generator parses
+them from the promoted `docs/exlib2u-staged-run-package.sql` (bound by bytes), the static verifier
+parses them independently from the same package and requires agreement (M14, F6, T6.i, T7.h), and the
+stage-6 package refuses unless the live historical run still resolves, through governed identity, to
+exactly those six lines and is sealed, approved, non-dry and unrevoked. The historical run is never
+mutated, revoked or edited; its row and its six membership rows are proven byte-identical after every
+stage and after every delivery.
+
+Vectors: stage 6 `8/8/10/3/11/6/2/2/1/6/8` -> `8/8/10/3/11/6/2/2/2/17/8`; stage 7 unchanged; the seal
+returns `exercise_members 8, alias_members 3`. Family C's one offered membership choice is now
+`CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES`; every decision leaf is still null.
+
+### 12.2 Delivery, measured for three user histories (the database is the oracle)
+
+| history | measured result |
+| --- | --- |
+| CASE A, fresh user with zero rows | eligible 8, inserted 8, alias_inserted 3, every other counter 0, `plank_disposition = delivered_canonical_timed_plank`; Plank timed/mobility with the catalog anatomy, the five weight_time/strength; a second and third delivery: skipped_already_delivered 8, alias_already_delivered 3, `already_valid_idempotent`; 8 exercises, 3 aliases, 10 anatomy rows (the catalog's own count) after three deliveries |
+| CASE A2, legacy user with the pristine bodyweight Plank seed | migration 026's in-place correction: eligible 8, inserted 7 (accounting offset 1), `corrected_and_linked_pristine_seed`, alias_inserted 1, alias_added_to_existing 2; the seed row becomes timed/mobility linked to the Plank snapshot and the NEW run, anatomy replaced in place, one correction record |
+| CASE B, user who received the plank release through the historical run | **REFUSED** (finding F-E8 below): `deliver_catalog_exercises: inconsistent prior Plank reconciliation requires separate investigation`; nothing changes for the user (the five are not added either); the refusal repeats identically; the user's historical delivery stays intact and idempotent under the historical key |
+
+The historical run still delivers under its own key, and the delivery predicate matches exactly the two
+sealed runs.
+
+### 12.3 F-E8, a BLOCKING finding outside this round's authority
+
+`exlib_plank_link_valid` (migration 026) validates an existing Plank link with STRICT run provenance:
+`p_link.import_run_id = p_run_id`, the DELIVERING run. A Plank row delivered by the historical run
+therefore never validates against the cumulative run, and the existing-link path raises rather than
+skipping. Consequence, stated precisely: after a repoint of `CATALOG_DELIVERY_RUN_KEY` to the cumulative
+run, every user who already received the plank release would fail exercise initialization on every
+request (the application's fail-closed law), and none of them would receive the five. Fresh users and
+pristine-seed users receive the cumulative release correctly. The number of affected users is UNKNOWN
+until re-measured hosted.
+
+CASE B as specified by the review ("exactly the five new exercises are added") therefore CANNOT be
+satisfied by any package in this round. Resolving it needs a migration (a cross-run idempotency rule for
+the Plank link) or an application change (for example delivering the historical key first for such
+users); both are outside this round (no migration 029, no `src/` change). The proof pins the refusal so
+the finding is mechanical, not narrative (live checks FC1 to FC5). **The Vercel repoint must not proceed
+until F-E8 is adjudicated**; the runbook and the dependency document say so.
+
+### 12.4 Content corrections (carrier now 13,155 B, sha256 `8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb`)
+
+132 and 133: the half-unweighted-time heuristic is replaced by light-load / stable-position / gradual
+progression; breathing cues are steady continuous breathing while keeping the brace, without
+deterministic claims; partner placement and the no-neck / no-lower-back rule are kept. 137: the
+dipping belt is the sole recommended loading method (the between-the-feet plate is removed from setup,
+equipment and safety); the full-minute prerequisite becomes a stable, controlled unweighted hang. 138
+and 139: standardized foot placement (shins roughly vertical at the target depth, whole foot planted)
+replaces the knees-past-toes language, and the mistake cue becomes feet too close to the wall lightening
+the heels. 139: the vest is described by hands-free / torso load distribution. `authored_at` is
+2026-09-12 for all five; nothing is reviewed or approved.
+
+| line | content payload fingerprint (C1) |
+| --- | --- |
+| 132 | `fb04c3e93b3dc09e0b64879c9fb9c6141f511a32fc0586119b4399259dee43a8` |
+| 133 | `454c9158bb79a07bb203f336d147ce6b6efab1cd373c7fb463fe92f4654efe1f` |
+| 137 | `0ab5a7048fc6a1619299281b9a200a9323c7793c91e89d6fea854b54a88e21a3` |
+| 138 | `f3606f4aeef436e7c0b90fbc6585d6845bfb32024d47707eeb813138de018f98` |
+| 139 | `552dc5810ff446ec219304e19adab0429f560323090fd3651ae57c0241362f45` |
+
+Family B form version 2: confirmation keys renamed to match (132 load guidance, 137 dipping belt as the
+sole loading method, 139 hands-free / torso distribution) and a foot-placement confirmation added for 138
+and 139; the carrier digest is re-bound. Family B's reviewer-role question RQ-4 stands.
+
+### 12.5 New negative controls (all named in the transcripts)
+
+Live: missing historical exercise member, missing historical alias member, duplicate historical
+membership, substituted historical member (count-camouflaged; refused by the unique index), only-the-five
+membership, historical run mutation inside the package, historical run revocation inside the package
+(the run stays unrevoked on the clone), wrong historical source key, wrong new key at the seal, sealing
+over a five-only run (refused before sealing), direct edits/deletes/inserts on the historical run
+(trigger-refused), and stage 6 over a revoked historical run (refused). Static: form and manifest
+historical-six drift, five-only manifest membership, carry-forward INSERT removed or re-sourced, a
+promoted historical line dropped from the gate, the five-only seal shape.
+
+### 12.6 Validation at `2cdb010c`
+
+| gate | result |
+| --- | --- |
+| static endgame verifier | 170/0, exit 0 |
+| disposable-PostgreSQL endgame verifier | 180/0, exit 0 (three delivery histories; CASE B refusal measured) |
+| W14 closeout verifier | 110/2 (X5a, X5d; F-E1 CLOSED AS DESIGNED by the review); 112/0 at its own tip |
+| frozen W14-P verifier | 211/1 (B8; F-1 accepted); 212/0 at its own tip |
+| full `verify-*.ts` matrix (118) | 116 exit 0; the 2 non-zero are the two frozen verifiers; 8,177 passed / 3 failed |
+| all 17 `verify-*-live.sh` suites | 17 exit 0; 1,586 passed / 0 failed |
+| type-check / lint / targeted ESLint | 0 / 0 errors, 124 pre-existing warnings, none naming five-entry / 0 bytes |
+| sanitized production build | exit 0; served assets 0 five-entry, 0 hosted ref, 0 hosted host; placeholder in 19 files; the one cache mention is `.next/cache/.tsbuildinfo` (F-E7) |
+| ancestry | base and `9acd869f` are ancestors; 0 merges; 0 commits with parent count ≠ 1; nothing pushed |
+
+### 12.7 Unchanged
+
+Snapshot-review mechanism, the migration-027 controlled functions, the seven-stage separation, READ STATE
+FIRST, authority elevation and restoration, sealing semantics, migration 028 (byte-frozen; no 029), the
+frozen W14-P and W14 closeout verifiers, F2/F2a/F2b/F3/F4, the carries. No `src/` change. No hosted
+Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag, no human decision.
