@@ -305,3 +305,118 @@ Snapshot-review mechanism, the migration-027 controlled functions, the seven-sta
 FIRST, authority elevation and restoration, sealing semantics, migration 028 (byte-frozen; no 029), the
 frozen W14-P and W14 closeout verifiers, F2/F2a/F2b/F3/F4, the carries. No `src/` change. No hosted
 Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag, no human decision.
+
+## 13. F-E8 remediation: migration 029 (authorized after independent review of `4684874a`)
+
+Plain forward commits over the C1 tip `4684874a1cb39c4bdaa82d64a1050efae4481d0e`, which is an
+UNAMENDED ancestor of this section's commit; the production base `54a9d128` and the reviewed tip
+`9acd869f` remain ancestors too:
+
+1. `e527b8f` migration 029 and its two focused verifiers
+2. `833ed54f3a5c36ace6f89590d10d33a2ae478f94` (tree `5cfe83a2c56d0331c313ccefa57c607ca9d5a452`) W14-E reintegration
+
+Every figure in this section was measured at `833ed54f`. The final tip (this section's commit) and its
+re-measured gates are in the remediation package manifest
+`~/Downloads/forgefit-weight-time-five-entry-endgame-m029/forgefit-weight-time-five-entry-endgame-manifest.txt`.
+The prior packages (`…-endgame/`, `…-endgame-c1/`) are unchanged historical evidence.
+
+### 13.1 What 029 is
+
+`supabase/migrations/029_exlib_plank_cross_run_idempotency.sql` (9,102 B, sha256
+`23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc`) is ONE transaction containing
+exactly a `CREATE OR REPLACE FUNCTION exlib_plank_link_valid(...)` with the existing six-parameter
+signature and a re-assertion of the internal-only EXECUTE posture. The body is migration 026's body with
+ONE clause replaced (evidence `20-helper-before-after.diff`):
+
+| | provenance clause |
+| --- | --- |
+| before (026) | `p_link.import_run_id = p_run_id` |
+| after (029) | `import_run_id IS NOT NULL` AND (`= p_run_id` OR EXISTS a run `pr` with `pr.id = import_run_id`, `approved_for_delivery = true`, `dry_run = false`, `sealed_at IS NOT NULL`, `revoked_at IS NULL`, joined to a `exercise_catalog_run_items` row with `catalog_id = p_cat_id`) |
+
+Everything else is carried verbatim: ownership, `timed`, `mobility`, exact `catalog_id`, exact
+`catalog_logical_id`, exact anatomy (with the same `FOR UPDATE` row lock), exact canonical or "(timed)"
+name with its claim. The exact catalog snapshot is the compatibility boundary: a prior run that carries
+only a different snapshot of the same logical identity does not qualify. Nothing is mutated. A NULL
+`import_run_id` now returns FALSE explicitly; under 026 the comparison was SQL unknown and only the
+caller's `IF` made it fail closed. `deliver_catalog_exercises` is not redefined: 028's body calls the
+helper from the existing-link path and from the raced logical-index recovery path, and both gain the rule
+through the helper (static C1 pins exactly two call sites passing `v_run.id`). Migrations 026, 027 and 028
+are byte-identical; no `src/` change was needed, so none was made.
+
+### 13.2 Delivery, re-measured with 029 (the database is the oracle)
+
+| history | measured result |
+| --- | --- |
+| CASE A, fresh user | unchanged from C1: eligible 8, inserted 8, alias_inserted 3, `delivered_canonical_timed_plank`; 2nd/3rd delivery idempotent |
+| CASE A2, pristine bodyweight Plank seed | unchanged from C1: 026's in-place correction, `corrected_and_linked_pristine_seed`; idempotent |
+| CASE B, existing historical plank user, BEFORE 029 (clone) | still REFUSED: `inconsistent prior Plank reconciliation requires separate investigation` (FC1: the defect reproduced) |
+| CASE B, the same user, WITH 029 | **eligible 8, inserted 5 (exactly the five), skipped_already_delivered 3, alias_already_delivered 3, `plank_disposition = already_valid_idempotent`**; the three historical exercise rows and three alias rows byte-identical with their HISTORICAL `import_run_id`; the historical anatomy rows byte-identical; no duplicate (one row per identity); the user grew by exactly five, all five carrying the NEW run id; 2nd and 3rd delivery: skipped 8 / alias_already 3 / inserted 0; the historical key still idempotent under its own name (FC2 to FC8) |
+| CASE C, raced logical-index path | a REAL two-session race: a second session commits a prior-run 'Plank (timed)' row inside the delivery window (a fixture BEFORE INSERT trigger blocks on a transaction-scoped advisory lock the competitor holds until commit). With 029: the INSERT collides on the logical index, the raced branch locks the committed winner and the shared helper accepts it: eligible 8, inserted 7 (never Plank), skipped_already_delivered 1, aliases 1 inserted + 2 added to the existing Plank, `already_valid_idempotent`; the winner keeps its historical run id; the second delivery is idempotent (FE1, FE2, FE2b). The IDENTICAL race on the pre-029 clone raises the F-E8 refusal and rolls back completely (FE3, FE3b). A same-transaction trigger simulation was tried first and cannot work: the function's BEGIN/EXCEPTION block is a subtransaction whose rollback also undoes what a trigger inserted; the harness now validates the planted competitor against the helper directly (FE0b) so the race tests the path, not a malformed competitor |
+
+Order: the harness applies 001 to 028, runs the seven stages on that exact hosted 028 world, and applies
+029 once afterwards (E12: nothing in the catalog moves, the posture is unchanged). Section N applies 029
+to the untouched pre-state FIRST and runs all seven stages to the same vector, historical run and
+authority baseline: none of the seven packages calls the helper, so 029 is not a precondition of stages
+1 to 7. It IS a strict precondition of stage 8 (the run-key repoint) and of any cumulative delivery. A
+sabotaged 029 (a failing statement before COMMIT) exits non-zero and leaves the helper definition
+byte-identical to 028's, with the F-E8 refusal still present (N4 to N6).
+
+### 13.3 Negative controls (focused live verifier, direct helper matrix, all named)
+
+Prior run nonexistent (in-memory composite; the FK forbids a stored row), unapproved, dry, unsealed,
+revoked, unrelated-sealed-without-the-snapshot, different-snapshot-same-logical (a cloned catalog world
+with a Plank v2), NULL run: all FALSE. Anatomy drift, `tracking_mode` drift, `exercise_type` drift,
+`catalog_id` drift, `catalog_logical_id` drift, name-claim drift: all FALSE. Positive controls: current
+run exact provenance TRUE (unchanged semantics), exact-snapshot prior run TRUE (the new rule). Through
+`deliver_catalog_exercises`: the pre-029 refusal, the post-029 fix, idempotency. Static: 026 and 028
+byte-pinned, 029 once and last, one transaction with exactly the two statements, signature and posture
+unchanged, body equality with the clause removed, the new clause exactly once, no mutation, lock
+discipline, two call sites, hosted-order statement.
+
+### 13.4 Validation at `833ed54f`
+
+| gate | result |
+| --- | --- |
+| focused 029 static verifier | 17/0, exit 0 |
+| focused 029 disposable-PostgreSQL verifier | 48/0, exit 0 |
+| static endgame verifier | 174/0, exit 0 (29 migrations, 029 byte-bound and the only `supabase/` change) |
+| disposable-PostgreSQL endgame verifier | 202/0, exit 0 (CASE A, A2, B before and after 029, C raced; order independence; sabotage rollback) |
+| manifest generator `--check` / package generator `--check` | 0 / 0 (byte-deterministic; C1 templates unchanged) |
+| type-check / lint | 0 / 0 errors |
+| full `verify-*.ts` matrix (119) | 64 exit 0; 55 non-zero; 8,137 passed / 64 failed |
+| all 18 `verify-*-live.sh` suites | 6 exit 0; 12 non-zero; 1,542 passed / 14 failed |
+| inventory-pin census of every failing check | 79 failing checks in 67 suites; **79 INVENTORY-GATE, 0 UNCLASSIFIED** |
+
+The census (evidence `19-inventory-pin-census.txt`) classifies every one of the 79 failing checks by its
+own text: "exactly 22 / 24 / 25 / 26 / 27 / 28 migrations", "no 023 / 025 / 026 / 028 / 029", the
+W14-P B8 and W14 closeout X4b/X4c/X5a/X5c/X5d change-surface allowlists, or "nothing under
+supabase/". Not one names a behavioural check. These are the same pre-existing inventory pins that
+migration 028 tripped in W11 and W12-C, where they were retargeted under their own authorizations
+(`MIGRATION_INVENTORY_RETARGET`); this round did NOT retarget any of them (STOP-and-report rule for
+pre-existing verifiers). Two consequences to note: `verify-exlib2f-live.sh` exits at its fingerprint
+gate before it boots a cluster, so its "Review 1: strict run-provenance invariant (different existing
+run id)" check did not run at all; when its inventory pin is retargeted, that check will fail
+SEMANTICALLY under 029 if its "different existing run" fixture is a sealed run carrying the Plank
+snapshot, because that is now exactly the authorized behaviour. The frozen W14-P verifier's B8 (F-1) and
+the W14 closeout verifier's X5a/X5d (F-E1) remain accepted as designed; neither was modified.
+
+### 13.5 Unchanged
+
+The five content payload fingerprints are exactly C1's (132 `fb04c3e9…`, 133 `454c9158…`, 137
+`0ab5a704…`, 138 `f3606f4a…`, 139 `552dc581…`; carrier 13,155 B, sha256 `8fa1d340…`). The cumulative
+membership is exactly C1's: the historical six carried forward plus the five, 8 exercise + 3 alias = 11;
+stage 6 `8/8/10/3/11/6/2/2/1/6/8 -> 8/8/10/3/11/6/2/2/2/17/8`. The seven templates are byte-identical.
+Every human decision leaf is still null. Snapshot review, the 027 controlled functions, the seven-stage
+separation, READ STATE FIRST, authority elevation and restoration, sealing semantics, migrations
+026/027/028, the frozen W14-P and W14 closeout verifiers, F2/F2a/F2b/F3/F4, the carries: untouched.
+
+### 13.6 Hosted order, stated once
+
+Stages 1 to 7 and migration 029 may be executed in either order relative to each other; 029 MUST read
+`APPLIED` in the probe row `migration_029_plank_cross_run_idempotency` before the Vercel run-key repoint
+(stage 8) and before any user receives the cumulative run. 029 is a one-use hosted act with its own
+instruction and a spent-check first (READ STATE FIRST; `MIXED` is a STOP). Nothing hosted was touched by
+this round: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag, no human
+decision, no production review, publication or delivery; 029 was applied ONLY to disposable local
+clusters destroyed on exit. The next authorization decision is the W11-style migration-inventory
+retarget of the historical verifiers for 029.
