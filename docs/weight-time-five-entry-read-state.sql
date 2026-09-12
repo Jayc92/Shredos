@@ -14,7 +14,8 @@
 --   MIXED        an impossible-by-design partial state - STOP, do not run any
 --                package, report the exact rows; a retry will not fix it
 --   ABSENT       (stage 7 only) no five-entry run exists yet
--- plus the eleven-term catalog vector and the five-entry run's posture.
+-- plus the eleven-term catalog vector and the new cumulative run's posture (the historical
+-- plank run's six members carried forward plus the five: 8 exercise + 3 alias members).
 --
 -- Hosted execution of this probe is READ ONLY and is still an operator act
 -- (Joseph/ChatGPT) on ShredOS; Claude never runs it hosted. The disposable
@@ -96,7 +97,7 @@ classify AS (
   UNION ALL
   SELECT 6, 'run_staging',
          CASE WHEN (SELECT count(*) FROM runs) = 0 THEN 'NOT_APPLIED'
-              WHEN (SELECT count(*) FROM runs) = 1 AND (SELECT five_members FROM runs) = 5 AND (SELECT exercise_members FROM runs) = 5 AND (SELECT alias_members FROM runs) = 0 THEN 'APPLIED'
+              WHEN (SELECT count(*) FROM runs) = 1 AND (SELECT five_members FROM runs) = 5 AND (SELECT exercise_members FROM runs) = 8 AND (SELECT alias_members FROM runs) = 3 THEN 'APPLIED'
               ELSE 'MIXED' END,
          'non_plank_runs=' || (SELECT count(*) FROM runs) || ' keys=' || coalesce((SELECT string_agg(run_key, ',' ORDER BY run_key) FROM runs), '<none>')
            || ' members=' || coalesce((SELECT string_agg(exercise_members::text || '+' || alias_members::text || ' (five=' || five_members::text || ')', ',' ORDER BY run_key) FROM runs), '<none>')

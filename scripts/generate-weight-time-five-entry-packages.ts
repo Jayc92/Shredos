@@ -124,11 +124,14 @@ interface ManifestEntry {
 interface StageVector { stage: number; name: string; before: string; after: string; moves: string }
 interface Manifest {
   production_base: { commit: string; tree: string }
-  hosted_pre_state: { vector: string; historical_run: { run_key: string } }
+  hosted_pre_state: { vector: string; historical_run: { run_key: string; members: string[] } }
   stage_vectors: StageVector[]
   stage_packages: { stage: number; path: string }[]
   admission_source_sha256: { value: string; bytes: number }
-  delivery_run: { proposed_run_key: string; must_not_reuse: { forbidden_run_key: string } }
+  delivery_run: {
+    proposed_run_key: string; must_not_reuse: { forbidden_run_key: string }
+    expected_membership: { exercise_members: number; alias_members: number; total_items: number; carried_forward_members: string[]; expected_member_lines: string[] }
+  }
   scope: { deferred_out_of_scope: { logical_ids: string[]; names: string[] } }
   bound_artifacts: { path: string; bytes: number; sha256: string }[]
   entries: ManifestEntry[]
@@ -160,7 +163,7 @@ interface FormC {
     product_approver_identity?: { value?: unknown; product_approved_at?: unknown }
     legal_approver_identity?: { value?: unknown; legal_approved_at?: unknown }
     approval_rationale?: { value?: unknown }
-    run_membership?: { value?: unknown; exact_logical_ids?: string[] }
+    run_membership?: { value?: unknown; exact_new_logical_ids?: string[]; carried_forward_from_historical_run?: { run_key?: string; members?: string[] } }
   }
 }
 
@@ -306,13 +309,18 @@ function resolveFamilyC(form: FormC, manifest: Manifest): Resolution<FamilyCDeci
   if (runKey === HISTORICAL_RUN_KEY || runKey === manifest.delivery_run.must_not_reuse.forbidden_run_key) {
     fail(`family C run_key_literal reuses the historical plank release key ${HISTORICAL_RUN_KEY}; refusing`)
   }
-  if (leaves.run_membership !== 'ALL_FIVE_WEIGHT_TIME_IDENTITIES') {
-    fail(`family C run_membership must be the one offered choice ALL_FIVE_WEIGHT_TIME_IDENTITIES, got ${JSON.stringify(leaves.run_membership)}`)
+  if (leaves.run_membership !== 'CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES') {
+    fail(`family C run_membership must be the one offered choice CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES, got ${JSON.stringify(leaves.run_membership)}`)
   }
-  const expectedIds = (r.run_membership?.exact_logical_ids ?? []) as string[]
+  const expectedIds = (r.run_membership?.exact_new_logical_ids ?? []) as string[]
   const governed = manifest.entries.map((e) => e.logical_id)
   if (JSON.stringify([...expectedIds].sort()) !== JSON.stringify([...governed].sort())) {
-    fail('family C run_membership.exact_logical_ids disagrees with the manifest\'s five governed identities')
+    fail('family C run_membership.exact_new_logical_ids disagrees with the manifest\'s five governed identities')
+  }
+  const carried = r.run_membership?.carried_forward_from_historical_run
+  if (carried?.run_key !== HISTORICAL_RUN_KEY
+    || JSON.stringify([...(carried?.members ?? [])].sort()) !== JSON.stringify([...manifest.hosted_pre_state.historical_run.members].sort())) {
+    fail('family C run_membership.carried_forward_from_historical_run disagrees with the manifest\'s historical six (derived from the promoted EXLIB-2U package)')
   }
   return {
     state: 'RESOLVED',
@@ -510,8 +518,10 @@ const KNOWN_VARIANTS = [
   'extra_content_stage2', 'payload_drift_stage2', 'payload_call_drift_stage2', 'no_revoke_stage2', 'sabotage_post_stage2',
   'blank_reviewer_stage3', 'tuple_drift_stage3',
   'wrong_carrier_sha_stage4', 'wrong_fingerprint_stage4',
-  'historical_key_stage6', 'missing_member_stage6', 'extra_member_stage6', 'swap_member_stage6', 'carry_stage6', 'sabotage_post_stage6',
-  'sabotage_post_stage7',
+  'historical_key_stage6', 'missing_member_stage6', 'extra_member_stage6', 'carry_stage6', 'sabotage_post_stage6',
+  'missing_historical_exercise_stage6', 'missing_historical_alias_stage6', 'duplicate_member_stage6', 'substitute_historical_stage6',
+  'only_five_stage6', 'only_five_committing_stage6', 'mutate_historical_stage6', 'revoke_historical_stage6', 'wrong_historical_key_stage6',
+  'sabotage_post_stage7', 'wrong_key_stage7',
 ] as const
 type VariantName = typeof KNOWN_VARIANTS[number]
 if (variantName !== '' && !(KNOWN_VARIANTS as readonly string[]).includes(variantName)) fail(`unknown variant ${variantName}`)
@@ -1697,8 +1707,18 @@ function runEvidenceGate(label: string, alias: string): string {
     RAISE EXCEPTION '${label}: the run does not carry the reserved family C approval evidence character-for-character; refusing';
   END IF;`
 }
+/** The eleven cumulative lines: the historical six (from the manifest, derived from the promoted 2U package) plus the five new exercise members. */
+const HISTORICAL_MEMBER_LINES: readonly string[] = manifest.hosted_pre_state.historical_run.members
+const CUMULATIVE_MEMBER_LINES: readonly string[] = manifest.delivery_run.expected_membership.expected_member_lines
+if (JSON.stringify([...CUMULATIVE_MEMBER_LINES].sort()) !== JSON.stringify(HISTORICAL_MEMBER_LINES.concat(manifest.entries.map((e) => `exercise#${e.logical_id}`)).sort())
+  || CUMULATIVE_MEMBER_LINES.length !== 11 || manifest.delivery_run.expected_membership.exercise_members !== 8 || manifest.delivery_run.expected_membership.alias_members !== 3) {
+  fail('the manifest\'s cumulative membership is not exactly the historical six plus the five new exercise members (8 exercise + 3 alias = 11)')
+}
+function membershipLinesSql(lines: readonly string[]): string {
+  return [...lines].sort().map((l) => `'${l.replace(/'/g, "''")}'`).join("\n     || E'\\n' || ")
+}
 function membershipLinesExpected(): string {
-  return manifest.entries.map((e) => `exercise#${e.logical_id}`).sort().map((l) => `'${l}'`).join("\n     || E'\\n' || ")
+  return membershipLinesSql(variant === 'only_five_committing_stage6' ? manifest.entries.map((e) => `exercise#${e.logical_id}`) : CUMULATIVE_MEMBER_LINES)
 }
 function membershipGate(label: string, phase: 'refusing' | 'rolling back everything'): string {
   return `  SELECT string_agg(x.member, E'\\n' ORDER BY x.member)
@@ -1716,7 +1736,7 @@ function membershipGate(label: string, phase: 'refusing' | 'rolling back everyth
     ) x;
   IF v_line IS DISTINCT FROM
         ${membershipLinesExpected()} THEN
-    RAISE EXCEPTION '${label}: the membership is not exactly the five governed exercise members with zero alias members; ${phase} (got: %)', coalesce(v_line, '<none>');
+    RAISE EXCEPTION '${label}: the membership is not exactly the eleven cumulative lines (the historical run''s six carried forward plus the five new exercise members); ${phase} (got: %)', coalesce(v_line, '<none>');
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_run_items ri
        WHERE ri.run_id <> v_run.id
@@ -1728,8 +1748,8 @@ function membershipGate(label: string, phase: 'refusing' | 'rolling back everyth
     INTO v_exercise_members, v_alias_members
   FROM public.exercise_catalog_run_items ri
   WHERE ri.run_id = v_run.id;
-  IF COALESCE(v_exercise_members, 0) <> 5 OR COALESCE(v_alias_members, 0) <> 0 THEN
-    RAISE EXCEPTION '${label}: seal-shape counts are %/% (expected 5 exercise + 0 alias members); ${phase}', v_exercise_members, v_alias_members;
+  IF COALESCE(v_exercise_members, 0) <> ${variant === 'only_five_committing_stage6' ? 5 : 8} OR COALESCE(v_alias_members, 0) <> ${variant === 'only_five_committing_stage6' ? 0 : 3} THEN
+    RAISE EXCEPTION '${label}: seal-shape counts are %/% (expected 8 exercise + 3 alias members); ${phase}', v_exercise_members, v_alias_members;
   END IF;
   SELECT count(*) INTO v_unready
     FROM public.exercise_catalog_run_items ri
@@ -1760,16 +1780,55 @@ function publishedFiveGate(label: string): string {
   END IF;`
   }).join('\n')
 }
+function historicalMembershipGate(label: string, historicalKey: string): string {
+  return `  -- THE HISTORICAL SOURCE RUN, resolved back through governed identity (never
+  -- surrogates): it must still be sealed, approved, non-dry, unrevoked and carry
+  -- EXACTLY the six membership lines the promoted EXLIB-2U package asserted and
+  -- the EXLIB-2Z seal froze. These six rows are COPIED into the new run below;
+  -- nothing here writes the historical run.
+  SELECT string_agg(x.member, E'\\n' ORDER BY x.member)
+    INTO v_line
+    FROM (
+      SELECT 'exercise#' || c.logical_id::text AS member
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog c ON c.id = ri.catalog_id
+       WHERE h.run_key = '${historicalKey}' AND ri.catalog_id IS NOT NULL
+      UNION ALL
+      SELECT 'alias#' || a.logical_id::text || '#' || a.alias
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id
+       WHERE h.run_key = '${historicalKey}' AND ri.catalog_alias_id IS NOT NULL
+    ) x;
+  IF v_line IS DISTINCT FROM
+        ${membershipLinesSql(HISTORICAL_MEMBER_LINES)} THEN
+    RAISE EXCEPTION '${label}: the historical source run ${historicalKey} does not carry exactly the promoted six membership lines (3 exercise + 3 alias members) - nothing can be carried forward; refusing (got: %)', coalesce(v_line, '<none>');
+  END IF;
+  IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
+       WHERE r.run_key = '${historicalKey}'
+         AND r.approved_for_delivery = true AND r.dry_run = false
+         AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL) <> 1 THEN
+    RAISE EXCEPTION '${label}: the historical source run ${historicalKey} is not exactly one sealed, approved, non-dry, unrevoked run; refusing';
+  END IF;`
+}
 function renderStage6(): string {
   const label = 'W14E-6 run staging'
   const executable = stageIsExecutable(6)
   const v = stageVector(6)
+  const sourceKey = variant === 'wrong_historical_key_stage6' ? 'exlib2u-plank-release1-staged-v0' : HISTORICAL_RUN_KEY
   let members: string[] = manifest.entries.map((e) => e.logical_id)
   if (variant === 'missing_member_stage6') members = members.slice(0, 4)
   if (variant === 'extra_member_stage6') members = members.concat([PLANK_ID])
-  if (variant === 'swap_member_stage6') members = members.slice(0, 4).concat([PLANK_ID])
   if (variant === 'carry_stage6') members = members.concat([CARRY_ID_FOR_CONTROLS])
   const membersSql = members.map((m) => `'${m}'`).join(',\n                        ')
+  const copyExercise = variant !== 'only_five_stage6' && variant !== 'only_five_committing_stage6'
+  const copyAlias = copyExercise
+  const exerciseFilter = variant === 'missing_historical_exercise_stage6' ? `\n   AND c.logical_id <> '${PLANK_ID}'` : ''
+  const aliasFilter = variant === 'missing_historical_alias_stage6' ? `\n   AND a.alias <> 'Front plank'` : ''
+  const exerciseSelectColumn = variant === 'substitute_historical_stage6'
+    ? `CASE WHEN c.logical_id = '${PLANK_ID}' THEN (SELECT d.id FROM public.exercise_catalog d WHERE d.logical_id = 'e21b2c00-0000-4000-a000-000000000002' AND d.is_active = true) ELSE ri.catalog_id END`
+    : 'ri.catalog_id'
   const captureColumns = {
     logical_digest: DIGEST.logical,
     snapshots_digest: DIGEST.snapshotsAll,
@@ -1792,15 +1851,36 @@ VALUES
    ${c ? dollarQuote('pab', c.productApprovedBy) : token('C.product_approver_identity')}, ${c ? timestampLiteral(c.productApprovedAt) : token('C.product_approved_at')},
    ${c ? dollarQuote('lab', c.legalApprovedBy) : token('C.legal_approver_identity')}, ${c ? timestampLiteral(c.legalApprovedAt) : token('C.legal_approved_at')},
    ${c ? dollarQuote('apr', c.approvalRationale) : token('C.approval_rationale')});`
-  const postVector = variant === 'sabotage_post_stage6' ? '0/0/0/0/0/0/0/0/0/0/0' : v.after
-  return `${boundaryHeader(6, 'DELIVERY RUN STAGING (family C) - the new five-entry run and its membership', [
+  const copyExerciseSql = `-- carried-forward EXERCISE members: the historical run's own membership rows,
+-- COPIED (same catalog snapshot ids), never retyped
+INSERT INTO public.exercise_catalog_run_items (run_id, catalog_id)
+SELECT r.id, ${exerciseSelectColumn}
+  FROM public.exercise_catalog_import_runs r
+  JOIN public.exercise_catalog_import_runs h ON h.run_key = '${sourceKey}'
+  JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_id IS NOT NULL
+  JOIN public.exercise_catalog c ON c.id = ri.catalog_id${exerciseFilter}
+ WHERE r.run_key = ${runKeyLiteral()};`
+  const copyAliasSql = `-- carried-forward ALIAS members: the historical run's own alias membership rows, COPIED
+INSERT INTO public.exercise_catalog_run_items (run_id, catalog_alias_id)
+SELECT r.id, ri.catalog_alias_id
+  FROM public.exercise_catalog_import_runs r
+  JOIN public.exercise_catalog_import_runs h ON h.run_key = '${sourceKey}'
+  JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_alias_id IS NOT NULL
+  JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id${aliasFilter}
+ WHERE r.run_key = ${runKeyLiteral()};`
+  const duplicateSql = variant === 'duplicate_member_stage6' ? `\n-- (VARIANT: the exercise copy issued a second time)\n${copyExerciseSql}\n` : ''
+  const mutateSql = variant === 'mutate_historical_stage6' ? `\n-- (VARIANT: an operational field of the historical run written)\nUPDATE public.exercise_catalog_import_runs SET started_at = now() WHERE run_key = '${HISTORICAL_RUN_KEY}';\n` : ''
+  const revokeSql = variant === 'revoke_historical_stage6' ? `\n-- (VARIANT: the historical run revoked inside the package)\nSELECT public.exlib_revoke_run_delivery('${HISTORICAL_RUN_KEY}');\n` : ''
+  const postVector = variant === 'sabotage_post_stage6' ? '0/0/0/0/0/0/0/0/0/0/0' : variant === 'only_five_committing_stage6' ? '8/8/10/3/11/6/2/2/2/11/8' : v.after
+  return `${boundaryHeader(6, 'CUMULATIVE DELIVERY RUN STAGING (family C) - the historical six carried forward plus the five', [
     'creates EXACTLY ONE new import run in the Design-S4 posture (dry_run = false, approved_for_delivery = false, sealed_at NULL, revoked_at NULL, operational fields NULL) carrying the family C product + legal approval evidence AT CREATION - derived from the promoted EXLIB-2U package: exlib_approve_and_seal_run only VALIDATES evidence, it never writes it',
-    'creates EXACTLY FIVE membership rows: the five approved weight_time identities as exercise members, resolved by logical_id + is_active (never a hosted surrogate UUID), and ZERO alias members (none of the five carries an alias)',
+    `creates EXACTLY ELEVEN membership rows: the SIX membership rows of the sealed historical plank run ${HISTORICAL_RUN_KEY} (3 exercise members + 3 alias members) COPIED from that run's own rows after a gate proves they still resolve to exactly the promoted six governed-identity lines, PLUS the five weight_time identities as exercise members resolved by logical_id + is_active - so the new run is CUMULATIVE (independent review finding R-E1): additive, not a replacement`,
     `the new run key is the family C run_key_literal and is NEVER the historical plank key ${HISTORICAL_RUN_KEY} (run_key is UNIQUE forever; the gate below refuses if the chosen key already exists)`,
   ], [
+    'the HISTORICAL RUN IS NEVER MUTATED, REVOKED OR EDITED: it is read as the copy source and its row and its six membership rows are proven byte-identical afterwards',
     'NO controlled function exists for run creation (only exlib_approve_and_seal_run writes a run row, and it only UPDATEs one that exists), so the direct owner INSERT is the ONLY lawful surface - the mechanism the promoted EXLIB-2U package used',
     'the staged run is STRUCTURALLY NON-DELIVERABLE: the delivery predicate (approved AND NOT dry AND sealed AND unrevoked) is EVALUATED below and must match zero rows; the delivery function is never called',
-    'NO seal, NO revocation, NO delivery, NO change to the historical plank run or its six members, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change',
+    'NO seal, NO revocation, NO delivery, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change',
   ], executable, 'families A and B gated; family C: docs/weight-time-five-entry-run-authority-form.json')}
 
 ${transactionOpen(6, executable)}
@@ -1828,14 +1908,15 @@ ${vectorGate(label, v.before, 'pre')}
     RAISE EXCEPTION '${label}: the chosen run key already exists; refusing - run_key is UNIQUE forever, this package is ONE-USE, and the historical plank key must never be reused; READ STATE FIRST';
   END IF;
 ${historicalRunIntactGate(label)}
+${historicalMembershipGate(label, sourceKey)}
 ${noCarryGate(label)}
-  -- every identity the membership INSERT names must resolve to exactly one
+  -- every NEW identity the membership INSERT names must resolve to exactly one
   -- ACTIVE snapshot - a listed identity that does not exist would otherwise
   -- silently produce no row
   IF (SELECT count(*) FROM public.exercise_catalog c
        WHERE c.logical_id IN (${membersSql})
          AND c.is_active = true) <> ${members.length} THEN
-    RAISE EXCEPTION '${label}: the ${members.length} listed membership identities do not each resolve to exactly one active snapshot; refusing';
+    RAISE EXCEPTION '${label}: the ${members.length} listed new membership identities do not each resolve to exactly one active snapshot; refusing';
   END IF;
 ${manifest.entries.map((e) => `${snapshotGovernedGate(label, e, String(e.inventory_file_line))}\n${snapshotReviewTupleGate(label, e, 'approved')}`).join('\n')}
 ${publishedFiveGate(label)}
@@ -1843,9 +1924,13 @@ ${claimsGate(label, 'refusing')}
 END
 $pre$;
 
--- ── THE ACT: one staged run + its five membership rows ────────────────
+-- ── THE ACT: one staged run + its eleven membership rows ──────────────
 ${insertRun}
 
+${copyExercise ? copyExerciseSql : '-- (VARIANT: the historical exercise members are NOT carried forward)'}
+${duplicateSql}
+-- NEW exercise members: the five approved weight_time identities, resolved by
+-- governed logical identity + is_active (never a surrogate)
 INSERT INTO public.exercise_catalog_run_items (run_id, catalog_id)
 SELECT r.id, c.id
   FROM public.exercise_catalog_import_runs r
@@ -1854,6 +1939,8 @@ SELECT r.id, c.id
    AND c.is_active = true
  WHERE r.run_key = ${runKeyLiteral()};
 
+${copyAlias ? copyAliasSql : '-- (VARIANT: the historical alias members are NOT carried forward)'}
+${mutateSql}${revokeSql}
 -- ── Postconditions (ANY mismatch rolls back EVERYTHING) ──────────────
 DO $post$
 DECLARE
@@ -1883,6 +1970,18 @@ ${vectorGate(label, postVector, 'post')}
   END IF;
 ${runEvidenceGate(label, 'v_run')}
 ${membershipGate(label, 'rolling back everything')}
+  -- the carried-forward rows reference the SAME catalog snapshot rows and the SAME
+  -- alias rows as the historical run (a copy, not a re-resolution)
+  IF (SELECT count(*) FROM public.exercise_catalog_run_items n
+        JOIN public.exercise_catalog_run_items h ON h.catalog_id = n.catalog_id
+        JOIN public.exercise_catalog_import_runs hr ON hr.id = h.run_id AND hr.run_key = '${HISTORICAL_RUN_KEY}'
+       WHERE n.run_id = v_run.id AND n.catalog_id IS NOT NULL) <> ${variant === 'only_five_committing_stage6' ? 0 : 3}
+     OR (SELECT count(*) FROM public.exercise_catalog_run_items n
+        JOIN public.exercise_catalog_run_items h ON h.catalog_alias_id = n.catalog_alias_id
+        JOIN public.exercise_catalog_import_runs hr ON hr.id = h.run_id AND hr.run_key = '${HISTORICAL_RUN_KEY}'
+       WHERE n.run_id = v_run.id AND n.catalog_alias_id IS NOT NULL) <> ${variant === 'only_five_committing_stage6' ? 0 : 3} THEN
+    RAISE EXCEPTION '${label}: the carried-forward membership does not reference exactly the historical run''s 3 snapshot rows and 3 alias rows; rolling back everything';
+  END IF;
   -- STRUCTURAL NON-DELIVERABILITY: the delivery predicate, evaluated - never the function
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
        WHERE r.run_key = ${runKeyLiteral()}
@@ -1897,7 +1996,7 @@ ${claimsGate(label, 'rolling back everything')}
 END
 $post$;
 
-${resultSelect(6, 'RUN STAGED', `,
+${resultSelect(6, 'CUMULATIVE RUN STAGED', `,
        (SELECT count(*) FROM public.exercise_catalog_import_runs) AS runs,
        (SELECT count(*) FROM public.exercise_catalog_run_items) AS run_items,
        (SELECT (r.dry_run = false AND r.approved_for_delivery = false AND r.sealed_at IS NULL AND r.revoked_at IS NULL)
@@ -1928,12 +2027,12 @@ function renderStage7(): string {
   }
   const postVector = variant === 'sabotage_post_stage7' ? '0/0/0/0/0/0/0/0/0/0/0' : v.after
   return `${boundaryHeader(7, 'RUN SEAL (approve + PERMANENT seal) for the new five-entry run', [
-    `performs EXACTLY ONE public.exlib_approve_and_seal_run call on the staged five-entry run; from the committed migration-023 bytes that call atomically sets approved_for_delivery = true and sealed_at = NOW() in the single validated unsealed -> sealed transition, PERMANENTLY freezing the run's five-member membership and every approval-bound field`,
+    `performs EXACTLY ONE public.exlib_approve_and_seal_run call on the staged CUMULATIVE run (the historical six carried forward plus the five: 8 exercise + 3 alias members); from the committed migration-023 bytes that call atomically sets approved_for_delivery = true and sealed_at = NOW() in the single validated unsealed -> sealed transition, PERMANENTLY freezing the eleven-row membership and every approval-bound field`,
     'the seal function re-validates every exercise member (approved, active, non-blank reviewer, non-blank rationale) independently of stage 1, inside the same statement, through the run-row freeze trigger',
   ], [
     'IRREVERSIBILITY, PLAINLY: a run seals AT MOST ONCE, forever. There is no unseal. The only later transition is exlib_revoke_run_delivery, a ONE-WAY shutdown that reopens nothing and is NOT part of this package. A membership mistake found after this point needs a NEW run with a NEW key',
     'RISK ELEVATION: after the seal the delivery predicate matches this run, so deliver_catalog_exercises(<new key>) becomes REACHABLE by any authenticated caller naming the key - into that caller\'s own tenant. The application delivers only the configured run key, which still names the plank release until the SEPARATE Vercel change (never performed by Claude) repoints it',
-    'NO delivery, NO revocation, NO change to the historical plank run, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change',
+    'NO delivery, NO revocation, NO change to the historical plank run (which stays sealed and deliverable; its six rows are carried forward, not moved), NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change',
   ], executable, 'families A, B and C gated')}
 
 ${transactionOpen(7, executable)}
@@ -1964,6 +2063,7 @@ ${triggerBindingGate(label)}
 ${authorityBaselineGate(label)}
 ${vectorGate(label, v.before, 'pre')}
 ${historicalRunIntactGate(label)}
+${historicalMembershipGate(label, HISTORICAL_RUN_KEY)}
 ${noCarryGate(label)}
   SELECT * INTO v_run
     FROM public.exercise_catalog_import_runs
@@ -2009,12 +2109,12 @@ DO $act$
 DECLARE
   v_result JSONB;
 BEGIN
-  v_result := public.exlib_approve_and_seal_run(${runKeyLiteral()});
+  v_result := public.exlib_approve_and_seal_run(${variant === 'wrong_key_stage7' ? "'w14e-weight-time-release1-staged-v0'" : runKeyLiteral()});
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'run_key', ${runKeyLiteral()},
        'sealed', true,
-       'exercise_members', 5,
-       'alias_members', 0) THEN
+       'exercise_members', 8,
+       'alias_members', 3) THEN
     RAISE EXCEPTION '${label}: the seal function returned % (expected exactly the reserved four-field result); rolling back everything - the attempted seal does not survive', v_result;
   END IF;
 END
@@ -2115,7 +2215,7 @@ function renderHumanReview(): string {
   L.push('| --- | --- | --- | --- |')
   L.push('| A | `docs/weight-time-five-entry-snapshot-review-form.json` | 5 | decision (APPROVE / REJECT / CORRECT), reviewer, reviewer_role_or_credential, reviewed_at (with offset), rationale (>= 10 chars), optional evidence |')
   L.push('| B | `docs/weight-time-five-entry-content-review-form.json` | 5 | decision (approved / revised / rejected), reviewer, reviewer_role_or_credential, reviewed_at, rationale, the per-exercise judgment confirmations, optional evidence |')
-  L.push('| C | `docs/weight-time-five-entry-run-authority-form.json` | 1 | run_key_literal, product approver + timestamp, legal approver + timestamp, approval_rationale, run_membership |')
+  L.push('| C | `docs/weight-time-five-entry-run-authority-form.json` | 1 | run_key_literal, product approver + timestamp, legal approver + timestamp, approval_rationale, run_membership (cumulative: historical six + five) |')
   L.push('')
   L.push(`Only APPROVE (A) and approved (B) have prepared packages. Any other choice ends the release for that`)
   L.push('exercise and needs its own instruction; the generator refuses to render a package for it.')
@@ -2133,8 +2233,10 @@ function renderHumanReview(): string {
   L.push(`- **RQ-6** (family C): confirm or replace the proposed run key \`${manifest.delivery_run.proposed_run_key}\` (permanent, globally unique).`)
   L.push('- **RQ-7** (family C): the plank precedent had one named human give both product and legal approval at')
   L.push('  the same instant; confirm the same posture or name a second approver.')
-  L.push('- **RQ-8** (family C): the sealed plank run stays sealed; the intent is to ADD a second sealed run and')
-  L.push('  later repoint delivery to it, not to revoke the plank run.')
+  L.push('- **RQ-8** (family C): the sealed plank run stays sealed and untouched; the new run is CUMULATIVE (review')
+  L.push('  finding R-E1): it carries the plank run\'s six membership rows forward and adds the five. Read finding')
+  L.push('  F-E8 in the report before any repoint: the committed delivery function refuses the cumulative run for')
+  L.push('  users who already received Plank from the historical run.')
   L.push('')
   L.push('## The five exercises')
   L.push('')
@@ -2205,7 +2307,8 @@ function renderHumanReview(): string {
   L.push('- product approver identity + timestamp (with offset), legal approver identity + timestamp (with offset).')
   L.push('- approval_rationale: state plainly what the approval does NOT authorize (it does not enable production')
   L.push('  delivery; the Vercel run-key change is a separate operator act).')
-  L.push('- run_membership: the one offered choice, `ALL_FIVE_WEIGHT_TIME_IDENTITIES`.')
+  L.push('- run_membership: the one offered choice, `CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES`')
+  L.push('  (the historical plank run\'s 3 exercise + 3 alias members carried forward, plus the five: 8 + 3 = 11 rows).')
   L.push('')
   L.push('## What happens after the forms are complete')
   L.push('')

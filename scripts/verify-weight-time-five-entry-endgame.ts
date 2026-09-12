@@ -86,8 +86,16 @@ const CARRY_IDS = ['e21b2c00-0000-4000-a000-000000000009', 'e21b2c00-0000-4000-a
 const CARRY_WORDS = /\b(farmer|suitcase|sandbag|carry|carries)\b/i
 const HISTORICAL_RUN_KEY = 'exlib2u-plank-release1-staged-v1'
 const HOSTED_VECTOR = '8/8/10/3/11/1/2/2/1/6/3'
+const HISTORICAL_RUN_PACKAGE_PATH = 'docs/exlib2u-staged-run-package.sql'
+/** The historical six, parsed here INDEPENDENTLY of the manifest generator from the promoted 2U package's membership postcondition. */
+function historicalSixFromPromotedPackage(): string[] {
+  const text = read(HISTORICAL_RUN_PACKAGE_PATH)
+  return Array.from(new Set((text.match(/'(alias|exercise)#e21b2c00-0000-4000-a000-[0-9a-f]{12}(#[^']*)?'/g) ?? []).map((l) => l.slice(1, -1)))).sort()
+}
 const SYNTHETIC_MARKER = 'TEST-ONLY'
 const PLANK_ID = 'e21b2c00-0000-4000-a000-000000000001'
+/** The three historical plank-release identities (Plank, Dead bug, Ab wheel rollout): lawful in gates and in the stage-6/7 carry-forward. */
+const HISTORICAL_LOGICAL_IDS = ['e21b2c00-0000-4000-a000-000000000001', 'e21b2c00-0000-4000-a000-000000000002', 'e21b2c00-0000-4000-a000-000000000003']
 
 const ALLOWED_CHANGED_PATHS = [
   CARRIER_PATH, MATRIX_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, DEPENDENCY_PATH, MANIFEST_PATH,
@@ -168,7 +176,8 @@ type ManifestShape = {
   stage_vectors: { before: string; after: string }[]
   stage_packages: { path: string }[]
   admission_source_sha256: { value: string }
-  delivery_run: { proposed_run_key: string; must_not_reuse: { forbidden_run_key: string } }
+  delivery_run: { proposed_run_key: string; must_not_reuse: { forbidden_run_key: string }; expected_membership: { exercise_members: number; alias_members: number; total_items: number; carried_forward_members: string[]; expected_member_lines: string[] } }
+  hosted_pre_state: { vector: string; historical_run: { run_key: string; members: string[] } }
   human_decision_families: { filled: boolean }[]
   boundary_statement: { human_approval: string }
   delivery_configuration_dependency: { required: boolean; claude_performed_the_change: boolean; variable: string }
@@ -191,7 +200,7 @@ type FormCShape = {
     product_approver_identity: { value: unknown; product_approved_at: unknown }
     legal_approver_identity: { value: unknown; legal_approved_at: unknown }
     approval_rationale: { value: unknown }
-    run_membership: { value: unknown; exact_logical_ids: string[]; excluded_deferred_logical_ids: string[]; choices: string[] }
+    run_membership: { value: unknown; exact_new_logical_ids: string[]; excluded_deferred_logical_ids: string[]; choices: string[]; carried_forward_from_historical_run: { run_key: string; members: string[] } }
   }
 }
 type World = {
@@ -276,10 +285,10 @@ function assertArtifacts(w: World, out: Finding[]): void {
       && canonicalJson(gf.anatomy) === canonicalJson(w14e.anatomy) && e.existing_snapshot_fingerprint.payload_fingerprint_sha256 === w14e.payload_fingerprint_sha256 && e.canonical_name === w14e.canonical_name && e.canonical_name === g.name)
   }
   const sv = m.stage_vectors ?? []
-  c('M8 the seven stage vectors CHAIN: stage 1 starts at the operator-reported hosted vector, every after[n] equals before[n+1], stages 3/4/5/7 move nothing, 1 moves only events, 2 only content, 6 only runs+items',
+  c('M8 the seven stage vectors CHAIN: stage 1 starts at the operator-reported hosted vector, every after[n] equals before[n+1], stages 3/4/5/7 move nothing, 1 moves only events, 2 only content, 6 only runs+items (6 -> 17: the historical six carried forward plus five)',
     sv.length === 7 && sv[0].before === HOSTED_VECTOR && sv.every((s, i) => i === 0 || s.before === sv[i - 1].after)
     && sv[0].after === '8/8/10/3/11/1/2/2/1/6/8' && sv[1].after === '8/8/10/3/11/6/2/2/1/6/8' && sv[2].after === sv[1].after && sv[3].after === sv[2].after && sv[4].after === sv[3].after
-    && sv[5].after === '8/8/10/3/11/6/2/2/2/11/8' && sv[6].after === sv[5].after)
+    && sv[5].after === '8/8/10/3/11/6/2/2/2/17/8' && sv[6].after === sv[5].after)
   c('M9 the manifest binds the carrier digest as admission_source_sha256 and it equals the sha256 of the carrier bytes on disk',
     m.admission_source_sha256?.value === sha256(Buffer.from(w.carrierText, 'utf8')) && /^[0-9a-f]{64}$/.test(String(m.admission_source_sha256?.value)))
   c('M10 the manifest names the seven stage package paths in order and every one exists',
@@ -289,6 +298,14 @@ function assertArtifacts(w: World, out: Finding[]): void {
     && (m.human_decision_families ?? []).every((f) => f.filled === false) && String(m.boundary_statement?.human_approval).includes('NOT GIVEN'))
   c('M12 the proposed run key is derived on the promoted convention and is NOT the historical plank key; the historical key is recorded as forbidden',
     /^[a-z0-9]+-weight-time-release1-staged-v1$/.test(String(m.delivery_run?.proposed_run_key)) && m.delivery_run?.proposed_run_key !== HISTORICAL_RUN_KEY && m.delivery_run?.must_not_reuse?.forbidden_run_key === HISTORICAL_RUN_KEY)
+  const six = historicalSixFromPromotedPackage()
+  const em = m.delivery_run?.expected_membership
+  c('M14 the manifest\'s historical six equal the six membership lines parsed INDEPENDENTLY from the promoted EXLIB-2U package (3 exercise + 3 alias), and its cumulative membership is exactly those six plus the five new exercise lines: 8 exercise + 3 alias = 11',
+    six.length === 6 && JSON.stringify([...(m.hosted_pre_state?.historical_run?.members ?? [])].sort()) === JSON.stringify(six)
+    && JSON.stringify([...(em?.carried_forward_members ?? [])].sort()) === JSON.stringify(six)
+    && JSON.stringify([...(em?.expected_member_lines ?? [])].sort()) === JSON.stringify(six.concat(GOVERNED.map((g) => `exercise#${g.logicalId}`)).sort())
+    && em?.exercise_members === 8 && em?.alias_members === 3 && em?.total_items === 11
+    && six.every((l) => !GOVERNED.some((g) => l.includes(g.logicalId)) && !CARRY_IDS.some((id) => l.includes(id))))
   c('M13 the manifest records that a production configuration change IS required and that Claude did not perform it',
     m.delivery_configuration_dependency?.required === true && m.delivery_configuration_dependency?.claude_performed_the_change === false && m.delivery_configuration_dependency?.variable === 'CATALOG_DELIVERY_RUN_KEY')
 
@@ -311,10 +328,12 @@ function assertArtifacts(w: World, out: Finding[]): void {
     w.formB.content_fingerprint?.sha256 === m.admission_source_sha256?.value && w.formB.content_fingerprint?.bytes === Buffer.byteLength(w.carrierText, 'utf8') && w.formB.content_artifact === CARRIER_PATH)
   c('F5 the run-authority form forbids the historical key by name and its proposal differs from it',
     rc.run_key_literal?.must_not_be === HISTORICAL_RUN_KEY && rc.run_key_literal?.preparer_proposal !== HISTORICAL_RUN_KEY && rc.run_key_literal?.preparer_proposal === m.delivery_run?.proposed_run_key)
-  c('F6 the run-authority form fixes the membership to exactly the five governed identities and lists the three carries as excluded',
-    JSON.stringify([...(rc.run_membership?.exact_logical_ids ?? [])].sort()) === JSON.stringify(GOVERNED.map((g) => g.logicalId).sort())
+  c('F6 the run-authority form fixes the membership to the CUMULATIVE design: the historical run\'s six lines (equal to the promoted 2U package) carried forward plus exactly the five governed identities, one offered choice, the three carries excluded',
+    JSON.stringify([...(rc.run_membership?.exact_new_logical_ids ?? [])].sort()) === JSON.stringify(GOVERNED.map((g) => g.logicalId).sort())
     && JSON.stringify([...(rc.run_membership?.excluded_deferred_logical_ids ?? [])].sort()) === JSON.stringify([...CARRY_IDS].sort())
-    && JSON.stringify(rc.run_membership?.choices) === JSON.stringify(['ALL_FIVE_WEIGHT_TIME_IDENTITIES']))
+    && JSON.stringify(rc.run_membership?.choices) === JSON.stringify(['CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES'])
+    && rc.run_membership?.carried_forward_from_historical_run?.run_key === HISTORICAL_RUN_KEY
+    && JSON.stringify([...(rc.run_membership?.carried_forward_from_historical_run?.members ?? [])].sort()) === JSON.stringify(historicalSixFromPromotedPackage()))
   c('F7 the forms address the five identities by the frozen UUIDs and the content form by the +0x100 content ids',
     GOVERNED.every((g) => (w.formA.entries ?? []).some((e) => e.logical_id === g.logicalId && e.inventory_file_line === g.line) && (w.formB.entries ?? []).some((e) => e.logical_id === g.logicalId && e.content_id === g.contentId && e.content_version === 1)))
   c('F8 the content-review form surfaces the reviewer-role dependency (RQ-4) rather than resolving it',
@@ -347,11 +366,11 @@ function assertArtifacts(w: World, out: Finding[]): void {
     const exeWithoutExclusionGate = exe.replace(/  IF \(SELECT count\(\*\) FROM public\.exercise_catalog_logical WHERE id IN \([^\n]*\n[^\n]*\n[^\n]*\n  END IF;/g, '')
     const exclusionGates = (exe.match(/FROM public\.exercise_catalog_logical WHERE id IN \(/g) ?? []).length
     const renderedNames = Array.from(new Set((exe.match(/\$nm\d+\$([^$]*)\$nm\d+\$/g) ?? []).map((lit) => lit.replace(/^\$nm\d+\$/, '').replace(/\$nm\d+\$$/, ''))))
-    c(`${label}.f identity scope: one carry-exclusion gate naming all three carry ids; outside it no carry id, no carry NAME among the rendered canonical-name literals, and no ungoverned e21b2c00 identity (only the five, their content ids, and the plank identity in gates)`,
+    c(`${label}.f identity scope: one carry-exclusion gate naming all three carry ids; outside it no carry id, no carry NAME among the rendered canonical-name literals, and no ungoverned e21b2c00 identity (only the five, their content ids, and the three historical plank-release identities in gates and carry-forward)`,
       exclusionGates === 1 && CARRY_IDS.every((id) => exe.includes(id))
       && !CARRY_IDS.some((id) => exeWithoutExclusionGate.includes(id))
       && !renderedNames.some((n) => CARRY_WORDS.test(n)) && renderedNames.every((n) => GOVERNED.some((g) => g.name === n))
-      && (exeWithoutExclusionGate.match(/e21b2c00-0000-4000-a000-[0-9a-f]{12}/g) ?? []).every((id) => GOVERNED.some((g) => g.logicalId === id || g.contentId === id) || id === PLANK_ID),
+      && (exeWithoutExclusionGate.match(/e21b2c00-0000-4000-a000-[0-9a-f]{12}/g) ?? []).every((id) => GOVERNED.some((g) => g.logicalId === id || g.contentId === id) || HISTORICAL_LOGICAL_IDS.includes(id)),
       `names: ${renderedNames.join(' | ')}`)
     c(`${label}.g the historical plank key appears only in read gates (never as a written run_key), and the package names ShredOS and the operator-only executor`,
       !((exe.match(/INSERT INTO public\.exercise_catalog_import_runs\n[\s\S]*?\);/g) ?? []).some((stmt) => stmt.includes(HISTORICAL_RUN_KEY))) && sql.includes('ttybyljytiwntvorugcv') && sql.includes('never by Claude'))
@@ -385,15 +404,22 @@ function assertArtifacts(w: World, out: Finding[]): void {
   const s6 = executableSql(w.packages['06-run-staging.sql'] ?? '')
   const inList = s6.match(/INSERT INTO public\.exercise_catalog_run_items[\s\S]*?ON c\.logical_id IN \(([\s\S]*?)\)\n\s+AND c\.is_active = true/)
   const listed = inList ? (inList[1].match(/e21b2c00-0000-4000-a000-[0-9a-f]{12}/g) ?? []) : []
-  c('T6.h stage 6 carries ONE run INSERT (run_key UNRESOLVED, dry_run false, five evidence leaves UNRESOLVED) and ONE membership INSERT whose IN list is EXACTLY the five governed identities',
-    (s6.match(/^INSERT INTO public\.exercise_catalog_import_runs$/gm) ?? []).length === 1 && (s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_id\)$/gm) ?? []).length === 1
+  const copyStatements = s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, (catalog_id|catalog_alias_id)\)\nSELECT r\.id, ri\.catalog(_alias)?_id\n[\s\S]*?;$/gm) ?? []
+  c('T6.h stage 6 carries ONE run INSERT (run_key UNRESOLVED, dry_run false, five evidence leaves UNRESOLVED), TWO carry-forward INSERTs that COPY the historical run\'s own exercise and alias membership rows (never retyped ids), and ONE new-member INSERT whose IN list is EXACTLY the five governed identities',
+    (s6.match(/^INSERT INTO public\.exercise_catalog_import_runs$/gm) ?? []).length === 1 && (s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_id\)$/gm) ?? []).length === 2 && (s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_alias_id\)$/gm) ?? []).length === 1
+    && copyStatements.length === 2 && copyStatements.every((st) => st.includes(`JOIN public.exercise_catalog_import_runs h ON h.run_key = '${HISTORICAL_RUN_KEY}'`))
     && s6.includes('(<<UNRESOLVED:C.run_key_literal>>, false,') && (s6.match(/<<UNRESOLVED:C\.(product_approver_identity|product_approved_at|legal_approver_identity|legal_approved_at|approval_rationale)>>/g) ?? []).length >= 5
-    && JSON.stringify([...listed].sort()) === JSON.stringify(GOVERNED.map((g) => g.logicalId).sort()) && listed.length === 5, `listed: ${listed.join(',')}`)
-  c('T6.i stage 6 asserts structural non-deliverability by EVALUATING the delivery predicate and never calls the delivery function; it demands published, admitted, fingerprint-fresh content for all five',
-    s6.includes('AND r.approved_for_delivery = true\n         AND r.dry_run = false\n         AND r.sealed_at IS NOT NULL\n         AND r.revoked_at IS NULL) <> 0 THEN') && (s6.match(/the run must never point at unpublished content/g) ?? []).length === 5)
+    && JSON.stringify([...listed].sort()) === JSON.stringify(GOVERNED.map((g) => g.logicalId).sort()) && listed.length === 5, `listed: ${listed.join(',')}; copies: ${copyStatements.length}`)
+  const sixLines = historicalSixFromPromotedPackage()
+  c('T6.i stage 6 gates the historical source run on EXACTLY the promoted six membership lines (parsed independently from the 2U package), expects a membership of exactly those six plus the five new exercise lines, seal-shape 8 + 3, evaluates the delivery predicate (never calls the function), and demands published, admitted, fingerprint-fresh content for all five',
+    sixLines.every((l) => (s6.match(new RegExp(`'${l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`, 'g')) ?? []).length >= 2)
+    && GOVERNED.every((g) => s6.includes(`'exercise#${g.logicalId}'`)) && s6.includes("<> 8 OR COALESCE(v_alias_members, 0) <> 3")
+    && s6.includes('AND r.approved_for_delivery = true\n         AND r.dry_run = false\n         AND r.sealed_at IS NOT NULL\n         AND r.revoked_at IS NULL) <> 0 THEN') && (s6.match(/the run must never point at unpublished content/g) ?? []).length === 5
+    && s6.includes('does not carry exactly the promoted six membership lines'))
   const s7 = executableSql(w.packages['07-run-seal.sql'] ?? '')
-  c('T7.h stage 7 carries EXACTLY ONE exlib_approve_and_seal_run call on the UNRESOLVED run key, asserts exercise_members 5 / alias_members 0, and states the seal is one-use and irreversible',
-    (s7.match(/public\.exlib_approve_and_seal_run\(<<UNRESOLVED:C\.run_key_literal>>\)/g) ?? []).length === 1 && s7.includes("'exercise_members', 5,\n       'alias_members', 0)") && (w.packages['07-run-seal.sql'] ?? '').includes('IRREVERSIBILITY, PLAINLY'))
+  c('T7.h stage 7 carries EXACTLY ONE exlib_approve_and_seal_run call on the UNRESOLVED run key, asserts exercise_members 8 / alias_members 3, gates the historical six and the eleven cumulative lines, and states the seal is one-use and irreversible',
+    (s7.match(/public\.exlib_approve_and_seal_run\(<<UNRESOLVED:C\.run_key_literal>>\)/g) ?? []).length === 1 && s7.includes("'exercise_members', 8,\n       'alias_members', 3)")
+    && sixLines.every((l) => s7.includes(`'${l}'`)) && GOVERNED.every((g) => s7.includes(`'exercise#${g.logicalId}'`)) && (w.packages['07-run-seal.sql'] ?? '').includes('IRREVERSIBILITY, PLAINLY'))
 }
 
 // ── boundaries (repository state; not part of the corruptible World) ──
@@ -408,7 +434,11 @@ function verifyBoundaries(world: World): void {
   check('B5 every commit above the base has exactly one parent (no amend, rebase, squash or merge can be hidden in the chain)',
     git('rev-list', `${PRODUCTION_BASE_COMMIT}..HEAD`).split('\n').filter(Boolean).every((sha) => git('rev-list', '--parents', '-n', '1', sha).split(' ').length === 2))
   const committed = git('diff', '--name-only', PRODUCTION_BASE_COMMIT, 'HEAD').split('\n').filter(Boolean)
-  const working = git('status', '--porcelain').split('\n').filter(Boolean).flatMap((l) => l.slice(3).split(' -> ')).map((p) => p.trim().replace(/^"|"$/g, ''))
+  // Read RAW, not through git() which trims: a leading space is the porcelain
+  // status column of a modified tracked file (" M path"), and trimming it
+  // shifts the path slice by one character.
+  const porcelainRaw = execFileSync('git', ['-C', repositoryRoot, 'status', '--porcelain'], { encoding: 'utf8' })
+  const working = porcelainRaw.split('\n').filter((l) => l.length > 3).flatMap((l) => l.slice(3).split(' -> ')).map((p) => p.trim().replace(/^"|"$/g, ''))
   const surface = Array.from(new Set(committed.concat(working))).sort()
   const outside = surface.filter((p) => !ALLOWED_CHANGED_PATHS.includes(p) && p !== `${PACKAGE_DIR}/`)
   check('B6 the ENTIRE change surface - committed and uncommitted - is five-entry endgame preparation and nothing else', outside.length === 0, `outside: ${outside.join(', ')}`)
@@ -489,10 +519,10 @@ function verifyDocuments(world: World): void {
   check('D2 the human review page carries no synthetic marker and no filled decision', !review.includes(SYNTHETIC_MARKER) && review.includes('Nothing here is approved'))
   const dep = read(DEPENDENCY_PATH)
   check('D3 the dependency document proves the configuration change is required from committed code, states repointing DE-SELECTS the plank release, says delivered counts are UNKNOWN, and records no Vercel contact',
-    dep.includes('a configuration change IS required') && dep.includes('DE-SELECTS the plank release') && dep.includes('Delivered counts are UNKNOWN') && dep.includes('no Vercel contact') && dep.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
+    dep.includes('a configuration change IS required') && dep.includes('CUMULATIVE') && dep.includes('F-E8') && dep.includes('Delivered counts are UNKNOWN') && dep.includes('no Vercel contact') && dep.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
   const runbook = existsSync(path.join(repositoryRoot, RUNBOOK_PATH)) ? read(RUNBOOK_PATH) : ''
   check('D4 the operator runbook exists and states the seven packages in order, the spent-check probe before each, the READ STATE FIRST rule, the Vercel repoint as an operator-only act, and that Claude performs none of it',
-    runbook.length > 0 && PACKAGE_FILES.every((f) => runbook.includes(f)) && runbook.includes(PROBE_PATH) && runbook.includes('READ STATE FIRST') && runbook.includes('Claude performs none') && runbook.includes(HISTORICAL_RUN_KEY) && runbook.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
+    runbook.length > 0 && PACKAGE_FILES.every((f) => runbook.includes(f)) && runbook.includes(PROBE_PATH) && runbook.includes('READ STATE FIRST') && runbook.includes('Claude performs none') && runbook.includes(HISTORICAL_RUN_KEY) && runbook.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`') && runbook.includes('F-E8') && runbook.includes('8/8/10/3/11/6/2/2/2/17/8'))
   check('D5 the runbook indexes the seven package files by their exact position and forbids running any package twice',
     runbook.includes('01-snapshot-review.sql') && runbook.indexOf('01-snapshot-review.sql') < runbook.indexOf('07-run-seal.sql') && /never run (a|any|the same) package\s+(a second time|twice)/i.test(runbook))
   const probe = read(PROBE_PATH)
@@ -534,7 +564,14 @@ function runControls(baseline: World): void {
     { label: 'NC-DECISION-FIELD-MISSING: a required leaf key removed from a family B entry', expect: 'F2', mutate: (w) => { delete w.formB.entries[2].rationale } },
     { label: 'NC-SYNTHETIC-FLAG: the synthetic-decision flag set on a committed form', expect: 'F3', mutate: (w) => { w.formC.test_only_synthetic_decisions = true } },
     { label: 'NC-FORM-CARRIER-SHA: the content form bound to a different carrier digest', expect: 'F4', mutate: (w) => { w.formB.content_fingerprint.sha256 = 'a'.repeat(64) } },
-    { label: 'NC-MEMBERSHIP-IDS: the run-authority membership ids altered', expect: 'F6', mutate: (w) => { w.formC.requested_inputs.run_membership.exact_logical_ids[4] = PLANK_ID } },
+    { label: 'NC-MEMBERSHIP-IDS: the run-authority new-membership ids altered', expect: 'F6', mutate: (w) => { w.formC.requested_inputs.run_membership.exact_new_logical_ids[4] = PLANK_ID } },
+    { label: 'NC-FORM-HISTORICAL-SIX: a carried-forward historical member dropped from the run-authority form', expect: 'F6', mutate: (w) => { w.formC.requested_inputs.run_membership.carried_forward_from_historical_run.members.pop() } },
+    { label: 'NC-MANIFEST-HISTORICAL-SIX: the manifest\'s historical six altered (an alias line dropped)', expect: 'M14', mutate: (w) => { w.manifest.hosted_pre_state.historical_run.members = w.manifest.hosted_pre_state.historical_run.members.filter((l: string) => !l.includes('Front plank')) } },
+    { label: 'NC-MANIFEST-FIVE-ONLY: the manifest\'s cumulative membership reduced to the five (the rejected design)', expect: 'M14', mutate: (w) => { w.manifest.delivery_run.expected_membership.expected_member_lines = GOVERNED.map((g) => `exercise#${g.logicalId}`); w.manifest.delivery_run.expected_membership.exercise_members = 5; w.manifest.delivery_run.expected_membership.alias_members = 0; w.manifest.delivery_run.expected_membership.total_items = 5 } },
+    { label: 'NC-CARRY-FORWARD-DROPPED: the stage-6 alias carry-forward INSERT removed from the template', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_alias_id\)\nSELECT r\.id, ri\.catalog_alias_id\n[\s\S]*?;\n/, '') } },
+    { label: 'NC-CARRY-FORWARD-SOURCE: the stage-6 carry-forward copies from a different run key', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].split(`JOIN public.exercise_catalog_import_runs h ON h.run_key = '${HISTORICAL_RUN_KEY}'`).join("JOIN public.exercise_catalog_import_runs h ON h.run_key = 'some-other-run'") } },
+    { label: 'NC-HISTORICAL-LINE-DROPPED: a promoted historical membership line removed from the stage-6 gate', expect: 'T6.i', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].split("'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'").join("'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller'") } },
+    { label: 'NC-SEAL-SHAPE: stage 7 asserts the five-only seal shape', expect: 'T7.h', mutate: (w) => { w.packages['07-run-seal.sql'] = w.packages['07-run-seal.sql'].replace("'exercise_members', 8,\n       'alias_members', 3)", "'exercise_members', 5,\n       'alias_members', 0)") } },
     { label: 'NC-SENTINEL-REMOVED: the stage-1 template made syntactically runnable by deleting its sentinel', expect: 'T1.a', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(/^SELECT <<UNRESOLVED-TEMPLATE:.*$/m, '') } },
     { label: 'NC-RESOLVED-LITERAL: a human leaf in the stage-1 template replaced by a resolved string literal', expect: 'T1.h', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace('reviewed_by      = <<UNRESOLVED:A.132.reviewer>>', "reviewed_by      = 'Someone'") } },
     { label: 'NC-SYNTHETIC-MARKER: the synthetic marker present in a committed template', expect: 'T3.b', mutate: (w) => { w.packages['03-content-review.sql'] += `\n-- ${SYNTHETIC_MARKER}\n` } },
@@ -542,7 +579,7 @@ function runControls(baseline: World): void {
     { label: 'NC-DELIVERY-CALL: a tenant delivery call appended to stage 7', expect: 'T7.d', mutate: (w) => { w.packages['07-run-seal.sql'] = w.packages['07-run-seal.sql'].replace(/^COMMIT;$/m, "SELECT public.deliver_catalog_exercises('x');\nCOMMIT;") } },
     { label: 'NC-HISTORICAL-KEY-WRITTEN: stage 6 INSERTs the historical plank key as the new run_key', expect: 'T6.g', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace('(<<UNRESOLVED:C.run_key_literal>>, false,', `('${HISTORICAL_RUN_KEY}', false,`) } },
     { label: 'NC-MISSING-MEMBER: the stage-6 membership IN list reduced to four', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list.split(',').slice(0, 4).join(',')})`) } },
-    { label: 'NC-EXTRA-MEMBER: the plank identity added to the stage-6 membership IN list', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list},\n                        '${PLANK_ID}')`) } },
+    { label: 'NC-EXTRA-MEMBER: the plank identity added to the stage-6 NEW-member IN list (a duplicate of a carried-forward member)', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list},\n                        '${PLANK_ID}')`) } },
     { label: 'NC-CARRY-MEMBER: a deferred carry added to the stage-6 membership IN list', expect: 'T6.f', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list},\n                        '${CARRY_IDS[0]}')`) } },
     { label: 'NC-TEMPLATE-VECTOR: a stage-4 vector pin altered in the package', expect: 'T4.e', mutate: (w) => { w.packages['04-content-admission.sql'] = w.packages['04-content-admission.sql'].replace("IF v_counts <> '8/8/10/3/11/6/2/2/1/6/8' THEN", "IF v_counts <> '8/8/10/3/11/6/2/2/1/6/9' THEN") } },
     { label: 'NC-LOCK-DROPPED: one gated table removed from the stage-2 lock list', expect: 'T2.c', mutate: (w) => { w.packages['02-content-draft-load.sql'] = w.packages['02-content-draft-load.sql'].replace('  public.exercise_catalog_review_events,\n', '') } },

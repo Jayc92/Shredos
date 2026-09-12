@@ -96,8 +96,8 @@ const STAGE_VECTORS: readonly { stage: number; name: string; before: string; aft
   { stage: 3, name: 'content_review',      before: '8/8/10/3/11/6/2/2/1/6/8', after: '8/8/10/3/11/6/2/2/1/6/8',  moves: 'nothing; five content rows change in place' },
   { stage: 4, name: 'content_admission',   before: '8/8/10/3/11/6/2/2/1/6/8', after: '8/8/10/3/11/6/2/2/1/6/8',  moves: 'nothing; five content rows change in place' },
   { stage: 5, name: 'content_publication', before: '8/8/10/3/11/6/2/2/1/6/8', after: '8/8/10/3/11/6/2/2/1/6/8',  moves: 'nothing; relationships stay 2 because every projected set is empty' },
-  { stage: 6, name: 'run_staging',         before: '8/8/10/3/11/6/2/2/1/6/8', after: '8/8/10/3/11/6/2/2/2/11/8', moves: 'runs 1 -> 2; run_items 6 -> 11 (five exercise members, zero alias members)' },
-  { stage: 7, name: 'run_seal',            before: '8/8/10/3/11/6/2/2/2/11/8', after: '8/8/10/3/11/6/2/2/2/11/8', moves: 'nothing; the new run row changes in place (approved_for_delivery, sealed_at)' },
+  { stage: 6, name: 'run_staging',         before: '8/8/10/3/11/6/2/2/1/6/8', after: '8/8/10/3/11/6/2/2/2/17/8', moves: 'runs 1 -> 2; run_items 6 -> 17 (the historical run\'s 3 exercise + 3 alias members copied forward, plus five new exercise members: 8 exercise + 3 alias)' },
+  { stage: 7, name: 'run_seal',            before: '8/8/10/3/11/6/2/2/2/17/8', after: '8/8/10/3/11/6/2/2/2/17/8', moves: 'nothing; the new run row changes in place (approved_for_delivery, sealed_at)' },
 ]
 
 const STAGE_PACKAGE_PATHS: readonly string[] = [
@@ -289,6 +289,26 @@ interface W14ManifestEntry {
   anatomy: { muscle: string; role: string }[]
   aliases: unknown[]
   payload_fingerprint_sha256: string
+}
+
+// ── The historical run's six membership rows, DERIVED from the promoted
+// EXLIB-2U staging package's own membership postcondition (bound by bytes
+// below), never retyped: the exact governed-identity lines that package
+// asserted after staging, and that the 2Z seal froze forever.
+const HISTORICAL_RUN_PACKAGE_RELATIVE_PATH = 'docs/exlib2u-staged-run-package.sql'
+const historicalRunPackageText = readRequiredFile(HISTORICAL_RUN_PACKAGE_RELATIVE_PATH)
+const HISTORICAL_MEMBER_LINES: readonly string[] = Array.from(new Set(
+  (historicalRunPackageText.match(/'(alias|exercise)#e21b2c00-0000-4000-a000-[0-9a-f]{12}(#[^']*)?'/g) ?? [])
+    .map((literal) => literal.slice(1, -1)),
+)).sort()
+if (HISTORICAL_MEMBER_LINES.length !== 6
+  || HISTORICAL_MEMBER_LINES.filter((l) => l.startsWith('exercise#')).length !== 3
+  || HISTORICAL_MEMBER_LINES.filter((l) => l.startsWith('alias#')).length !== 3) {
+  fail(`the promoted EXLIB-2U package does not yield exactly 3 exercise + 3 alias membership lines (got ${HISTORICAL_MEMBER_LINES.length})`)
+}
+for (const line of HISTORICAL_MEMBER_LINES) {
+  const id = line.split('#')[1]
+  if (GOVERNED_LOGICAL_IDS.includes(id) || DEFERRED_CARRY_LOGICAL_IDS.includes(id)) fail(`a historical member line names a five-entry or carry identity: ${line}`)
 }
 
 // ── Inputs ────────────────────────────────────────────────────────
@@ -716,11 +736,18 @@ const manifestObject = {
       'Also derived from the promoted package: product/legal approval evidence is written ' +
       'in the run INSERT, not at seal time. exlib_approve_and_seal_run only validates it. ' +
       'That is why run staging requires the completed family C form.',
+    design:
+      'CUMULATIVE (independent review finding R-E1): the five are ADDITIVE, not a replacement. The ' +
+      'new run carries forward all six membership rows of the sealed historical plank run and adds ' +
+      'the five new identities. The historical run is never mutated, revoked or edited.',
     expected_membership: {
-      exercise_members: 5,
-      alias_members: 0,
-      total_items: 5,
-      exact_logical_ids: GOVERNED_LOGICAL_IDS,
+      exercise_members: 8,
+      alias_members: 3,
+      total_items: 11,
+      carried_forward_from: HISTORICAL_RUN_KEY,
+      carried_forward_members: HISTORICAL_MEMBER_LINES,
+      exact_new_logical_ids: GOVERNED_LOGICAL_IDS,
+      expected_member_lines: HISTORICAL_MEMBER_LINES.concat(GOVERNED_LOGICAL_IDS.map((id) => `exercise#${id}`)).sort(),
       contains_carry: false,
     },
     seal_preconditions_recheck: {
@@ -737,32 +764,47 @@ const manifestObject = {
     },
   },
 
-  expected_delivery_effect_for_a_fresh_user: {
+  expected_delivery_effect: {
     function: 'deliver_catalog_exercises',
-    definition_source: 'migration 028 section D',
-    plank_gate_armed: false,
-    plank_disposition: 'not_in_run',
+    definition_source: 'migration 028 section D (migration 026 body plus the explicit weight_time arms)',
+    plank_gate_armed: true,
     plank_gate_reasoning:
-      "the gate arms only when some catalog row has lower(canonical_name) = 'plank'; the " +
-      'two plank-family entries here are "plate-weighted plank" and "weighted vest plank", ' +
-      'neither of which equals it',
-    summary: {
-      eligible: 5,
-      inserted: 5,
-      skipped_already_delivered: 0,
-      skipped_name_collision: 0,
-      collision_names: [],
-      alias_inserted: 0,
-      alias_added_to_existing: 0,
-      alias_already_delivered: 0,
-      alias_skipped_no_exercise: 0,
-      alias_skipped_inactive_exercise: 0,
-      alias_skipped_collision: 0,
-      inserted_catalog_logical_id_count: 5,
+      "the cumulative run carries the historical Plank member (lower(canonical_name) = 'plank'), so the " +
+      'Plank reconciliation dispatch of migration 026 is ARMED for this run; the five new identities take the generic insert path',
+    derivation_note:
+      'every counter below is derived by reading the committed function body; the disposable proof ' +
+      'asserts each summary against the live database, which is the oracle',
+    case_fresh_user_zero_rows: {
+      description: 'a user with NO exercises (delivery-first initialization; no seed row exists to reconcile)',
+      summary: {
+        eligible: 8, inserted: 8, skipped_already_delivered: 0, skipped_name_collision: 0, collision_names: [],
+        alias_inserted: 3, alias_added_to_existing: 0, alias_already_delivered: 0, alias_skipped_no_exercise: 0,
+        alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0, inserted_catalog_logical_id_count: 8,
+        plank_disposition: 'delivered_canonical_timed_plank',
+      },
+      accounting_offset: 0,
+      new_weight_time_exercise_muscles_rows: totalExpectedMuscleRows,
+      repeat: 'a second and third delivery skip all eight (skipped_already_delivered 8, alias_already_delivered 3, plank_disposition already_valid_idempotent)',
     },
-    accounting_offset: 0,
-    exercise_muscles_rows_inserted: totalExpectedMuscleRows,
-    idempotency: 'a second delivery for the same user skips all five as already delivered',
+    case_pristine_legacy_seed_user: {
+      description: 'a user carrying the original untouched bodyweight Plank seed with its obliques:secondary anatomy and no other catalog rows',
+      summary: {
+        eligible: 8, inserted: 7, skipped_already_delivered: 0, skipped_name_collision: 0, collision_names: [],
+        alias_inserted: 1, alias_added_to_existing: 2, alias_already_delivered: 0, alias_skipped_no_exercise: 0,
+        alias_skipped_inactive_exercise: 0, alias_skipped_collision: 0, inserted_catalog_logical_id_count: 7,
+        plank_disposition: 'corrected_and_linked_pristine_seed',
+      },
+      accounting_offset: 1,
+    },
+    case_existing_plank_user_from_historical_run: {
+      description: 'a user who ALREADY received the plank release through exlib2u-plank-release1-staged-v1',
+      expectation:
+        'the committed function REFUSES the whole delivery: the existing Plank link carries the HISTORICAL run id, ' +
+        'and exlib_plank_link_valid (migration 026) demands import_run_id = THIS run, so the existing-link path ' +
+        'raises "inconsistent prior Plank reconciliation requires separate investigation" and the transaction rolls ' +
+        'back with no new rows. This is finding F-E8 and is MEASURED by the disposable proof; it is a repository ' +
+        'dependency outside this round\'s authority (a migration or an application change would be required to change it).',
+    },
   },
 
   delivery_configuration_dependency: {
@@ -794,6 +836,12 @@ const manifestObject = {
     historical_run: {
       run_key: HISTORICAL_RUN_KEY,
       posture: 'sealed, approved, dry_run false, unrevoked; 3 exercise members + 3 alias members; MUST be byte-identical after every package',
+      members: HISTORICAL_MEMBER_LINES,
+      members_source: HISTORICAL_RUN_PACKAGE_RELATIVE_PATH,
+      members_note:
+        'governed-identity lines (exercise#<logical_id> / alias#<logical_id>#<alias>) parsed from the ' +
+        'promoted staging package\'s membership postcondition; the cumulative stage-6 package refuses ' +
+        'unless the live historical run still resolves to exactly these six, then COPIES its rows',
     },
     authority_baseline:
       'each of exlib_catalog_loader / exlib_catalog_reviewer / exlib_catalog_admission / ' +

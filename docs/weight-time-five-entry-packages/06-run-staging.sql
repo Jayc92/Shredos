@@ -1,5 +1,5 @@
 -- ============================================================
--- W14-E stage 6 of 7 - DELIVERY RUN STAGING (family C) - the new five-entry run and its membership
+-- W14-E stage 6 of 7 - CUMULATIVE DELIVERY RUN STAGING (family C) - the historical six carried forward plus the five
 -- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
@@ -17,11 +17,12 @@
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - creates EXACTLY ONE new import run in the Design-S4 posture (dry_run = false, approved_for_delivery = false, sealed_at NULL, revoked_at NULL, operational fields NULL) carrying the family C product + legal approval evidence AT CREATION - derived from the promoted EXLIB-2U package: exlib_approve_and_seal_run only VALIDATES evidence, it never writes it
---   - creates EXACTLY FIVE membership rows: the five approved weight_time identities as exercise members, resolved by logical_id + is_active (never a hosted surrogate UUID), and ZERO alias members (none of the five carries an alias)
+--   - creates EXACTLY ELEVEN membership rows: the SIX membership rows of the sealed historical plank run exlib2u-plank-release1-staged-v1 (3 exercise members + 3 alias members) COPIED from that run's own rows after a gate proves they still resolve to exactly the promoted six governed-identity lines, PLUS the five weight_time identities as exercise members resolved by logical_id + is_active - so the new run is CUMULATIVE (independent review finding R-E1): additive, not a replacement
 --   - the new run key is the family C run_key_literal and is NEVER the historical plank key exlib2u-plank-release1-staged-v1 (run_key is UNIQUE forever; the gate below refuses if the chosen key already exists)
+--   - the HISTORICAL RUN IS NEVER MUTATED, REVOKED OR EDITED: it is read as the copy source and its row and its six membership rows are proven byte-identical afterwards
 --   - NO controlled function exists for run creation (only exlib_approve_and_seal_run writes a run row, and it only UPDATEs one that exists), so the direct owner INSERT is the ONLY lawful surface - the mechanism the promoted EXLIB-2U package used
 --   - the staged run is STRUCTURALLY NON-DELIVERABLE: the delivery predicate (approved AND NOT dry AND sealed AND unrevoked) is EVALUATED below and must match zero rows; the delivery function is never called
---   - NO seal, NO revocation, NO delivery, NO change to the historical plank run or its six members, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change
+--   - NO seal, NO revocation, NO delivery, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change
 --
 -- EXECUTION AUTHORITY: may ONLY ever be applied to the Supabase project
 -- "ShredOS" ref ttybyljytiwntvorugcv, ONLY by Joseph or ChatGPT in the hosted
@@ -38,13 +39,13 @@
 -- docs/weight-time-five-entry-read-state.sql and never blindly re-run.
 --
 -- POSITION IN THE SEQUENCE: stage 6 of 7. Vector before 8/8/10/3/11/6/2/2/1/6/8,
--- after 8/8/10/3/11/6/2/2/2/11/8 (runs 1 -> 2; run_items 6 -> 11 (five exercise members, zero alias members)).
+-- after 8/8/10/3/11/6/2/2/2/17/8 (runs 1 -> 2; run_items 6 -> 17 (the historical run's 3 exercise + 3 alias members copied forward, plus five new exercise members: 8 exercise + 3 alias)).
 -- ============================================================
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
--- TEMPLATE RENDERING: NOT EXECUTABLE. 92 human decision leaves are blank:
+-- TEMPLATE RENDERING: NOT EXECUTABLE. 94 human decision leaves are blank:
 --   A.132.decision
 --   A.132.reviewer
 --   A.132.reviewer_role_or_credential
@@ -79,7 +80,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.132.confirm.safety_adequacy
 --   B.132.confirm.partner_plate_placement_guidance_appropriate
 --   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.load_selection_heuristic_reasonable
+--   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
 --   B.132.confirm.weight_time_contract_stated_correctly
 --   B.132.confirm.easier_alternative_appropriate
 --   B.133.decision
@@ -102,7 +103,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.137.confirm.instruction_coaching_quality
 --   B.137.confirm.safety_adequacy
 --   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dip_belt_or_feet_held_plate_both_appropriate
+--   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
 --   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
 --   B.137.confirm.weight_time_contract_stated_correctly
 --   B.137.confirm.easier_alternative_appropriate
@@ -118,6 +119,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.138.confirm.position_first_then_load_ordering_appropriate
 --   B.138.confirm.weight_time_contract_stated_correctly
 --   B.138.confirm.easier_alternative_appropriate
+--   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
 --   B.139.decision
 --   B.139.reviewer
 --   B.139.reviewer_role_or_credential
@@ -127,9 +129,10 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.139.confirm.safety_adequacy
 --   B.139.confirm.vest_fit_guidance_appropriate
 --   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_advantage_over_plate_variant_accurate
+--   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
 --   B.139.confirm.weight_time_contract_stated_correctly
 --   B.139.confirm.easier_alternative_appropriate
+--   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
 --   C.run_key_literal
 --   C.product_approver_identity
 --   C.product_approved_at
@@ -138,7 +141,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   C.approval_rationale
 --   C.run_membership
 -- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 92 human decision leaves are blank; regenerate from COMPLETED forms>>;
+SELECT <<UNRESOLVED-TEMPLATE: 94 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -283,11 +286,46 @@ BEGIN
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh Plank content row is not exactly present; refusing';
   END IF;
+  -- THE HISTORICAL SOURCE RUN, resolved back through governed identity (never
+  -- surrogates): it must still be sealed, approved, non-dry, unrevoked and carry
+  -- EXACTLY the six membership lines the promoted EXLIB-2U package asserted and
+  -- the EXLIB-2Z seal froze. These six rows are COPIED into the new run below;
+  -- nothing here writes the historical run.
+  SELECT string_agg(x.member, E'\n' ORDER BY x.member)
+    INTO v_line
+    FROM (
+      SELECT 'exercise#' || c.logical_id::text AS member
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog c ON c.id = ri.catalog_id
+       WHERE h.run_key = 'exlib2u-plank-release1-staged-v1' AND ri.catalog_id IS NOT NULL
+      UNION ALL
+      SELECT 'alias#' || a.logical_id::text || '#' || a.alias
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id
+       WHERE h.run_key = 'exlib2u-plank-release1-staged-v1' AND ri.catalog_alias_id IS NOT NULL
+    ) x;
+  IF v_line IS DISTINCT FROM
+        'alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000001#Front plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000001'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000002'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000003' THEN
+    RAISE EXCEPTION 'W14E-6 run staging: the historical source run exlib2u-plank-release1-staged-v1 does not carry exactly the promoted six membership lines (3 exercise + 3 alias members) - nothing can be carried forward; refusing (got: %)', coalesce(v_line, '<none>');
+  END IF;
+  IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
+       WHERE r.run_key = 'exlib2u-plank-release1-staged-v1'
+         AND r.approved_for_delivery = true AND r.dry_run = false
+         AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL) <> 1 THEN
+    RAISE EXCEPTION 'W14E-6 run staging: the historical source run exlib2u-plank-release1-staged-v1 is not exactly one sealed, approved, non-dry, unrevoked run; refusing';
+  END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_logical WHERE id IN ('e21b2c00-0000-4000-a000-000000000009', 'e21b2c00-0000-4000-a000-00000000000a', 'e21b2c00-0000-4000-a000-00000000000b')) <> 0
      OR (SELECT count(*) FROM public.exercise_catalog WHERE lower(canonical_name) ~ 'carry|farmer|suitcase|sandbag') <> 0 THEN
     RAISE EXCEPTION 'W14E-6 run staging: a deferred carry identity (inventory lines 134, 135, 136) is present in the catalog; the carries are DEFERRED and this lifecycle never touches them; refusing';
   END IF;
-  -- every identity the membership INSERT names must resolve to exactly one
+  -- every NEW identity the membership INSERT names must resolve to exactly one
   -- ACTIVE snapshot - a listed identity that does not exist would otherwise
   -- silently produce no row
   IF (SELECT count(*) FROM public.exercise_catalog c
@@ -297,7 +335,7 @@ BEGIN
                         'e21b2c00-0000-4000-a000-000000000007',
                         'e21b2c00-0000-4000-a000-000000000008')
          AND c.is_active = true) <> 5 THEN
-    RAISE EXCEPTION 'W14E-6 run staging: the 5 listed membership identities do not each resolve to exactly one active snapshot; refusing';
+    RAISE EXCEPTION 'W14E-6 run staging: the 5 listed new membership identities do not each resolve to exactly one active snapshot; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true) <> 1
@@ -473,7 +511,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000104' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000004'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.132.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 132 is not exactly present; the run must never point at unpublished content; refusing';
@@ -482,7 +520,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000105' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000005'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.133.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 133 is not exactly present; the run must never point at unpublished content; refusing';
@@ -491,7 +529,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000106' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000006'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.137.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 137 is not exactly present; the run must never point at unpublished content; refusing';
@@ -500,7 +538,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000107' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000007'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.138.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 138 is not exactly present; the run must never point at unpublished content; refusing';
@@ -509,7 +547,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000108' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000008'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.139.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 139 is not exactly present; the run must never point at unpublished content; refusing';
@@ -520,7 +558,7 @@ BEGIN
 END
 $pre$;
 
--- ── THE ACT: one staged run + its five membership rows ────────────────
+-- ── THE ACT: one staged run + its eleven membership rows ──────────────
 INSERT INTO public.exercise_catalog_import_runs
   (run_key, dry_run,
    product_approved_by, product_approved_at,
@@ -532,6 +570,18 @@ VALUES
    <<UNRESOLVED:C.legal_approver_identity>>, <<UNRESOLVED:C.legal_approved_at>>,
    <<UNRESOLVED:C.approval_rationale>>);
 
+-- carried-forward EXERCISE members: the historical run's own membership rows,
+-- COPIED (same catalog snapshot ids), never retyped
+INSERT INTO public.exercise_catalog_run_items (run_id, catalog_id)
+SELECT r.id, ri.catalog_id
+  FROM public.exercise_catalog_import_runs r
+  JOIN public.exercise_catalog_import_runs h ON h.run_key = 'exlib2u-plank-release1-staged-v1'
+  JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_id IS NOT NULL
+  JOIN public.exercise_catalog c ON c.id = ri.catalog_id
+ WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
+
+-- NEW exercise members: the five approved weight_time identities, resolved by
+-- governed logical identity + is_active (never a surrogate)
 INSERT INTO public.exercise_catalog_run_items (run_id, catalog_id)
 SELECT r.id, c.id
   FROM public.exercise_catalog_import_runs r
@@ -542,6 +592,15 @@ SELECT r.id, c.id
                         'e21b2c00-0000-4000-a000-000000000007',
                         'e21b2c00-0000-4000-a000-000000000008')
    AND c.is_active = true
+ WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
+
+-- carried-forward ALIAS members: the historical run's own alias membership rows, COPIED
+INSERT INTO public.exercise_catalog_run_items (run_id, catalog_alias_id)
+SELECT r.id, ri.catalog_alias_id
+  FROM public.exercise_catalog_import_runs r
+  JOIN public.exercise_catalog_import_runs h ON h.run_key = 'exlib2u-plank-release1-staged-v1'
+  JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_alias_id IS NOT NULL
+  JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id
  WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
 
 -- ── Postconditions (ANY mismatch rolls back EVERYTHING) ──────────────
@@ -569,8 +628,8 @@ BEGIN
     || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
     || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
     INTO v_counts;
-  IF v_counts <> '8/8/10/3/11/6/2/2/2/11/8' THEN
-    RAISE EXCEPTION 'W14E-6 run staging: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/11/8); rolling back everything', v_counts;
+  IF v_counts <> '8/8/10/3/11/6/2/2/2/17/8' THEN
+    RAISE EXCEPTION 'W14E-6 run staging: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/17/8); rolling back everything', v_counts;
   END IF;
   SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = <<UNRESOLVED:C.run_key_literal>>;
   IF NOT FOUND THEN
@@ -607,12 +666,18 @@ BEGIN
        WHERE ri.run_id = v_run.id AND ri.catalog_alias_id IS NOT NULL
     ) x;
   IF v_line IS DISTINCT FROM
-        'exercise#e21b2c00-0000-4000-a000-000000000004'
+        'alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000001#Front plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000001'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000002'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000003'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000004'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000005'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000006'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000007'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000008' THEN
-    RAISE EXCEPTION 'W14E-6 run staging: the membership is not exactly the five governed exercise members with zero alias members; rolling back everything (got: %)', coalesce(v_line, '<none>');
+    RAISE EXCEPTION 'W14E-6 run staging: the membership is not exactly the eleven cumulative lines (the historical run''s six carried forward plus the five new exercise members); rolling back everything (got: %)', coalesce(v_line, '<none>');
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_run_items ri
        WHERE ri.run_id <> v_run.id
@@ -624,8 +689,8 @@ BEGIN
     INTO v_exercise_members, v_alias_members
   FROM public.exercise_catalog_run_items ri
   WHERE ri.run_id = v_run.id;
-  IF COALESCE(v_exercise_members, 0) <> 5 OR COALESCE(v_alias_members, 0) <> 0 THEN
-    RAISE EXCEPTION 'W14E-6 run staging: seal-shape counts are %/% (expected 5 exercise + 0 alias members); rolling back everything', v_exercise_members, v_alias_members;
+  IF COALESCE(v_exercise_members, 0) <> 8 OR COALESCE(v_alias_members, 0) <> 3 THEN
+    RAISE EXCEPTION 'W14E-6 run staging: seal-shape counts are %/% (expected 8 exercise + 3 alias members); rolling back everything', v_exercise_members, v_alias_members;
   END IF;
   SELECT count(*) INTO v_unready
     FROM public.exercise_catalog_run_items ri
@@ -639,6 +704,18 @@ BEGIN
           OR char_length(btrim(c.review_rationale)) = 0);
   IF v_unready <> 0 THEN
     RAISE EXCEPTION 'W14E-6 run staging: % exercise member(s) would fail the seal validation; rolling back everything', v_unready;
+  END IF;
+  -- the carried-forward rows reference the SAME catalog snapshot rows and the SAME
+  -- alias rows as the historical run (a copy, not a re-resolution)
+  IF (SELECT count(*) FROM public.exercise_catalog_run_items n
+        JOIN public.exercise_catalog_run_items h ON h.catalog_id = n.catalog_id
+        JOIN public.exercise_catalog_import_runs hr ON hr.id = h.run_id AND hr.run_key = 'exlib2u-plank-release1-staged-v1'
+       WHERE n.run_id = v_run.id AND n.catalog_id IS NOT NULL) <> 3
+     OR (SELECT count(*) FROM public.exercise_catalog_run_items n
+        JOIN public.exercise_catalog_run_items h ON h.catalog_alias_id = n.catalog_alias_id
+        JOIN public.exercise_catalog_import_runs hr ON hr.id = h.run_id AND hr.run_key = 'exlib2u-plank-release1-staged-v1'
+       WHERE n.run_id = v_run.id AND n.catalog_alias_id IS NOT NULL) <> 3 THEN
+    RAISE EXCEPTION 'W14E-6 run staging: the carried-forward membership does not reference exactly the historical run''s 3 snapshot rows and 3 alias rows; rolling back everything';
   END IF;
   -- STRUCTURAL NON-DELIVERABILITY: the delivery predicate, evaluated - never the function
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
@@ -685,7 +762,7 @@ END
 $post$;
 
 -- surfaced result (display evidence; the committed rows are the proof)
-SELECT 'W14E-6 RUN STAGED' AS result,
+SELECT 'W14E-6 CUMULATIVE RUN STAGED' AS result,
        (SELECT
           (SELECT count(*) FROM public.exercise_catalog_logical)::text
           || '/' || (SELECT count(*) FROM public.exercise_catalog)::text

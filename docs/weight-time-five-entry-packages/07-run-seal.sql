@@ -16,11 +16,11 @@
 -- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
---   - performs EXACTLY ONE public.exlib_approve_and_seal_run call on the staged five-entry run; from the committed migration-023 bytes that call atomically sets approved_for_delivery = true and sealed_at = NOW() in the single validated unsealed -> sealed transition, PERMANENTLY freezing the run's five-member membership and every approval-bound field
+--   - performs EXACTLY ONE public.exlib_approve_and_seal_run call on the staged CUMULATIVE run (the historical six carried forward plus the five: 8 exercise + 3 alias members); from the committed migration-023 bytes that call atomically sets approved_for_delivery = true and sealed_at = NOW() in the single validated unsealed -> sealed transition, PERMANENTLY freezing the eleven-row membership and every approval-bound field
 --   - the seal function re-validates every exercise member (approved, active, non-blank reviewer, non-blank rationale) independently of stage 1, inside the same statement, through the run-row freeze trigger
 --   - IRREVERSIBILITY, PLAINLY: a run seals AT MOST ONCE, forever. There is no unseal. The only later transition is exlib_revoke_run_delivery, a ONE-WAY shutdown that reopens nothing and is NOT part of this package. A membership mistake found after this point needs a NEW run with a NEW key
 --   - RISK ELEVATION: after the seal the delivery predicate matches this run, so deliver_catalog_exercises(<new key>) becomes REACHABLE by any authenticated caller naming the key - into that caller's own tenant. The application delivers only the configured run key, which still names the plank release until the SEPARATE Vercel change (never performed by Claude) repoints it
---   - NO delivery, NO revocation, NO change to the historical plank run, NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change
+--   - NO delivery, NO revocation, NO change to the historical plank run (which stays sealed and deliverable; its six rows are carried forward, not moved), NO snapshot/content/publication/projection change, NO tenant change, NO authority change, NO environment change
 --
 -- EXECUTION AUTHORITY: may ONLY ever be applied to the Supabase project
 -- "ShredOS" ref ttybyljytiwntvorugcv, ONLY by Joseph or ChatGPT in the hosted
@@ -36,14 +36,14 @@
 -- transport or result of an execution is ever ambiguous, READ STATE FIRST with
 -- docs/weight-time-five-entry-read-state.sql and never blindly re-run.
 --
--- POSITION IN THE SEQUENCE: stage 7 of 7. Vector before 8/8/10/3/11/6/2/2/2/11/8,
--- after 8/8/10/3/11/6/2/2/2/11/8 (nothing; the new run row changes in place (approved_for_delivery, sealed_at)).
+-- POSITION IN THE SEQUENCE: stage 7 of 7. Vector before 8/8/10/3/11/6/2/2/2/17/8,
+-- after 8/8/10/3/11/6/2/2/2/17/8 (nothing; the new run row changes in place (approved_for_delivery, sealed_at)).
 -- ============================================================
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
--- TEMPLATE RENDERING: NOT EXECUTABLE. 92 human decision leaves are blank:
+-- TEMPLATE RENDERING: NOT EXECUTABLE. 94 human decision leaves are blank:
 --   A.132.decision
 --   A.132.reviewer
 --   A.132.reviewer_role_or_credential
@@ -78,7 +78,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.132.confirm.safety_adequacy
 --   B.132.confirm.partner_plate_placement_guidance_appropriate
 --   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.load_selection_heuristic_reasonable
+--   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
 --   B.132.confirm.weight_time_contract_stated_correctly
 --   B.132.confirm.easier_alternative_appropriate
 --   B.133.decision
@@ -101,7 +101,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.137.confirm.instruction_coaching_quality
 --   B.137.confirm.safety_adequacy
 --   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dip_belt_or_feet_held_plate_both_appropriate
+--   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
 --   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
 --   B.137.confirm.weight_time_contract_stated_correctly
 --   B.137.confirm.easier_alternative_appropriate
@@ -117,6 +117,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.138.confirm.position_first_then_load_ordering_appropriate
 --   B.138.confirm.weight_time_contract_stated_correctly
 --   B.138.confirm.easier_alternative_appropriate
+--   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
 --   B.139.decision
 --   B.139.reviewer
 --   B.139.reviewer_role_or_credential
@@ -126,9 +127,10 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.139.confirm.safety_adequacy
 --   B.139.confirm.vest_fit_guidance_appropriate
 --   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_advantage_over_plate_variant_accurate
+--   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
 --   B.139.confirm.weight_time_contract_stated_correctly
 --   B.139.confirm.easier_alternative_appropriate
+--   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
 --   C.run_key_literal
 --   C.product_approver_identity
 --   C.product_approved_at
@@ -137,7 +139,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   C.approval_rationale
 --   C.run_membership
 -- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 92 human decision leaves are blank; regenerate from COMPLETED forms>>;
+SELECT <<UNRESOLVED-TEMPLATE: 94 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -270,8 +272,8 @@ BEGIN
     || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
     || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
     INTO v_counts;
-  IF v_counts <> '8/8/10/3/11/6/2/2/2/11/8' THEN
-    RAISE EXCEPTION 'W14E-7 run seal: the catalog surface is not the exact expected pre-state (expected 8/8/10/3/11/6/2/2/2/11/8, found %); this ONE-USE package refuses to run twice, over foreign state, or over an ambiguous surface - READ STATE FIRST', v_counts;
+  IF v_counts <> '8/8/10/3/11/6/2/2/2/17/8' THEN
+    RAISE EXCEPTION 'W14E-7 run seal: the catalog surface is not the exact expected pre-state (expected 8/8/10/3/11/6/2/2/2/17/8, found %); this ONE-USE package refuses to run twice, over foreign state, or over an ambiguous surface - READ STATE FIRST', v_counts;
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
        WHERE r.run_key = 'exlib2u-plank-release1-staged-v1'
@@ -287,6 +289,41 @@ BEGIN
          AND c.import_admitted = true
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh Plank content row is not exactly present; refusing';
+  END IF;
+  -- THE HISTORICAL SOURCE RUN, resolved back through governed identity (never
+  -- surrogates): it must still be sealed, approved, non-dry, unrevoked and carry
+  -- EXACTLY the six membership lines the promoted EXLIB-2U package asserted and
+  -- the EXLIB-2Z seal froze. These six rows are COPIED into the new run below;
+  -- nothing here writes the historical run.
+  SELECT string_agg(x.member, E'\n' ORDER BY x.member)
+    INTO v_line
+    FROM (
+      SELECT 'exercise#' || c.logical_id::text AS member
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog c ON c.id = ri.catalog_id
+       WHERE h.run_key = 'exlib2u-plank-release1-staged-v1' AND ri.catalog_id IS NOT NULL
+      UNION ALL
+      SELECT 'alias#' || a.logical_id::text || '#' || a.alias
+        FROM public.exercise_catalog_run_items ri
+        JOIN public.exercise_catalog_import_runs h ON h.id = ri.run_id
+        JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id
+       WHERE h.run_key = 'exlib2u-plank-release1-staged-v1' AND ri.catalog_alias_id IS NOT NULL
+    ) x;
+  IF v_line IS DISTINCT FROM
+        'alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000001#Front plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000001'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000002'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000003' THEN
+    RAISE EXCEPTION 'W14E-7 run seal: the historical source run exlib2u-plank-release1-staged-v1 does not carry exactly the promoted six membership lines (3 exercise + 3 alias members) - nothing can be carried forward; refusing (got: %)', coalesce(v_line, '<none>');
+  END IF;
+  IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
+       WHERE r.run_key = 'exlib2u-plank-release1-staged-v1'
+         AND r.approved_for_delivery = true AND r.dry_run = false
+         AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL) <> 1 THEN
+    RAISE EXCEPTION 'W14E-7 run seal: the historical source run exlib2u-plank-release1-staged-v1 is not exactly one sealed, approved, non-dry, unrevoked run; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_logical WHERE id IN ('e21b2c00-0000-4000-a000-000000000009', 'e21b2c00-0000-4000-a000-00000000000a', 'e21b2c00-0000-4000-a000-00000000000b')) <> 0
      OR (SELECT count(*) FROM public.exercise_catalog WHERE lower(canonical_name) ~ 'carry|farmer|suitcase|sandbag') <> 0 THEN
@@ -335,12 +372,18 @@ BEGIN
        WHERE ri.run_id = v_run.id AND ri.catalog_alias_id IS NOT NULL
     ) x;
   IF v_line IS DISTINCT FROM
-        'exercise#e21b2c00-0000-4000-a000-000000000004'
+        'alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000001#Front plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000001'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000002'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000003'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000004'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000005'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000006'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000007'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000008' THEN
-    RAISE EXCEPTION 'W14E-7 run seal: the membership is not exactly the five governed exercise members with zero alias members; refusing (got: %)', coalesce(v_line, '<none>');
+    RAISE EXCEPTION 'W14E-7 run seal: the membership is not exactly the eleven cumulative lines (the historical run''s six carried forward plus the five new exercise members); refusing (got: %)', coalesce(v_line, '<none>');
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_run_items ri
        WHERE ri.run_id <> v_run.id
@@ -352,8 +395,8 @@ BEGIN
     INTO v_exercise_members, v_alias_members
   FROM public.exercise_catalog_run_items ri
   WHERE ri.run_id = v_run.id;
-  IF COALESCE(v_exercise_members, 0) <> 5 OR COALESCE(v_alias_members, 0) <> 0 THEN
-    RAISE EXCEPTION 'W14E-7 run seal: seal-shape counts are %/% (expected 5 exercise + 0 alias members); refusing', v_exercise_members, v_alias_members;
+  IF COALESCE(v_exercise_members, 0) <> 8 OR COALESCE(v_alias_members, 0) <> 3 THEN
+    RAISE EXCEPTION 'W14E-7 run seal: seal-shape counts are %/% (expected 8 exercise + 3 alias members); refusing', v_exercise_members, v_alias_members;
   END IF;
   SELECT count(*) INTO v_unready
     FROM public.exercise_catalog_run_items ri
@@ -551,7 +594,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000104' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000004'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.132.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 132 is not exactly present; the run must never point at unpublished content; refusing';
@@ -560,7 +603,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000105' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000005'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.133.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 133 is not exactly present; the run must never point at unpublished content; refusing';
@@ -569,7 +612,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000106' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000006'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.137.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 137 is not exactly present; the run must never point at unpublished content; refusing';
@@ -578,7 +621,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000107' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000007'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.138.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 138 is not exactly present; the run must never point at unpublished content; refusing';
@@ -587,7 +630,7 @@ BEGIN
        WHERE c.id = 'e21b2c00-0000-4000-a000-000000000108' AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000008'
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.139.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 139 is not exactly present; the run must never point at unpublished content; refusing';
@@ -607,8 +650,8 @@ BEGIN
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'run_key', <<UNRESOLVED:C.run_key_literal>>,
        'sealed', true,
-       'exercise_members', 5,
-       'alias_members', 0) THEN
+       'exercise_members', 8,
+       'alias_members', 3) THEN
     RAISE EXCEPTION 'W14E-7 run seal: the seal function returned % (expected exactly the reserved four-field result); rolling back everything - the attempted seal does not survive', v_result;
   END IF;
 END
@@ -640,8 +683,8 @@ BEGIN
     || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
     || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text
     INTO v_counts;
-  IF v_counts <> '8/8/10/3/11/6/2/2/2/11/8' THEN
-    RAISE EXCEPTION 'W14E-7 run seal: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/11/8); rolling back everything', v_counts;
+  IF v_counts <> '8/8/10/3/11/6/2/2/2/17/8' THEN
+    RAISE EXCEPTION 'W14E-7 run seal: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/17/8); rolling back everything', v_counts;
   END IF;
   SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = <<UNRESOLVED:C.run_key_literal>>;
   IF NOT FOUND THEN
@@ -681,12 +724,18 @@ BEGIN
        WHERE ri.run_id = v_run.id AND ri.catalog_alias_id IS NOT NULL
     ) x;
   IF v_line IS DISTINCT FROM
-        'exercise#e21b2c00-0000-4000-a000-000000000004'
+        'alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000001#Front plank'
+     || E'\n' || 'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000001'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000002'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000003'
+     || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000004'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000005'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000006'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000007'
      || E'\n' || 'exercise#e21b2c00-0000-4000-a000-000000000008' THEN
-    RAISE EXCEPTION 'W14E-7 run seal: the membership is not exactly the five governed exercise members with zero alias members; rolling back everything (got: %)', coalesce(v_line, '<none>');
+    RAISE EXCEPTION 'W14E-7 run seal: the membership is not exactly the eleven cumulative lines (the historical run''s six carried forward plus the five new exercise members); rolling back everything (got: %)', coalesce(v_line, '<none>');
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_run_items ri
        WHERE ri.run_id <> v_run.id
@@ -698,8 +747,8 @@ BEGIN
     INTO v_exercise_members, v_alias_members
   FROM public.exercise_catalog_run_items ri
   WHERE ri.run_id = v_run.id;
-  IF COALESCE(v_exercise_members, 0) <> 5 OR COALESCE(v_alias_members, 0) <> 0 THEN
-    RAISE EXCEPTION 'W14E-7 run seal: seal-shape counts are %/% (expected 5 exercise + 0 alias members); rolling back everything', v_exercise_members, v_alias_members;
+  IF COALESCE(v_exercise_members, 0) <> 8 OR COALESCE(v_alias_members, 0) <> 3 THEN
+    RAISE EXCEPTION 'W14E-7 run seal: seal-shape counts are %/% (expected 8 exercise + 3 alias members); rolling back everything', v_exercise_members, v_alias_members;
   END IF;
   SELECT count(*) INTO v_unready
     FROM public.exercise_catalog_run_items ri

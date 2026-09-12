@@ -16,7 +16,7 @@
 -- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
---   - performs EXACTLY FIVE public.admit_catalog_content calls under the exlib_catalog_admission authority, each recording the SAME source-artifact provenance: the SHA-256 of the exact reviewed content carrier docs/weight-time-five-entry-content.jsonl (fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921)
+--   - performs EXACTLY FIVE public.admit_catalog_content calls under the exlib_catalog_admission authority, each recording the SAME source-artifact provenance: the SHA-256 of the exact reviewed content carrier docs/weight-time-five-entry-content.jsonl (8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb)
 --   - the admission fingerprint is COMPUTED BY THE DATABASE from bound state; the caller cannot supply it. Because migration 027's manifest v2 binds only portable state (identity, snapshot fields, anatomy, aliases, payload, authorship, the review tuple as an epoch, expected relationships), the generator PRECOMPUTES each expected value from the same inputs and this package asserts the database agrees - so a bound surface that drifted after the decision refuses here
 --   - LOAD-BEARING SEPARATION: admission must travel alone (the freeze trigger refuses any payload, review or publication change in the same statement); the vector does not move
 --   - NO publication, projection, run, membership, seal, revocation, delivery, tenant change or environment change
@@ -42,7 +42,7 @@
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
--- TEMPLATE RENDERING: NOT EXECUTABLE. 85 human decision leaves are blank:
+-- TEMPLATE RENDERING: NOT EXECUTABLE. 87 human decision leaves are blank:
 --   A.132.decision
 --   A.132.reviewer
 --   A.132.reviewer_role_or_credential
@@ -77,7 +77,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.132.confirm.safety_adequacy
 --   B.132.confirm.partner_plate_placement_guidance_appropriate
 --   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.load_selection_heuristic_reasonable
+--   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
 --   B.132.confirm.weight_time_contract_stated_correctly
 --   B.132.confirm.easier_alternative_appropriate
 --   B.133.decision
@@ -100,7 +100,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.137.confirm.instruction_coaching_quality
 --   B.137.confirm.safety_adequacy
 --   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dip_belt_or_feet_held_plate_both_appropriate
+--   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
 --   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
 --   B.137.confirm.weight_time_contract_stated_correctly
 --   B.137.confirm.easier_alternative_appropriate
@@ -116,6 +116,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.138.confirm.position_first_then_load_ordering_appropriate
 --   B.138.confirm.weight_time_contract_stated_correctly
 --   B.138.confirm.easier_alternative_appropriate
+--   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
 --   B.139.decision
 --   B.139.reviewer
 --   B.139.reviewer_role_or_credential
@@ -125,11 +126,12 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --   B.139.confirm.safety_adequacy
 --   B.139.confirm.vest_fit_guidance_appropriate
 --   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_advantage_over_plate_variant_accurate
+--   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
 --   B.139.confirm.weight_time_contract_stated_correctly
 --   B.139.confirm.easier_alternative_appropriate
+--   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
 -- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 85 human decision leaves are blank; regenerate from COMPLETED forms>>;
+SELECT <<UNRESOLVED-TEMPLATE: 87 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -282,11 +284,11 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000004'
          AND c.content_version = 1
          AND c.authored_by = $pab132$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$pab132$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $pse132$["Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.","Choose a plate you could hold for at least half your unweighted plank time; the added load raises the difficulty and does not replace the position."]$pse132$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $pse132$["Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.","Start with a light plate that lets you hold the same stable plank position for the planned time; add load gradually across sessions, never within a hold."]$pse132$::jsonb
          AND c.execution_steps = $pex132$["Brace your abs and squeeze your glutes so your hips stay level with your shoulders and the plate sits flat without rocking.","Hold the position and keep breathing; a plate that stays still is the clearest sign your torso is not shifting underneath it.","End the hold the moment your hips sag or your lower back starts to arch, and have the plate lifted off before you come down.","Record the weight you held and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$pex132$::jsonb
-         AND c.breathing_cue = $pbr132$Take smaller breaths than usual and keep them continuous through the hold; never hold your breath to brace, because a long hold needs steady airflow.$pbr132$
-         AND c.common_mistakes = $pcm132$["Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.","Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.","Reaching for a heavier plate before the unweighted hold is solid, so the position fails before the trunk is actually challenged."]$pcm132$::jsonb
+         AND c.breathing_cue = $pbr132$Breathe steadily and continuously through the hold while keeping your brace; do not hold your breath to stiffen the position.$pbr132$
+         AND c.common_mistakes = $pcm132$["Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.","Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.","Adding load before the unweighted hold is stable, so the position breaks down instead of the trunk being challenged."]$pcm132$::jsonb
          AND c.safety_guidance = $psg132$Have the plate placed and removed by another person whenever you can, because sliding a plate on or off alone tends to twist the torso under load. Keep the plate off the neck and off the lower back, and end the hold at the first loss of a flat, level torso rather than pushing to failure with weight on your back.$psg132$
          AND c.equipment_setup = $pes132$One flat weight plate and a mat. A bumper plate sits more stably than a thin iron plate, and a training partner to place and remove it is strongly preferred.$pes132$
          AND c.accessibility_alternative = $paa132$Hold an unweighted plank for the same duration, or hold the position with your knees on the floor and no plate, adding time before you add any load.$paa132$
@@ -342,10 +344,10 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000005'
          AND c.content_version = 1
          AND c.authored_by = $pab133$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$pab133$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $pse133$["Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.","Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Choose a vest load you could hold for at least half your unweighted plank time, and check that the weight is even front to back."]$pse133$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $pse133$["Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.","Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Start with a light vest load that lets you hold the same stable plank position for the planned time, check that the weight sits evenly front to back, and add load gradually across sessions."]$pse133$::jsonb
          AND c.execution_steps = $pex133$["Brace your abs and squeeze your glutes so the vest's load stays over your mid-torso instead of dragging your hips toward the floor.","Hold the position and keep breathing; a vest that rides forward means the straps need tightening, not that you should push on.","End the hold when your hips sag or your lower back arches, then lower your knees before standing so the vest does not swing.","Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$pex133$::jsonb
-         AND c.breathing_cue = $pbr133$Take smaller breaths than usual and keep them continuous; a snug vest limits how far the ribcage can expand, so do not brace by holding your breath.$pbr133$
+         AND c.breathing_cue = $pbr133$Breathe steadily and continuously while keeping your brace; a snug vest can make deep breaths feel more restricted, so keep the breaths even rather than holding them.$pbr133$
          AND c.common_mistakes = $pcm133$["Wearing the vest loose, so it slides toward the shoulders and moves the load off the mid-torso partway through the hold.","Letting the hips sag under the extra load, which turns a trunk hold into a lower-back hold.","Adding vest weight in large jumps, because a spread-out load is easy to underestimate until the position fails.","Treating the vest as a way to extend a hold rather than as a separate, shorter, heavier effort."]$pcm133$::jsonb
          AND c.safety_guidance = $psg133$Check the straps and weight pockets before every set, because a pocket that comes loose during a hold drops load unpredictably. Keep the load balanced front to back, and end the hold at the first loss of a flat, level torso instead of pushing to failure while wearing weight.$psg133$
          AND c.equipment_setup = $pes133$A weighted vest with secured, evenly distributed weight pockets, and a mat. Confirm the straps are snug and every pocket is closed before you start the hold.$pes133$
@@ -402,13 +404,13 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000006'
          AND c.content_version = 1
          AND c.authored_by = $pab137$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$pab137$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $pse137$["Attach the weight to a dipping belt around your hips, or set a plate to hold between your feet, before you reach for the bar.","Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.","Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once."]$pse137$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $pse137$["Attach the plate to a dipping belt around your hips and check that it hangs centred before you reach for the bar.","Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.","Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once."]$pse137$::jsonb
          AND c.execution_steps = $pex137$["Hang with your arms straight and your shoulders active rather than fully slack, keeping your body still.","Keep your grip closed and your legs quiet so the weight hangs plumb underneath you instead of swinging.","Release when your grip starts to open, then step down under control; never drop from the bar with weight attached.","Record the added weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$pex137$::jsonb
-         AND c.breathing_cue = $pbr137$Breathe steadily and evenly through the hang; holding your breath to squeeze the bar ends the hold well before your grip actually gives out.$pbr137$
-         AND c.common_mistakes = $pcm137$["Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.","Letting the body swing, so the grip fights momentum instead of holding one steady load.","Using a thumbless grip under added weight, which gives up the most secure part of the hold.","Adding weight before an unweighted hang is comfortable for a full minute."]$pcm137$::jsonb
-         AND c.safety_guidance = $psg137$Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Carry the load on a belt or held firmly between the feet rather than balanced, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.$psg137$
-         AND c.equipment_setup = $pes137$A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt with a weight plate, or a plate held securely between the feet.$pes137$
+         AND c.breathing_cue = $pbr137$Breathe steadily and evenly through the hang; do not hold your breath to squeeze the bar.$pbr137$
+         AND c.common_mistakes = $pcm137$["Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.","Letting the body swing, so the grip fights momentum instead of holding one steady load.","Using a thumbless grip under added weight, which gives up the most secure part of the hold.","Adding weight before an unweighted hang is stable and controlled for the planned hold."]$pcm137$::jsonb
+         AND c.safety_guidance = $psg137$Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Load the belt before you take the bar and keep the plate hanging centred, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.$psg137$
+         AND c.equipment_setup = $pes137$A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt loaded with a weight plate.$pes137$
          AND c.accessibility_alternative = $paa137$Hang from the bar with no added weight for the same duration, or use a lower bar with your feet on the floor so your legs carry part of the load.$paa137$
          AND c.content_status = 'approved'
          AND c.reviewed_by = <<UNRESOLVED:B.137.reviewer>>
@@ -462,11 +464,11 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000007'
          AND c.content_version = 1
          AND c.authored_by = $pab138$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$pab138$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $pse138$["Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.","Check that your knees sit above your heels rather than ahead of your toes, and that your whole back stays against the wall.","Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands."]$pse138$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $pse138$["Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.","Set your feet far enough forward that at the target depth your shins are roughly vertical, your whole foot stays planted and the position feels stable, with your whole back against the wall.","Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands."]$pse138$::jsonb
          AND c.execution_steps = $pex138$["Press your back into the wall and drive through both feet evenly so the plate stays level across your thighs.","Hold with your knees at roughly a right angle and your weight through the whole foot rather than the toes.","End the hold when your thighs rise out of parallel or your back peels off the wall, then set the plate down before standing.","Record the plate weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$pex138$::jsonb
-         AND c.breathing_cue = $pbr138$Keep breathing evenly the whole way through; the burn will tempt you to hold your breath, which ends the hold sooner than your legs would.$pbr138$
-         AND c.common_mistakes = $pcm138$["Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.","Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.","Letting the knees travel forward past the toes, which moves the effort off the thighs.","Coming out of the hold by standing up with the plate still resting on the thighs."]$pcm138$::jsonb
+         AND c.breathing_cue = $pbr138$Keep breathing evenly the whole way through the hold; do not hold your breath as the legs tire.$pbr138$
+         AND c.common_mistakes = $pcm138$["Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.","Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.","Placing the feet too close to the wall, so the heels lighten and the standardized position shifts as the hold goes on.","Coming out of the hold by standing up with the plate still resting on the thighs."]$pcm138$::jsonb
          AND c.safety_guidance = $psg138$Get into the seated position first and have the plate placed afterwards, because picking a plate up while already holding a wall sit tends to pull you out of position. Keep both hands on the plate so it cannot slide off your thighs, and set it down before you stand.$psg138$
          AND c.equipment_setup = $pes138$A flat wall and one weight plate held on the thighs near the hips. A bumper plate is easier to keep flat than a thin iron plate.$pes138$
          AND c.accessibility_alternative = $paa138$Hold the wall sit with no plate for the same duration, or sit higher than parallel and add depth before you add any weight.$paa138$
@@ -522,13 +524,13 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000008'
          AND c.content_version = 1
          AND c.authored_by = $pab139$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$pab139$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $pse139$["Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.","Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.","Check that your knees sit above your heels and that the vest is not bunched between your back and the wall."]$pse139$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $pse139$["Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.","Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.","Set your feet far enough forward that at the target depth your shins are roughly vertical and your whole foot stays planted, and check that the vest is not bunched between your back and the wall."]$pse139$::jsonb
          AND c.execution_steps = $pex139$["Press your back into the wall and drive through both feet evenly, keeping the vest's load centred over your hips.","Hold with your knees at roughly a right angle and your hands free at your sides or folded across your chest.","End the hold when your thighs rise out of parallel or your back peels off the wall, then stand up under control.","Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$pex139$::jsonb
-         AND c.breathing_cue = $pbr139$Breathe evenly and continuously; a snug vest restricts the ribcage, so a held breath will end the hold before your legs do.$pbr139$
-         AND c.common_mistakes = $pcm139$["Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.","Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.","Adding vest weight when sitting above parallel is what is really limiting the hold.","Letting the knees drift forward past the toes as fatigue sets in."]$pcm139$::jsonb
+         AND c.breathing_cue = $pbr139$Breathe evenly and continuously through the hold; a snug vest can make deep breaths feel more restricted, so keep the breaths even rather than holding them.$pbr139$
+         AND c.common_mistakes = $pcm139$["Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.","Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.","Adding vest weight when sitting above parallel is what is really limiting the hold.","Placing the feet too close to the wall, so the heels lighten and the position shifts as fatigue sets in."]$pcm139$::jsonb
          AND c.safety_guidance = $psg139$Fit the vest before you get into position and check that its pockets are closed, because load shifting partway through a wall sit tends to pull the torso off the wall. Keep the whole foot planted and end the hold at the first loss of parallel rather than pushing to failure under load.$psg139$
-         AND c.equipment_setup = $pes139$A flat wall and a weighted vest with secured, evenly distributed pockets. Because the hands stay free, a vest suits longer holds than a plate held on the thighs.$pes139$
+         AND c.equipment_setup = $pes139$A flat wall and a weighted vest with secured, evenly distributed pockets. A vest keeps the hands free and distributes the external load across the torso rather than resting it on the thighs.$pes139$
          AND c.accessibility_alternative = $paa139$Hold the wall sit with no vest for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.$paa139$
          AND c.content_status = 'approved'
          AND c.reviewed_by = <<UNRESOLVED:B.139.reviewer>>
@@ -595,61 +597,61 @@ BEGIN
   v_result := public.admit_catalog_content(
     'e21b2c00-0000-4000-a000-000000000004',
     'e21b2c00-0000-4000-a000-000000000104',
-    'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921');
+    '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb');
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000004',
        'admitted', 'e21b2c00-0000-4000-a000-000000000104',
        'content_version', 1,
        'admitted_fingerprint', <<UNRESOLVED:B.132.admission_fingerprint(derived)>>,
-       'admitted_source_sha256', 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921') THEN
+       'admitted_source_sha256', '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb') THEN
     RAISE EXCEPTION 'W14E-4 content admission: admit_catalog_content for inventory line 132 returned % - the database-computed admission fingerprint or the echo differs from the PRECOMPUTED expected value (migration 027 manifest v2 recomputed in the generator); rolling back everything', v_result;
   END IF;
   v_result := public.admit_catalog_content(
     'e21b2c00-0000-4000-a000-000000000005',
     'e21b2c00-0000-4000-a000-000000000105',
-    'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921');
+    '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb');
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000005',
        'admitted', 'e21b2c00-0000-4000-a000-000000000105',
        'content_version', 1,
        'admitted_fingerprint', <<UNRESOLVED:B.133.admission_fingerprint(derived)>>,
-       'admitted_source_sha256', 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921') THEN
+       'admitted_source_sha256', '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb') THEN
     RAISE EXCEPTION 'W14E-4 content admission: admit_catalog_content for inventory line 133 returned % - the database-computed admission fingerprint or the echo differs from the PRECOMPUTED expected value (migration 027 manifest v2 recomputed in the generator); rolling back everything', v_result;
   END IF;
   v_result := public.admit_catalog_content(
     'e21b2c00-0000-4000-a000-000000000006',
     'e21b2c00-0000-4000-a000-000000000106',
-    'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921');
+    '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb');
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000006',
        'admitted', 'e21b2c00-0000-4000-a000-000000000106',
        'content_version', 1,
        'admitted_fingerprint', <<UNRESOLVED:B.137.admission_fingerprint(derived)>>,
-       'admitted_source_sha256', 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921') THEN
+       'admitted_source_sha256', '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb') THEN
     RAISE EXCEPTION 'W14E-4 content admission: admit_catalog_content for inventory line 137 returned % - the database-computed admission fingerprint or the echo differs from the PRECOMPUTED expected value (migration 027 manifest v2 recomputed in the generator); rolling back everything', v_result;
   END IF;
   v_result := public.admit_catalog_content(
     'e21b2c00-0000-4000-a000-000000000007',
     'e21b2c00-0000-4000-a000-000000000107',
-    'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921');
+    '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb');
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000007',
        'admitted', 'e21b2c00-0000-4000-a000-000000000107',
        'content_version', 1,
        'admitted_fingerprint', <<UNRESOLVED:B.138.admission_fingerprint(derived)>>,
-       'admitted_source_sha256', 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921') THEN
+       'admitted_source_sha256', '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb') THEN
     RAISE EXCEPTION 'W14E-4 content admission: admit_catalog_content for inventory line 138 returned % - the database-computed admission fingerprint or the echo differs from the PRECOMPUTED expected value (migration 027 manifest v2 recomputed in the generator); rolling back everything', v_result;
   END IF;
   v_result := public.admit_catalog_content(
     'e21b2c00-0000-4000-a000-000000000008',
     'e21b2c00-0000-4000-a000-000000000108',
-    'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921');
+    '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb');
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000008',
        'admitted', 'e21b2c00-0000-4000-a000-000000000108',
        'content_version', 1,
        'admitted_fingerprint', <<UNRESOLVED:B.139.admission_fingerprint(derived)>>,
-       'admitted_source_sha256', 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921') THEN
+       'admitted_source_sha256', '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb') THEN
     RAISE EXCEPTION 'W14E-4 content admission: admit_catalog_content for inventory line 139 returned % - the database-computed admission fingerprint or the echo differs from the PRECOMPUTED expected value (migration 027 manifest v2 recomputed in the generator); rolling back everything', v_result;
   END IF;
 END
@@ -703,11 +705,11 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000004'
          AND c.content_version = 1
          AND c.authored_by = $qab132$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$qab132$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $qse132$["Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.","Choose a plate you could hold for at least half your unweighted plank time; the added load raises the difficulty and does not replace the position."]$qse132$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $qse132$["Set your forearms on the floor shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Have a partner set one weight plate flat across your upper back, centred between your shoulder blades, never on your neck or lower back.","Start with a light plate that lets you hold the same stable plank position for the planned time; add load gradually across sessions, never within a hold."]$qse132$::jsonb
          AND c.execution_steps = $qex132$["Brace your abs and squeeze your glutes so your hips stay level with your shoulders and the plate sits flat without rocking.","Hold the position and keep breathing; a plate that stays still is the clearest sign your torso is not shifting underneath it.","End the hold the moment your hips sag or your lower back starts to arch, and have the plate lifted off before you come down.","Record the weight you held and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$qex132$::jsonb
-         AND c.breathing_cue = $qbr132$Take smaller breaths than usual and keep them continuous through the hold; never hold your breath to brace, because a long hold needs steady airflow.$qbr132$
-         AND c.common_mistakes = $qcm132$["Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.","Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.","Reaching for a heavier plate before the unweighted hold is solid, so the position fails before the trunk is actually challenged."]$qcm132$::jsonb
+         AND c.breathing_cue = $qbr132$Breathe steadily and continuously through the hold while keeping your brace; do not hold your breath to stiffen the position.$qbr132$
+         AND c.common_mistakes = $qcm132$["Letting the hips drift up into a pike, which shortens the lever and makes the added plate easier than the logged weight suggests.","Placing the plate low on the lower back, where it loads the spine instead of the mid-back and hides a sagging position.","Adding load before the unweighted hold is stable, so the position breaks down instead of the trunk being challenged."]$qcm132$::jsonb
          AND c.safety_guidance = $qsg132$Have the plate placed and removed by another person whenever you can, because sliding a plate on or off alone tends to twist the torso under load. Keep the plate off the neck and off the lower back, and end the hold at the first loss of a flat, level torso rather than pushing to failure with weight on your back.$qsg132$
          AND c.equipment_setup = $qes132$One flat weight plate and a mat. A bumper plate sits more stably than a thin iron plate, and a training partner to place and remove it is strongly preferred.$qes132$
          AND c.accessibility_alternative = $qaa132$Hold an unweighted plank for the same duration, or hold the position with your knees on the floor and no plate, adding time before you add any load.$qaa132$
@@ -716,7 +718,7 @@ BEGIN
          AND c.reviewed_at = <<UNRESOLVED:B.132.reviewed_at>>
          AND c.review_rationale = <<UNRESOLVED:B.132.rationale>>
          AND c.import_admitted = true
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.132.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint ~ '^[0-9a-f]{64}$'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)
@@ -729,10 +731,10 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000005'
          AND c.content_version = 1
          AND c.authored_by = $qab133$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$qab133$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $qse133$["Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.","Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Choose a vest load you could hold for at least half your unweighted plank time, and check that the weight is even front to back."]$qse133$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $qse133$["Fit the vest before you get down: tighten the straps so it sits high on the torso and cannot slide toward your head once you are horizontal.","Set your forearms shoulder-width apart with your elbows under your shoulders, then extend your legs into one straight line from heels to head.","Start with a light vest load that lets you hold the same stable plank position for the planned time, check that the weight sits evenly front to back, and add load gradually across sessions."]$qse133$::jsonb
          AND c.execution_steps = $qex133$["Brace your abs and squeeze your glutes so the vest's load stays over your mid-torso instead of dragging your hips toward the floor.","Hold the position and keep breathing; a vest that rides forward means the straps need tightening, not that you should push on.","End the hold when your hips sag or your lower back arches, then lower your knees before standing so the vest does not swing.","Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$qex133$::jsonb
-         AND c.breathing_cue = $qbr133$Take smaller breaths than usual and keep them continuous; a snug vest limits how far the ribcage can expand, so do not brace by holding your breath.$qbr133$
+         AND c.breathing_cue = $qbr133$Breathe steadily and continuously while keeping your brace; a snug vest can make deep breaths feel more restricted, so keep the breaths even rather than holding them.$qbr133$
          AND c.common_mistakes = $qcm133$["Wearing the vest loose, so it slides toward the shoulders and moves the load off the mid-torso partway through the hold.","Letting the hips sag under the extra load, which turns a trunk hold into a lower-back hold.","Adding vest weight in large jumps, because a spread-out load is easy to underestimate until the position fails.","Treating the vest as a way to extend a hold rather than as a separate, shorter, heavier effort."]$qcm133$::jsonb
          AND c.safety_guidance = $qsg133$Check the straps and weight pockets before every set, because a pocket that comes loose during a hold drops load unpredictably. Keep the load balanced front to back, and end the hold at the first loss of a flat, level torso instead of pushing to failure while wearing weight.$qsg133$
          AND c.equipment_setup = $qes133$A weighted vest with secured, evenly distributed weight pockets, and a mat. Confirm the straps are snug and every pocket is closed before you start the hold.$qes133$
@@ -742,7 +744,7 @@ BEGIN
          AND c.reviewed_at = <<UNRESOLVED:B.133.reviewed_at>>
          AND c.review_rationale = <<UNRESOLVED:B.133.rationale>>
          AND c.import_admitted = true
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.133.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint ~ '^[0-9a-f]{64}$'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)
@@ -755,20 +757,20 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000006'
          AND c.content_version = 1
          AND c.authored_by = $qab137$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$qab137$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $qse137$["Attach the weight to a dipping belt around your hips, or set a plate to hold between your feet, before you reach for the bar.","Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.","Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once."]$qse137$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $qse137$["Attach the plate to a dipping belt around your hips and check that it hangs centred before you reach for the bar.","Set your hands on the bar just outside shoulder width with a full overhand grip and your thumbs wrapped around it.","Step off a box rather than jumping up, so the added weight does not swing and load your shoulders all at once."]$qse137$::jsonb
          AND c.execution_steps = $qex137$["Hang with your arms straight and your shoulders active rather than fully slack, keeping your body still.","Keep your grip closed and your legs quiet so the weight hangs plumb underneath you instead of swinging.","Release when your grip starts to open, then step down under control; never drop from the bar with weight attached.","Record the added weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$qex137$::jsonb
-         AND c.breathing_cue = $qbr137$Breathe steadily and evenly through the hang; holding your breath to squeeze the bar ends the hold well before your grip actually gives out.$qbr137$
-         AND c.common_mistakes = $qcm137$["Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.","Letting the body swing, so the grip fights momentum instead of holding one steady load.","Using a thumbless grip under added weight, which gives up the most secure part of the hold.","Adding weight before an unweighted hang is comfortable for a full minute."]$qcm137$::jsonb
-         AND c.safety_guidance = $qsg137$Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Carry the load on a belt or held firmly between the feet rather than balanced, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.$qsg137$
-         AND c.equipment_setup = $qes137$A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt with a weight plate, or a plate held securely between the feet.$qes137$
+         AND c.breathing_cue = $qbr137$Breathe steadily and evenly through the hang; do not hold your breath to squeeze the bar.$qbr137$
+         AND c.common_mistakes = $qcm137$["Jumping up to the bar with weight attached, which loads the shoulders and grip before the hang has even started.","Letting the body swing, so the grip fights momentum instead of holding one steady load.","Using a thumbless grip under added weight, which gives up the most secure part of the hold.","Adding weight before an unweighted hang is stable and controlled for the planned hold."]$qcm137$::jsonb
+         AND c.safety_guidance = $qsg137$Hang over a clear floor and set the bar at a height that lets you step off and step back down with the weight still attached. Load the belt before you take the bar and keep the plate hanging centred, and release the bar deliberately, because dropping from a loaded hang puts the whole load on the shoulders at once.$qsg137$
+         AND c.equipment_setup = $qes137$A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt loaded with a weight plate.$qes137$
          AND c.accessibility_alternative = $qaa137$Hang from the bar with no added weight for the same duration, or use a lower bar with your feet on the floor so your legs carry part of the load.$qaa137$
          AND c.content_status = 'approved'
          AND c.reviewed_by = <<UNRESOLVED:B.137.reviewer>>
          AND c.reviewed_at = <<UNRESOLVED:B.137.reviewed_at>>
          AND c.review_rationale = <<UNRESOLVED:B.137.rationale>>
          AND c.import_admitted = true
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.137.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint ~ '^[0-9a-f]{64}$'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)
@@ -781,11 +783,11 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000007'
          AND c.content_version = 1
          AND c.authored_by = $qab138$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$qab138$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $qse138$["Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.","Check that your knees sit above your heels rather than ahead of your toes, and that your whole back stays against the wall.","Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands."]$qse138$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $qse138$["Stand with your back flat against a wall, then walk your feet forward and slide down until your thighs are parallel to the floor.","Set your feet far enough forward that at the target depth your shins are roughly vertical, your whole foot stays planted and the position feels stable, with your whole back against the wall.","Once you are already in position, have a plate placed on your thighs close to your hips and hold it there with both hands."]$qse138$::jsonb
          AND c.execution_steps = $qex138$["Press your back into the wall and drive through both feet evenly so the plate stays level across your thighs.","Hold with your knees at roughly a right angle and your weight through the whole foot rather than the toes.","End the hold when your thighs rise out of parallel or your back peels off the wall, then set the plate down before standing.","Record the plate weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$qex138$::jsonb
-         AND c.breathing_cue = $qbr138$Keep breathing evenly the whole way through; the burn will tempt you to hold your breath, which ends the hold sooner than your legs would.$qbr138$
-         AND c.common_mistakes = $qcm138$["Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.","Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.","Letting the knees travel forward past the toes, which moves the effort off the thighs.","Coming out of the hold by standing up with the plate still resting on the thighs."]$qcm138$::jsonb
+         AND c.breathing_cue = $qbr138$Keep breathing evenly the whole way through the hold; do not hold your breath as the legs tire.$qbr138$
+         AND c.common_mistakes = $qcm138$["Sliding up out of parallel as the hold gets hard, which quietly makes the effort easier than the logged time suggests.","Resting the plate on the knees instead of near the hips, where it shifts the load and tends to slide.","Placing the feet too close to the wall, so the heels lighten and the standardized position shifts as the hold goes on.","Coming out of the hold by standing up with the plate still resting on the thighs."]$qcm138$::jsonb
          AND c.safety_guidance = $qsg138$Get into the seated position first and have the plate placed afterwards, because picking a plate up while already holding a wall sit tends to pull you out of position. Keep both hands on the plate so it cannot slide off your thighs, and set it down before you stand.$qsg138$
          AND c.equipment_setup = $qes138$A flat wall and one weight plate held on the thighs near the hips. A bumper plate is easier to keep flat than a thin iron plate.$qes138$
          AND c.accessibility_alternative = $qaa138$Hold the wall sit with no plate for the same duration, or sit higher than parallel and add depth before you add any weight.$qaa138$
@@ -794,7 +796,7 @@ BEGIN
          AND c.reviewed_at = <<UNRESOLVED:B.138.reviewed_at>>
          AND c.review_rationale = <<UNRESOLVED:B.138.rationale>>
          AND c.import_admitted = true
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.138.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint ~ '^[0-9a-f]{64}$'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)
@@ -807,20 +809,20 @@ BEGIN
          AND c.logical_id = 'e21b2c00-0000-4000-a000-000000000008'
          AND c.content_version = 1
          AND c.authored_by = $qab139$ForgeFitOS content program (AI-drafted original prose; pending human specialist review)$qab139$
-         AND c.authored_at = DATE '2026-09-11'
-         AND c.setup_steps = $qse139$["Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.","Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.","Check that your knees sit above your heels and that the vest is not bunched between your back and the wall."]$qse139$::jsonb
+         AND c.authored_at = DATE '2026-09-12'
+         AND c.setup_steps = $qse139$["Fit and tighten the vest while standing, so it sits snug on the torso and will not slide up once your back is against the wall.","Stand with your back flat against the wall, walk your feet forward, and slide down until your thighs are parallel to the floor.","Set your feet far enough forward that at the target depth your shins are roughly vertical and your whole foot stays planted, and check that the vest is not bunched between your back and the wall."]$qse139$::jsonb
          AND c.execution_steps = $qex139$["Press your back into the wall and drive through both feet evenly, keeping the vest's load centred over your hips.","Hold with your knees at roughly a right angle and your hands free at your sides or folded across your chest.","End the hold when your thighs rise out of parallel or your back peels off the wall, then stand up under control.","Record the vest weight and the duration you completed; this exercise is scored as added weight plus time, never as repetitions."]$qex139$::jsonb
-         AND c.breathing_cue = $qbr139$Breathe evenly and continuously; a snug vest restricts the ribcage, so a held breath will end the hold before your legs do.$qbr139$
-         AND c.common_mistakes = $qcm139$["Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.","Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.","Adding vest weight when sitting above parallel is what is really limiting the hold.","Letting the knees drift forward past the toes as fatigue sets in."]$qcm139$::jsonb
+         AND c.breathing_cue = $qbr139$Breathe evenly and continuously through the hold; a snug vest can make deep breaths feel more restricted, so keep the breaths even rather than holding them.$qbr139$
+         AND c.common_mistakes = $qcm139$["Sliding up out of parallel as the hold gets hard, which makes the logged time overstate the work actually done.","Letting the vest bunch up behind the back, which pushes the torso off the wall and changes the angle.","Adding vest weight when sitting above parallel is what is really limiting the hold.","Placing the feet too close to the wall, so the heels lighten and the position shifts as fatigue sets in."]$qcm139$::jsonb
          AND c.safety_guidance = $qsg139$Fit the vest before you get into position and check that its pockets are closed, because load shifting partway through a wall sit tends to pull the torso off the wall. Keep the whole foot planted and end the hold at the first loss of parallel rather than pushing to failure under load.$qsg139$
-         AND c.equipment_setup = $qes139$A flat wall and a weighted vest with secured, evenly distributed pockets. Because the hands stay free, a vest suits longer holds than a plate held on the thighs.$qes139$
+         AND c.equipment_setup = $qes139$A flat wall and a weighted vest with secured, evenly distributed pockets. A vest keeps the hands free and distributes the external load across the torso rather than resting it on the thighs.$qes139$
          AND c.accessibility_alternative = $qaa139$Hold the wall sit with no vest for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.$qaa139$
          AND c.content_status = 'approved'
          AND c.reviewed_by = <<UNRESOLVED:B.139.reviewer>>
          AND c.reviewed_at = <<UNRESOLVED:B.139.reviewed_at>>
          AND c.review_rationale = <<UNRESOLVED:B.139.rationale>>
          AND c.import_admitted = true
-         AND c.admitted_source_sha256 = 'fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921'
+         AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
          AND c.admitted_fingerprint = <<UNRESOLVED:B.139.admission_fingerprint(derived)>>
          AND c.admitted_fingerprint ~ '^[0-9a-f]{64}$'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)
