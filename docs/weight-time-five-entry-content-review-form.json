@@ -1,0 +1,163 @@
+{
+  "form": "weight-time-five-entry-content-review-form",
+  "form_version": 1,
+  "prepared_at": "2026-09-11",
+  "human_decision_family": "B",
+  "status": "BLANK - AWAITING HUMAN DECISION",
+  "what_this_decides": "Whether the DRAFTED INSTRUCTIONAL CONTENT for each of the five weight_time entries is fit to publish. This is NOT a decision about the catalog snapshot's identity or metadata; that is family A, in weight-time-five-entry-snapshot-review-form.json.",
+  "content_artifact": "docs/weight-time-five-entry-content.jsonl",
+  "content_fingerprint": {
+    "bytes": 12870,
+    "sha256": "fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921",
+    "note": "Any byte change to the content artifact voids this form. Per-entry payload fingerprints are in docs/weight-time-five-entry-lifecycle-manifest.json and are independently recomputable."
+  },
+  "reviewer_facing_document": "docs/weight-time-five-entry-human-review.md",
+  "prose_was_drafted_by": "ForgeFitOS content program (AI-drafted original prose). The authored_by field on every record says so, and the draft carries NO human specialist endorsement until this form is completed.",
+  "database_effect_when_completed": {
+    "mechanism": "apply_content_review(p_logical_id, p_content_id, p_decision, p_reviewer, p_reviewed_at, p_rationale)",
+    "authority": "exlib_catalog_reviewer",
+    "transition": "content_status 'pending' -> 'approved' | 'revised' | 'rejected'",
+    "audit": "reviewed_by, reviewed_at, review_rationale are written from this form",
+    "must_travel_alone": "The freeze trigger forbids a review decision travelling in the same statement as a payload change or an admission change.",
+    "downstream": "Only an approved version can be admitted, and only an approved AND admitted version can be published."
+  },
+  "legal_decisions": ["approved", "revised", "rejected"],
+  "legal_decisions_provenance": "Taken from the promoted content-review form docs/exlib2h-plank-content-review-form.json, and matching the content_status CHECK in migration 027.",
+  "decision_requirements": "A decision requires reviewer (named human specialist, never AI, >= 3 non-blank chars), reviewer_role_or_credential (operator-validated), reviewed_at (date-time), and rationale (>= 10 non-blank chars) together; optional evidence never substitutes for them.",
+  "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Even a filled form changes nothing by itself: applying a decision is a separate act, executed by the operator path against an exact fingerprinted payload.",
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate any requested input. Process authorization to work quickly is NOT a substantive approval verdict, and no artifact in this round says an approval happened that has not happened.",
+  "reviewer_identity_dependency": {
+    "raised_as": "RQ-4",
+    "observation": "The one promoted content review in this repository (EXLIB-2I, applied by EXLIB-2P) was performed by a named external specialist with a stated credential (a personal trainer), NOT by the repository operator. This form's own decision_requirements, inherited verbatim from that promoted form, say 'named human specialist, never AI'.",
+    "what_the_database_actually_enforces": "Only that reviewed_by is a non-blank string. The specialist requirement is a governance convention carried by the form, not a CHECK constraint.",
+    "why_it_is_raised_now": "If the convention is to be honoured, completing this form needs a qualified reviewer who may not be the operator, and that is a scheduling dependency worth knowing before the review sitting rather than during it. This is surfaced for decision and is NOT resolved here.",
+    "options_without_recommendation": [
+      "a qualified specialist completes family B while the operator completes families A and C",
+      "the operator completes family B and supplies their own role/credential, accepting the documented departure from the promoted convention",
+      "family B is deferred, which stops the lifecycle at stage 3 and leaves five approved snapshots with unpublished draft content"
+    ]
+  },
+  "content_claims_boundary": {
+    "no_medical_claims": "The drafted prose makes no medical, diagnostic or rehabilitative claim, and promises no injury-prevention outcome.",
+    "no_overstated_safety_guarantees": "Safety guidance is framed as technique caution and load-handling procedure, never as a guarantee of safety.",
+    "no_source_specific_claims": "No drafted sentence attributes a claim to a named source, per authoring rule R7. The two externally-derived entries carry their source URLs on the SNAPSHOT, which is the governed place for provenance, not in instructional prose.",
+    "weight_time_contract_asserted_in_prose": "Every entry's execution steps state that the exercise is recorded as added weight plus duration and never as repetitions."
+  },
+  "entries": [
+    {
+      "inventory_file_line": 132,
+      "canonical_name": "Plate-weighted plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000004",
+      "content_id": "e21b2c00-0000-4000-a000-000000000104",
+      "content_version": 1,
+      "decision": null,
+      "reviewer": null,
+      "reviewer_role_or_credential": null,
+      "reviewed_at": null,
+      "evidence": null,
+      "rationale": null,
+      "needs_human_judgment_confirmations": {
+        "instruction_coaching_quality": null,
+        "safety_adequacy": null,
+        "partner_plate_placement_guidance_appropriate": null,
+        "plate_position_between_shoulder_blades_correct": null,
+        "load_selection_heuristic_reasonable": null,
+        "weight_time_contract_stated_correctly": null,
+        "easier_alternative_appropriate": null
+      }
+    },
+    {
+      "inventory_file_line": 133,
+      "canonical_name": "Weighted vest plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000005",
+      "content_id": "e21b2c00-0000-4000-a000-000000000105",
+      "content_version": 1,
+      "decision": null,
+      "reviewer": null,
+      "reviewer_role_or_credential": null,
+      "reviewed_at": null,
+      "evidence": null,
+      "rationale": null,
+      "needs_human_judgment_confirmations": {
+        "instruction_coaching_quality": null,
+        "safety_adequacy": null,
+        "vest_fit_guidance_appropriate": null,
+        "vest_loading_distinct_from_plate_placement": null,
+        "strap_and_pocket_check_sufficient": null,
+        "weight_time_contract_stated_correctly": null,
+        "easier_alternative_appropriate": null
+      }
+    },
+    {
+      "inventory_file_line": 137,
+      "canonical_name": "Weighted dead hang",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000006",
+      "content_id": "e21b2c00-0000-4000-a000-000000000106",
+      "content_version": 1,
+      "decision": null,
+      "reviewer": null,
+      "reviewer_role_or_credential": null,
+      "reviewed_at": null,
+      "evidence": null,
+      "rationale": null,
+      "needs_human_judgment_confirmations": {
+        "instruction_coaching_quality": null,
+        "safety_adequacy": null,
+        "grip_and_hang_mechanics_correct": null,
+        "dip_belt_or_feet_held_plate_both_appropriate": null,
+        "step_off_rather_than_jump_guidance_sufficient": null,
+        "weight_time_contract_stated_correctly": null,
+        "easier_alternative_appropriate": null
+      }
+    },
+    {
+      "inventory_file_line": 138,
+      "canonical_name": "Weighted wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000007",
+      "content_id": "e21b2c00-0000-4000-a000-000000000107",
+      "content_version": 1,
+      "decision": null,
+      "reviewer": null,
+      "reviewer_role_or_credential": null,
+      "reviewed_at": null,
+      "evidence": null,
+      "rationale": null,
+      "needs_human_judgment_confirmations": {
+        "instruction_coaching_quality": null,
+        "safety_adequacy": null,
+        "plate_on_thighs_near_hips_placement_correct": null,
+        "thighs_parallel_depth_cue_correct": null,
+        "position_first_then_load_ordering_appropriate": null,
+        "weight_time_contract_stated_correctly": null,
+        "easier_alternative_appropriate": null
+      }
+    },
+    {
+      "inventory_file_line": 139,
+      "canonical_name": "Weighted vest wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000008",
+      "content_id": "e21b2c00-0000-4000-a000-000000000108",
+      "content_version": 1,
+      "decision": null,
+      "reviewer": null,
+      "reviewer_role_or_credential": null,
+      "reviewed_at": null,
+      "evidence": null,
+      "rationale": null,
+      "needs_human_judgment_confirmations": {
+        "instruction_coaching_quality": null,
+        "safety_adequacy": null,
+        "vest_fit_guidance_appropriate": null,
+        "vest_not_bunched_behind_back_cue_useful": null,
+        "hands_free_advantage_over_plate_variant_accurate": null,
+        "weight_time_contract_stated_correctly": null,
+        "easier_alternative_appropriate": null
+      }
+    }
+  ],
+  "open_reviewer_questions": [
+    "RQ-1 (affects all five): expected_relationships is EMPTY for every entry, so no substitution, progression or regression edges are proposed. Rationale: no relationship is schema-required, the edges a weighted variant should carry have never been through human review in this repository, and proposing them would widen the governed surface at the same sitting. Choosing to add edges is legitimate and costs exactly one regeneration round: the content payload changes, so its fingerprint changes, so this form and the manifest are voided and regenerated before any execution.",
+    "RQ-4 (affects all five): see reviewer_identity_dependency above - who may lawfully complete this family.",
+    "RQ-5 (entry 132 only): the draft states a plate should be placed and removed by another person 'whenever you can', and the accessibility alternative is unweighted. Confirm that a solo-training user is adequately served by that, or direct that a solo self-placement procedure be drafted instead."
+  ]
+}

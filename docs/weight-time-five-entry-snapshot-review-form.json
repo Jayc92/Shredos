@@ -1,0 +1,205 @@
+{
+  "artifact": "weight-time-five-entry-snapshot-review-form",
+  "human_decision_family": "A",
+  "status": "BLANK - AWAITING HUMAN DECISION",
+  "what_this_decides": "Whether each of the five weight_time catalog SNAPSHOTS (its identity and its descriptive/discovery metadata) is approved for release. This is NOT a decision about instructional content; that is family B, in weight-time-five-entry-content-review-form.json.",
+  "database_effect_when_completed": {
+    "mechanism": "direct owner UPDATE on public.exercise_catalog, resolved by logical_id AND is_active = true",
+    "transition": "review_status 'pending' -> 'approved'",
+    "audit": "reviewed_by, reviewed_at, review_rationale are written from this form; one immutable row is appended to exercise_catalog_review_events by the freeze trigger, per identity",
+    "downstream_hard_dependency": "the delivery-run seal (exlib_approve_and_seal_run) independently re-checks reviewed_by and review_rationale on every exercise member, so a blank rationale here blocks the seal four stages later"
+  },
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate any requested input. Process authorization to work quickly is NOT a substantive approval verdict.",
+  "no_effect_statement": "Blank or null NEVER reads as approval. A partially completed decision is not a decision.",
+  "decision_requirements": "A decision requires decision, reviewer (a named human, never AI, >= 3 non-blank chars), reviewer_role_or_credential (operator-validated), reviewed_at (date-time with offset), and rationale (>= 10 non-blank chars) together. Optional evidence never substitutes for them. Per-identity rationale text may differ or may be shared, but it must be non-blank for every identity that is approved.",
+  "decision_choices": ["APPROVE", "REJECT", "CORRECT"],
+  "decision_choices_provenance": "Taken verbatim from the promoted snapshot-review form docs/exlib2v-plank-snapshot-review-form.json, not invented here. The form vocabulary is deliberately distinct from the database vocabulary.",
+  "decision_choice_to_database_value": {
+    "APPROVE": "review_status = 'approved' (the only choice this round's packages implement)",
+    "REJECT": "review_status = 'rejected' - no package is prepared for this; it would end the release",
+    "CORRECT": "review_status = 'revised' - no package is prepared for this; a metadata correction at catalog_version 1 is not an edit, it requires a new catalog version"
+  },
+  "provenance_coupling_is_constraint_enforced": {
+    "note": "The source-field posture shown per entry below is not a convention, it is enforced by two named CHECK constraints added by migration 027, and the packages assert both.",
+    "exercise_catalog_provenance_sources_chk": "external_source_derived requires ALL FOUR of source_url, source_page, retrieved_at, import_confidence non-null; forgefitos_original requires ALL FOUR null. This is why entries 137, 138 and 139 show four nulls and entries 132 and 133 show four values.",
+    "exercise_catalog_discovery_metadata_chk": "forgefitos_original additionally requires movement_pattern, training_role, difficulty and availability all non-null."
+  },
+  "scope_note": "EXACTLY these five identities. Inventory lines 134 Farmer's carry, 135 Suitcase carry and 136 Sandbag bear-hug carry are explicitly OUT OF SCOPE and DEFERRED, and appear in no artifact in this round.",
+  "entries": [
+    {
+      "inventory_file_line": 132,
+      "canonical_name": "Plate-weighted plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000004",
+      "current_snapshot": {
+        "category": "isolation",
+        "primary_muscle": "abs",
+        "equipment": "weight_plate",
+        "laterality": "bilateral",
+        "tracking_mode": "weight_time",
+        "provenance": "external_source_derived",
+        "movement_pattern": "core_anti_extension",
+        "training_role": "core",
+        "difficulty": "intermediate",
+        "availability": "home_gym",
+        "source_url": "https://www.strengthlog.com/weighted-plank/",
+        "source_page": "https://www.strengthlog.com/exercise-directory/",
+        "retrieved_at": "2026-08-20",
+        "import_confidence": "human_review_required",
+        "anatomy": [{ "muscle": "obliques", "role": "secondary" }],
+        "aliases": [],
+        "catalog_version": 1,
+        "review_status": "pending",
+        "is_active": true
+      },
+      "human_fields": {
+        "decision": null,
+        "reviewer": null,
+        "reviewer_role_or_credential": null,
+        "reviewed_at": null,
+        "rationale": null,
+        "evidence": null
+      }
+    },
+    {
+      "inventory_file_line": 133,
+      "canonical_name": "Weighted vest plank",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000005",
+      "current_snapshot": {
+        "category": "isolation",
+        "primary_muscle": "abs",
+        "equipment": "weighted_vest",
+        "laterality": "bilateral",
+        "tracking_mode": "weight_time",
+        "provenance": "external_source_derived",
+        "movement_pattern": "core_anti_extension",
+        "training_role": "core",
+        "difficulty": "intermediate",
+        "availability": "home_gym",
+        "source_url": "https://marathonhandbook.com/weighted-plank/",
+        "source_page": "https://marathonhandbook.com/weighted-plank/",
+        "retrieved_at": "2026-08-24",
+        "import_confidence": "human_review_required",
+        "anatomy": [{ "muscle": "obliques", "role": "secondary" }],
+        "aliases": [],
+        "catalog_version": 1,
+        "review_status": "pending",
+        "is_active": true
+      },
+      "human_fields": {
+        "decision": null,
+        "reviewer": null,
+        "reviewer_role_or_credential": null,
+        "reviewed_at": null,
+        "rationale": null,
+        "evidence": null
+      }
+    },
+    {
+      "inventory_file_line": 137,
+      "canonical_name": "Weighted dead hang",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000006",
+      "current_snapshot": {
+        "category": "isolation",
+        "primary_muscle": "forearms",
+        "equipment": "weight_plate",
+        "laterality": "bilateral",
+        "tracking_mode": "weight_time",
+        "provenance": "forgefitos_original",
+        "movement_pattern": "grip_forearm",
+        "training_role": "accessory",
+        "difficulty": "intermediate",
+        "availability": "home_gym",
+        "source_url": null,
+        "source_page": null,
+        "retrieved_at": null,
+        "import_confidence": null,
+        "anatomy": [{ "muscle": "lats", "role": "secondary" }],
+        "aliases": [],
+        "catalog_version": 1,
+        "review_status": "pending",
+        "is_active": true
+      },
+      "human_fields": {
+        "decision": null,
+        "reviewer": null,
+        "reviewer_role_or_credential": null,
+        "reviewed_at": null,
+        "rationale": null,
+        "evidence": null
+      }
+    },
+    {
+      "inventory_file_line": 138,
+      "canonical_name": "Weighted wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000007",
+      "current_snapshot": {
+        "category": "compound",
+        "primary_muscle": "quads",
+        "equipment": "weight_plate",
+        "laterality": "bilateral",
+        "tracking_mode": "weight_time",
+        "provenance": "forgefitos_original",
+        "movement_pattern": "squat",
+        "training_role": "accessory",
+        "difficulty": "beginner",
+        "availability": "minimal",
+        "source_url": null,
+        "source_page": null,
+        "retrieved_at": null,
+        "import_confidence": null,
+        "anatomy": [{ "muscle": "glutes", "role": "secondary" }],
+        "aliases": [],
+        "catalog_version": 1,
+        "review_status": "pending",
+        "is_active": true
+      },
+      "human_fields": {
+        "decision": null,
+        "reviewer": null,
+        "reviewer_role_or_credential": null,
+        "reviewed_at": null,
+        "rationale": null,
+        "evidence": null
+      }
+    },
+    {
+      "inventory_file_line": 139,
+      "canonical_name": "Weighted vest wall sit",
+      "logical_id": "e21b2c00-0000-4000-a000-000000000008",
+      "current_snapshot": {
+        "category": "compound",
+        "primary_muscle": "quads",
+        "equipment": "weighted_vest",
+        "laterality": "bilateral",
+        "tracking_mode": "weight_time",
+        "provenance": "forgefitos_original",
+        "movement_pattern": "squat",
+        "training_role": "accessory",
+        "difficulty": "beginner",
+        "availability": "home_gym",
+        "source_url": null,
+        "source_page": null,
+        "retrieved_at": null,
+        "import_confidence": null,
+        "anatomy": [{ "muscle": "glutes", "role": "secondary" }],
+        "aliases": [],
+        "catalog_version": 1,
+        "review_status": "pending",
+        "is_active": true
+      },
+      "human_fields": {
+        "decision": null,
+        "reviewer": null,
+        "reviewer_role_or_credential": null,
+        "reviewed_at": null,
+        "rationale": null,
+        "evidence": null
+      }
+    }
+  ],
+  "snapshot_fields_this_decision_freezes": "Approving a snapshot approves its identity and all of its descriptive and discovery metadata as shown above. Every one of those fields is immutable at catalog_version 1 thereafter; changing one later requires a new catalog version, not an edit.",
+  "open_reviewer_questions": [
+    "RQ-2 (identity/metadata): entry 133 currently carries the SAME URL as both source_url and source_page. That is lawful (they are separate columns and the UNIQUE index is on (source_url, catalog_version)), and it was ruled that way in the frozen W14 field decisions. It is restated here only so approval is informed, not to reopen it.",
+    "RQ-3 (identity/metadata): entry 138 is the only one of the five with availability = 'minimal' rather than 'home_gym', because a wall and one plate is the least equipment of the five. Confirm that distinction is intended."
+  ]
+}

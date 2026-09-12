@@ -1,0 +1,92 @@
+{
+  "form": "weight-time-five-entry-run-authority-form",
+  "form_version": 1,
+  "prepared_at": "2026-09-11",
+  "human_decision_family": "C",
+  "status": "BLANK - AWAITING HUMAN DECISION",
+  "what_this_decides": "The identity and the product/legal authority of the NEW delivery run that will carry the five weight_time entries. One decision for the run, not one per entry.",
+  "database_effect_when_completed": {
+    "mechanism": "direct owner INSERT into public.exercise_catalog_import_runs, then direct owner INSERTs into public.exercise_catalog_run_items",
+    "controlled_function": "none exists for run creation; only exlib_approve_and_seal_run updates an existing run",
+    "authority": "table owner (postgres) in the hosted operator context",
+    "when_the_evidence_is_written": "AT CREATION, in the run INSERT. This is derived from the promoted staged-run package docs/exlib2u-staged-run-package.sql, not assumed: exlib_approve_and_seal_run only VALIDATES the product/legal evidence, it never populates it. That is why run staging cannot proceed without this form.",
+    "constraint_that_enforces_completeness": "exercise_catalog_import_runs_approval_audit_chk requires, whenever approved_for_delivery is true, that product_approved_by, product_approved_at, legal_approved_by, legal_approved_at and approval_rationale are all present and non-blank AND dry_run is false."
+  },
+  "preparer_boundary": "Claude and ChatGPT may prepare and validate this form but may NEVER fill or fabricate any requested input. Where this form records a preparer_proposal, that is a derivation offered for confirmation and the corresponding value stays null.",
+  "no_effect_statement": "Blank or null NEVER reads as approval. A run cannot be created from this form until it is completed by the operator, and creating the run still does not deliver anything: delivery additionally requires the seal and a production configuration change.",
+  "requested_inputs": {
+    "run_key_literal": {
+      "value": null,
+      "constraint": "8 to 200 characters after btrim; UNIQUE across exercise_catalog_import_runs FOREVER; the SAME string is later bound by the seal call exlib_approve_and_seal_run(run_key) and by the runtime delivery configuration CATALOG_DELIVERY_RUN_KEY - choose it as a permanent, meaningful release identifier",
+      "preparer_proposal": "w14e-weight-time-release1-staged-v1",
+      "preparer_proposal_derivation": "Mirrors the one promoted run key segment for segment: <staging milestone>-<subject>-release<N>-staged-v<M>, where exlib2u-plank-release1-staged-v1 is the precedent. Here the staging milestone is the W14 endgame, the subject is weight-time, it is the first release of that subject, and it is v1. Length 35, within the 8..200 constraint.",
+      "must_not_be": "exlib2u-plank-release1-staged-v1",
+      "must_not_be_reason": "That key identifies the already-sealed plank release. Reuse is structurally impossible because run_key is UNIQUE, and the governing instruction named this a high-risk boundary."
+    },
+    "product_approver_identity": {
+      "value": null,
+      "constraint": "a named human, non-blank after btrim; written to product_approved_by",
+      "product_approved_at": null,
+      "product_approved_at_constraint": "an explicit TIMESTAMPTZ with offset, supplied by the human; never generated, never defaulted to NOW()"
+    },
+    "legal_approver_identity": {
+      "value": null,
+      "constraint": "a named human, non-blank after btrim; written to legal_approved_by",
+      "legal_approved_at": null,
+      "legal_approved_at_constraint": "an explicit TIMESTAMPTZ with offset, supplied by the human; never generated, never defaulted to NOW()"
+    },
+    "approval_rationale": {
+      "value": null,
+      "constraint": "non-blank after btrim; written to approval_rationale. The promoted precedent states plainly what the approval does NOT authorize, and the same discipline is expected here: creating and sealing a run is not the same as enabling production delivery."
+    },
+    "run_membership": {
+      "value": null,
+      "choices": ["ALL_FIVE_WEIGHT_TIME_IDENTITIES"],
+      "choices_note": "Only one choice is offered because the governing instruction fixes the membership: the run must contain EXACTLY the five W14 identities and no carry. The field exists so the membership is affirmatively chosen rather than silently assumed.",
+      "constraint": "exactly 5 exercise members, 0 alias members, resolved by logical_id AND is_active = true",
+      "exact_logical_ids": [
+        "e21b2c00-0000-4000-a000-000000000004",
+        "e21b2c00-0000-4000-a000-000000000005",
+        "e21b2c00-0000-4000-a000-000000000006",
+        "e21b2c00-0000-4000-a000-000000000007",
+        "e21b2c00-0000-4000-a000-000000000008"
+      ],
+      "excluded_deferred_logical_ids": [
+        "e21b2c00-0000-4000-a000-000000000009",
+        "e21b2c00-0000-4000-a000-00000000000a",
+        "e21b2c00-0000-4000-a000-00000000000b"
+      ],
+      "excluded_deferred_names": ["Farmer's carry", "Suitcase carry", "Sandbag bear-hug carry"]
+    }
+  },
+  "what_the_seal_will_independently_recheck": {
+    "function": "exlib_approve_and_seal_run(p_run_key)",
+    "per_exercise_member": [
+      "review_status = 'approved'",
+      "is_active = true",
+      "reviewed_by present and non-blank",
+      "review_rationale present and non-blank"
+    ],
+    "not_rechecked_by_the_seal": "reviewed_at",
+    "consequence": "A family A snapshot decision left without a rationale will not fail at stage 1; it will fail here, at stage 7, after four intervening packages have run. That is why the snapshot form insists on a non-blank rationale per identity.",
+    "empty_membership": "refused - 'an empty membership cannot be sealed'",
+    "already_sealed": "refused - the seal is explicitly one-use",
+    "dry_run": "refused - and dry_run is immutable once sealed, which is why the run is created with dry_run = false"
+  },
+  "permanence_warning": {
+    "sealed_at": "set exactly once and NEVER cleared",
+    "membership": "PERMANENT after the seal. exlib_freeze_run_membership refuses any insert or delete once the parent run is sealed, and refuses every UPDATE of a membership row unconditionally.",
+    "consequence": "A membership mistake discovered after sealing cannot be repaired. It requires a NEW run with a NEW permanent key, and the mistaken run stays in the table forever.",
+    "revocation": "possible but ONE-WAY, and only on a sealed run. It shuts a run down; it does not fix it."
+  },
+  "what_this_form_does_not_authorize": {
+    "delivery": "Creating and sealing a run does NOT deliver anything. Delivery is a per-user RPC gated on auth.uid() and selected by the CATALOG_DELIVERY_RUN_KEY configuration value.",
+    "configuration_change": "Repointing CATALOG_DELIVERY_RUN_KEY is a SEPARATE operator act with its own consequences, set out in docs/weight-time-five-entry-delivery-configuration-dependency.md. Claude has not performed it and has had no Vercel contact.",
+    "the_plank_release": "Nothing in this form modifies, revokes or supersedes the existing sealed plank run."
+  },
+  "open_reviewer_questions": [
+    "RQ-6: confirm or replace the proposed run key literal. It is permanent and globally unique, so it is worth a deliberate choice rather than acceptance of a default.",
+    "RQ-7: the promoted precedent had the same named human give both product and legal approval, at the same timestamp. That is lawful (the constraint requires two non-blank identities, not two distinct ones). Confirm whether the same posture is intended here or whether a second approver is now expected.",
+    "RQ-8: the sealed plank run remains sealed and approved regardless of what happens here. Confirm the intent is to ADD a second sealed run and then repoint delivery to it, rather than to revoke the plank run - revocation is one-way and is not prepared in this round."
+  ]
+}
