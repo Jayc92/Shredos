@@ -1,10 +1,10 @@
 {
   "form": "weight-time-five-entry-run-authority-form",
-  "form_version": 1,
-  "prepared_at": "2026-09-11",
+  "form_version": 2,
+  "prepared_at": "2026-09-12",
   "human_decision_family": "C",
   "status": "BLANK - AWAITING HUMAN DECISION",
-  "what_this_decides": "The identity and the product/legal authority of the NEW delivery run that will carry the five weight_time entries. One decision for the run, not one per entry.",
+  "what_this_decides": "The identity and the product/legal authority of the NEW CUMULATIVE delivery run: it carries forward all six membership rows of the sealed historical plank run exlib2u-plank-release1-staged-v1 (3 exercise members + 3 alias members) AND adds the five new weight_time exercise identities, so the release is additive, not a replacement. One decision for the run, not one per entry.",
   "database_effect_when_completed": {
     "mechanism": "direct owner INSERT into public.exercise_catalog_import_runs, then direct owner INSERTs into public.exercise_catalog_run_items",
     "controlled_function": "none exists for run creation; only exlib_approve_and_seal_run updates an existing run",
@@ -41,22 +41,41 @@
     },
     "run_membership": {
       "value": null,
-      "choices": ["ALL_FIVE_WEIGHT_TIME_IDENTITIES"],
-      "choices_note": "Only one choice is offered because the governing instruction fixes the membership: the run must contain EXACTLY the five W14 identities and no carry. The field exists so the membership is affirmatively chosen rather than silently assumed.",
-      "constraint": "exactly 5 exercise members, 0 alias members, resolved by logical_id AND is_active = true",
-      "exact_logical_ids": [
-        "e21b2c00-0000-4000-a000-000000000004",
-        "e21b2c00-0000-4000-a000-000000000005",
-        "e21b2c00-0000-4000-a000-000000000006",
-        "e21b2c00-0000-4000-a000-000000000007",
-        "e21b2c00-0000-4000-a000-000000000008"
+      "choices": [
+        "CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES"
       ],
+      "choices_note": "Only one choice is offered because the independent review (finding R-E1) fixes the membership: the new run must carry forward EXACTLY the six membership rows of the historical plank run (copied from that run, never retyped) plus EXACTLY the five W14 identities, and no carry. The field exists so the membership is affirmatively chosen rather than silently assumed.",
+      "constraint": "exactly 8 exercise members and 3 alias members (11 rows): the historical run's 3 exercise + 3 alias members copied from its own membership rows, plus the five new identities resolved by logical_id AND is_active = true",
       "excluded_deferred_logical_ids": [
         "e21b2c00-0000-4000-a000-000000000009",
         "e21b2c00-0000-4000-a000-00000000000a",
         "e21b2c00-0000-4000-a000-00000000000b"
       ],
-      "excluded_deferred_names": ["Farmer's carry", "Suitcase carry", "Sandbag bear-hug carry"]
+      "excluded_deferred_names": [
+        "Farmer's carry",
+        "Suitcase carry",
+        "Sandbag bear-hug carry"
+      ],
+      "carried_forward_from_historical_run": {
+        "run_key": "exlib2u-plank-release1-staged-v1",
+        "members": [
+          "exercise#e21b2c00-0000-4000-a000-000000000001",
+          "exercise#e21b2c00-0000-4000-a000-000000000002",
+          "exercise#e21b2c00-0000-4000-a000-000000000003",
+          "alias#e21b2c00-0000-4000-a000-000000000001#Forearm plank",
+          "alias#e21b2c00-0000-4000-a000-000000000001#Front plank",
+          "alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout"
+        ],
+        "source": "the promoted docs/exlib2u-staged-run-package.sql membership postcondition; the stage-6 package copies the rows from the live historical run and refuses unless they resolve to exactly these six lines",
+        "historical_run_untouched": "the historical run is never mutated, revoked or edited; its membership is permanent"
+      },
+      "exact_new_logical_ids": [
+        "e21b2c00-0000-4000-a000-000000000004",
+        "e21b2c00-0000-4000-a000-000000000005",
+        "e21b2c00-0000-4000-a000-000000000006",
+        "e21b2c00-0000-4000-a000-000000000007",
+        "e21b2c00-0000-4000-a000-000000000008"
+      ]
     }
   },
   "what_the_seal_will_independently_recheck": {
@@ -82,11 +101,11 @@
   "what_this_form_does_not_authorize": {
     "delivery": "Creating and sealing a run does NOT deliver anything. Delivery is a per-user RPC gated on auth.uid() and selected by the CATALOG_DELIVERY_RUN_KEY configuration value.",
     "configuration_change": "Repointing CATALOG_DELIVERY_RUN_KEY is a SEPARATE operator act with its own consequences, set out in docs/weight-time-five-entry-delivery-configuration-dependency.md. Claude has not performed it and has had no Vercel contact.",
-    "the_plank_release": "Nothing in this form modifies, revokes or supersedes the existing sealed plank run."
+    "the_plank_release": "Nothing in this form modifies, revokes or supersedes the existing sealed plank run. Its six membership rows are CARRIED FORWARD into the new cumulative run; the historical rows stay untouched."
   },
   "open_reviewer_questions": [
     "RQ-6: confirm or replace the proposed run key literal. It is permanent and globally unique, so it is worth a deliberate choice rather than acceptance of a default.",
     "RQ-7: the promoted precedent had the same named human give both product and legal approval, at the same timestamp. That is lawful (the constraint requires two non-blank identities, not two distinct ones). Confirm whether the same posture is intended here or whether a second approver is now expected.",
-    "RQ-8: the sealed plank run remains sealed and approved regardless of what happens here. Confirm the intent is to ADD a second sealed run and then repoint delivery to it, rather than to revoke the plank run - revocation is one-way and is not prepared in this round."
+    "RQ-8: the sealed plank run remains sealed and approved regardless of what happens here. The intent (review finding R-E1) is to ADD a second sealed CUMULATIVE run that carries the historical six forward plus the five, and later repoint delivery to it; revocation of the plank run is one-way and is not prepared. See F-E8 in the report before any repoint: the committed delivery function refuses the cumulative run for users who already received Plank from the historical run."
   ]
 }

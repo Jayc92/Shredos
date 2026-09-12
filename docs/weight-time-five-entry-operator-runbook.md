@@ -42,8 +42,14 @@ a second time: every package refuses on replay, but the refusal is a safety net,
 | 3 | `docs/weight-time-five-entry-packages/03-content-review.sql` | B | unchanged |
 | 4 | `docs/weight-time-five-entry-packages/04-content-admission.sql` | (A, B gated) | unchanged |
 | 5 | `docs/weight-time-five-entry-packages/05-content-publication.sql` | (A, B gated) | unchanged |
-| 6 | `docs/weight-time-five-entry-packages/06-run-staging.sql` | C | -> `8/8/10/3/11/6/2/2/2/11/8` |
+| 6 | `docs/weight-time-five-entry-packages/06-run-staging.sql` | C | -> `8/8/10/3/11/6/2/2/2/17/8` |
 | 7 | `docs/weight-time-five-entry-packages/07-run-seal.sql` | (A, B, C gated) | unchanged |
+
+Stage 6 creates a CUMULATIVE run (independent review finding R-E1): the SIX membership rows of the
+sealed historical plank run `exlib2u-plank-release1-staged-v1` are COPIED forward from that run's own
+rows (3 exercise + 3 alias members) and the five weight_time identities are added, so the new run has
+8 exercise + 3 alias = 11 membership rows and the seal reports `exercise_members 8, alias_members 3`.
+The historical run is never mutated, revoked or edited.
 
 The eleven vector terms are, in order: logical identities / snapshots / muscles / aliases / name
 claims / content versions / expected relationships / projected relationships / import runs / run items
@@ -115,13 +121,16 @@ generator refuses it in the form; stage 6 refuses it at the gate; the database r
 
 ## 5. After stage 7: what is true and what is not
 
-- The new run is sealed, approved, non-dry, unrevoked, with exactly five exercise members and zero
-  alias members. Its membership is PERMANENT. The seal cannot be undone; the only later transition is
+- The new run is sealed, approved, non-dry, unrevoked, with exactly eight exercise members (the
+  historical Plank, Dead bug and Ab wheel rollout carried forward, plus the five) and three alias
+  members (Front plank, Forearm plank, Ab roller rollout). Its membership is PERMANENT. The seal cannot be undone; the only later transition is
   the one-way `exlib_revoke_run_delivery`, which stops delivery from that run and reopens nothing.
 - `deliver_catalog_exercises(<new key>)` is now REACHABLE by any authenticated caller that names the
   key, into that caller's own tenant. Nothing calls it yet: the application delivers only the
   configured run key, which still names the plank release.
-- The plank release run is untouched and still deliverable.
+- The plank release run is untouched and still deliverable under its own key; its membership is
+  carried forward in the new run, so the plank release's effects stay reachable for future users
+  through the new key.
 - **Nothing has been delivered to any user.** Delivery is stage 8, below, and is gated on a
   production configuration change that is a separate operator act.
 
@@ -129,20 +138,31 @@ generator refuses it in the form; stage 6 refuses it at the gate; the database r
 
 Proven from `src/lib/supabase/deliver-catalog.ts`: the application reads ONE scalar run key and
 passes it straight to the RPC, and `run_key` is UNIQUE, so exactly one run is deliverable per
-deployment. Delivering the five therefore REQUIRES changing the production run-key variable. Read
-`docs/weight-time-five-entry-delivery-configuration-dependency.md` first: repointing the key
-DE-SELECTS the plank release for every user who has not yet received it, and the number of such
-users is UNKNOWN until re-measured hosted.
+deployment. Delivering the five therefore REQUIRES changing the production run-key variable. Because
+the new run is CUMULATIVE, repointing no longer de-selects the plank release's effects for FUTURE
+users: the historical six are carried forward, and the disposable proof shows a fresh user receives
+the complete cumulative release (eligible 8, inserted 8, alias_inserted 3) idempotently.
+
+**BLOCKING FINDING F-E8 (measured; read before any repoint).** For a user who ALREADY received the
+plank release through `exlib2u-plank-release1-staged-v1`, delivery of the cumulative run is REFUSED by
+the committed function: the existing Plank link carries the historical run id, and migration 026's
+`exlib_plank_link_valid` demands the delivering run's own id, so the function raises `inconsistent
+prior Plank reconciliation requires separate investigation` and rolls back (the five are not added
+either). The refusal is deterministic, so every initialization of such a user fails closed while the
+configured key names the cumulative run. The number of such users is UNKNOWN until re-measured hosted.
+Changing this needs a migration or an application change, both outside this round. **Do not repoint
+until F-E8 is adjudicated and resolved by an authorized change.** See
+`docs/weight-time-five-entry-delivery-configuration-dependency.md` sections 5 and 5b.
 
 The enablement variable is written here as fragments, `CATALOG` + `_DELIVERY` + `_ENABLED`, following
 the EXLIB-3A records (a committed verifier censuses that literal). The run-key variable is
 `CATALOG_DELIVERY_RUN_KEY`.
 
-Exact operator sequence, once and only once, after stage 7 is APPLIED and a decision on the
-de-selection consequence has been made:
+Exact operator sequence, once and only once, after stage 7 is APPLIED and F-E8 has been adjudicated
+and resolved:
 
-1. Re-measure delivered counts hosted (read-only) and decide whether de-selecting the plank release is
-   acceptable now.
+1. Re-measure delivered counts hosted (read-only): the number of users who received the plank release
+   is the number F-E8 affects. Do not continue while F-E8 stands unresolved.
 2. Confirm the enablement variable (`CATALOG` + `_DELIVERY` + `_ENABLED`) is still exactly `true` and
    Production-scoped. Do not touch it.
 3. Confirm hosted, with the probe, that stage 7 reads `APPLIED` and the new run's key is exactly the
@@ -152,10 +172,11 @@ de-selection consequence has been made:
    variable and do not widen the scope.
 5. Perform exactly ONE Production redeploy (the EXLIB-3A activation recorded a duplicate redeploy as a
    disclosed deviation; avoid repeating it). Record the deployment id and the SHA it serves.
-6. Verify delivery for ONE account and compare the returned summary with the manifest's expectation:
-   `eligible 5, inserted 5`, every other counter 0, five `inserted_catalog_logical_ids`,
-   `plank_disposition = 'not_in_run'`, accounting offset 0. A second initialization for the same
-   account must read `skipped_already_delivered 5, inserted 0`.
+6. Verify delivery for ONE FRESH account and compare the returned summary with the manifest's
+   expectation: `eligible 8, inserted 8, alias_inserted 3`, every other counter 0, eight
+   `inserted_catalog_logical_ids`, `plank_disposition = 'delivered_canonical_timed_plank'`, accounting
+   offset 0. A second initialization for the same account must read `skipped_already_delivered 8,
+   alias_already_delivered 3, inserted 0`.
 7. Record everything observed in a durable record marked OPERATOR-SUPPLIED.
 
 If anything disagrees, STOP and read state. A timeout means the eventual delivery outcome is UNKNOWN,
@@ -173,9 +194,13 @@ run to be sealed/approved/non-dry/unrevoked, and inserts one `public.exercises` 
 `exercise_muscles` rows) per approved active member the user has not received yet. For the five:
 `exercise_type = 'strength'` (migration 028's explicit `weight_time` arm), `tracking_mode =
 'weight_time'`, `unilateral = false`, `is_system = true`, linked by `catalog_id`, `catalog_logical_id`
-and `import_run_id`. It is idempotent per user by `catalog_logical_id`. The disposable proof performs
-exactly this delivery for a fixture user and checks every one of those facts; nothing hosted has been
-delivered.
+and `import_run_id`. For the carried-forward historical members it behaves exactly as it did for the
+plank release, including migration 026's Plank reconciliation (a pristine legacy seed is corrected in
+place; a fresh user receives Plank canonical and timed) and the three alias behaviours. It is
+idempotent per user by `catalog_logical_id` - EXCEPT that an existing Plank link from a DIFFERENT run
+is refused, not skipped (F-E8). The disposable proof performs the cumulative delivery for a fresh
+user, a pristine-seed user and an existing plank user and checks every one of those facts; nothing
+hosted has been delivered.
 
 ## 8. What this runbook does not authorize
 

@@ -2,6 +2,12 @@
 
 STATUS: ANALYSIS AND PREPARATION. Nothing here has been performed.
 
+> **Revised 2026-09-12 after the independent review (finding R-E1).** The five-only run this document
+> first analysed was REJECTED: the five are additive, not a replacement. The prepared run is now
+> CUMULATIVE (section 5). Its consequence for users who already received the plank release was then
+> MEASURED on the disposable proof and is finding **F-E8** (section 5b): the committed delivery function
+> refuses the cumulative run for those users. The repoint must not proceed until F-E8 is adjudicated.
+
 **Claude has had no Vercel contact of any kind, has invoked no Vercel CLI, has changed no environment
 variable, and has triggered no deployment.** Every production figure in this document is
 OPERATOR-SUPPLIED from a prior record and is not a Claude-verified observation. The analysis of what
@@ -90,28 +96,69 @@ A mismatch in the third is not a crash. It is a fail-closed refusal at runtime: 
 unrevoked run matches the key, so `deliver_catalog_exercises` raises and the application's delivery
 path fails closed.
 
-## 5. The consequence that needs a decision: repointing DE-SELECTS the plank release
+## 5. The consequence, corrected: the new run is CUMULATIVE
 
-This is the part worth reading twice.
+The first analysis of this section (a run carrying only the five) concluded that repointing the key
+would REPLACE what production delivers and de-select the plank release for users who had not yet
+received it. The independent review rejected that product behaviour (finding R-E1) and required the
+new run to be cumulative, without any application change to read more than one key.
 
-Repointing the key does **not** add the five to what production delivers. It **replaces** what
-production delivers.
+The prepared stage-6 package therefore creates a run whose membership is:
 
-- Users who have **already** received the plank release keep those rows. Nothing deletes them.
-- Users who have **not** received it will now **never** receive it through this mechanism, unless the
-  key is pointed back at the plank run later.
-- Anything the plank run carried that the new run does not carry becomes unreachable for those users.
-  That includes the plank release's three exercise members and its three alias members, and the
-  `plank_disposition` reconciliation path in `deliver_catalog_exercises` that only arms when a catalog
-  row named exactly `plank` is in the run.
+- an exact carry-forward of ALL SIX membership rows of the sealed historical plank run
+  `exlib2u-plank-release1-staged-v1` (3 exercise members: Plank, Dead bug, Ab wheel rollout; 3 alias
+  members: Front plank, Forearm plank, Ab roller rollout), COPIED from that run's own rows after a gate
+  proves they still resolve to exactly the six governed-identity lines the promoted 2U package asserted;
+- PLUS the five weight_time identities as exercise members.
 
-Because the current measurement of delivered counts predates activation (see section 8), **how many
-users this affects is unknown** and must be measured by the operator before the decision is made.
+So 8 exercise members + 3 alias members = 11 rows, the stage-6 vector becomes `8/8/10/3/11/6/2/2/2/17/8`,
+and the seal reports `exercise_members 8, alias_members 3`. The historical run is NEVER mutated,
+revoked or edited: its row and its six membership rows are proven byte-identical after every stage.
 
-Serving both releases at once would require the application to read more than one run key, which is
-an **application-code change**. The governing instruction forbids making one in this round, so it is
-named here as a dependency and left unimplemented. If both releases must be live simultaneously, this
-round's work is not sufficient and that is a genuine finding, not a gap to paper over.
+Precisely, after a future repoint of `CATALOG_DELIVERY_RUN_KEY` to the cumulative run:
+
+- the OLD RUN itself is no longer the configured selection; it stays sealed and deliverable under its
+  own key, and its membership is permanent;
+- its CONTENT/MEMBERSHIP is carried forward into the new cumulative run, so the plank release's effects
+  remain reachable for future users through the new key;
+- historical database rows remain untouched;
+- users who already received old content retain it (nothing deletes tenant rows);
+- **fresh users receive the cumulative release** - MEASURED on the disposable proof: a user with no
+  exercises receives eligible 8 / inserted 8 (Plank delivered canonical and timed, Dead bug, Ab wheel
+  rollout, the five), alias_inserted 3, and a second and third initialization are idempotent
+  (skipped_already_delivered 8, alias_already_delivered 3); a user carrying the pristine legacy
+  bodyweight Plank seed receives the migration-026 in-place correction (inserted 7, accounting offset 1,
+  alias_inserted 1, alias_added_to_existing 2);
+- **users who already received the plank release through the historical run do NOT receive only the
+  missing effects. Their delivery of the cumulative run is REFUSED.** See 5b.
+
+## 5b. Finding F-E8, measured: the cumulative run is refused for existing plank users
+
+`deliver_catalog_exercises` (migration 028 section D, the migration-026 body) dispatches the Plank
+identity through migration 026's reconciliation path. When the user already holds a row linked to the
+Plank identity, that path validates the existing link with `exlib_plank_link_valid`, whose contract is
+STRICT run provenance: the linked row's `import_run_id` must equal THE DELIVERING RUN's id. A row
+delivered by `exlib2u-plank-release1-staged-v1` carries that run's id, so validation against the new
+cumulative run fails and the function raises:
+
+```
+deliver_catalog_exercises: inconsistent prior Plank reconciliation requires separate investigation
+(no silent repair, relink, anatomy overwrite, or rename)
+```
+
+The whole transaction rolls back: the user receives none of the five either, and every later
+initialization attempt fails the same way (the refusal is deterministic). Under the application's
+fail-closed law, such a user's exercise initialization would fail on every request while the configured
+key names a Plank-carrying run they did not receive Plank from. The disposable proof measures exactly
+this (checks FC1 to FC5) and also proves the user's historical delivery stays intact and idempotent
+under the historical key.
+
+This is a property of the committed function, not of any package in this round. Changing it needs a
+migration (a relaxed provenance rule for cross-run idempotency) or an application change (for example
+delivering the historical key first for such users), and both are outside this round's authority. No
+migration 029 exists or is prepared. **Until F-E8 is adjudicated, the run-key repoint must not proceed:
+the number of existing plank users is UNKNOWN (section 8), and for every one of them the repoint would
+be a live initialization outage, not a de-selection.**
 
 ## 6. Ordering: configuration activation versus delivery
 
@@ -128,7 +175,8 @@ exercise initialization.
 Correct order:
 
 1. stages 1 through 5 complete (snapshots approved, content drafted, reviewed, admitted, published);
-2. stage 6: the run is created with its permanent key and exactly five members;
+2. stage 6: the run is created with its permanent key and exactly eleven members (the historical six
+   carried forward plus the five);
 3. stage 7: the run is sealed, and the seal re-validates every member;
 4. **only then** the configuration is repointed and a deployment picks it up;
 5. delivery happens per user, on each user's own next initialization. There is no batch trigger and
@@ -187,11 +235,13 @@ for an informed decision, not something this round can supply.
 **Configuration rollback is easy. Its effect is not symmetric, and that asymmetry is the risk.**
 
 Restoring `CATALOG_DELIVERY_RUN_KEY` to `exlib2u-plank-release1-staged-v1` and redeploying restores
-the previous delivery selection. It does **not**:
+the previous delivery selection, and for the existing plank users of F-E8 it would end the
+initialization refusals. It does **not**:
 
 - remove any `public.exercises` or `public.exercise_muscles` row already delivered to any user;
 - unpublish any content, unadmit any version, unapprove any snapshot, or unseal the new run;
-- restore the plank release to a user who initialized during the window.
+- give the five to any user who initialized during the window and was refused (F-E8); those users
+  received nothing from the cumulative run, so there is nothing to undo for them.
 
 So the rollback restores the *selection*, never the *state*. Every row delivered in the interim stays
 delivered, and each affected user keeps whichever mixture of the two releases they happened to
@@ -220,11 +270,14 @@ authorization: each hosted act still needs its own one-use instruction with a sp
 Before touching configuration:
 
 1. Re-measure delivered counts hosted, replacing the stale pre-activation figures in section 8.
-2. Decide section 5 knowing that number: is de-selecting the plank release acceptable?
+2. Adjudicate F-E8 (section 5b) knowing that number: every existing plank user would be refused
+   initialization under the cumulative run. Do NOT proceed past this step until that is resolved by an
+   authorized change outside this round.
 3. Confirm the enablement variable (fragments `CATALOG` + `_DELIVERY` + `_ENABLED`) is still exactly `true` and Production-scoped.
 4. Confirm the run key literal chosen in family C, and that stages 1 through 7 all completed.
-5. Confirm hosted that the new run is sealed, approved, not dry, not revoked, and has exactly five
-   exercise members and zero alias members.
+5. Confirm hosted that the new run is sealed, approved, not dry, not revoked, and has exactly eight
+   exercise members and three alias members (the historical six carried forward plus the five), and
+   that the historical run is untouched.
 
 The configuration change:
 
@@ -238,9 +291,10 @@ The configuration change:
 After:
 
 9. Confirm which SHA production is serving, and that it is the SHA intended.
-10. Verify delivery for one account, and read the returned summary against the manifest's expected
-    values: `eligible 5`, `inserted 5`, every other counter `0`, `plank_disposition = 'not_in_run'`,
-    accounting offset `0`.
+10. Verify delivery for one FRESH account, and read the returned summary against the manifest's
+    expected values: `eligible 8`, `inserted 8`, `alias_inserted 3`, every other counter `0`,
+    `plank_disposition = 'delivered_canonical_timed_plank'`, accounting offset `0`; a repeat must read
+    `skipped_already_delivered 8`, `alias_already_delivered 3`.
 11. Record the observed values in a durable record, marked OPERATOR-SUPPLIED.
 12. If anything disagrees, **stop and read state**. A timeout in particular means the eventual
     delivery outcome is UNKNOWN, never that delivery did not occur; the code says so explicitly and
@@ -249,6 +303,6 @@ After:
 ## 11. What was not done here, stated plainly
 
 No Vercel contact. No Vercel CLI. No environment variable created, read, or changed. No deployment
-triggered. No hosted Supabase contact. No Supabase CLI invocation, for any subcommand. No delivery
+triggered. No migration. No application change. No hosted Supabase contact. No Supabase CLI invocation, for any subcommand. No delivery
 called anywhere, hosted or local, outside the disposable local proof. No git push. No human decision
 filled or inferred.

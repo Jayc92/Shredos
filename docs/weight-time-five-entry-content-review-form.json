@@ -1,14 +1,14 @@
 {
   "form": "weight-time-five-entry-content-review-form",
-  "form_version": 1,
-  "prepared_at": "2026-09-11",
+  "form_version": 2,
+  "prepared_at": "2026-09-12",
   "human_decision_family": "B",
   "status": "BLANK - AWAITING HUMAN DECISION",
   "what_this_decides": "Whether the DRAFTED INSTRUCTIONAL CONTENT for each of the five weight_time entries is fit to publish. This is NOT a decision about the catalog snapshot's identity or metadata; that is family A, in weight-time-five-entry-snapshot-review-form.json.",
   "content_artifact": "docs/weight-time-five-entry-content.jsonl",
   "content_fingerprint": {
-    "bytes": 12870,
-    "sha256": "fb13ea5283e7ab13953471bb323e8fe9df9ce707e718751c477495068fea2921",
+    "bytes": 13155,
+    "sha256": "8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb",
     "note": "Any byte change to the content artifact voids this form. Per-entry payload fingerprints are in docs/weight-time-five-entry-lifecycle-manifest.json and are independently recomputable."
   },
   "reviewer_facing_document": "docs/weight-time-five-entry-human-review.md",
@@ -21,7 +21,11 @@
     "must_travel_alone": "The freeze trigger forbids a review decision travelling in the same statement as a payload change or an admission change.",
     "downstream": "Only an approved version can be admitted, and only an approved AND admitted version can be published."
   },
-  "legal_decisions": ["approved", "revised", "rejected"],
+  "legal_decisions": [
+    "approved",
+    "revised",
+    "rejected"
+  ],
   "legal_decisions_provenance": "Taken from the promoted content-review form docs/exlib2h-plank-content-review-form.json, and matching the content_status CHECK in migration 027.",
   "decision_requirements": "A decision requires reviewer (named human specialist, never AI, >= 3 non-blank chars), reviewer_role_or_credential (operator-validated), reviewed_at (date-time), and rationale (>= 10 non-blank chars) together; optional evidence never substitutes for them.",
   "no_effect_statement": "This form grants no approval and has no mechanical effect. Blank or null NEVER reads as approval. Even a filled form changes nothing by itself: applying a decision is a separate act, executed by the operator path against an exact fingerprinted payload.",
@@ -61,7 +65,7 @@
         "safety_adequacy": null,
         "partner_plate_placement_guidance_appropriate": null,
         "plate_position_between_shoulder_blades_correct": null,
-        "load_selection_heuristic_reasonable": null,
+        "light_load_stable_position_gradual_progression_guidance_appropriate": null,
         "weight_time_contract_stated_correctly": null,
         "easier_alternative_appropriate": null
       }
@@ -104,7 +108,7 @@
         "instruction_coaching_quality": null,
         "safety_adequacy": null,
         "grip_and_hang_mechanics_correct": null,
-        "dip_belt_or_feet_held_plate_both_appropriate": null,
+        "dipping_belt_as_sole_recommended_loading_method_appropriate": null,
         "step_off_rather_than_jump_guidance_sufficient": null,
         "weight_time_contract_stated_correctly": null,
         "easier_alternative_appropriate": null
@@ -129,7 +133,8 @@
         "thighs_parallel_depth_cue_correct": null,
         "position_first_then_load_ordering_appropriate": null,
         "weight_time_contract_stated_correctly": null,
-        "easier_alternative_appropriate": null
+        "easier_alternative_appropriate": null,
+        "shins_roughly_vertical_foot_placement_cue_correct": null
       }
     },
     {
@@ -149,9 +154,10 @@
         "safety_adequacy": null,
         "vest_fit_guidance_appropriate": null,
         "vest_not_bunched_behind_back_cue_useful": null,
-        "hands_free_advantage_over_plate_variant_accurate": null,
+        "hands_free_and_torso_load_distribution_distinction_accurate": null,
         "weight_time_contract_stated_correctly": null,
-        "easier_alternative_appropriate": null
+        "easier_alternative_appropriate": null,
+        "shins_roughly_vertical_foot_placement_cue_correct": null
       }
     }
   ],
@@ -159,5 +165,6 @@
     "RQ-1 (affects all five): expected_relationships is EMPTY for every entry, so no substitution, progression or regression edges are proposed. Rationale: no relationship is schema-required, the edges a weighted variant should carry have never been through human review in this repository, and proposing them would widen the governed surface at the same sitting. Choosing to add edges is legitimate and costs exactly one regeneration round: the content payload changes, so its fingerprint changes, so this form and the manifest are voided and regenerated before any execution.",
     "RQ-4 (affects all five): see reviewer_identity_dependency above - who may lawfully complete this family.",
     "RQ-5 (entry 132 only): the draft states a plate should be placed and removed by another person 'whenever you can', and the accessibility alternative is unweighted. Confirm that a solo-training user is adequately served by that, or direct that a solo self-placement procedure be drafted instead."
-  ]
+  ],
+  "revision_note": "Form version 2 (2026-09-12): the content carrier was revised after independent review (conservative light-load / stable-position / gradual-progression wording; dipping belt as the sole recommended dead-hang loading method; standardized wall-sit foot placement; simplified breathing cues; the hands-free / torso-distribution vest distinction). Confirmation keys were renamed to match. Every decision leaf remains null."
 }

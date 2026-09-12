@@ -2,6 +2,20 @@
 
 STATUS: DISCOVERY RECORD. Read-only derivation. No hosted contact, no execution, no decision.
 
+> **Correction, 2026-09-12 (independent review finding R-E1; a labelled later correction, not a rewrite).**
+> Rows F, G and H below and section 7 describe the run as carrying ONLY the five weight_time
+> identities. That design was REJECTED by the independent review: the five are additive, not a
+> replacement. The prepared run is now CUMULATIVE: it carries forward all six membership rows of the
+> sealed historical plank run `exlib2u-plank-release1-staged-v1` (3 exercise + 3 alias members, copied
+> from that run's own rows, never retyped) PLUS the five, so stage 6 creates 11 membership rows
+> (8 exercise + 3 alias), the stage-6 vector becomes `8/8/10/3/11/6/2/2/2/17/8`, the seal reports
+> `exercise_members 8, alias_members 3`, and the Plank reconciliation dispatch of migration 026 IS
+> armed for the new run. Row H's "derived expected effect" therefore no longer applies; the
+> measured effects for three user histories are in `docs/weight-time-five-entry-endgame-report.md`,
+> including finding **F-E8**: the committed delivery function REFUSES the cumulative run for a user
+> who already received Plank from the historical run (`exlib_plank_link_valid` demands the delivering
+> run's own id). Everything else in this record stands.
+
 ## What this is
 
 The required discovery deliverable for the post-W14 five-entry lifecycle endgame. Every row was
