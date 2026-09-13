@@ -601,3 +601,34 @@ and X5d and is classified, not fixed. Neither frozen verifier was modified.
 
 Nothing hosted was touched: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag,
 no human decision, no production review, publication or delivery; migration 029 was NOT applied hosted.
+
+## 15. W14-E human decisions COMPLETE (status supersession, 2026-09-13)
+
+Sections 1 to 14 above are kept as history and are still accurate AS MEASURED AT THE COMMITS THEY NAME.
+Three of their statements are superseded as CURRENT STATE:
+
+| Superseded statement | Where | Current state |
+| --- | --- | --- |
+| "The human decisions still required (all blank)" | section 5 heading | all three families are RESOLVED at the governing timestamp `2026-09-13T18:25:13-04:00` - family A and family C by Joseph Carfagno (ForgeFitOS operator), family B by Nick Tkacz (Physical Trainer) |
+| migration 029 "still PREPARED, NOT APPLIED hosted" | section 14.D | **APPLIED hosted by the Joseph/ChatGPT operator path - OPERATOR-SUPPLIED, never Claude-observed** (hosted migration record `20260912181551_exlib_plank_cross_run_idempotency_029`; post-apply probe `migration_029_plank_cross_run_idempotency = APPLIED`) |
+| "migration 029 was NOT applied hosted" | section 14.E closing sentence | unchanged as a statement about CLAUDE: Claude has never applied it hosted and has never read hosted state; the apply above is the operator's, restated |
+
+The completed decisions, their form hashes, the five unchanged content payload fingerprints, the five
+admission fingerprints derived from the family B tuple, and the seven EXECUTABLE package hashes are bound
+in `docs/weight-time-five-entry-human-decision-record.md` (generated, never hand-edited). The gate ledger
+for the executable-package round is frozen in
+`docs/weight-time-five-entry-executable-package-review-bundle.md`.
+
+Two pre-decision documents are deliberately NOT rewritten, because the lifecycle manifest binds them BY
+BYTES as frozen inputs: `docs/weight-time-five-entry-endgame-discovery-matrix.md` (which still reads "029 is
+PREPARED, NOT APPLIED hosted" and "All three ship blank") and
+`docs/weight-time-five-entry-delivery-configuration-dependency.md`. Their labels are frozen labels of the
+pre-decision candidate, in the same posture as the W14 records' frozen `PREPARED - NOT APPLIED` labels; the
+current status is the record and the bundle named above. The blank-form rendering of
+`docs/weight-time-five-entry-human-review.md` is likewise preserved as the committed blob of
+`9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8`, and both endgame verifiers re-derive it from that commit's blank
+forms on every run.
+
+Still true after this round: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag,
+no hosted package execution, no configuration change, no delivery. The seven packages are EXECUTABLE and
+UNRUN.

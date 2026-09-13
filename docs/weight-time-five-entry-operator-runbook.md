@@ -1,8 +1,9 @@
 # weight_time five-entry endgame: operator runbook
 
-STATUS: PREPARED. Nothing in this runbook has been performed. It exists so that, once the three human
-decision forms are complete and independently reviewed, the hosted acts can be run in the right order
-with a spent-check before every one. **Claude performs none of the acts below.** Every hosted act is
+STATUS: PREPARED. Nothing in this runbook has been performed. **The three human decision forms are now
+COMPLETE** (W14-E, governing decision timestamp `2026-09-13T18:25:13-04:00`; see
+`docs/weight-time-five-entry-human-decision-record.md`), so the seven packages named below are EXECUTABLE
+and UNRUN and the hosted acts can be run in the right order with a spent-check before every one. **Claude performs none of the acts below.** Every hosted act is
 Joseph/ChatGPT's, against the Supabase project ShredOS ref `ttybyljytiwntvorugcv` only, as the
 non-superuser operator role `postgres`, under its own one-use instruction. Claude never contacts hosted
 Supabase, never invokes the Supabase CLI, and never contacts Vercel.
@@ -10,9 +11,13 @@ Supabase, never invokes the Supabase CLI, and never contacts Vercel.
 ## 0. Before anything: what must already be true
 
 1. The three forms are COMPLETED by the right humans (family A snapshot review, family B content
-   review, family C run authority). See `docs/weight-time-five-entry-human-review.md` for the five
-   exercises and the eight open reviewer questions, including **RQ-4** (who may lawfully complete
-   family B: the promoted precedent was a named external specialist, not the operator).
+   review, family C run authority). **DONE in W14-E** - family A and family C by Joseph Carfagno
+   (ForgeFitOS operator), family B by Nick Tkacz (Physical Trainer), all at
+   `2026-09-13T18:25:13-04:00`; the completed tuples, their form hashes and the derived admission
+   fingerprints are bound in `docs/weight-time-five-entry-human-decision-record.md`. RQ-4 (who may
+   lawfully complete family B: the promoted precedent was a named external specialist, not the
+   operator) was answered by that named specialist review. `docs/weight-time-five-entry-human-review.md`
+   remains the five exercises and the reviewer questions as the reviewers saw them.
 2. The same generator that produced the committed templates has been re-run on the completed forms
    and the SEVEN EXECUTABLE packages have been committed and independently reviewed:
 
@@ -21,9 +26,11 @@ Supabase, never invokes the Supabase CLI, and never contacts Vercel.
    ```
 
    The generator refuses partial decisions, refuses any decision other than APPROVE / approved,
-   refuses the historical run key, and refuses synthetic markers in a real form. Until the forms are
-   complete, the committed packages are NON-EXECUTABLE TEMPLATES (every human leaf is an unquoted
-   `<<UNRESOLVED:...>>` token, and the first statement after BEGIN is a deliberate syntax error).
+   refuses the historical run key, and refuses synthetic markers in a real form. While any form was
+   still incomplete the committed packages were NON-EXECUTABLE TEMPLATES (every human leaf an unquoted
+   `<<UNRESOLVED:...>>` token, and the first statement after BEGIN a deliberate syntax error); that
+   blank-form rendering is preserved as the committed blob of `9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8`
+   and both endgame verifiers re-derive it from that commit on every run.
 3. `scripts/verify-weight-time-five-entry-endgame.ts` (static) and
    `scripts/verify-weight-time-five-entry-endgame-live.sh` (disposable local PostgreSQL) both exit 0
    at the commit the executable packages were rendered from.
@@ -165,8 +172,10 @@ the complete cumulative release (eligible 8, inserted 8, alias_inserted 3) idemp
 ALREADY received the plank release through `exlib2u-plank-release1-staged-v1` is REFUSED the
 cumulative run: the existing Plank link carries the historical run id and `exlib_plank_link_valid`
 demanded the delivering run's own id. The independent review adjudicated this a database-contract
-defect and authorized **migration 029** (`supabase/migrations/029_exlib_plank_cross_run_idempotency.sql`,
-PREPARED, NOT APPLIED hosted), which replaces only that helper so a prior approved, non-dry, sealed,
+defect and authorized **migration 029** (`supabase/migrations/029_exlib_plank_cross_run_idempotency.sql`;
+**APPLIED hosted by the operator path - OPERATOR-SUPPLIED, never Claude-observed**: hosted migration record
+`20260912181551_exlib_plank_cross_run_idempotency_029`, post-apply probe
+`migration_029_plank_cross_run_idempotency = APPLIED`), which replaces only that helper so a prior approved, non-dry, sealed,
 unrevoked run carrying EXACTLY the same catalog snapshot also validates. With 029 live, such a user
 receives exactly the five new identities (measured: eligible 8, inserted 5, skipped 3,
 alias_already_delivered 3, `already_valid_idempotent`, historical rows and provenance untouched).
@@ -225,7 +234,9 @@ logical-index scenario, and checks every one of those facts; nothing hosted has 
 
 ## 8. What this runbook does not authorize
 
-No push, no tag, no deployment, no hosted SQL, no hosted migration apply (029 is PREPARED only), no
-configuration change, no delivery, no content review, admission or publication, no human decision.
+No push, no tag, no deployment, no hosted SQL, no hosted migration apply by Claude (029 was applied by the
+Joseph/ChatGPT operator path, and its APPLIED status here is OPERATOR-SUPPLIED), no configuration change, no
+delivery, no content review, admission or publication. The three human decisions were made by the named
+humans and recorded in the forms; Claude made none of them and rendered them only into unrun packages.
 Each hosted act above needs its own one-use instruction with a spent-check first. Claude performs none
 of them.
