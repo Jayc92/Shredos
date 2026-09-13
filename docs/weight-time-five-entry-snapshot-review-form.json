@@ -1,7 +1,14 @@
 {
   "artifact": "weight-time-five-entry-snapshot-review-form",
   "human_decision_family": "A",
-  "status": "BLANK - AWAITING HUMAN DECISION",
+  "status": "COMPLETE - HUMAN DECISIONS RECORDED (see decision_recording)",
+  "decision_recording": {
+    "status": "COMPLETE",
+    "governing_decision_timestamp": "2026-09-13T18:25:13-04:00",
+    "decisions_supplied_by": "the named humans recorded below, transmitted verbatim through the ChatGPT operator path",
+    "transcribed_by": "Claude, under the W14-E instruction of 2026-09-13; no value here was authored, defaulted or inferred",
+    "preparer_boundary_note": "The preparer_boundary above forbids the preparer to FILL or FABRICATE a requested input. Neither happened: every value below was supplied verbatim by the operator instruction and is transcribed byte for byte."
+  },
   "what_this_decides": "Whether each of the five weight_time catalog SNAPSHOTS (its identity and its descriptive/discovery metadata) is approved for release. This is NOT a decision about instructional content; that is family B, in weight-time-five-entry-content-review-form.json.",
   "database_effect_when_completed": {
     "mechanism": "direct owner UPDATE on public.exercise_catalog, resolved by logical_id AND is_active = true",
@@ -52,11 +59,11 @@
         "is_active": true
       },
       "human_fields": {
-        "decision": null,
-        "reviewer": null,
-        "reviewer_role_or_credential": null,
-        "reviewed_at": null,
-        "rationale": null,
+        "decision": "APPROVE",
+        "reviewer": "Joseph Carfagno",
+        "reviewer_role_or_credential": "ForgeFitOS operator",
+        "reviewed_at": "2026-09-13T18:25:13-04:00",
+        "rationale": "I approve all five catalog snapshots as accurate for release.",
         "evidence": null
       }
     },
@@ -86,11 +93,11 @@
         "is_active": true
       },
       "human_fields": {
-        "decision": null,
-        "reviewer": null,
-        "reviewer_role_or_credential": null,
-        "reviewed_at": null,
-        "rationale": null,
+        "decision": "APPROVE",
+        "reviewer": "Joseph Carfagno",
+        "reviewer_role_or_credential": "ForgeFitOS operator",
+        "reviewed_at": "2026-09-13T18:25:13-04:00",
+        "rationale": "I approve all five catalog snapshots as accurate for release.",
         "evidence": null
       }
     },
@@ -120,11 +127,11 @@
         "is_active": true
       },
       "human_fields": {
-        "decision": null,
-        "reviewer": null,
-        "reviewer_role_or_credential": null,
-        "reviewed_at": null,
-        "rationale": null,
+        "decision": "APPROVE",
+        "reviewer": "Joseph Carfagno",
+        "reviewer_role_or_credential": "ForgeFitOS operator",
+        "reviewed_at": "2026-09-13T18:25:13-04:00",
+        "rationale": "I approve all five catalog snapshots as accurate for release.",
         "evidence": null
       }
     },
@@ -154,11 +161,11 @@
         "is_active": true
       },
       "human_fields": {
-        "decision": null,
-        "reviewer": null,
-        "reviewer_role_or_credential": null,
-        "reviewed_at": null,
-        "rationale": null,
+        "decision": "APPROVE",
+        "reviewer": "Joseph Carfagno",
+        "reviewer_role_or_credential": "ForgeFitOS operator",
+        "reviewed_at": "2026-09-13T18:25:13-04:00",
+        "rationale": "I approve all five catalog snapshots as accurate for release.",
         "evidence": null
       }
     },
@@ -188,11 +195,11 @@
         "is_active": true
       },
       "human_fields": {
-        "decision": null,
-        "reviewer": null,
-        "reviewer_role_or_credential": null,
-        "reviewed_at": null,
-        "rationale": null,
+        "decision": "APPROVE",
+        "reviewer": "Joseph Carfagno",
+        "reviewer_role_or_credential": "ForgeFitOS operator",
+        "reviewed_at": "2026-09-13T18:25:13-04:00",
+        "rationale": "I approve all five catalog snapshots as accurate for release.",
         "evidence": null
       }
     }

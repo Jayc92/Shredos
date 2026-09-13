@@ -3,7 +3,14 @@
   "form_version": 2,
   "prepared_at": "2026-09-12",
   "human_decision_family": "C",
-  "status": "BLANK - AWAITING HUMAN DECISION",
+  "status": "COMPLETE - HUMAN DECISIONS RECORDED (see decision_recording)",
+  "decision_recording": {
+    "status": "COMPLETE",
+    "governing_decision_timestamp": "2026-09-13T18:25:13-04:00",
+    "decisions_supplied_by": "the named humans recorded below, transmitted verbatim through the ChatGPT operator path",
+    "transcribed_by": "Claude, under the W14-E instruction of 2026-09-13; no value here was authored, defaulted or inferred",
+    "preparer_boundary_note": "The preparer_boundary above forbids the preparer to FILL or FABRICATE a requested input. Neither happened: every value below was supplied verbatim by the operator instruction and is transcribed byte for byte."
+  },
   "what_this_decides": "The identity and the product/legal authority of the NEW CUMULATIVE delivery run: it carries forward all six membership rows of the sealed historical plank run exlib2u-plank-release1-staged-v1 (3 exercise members + 3 alias members) AND adds the five new weight_time exercise identities, so the release is additive, not a replacement. One decision for the run, not one per entry.",
   "database_effect_when_completed": {
     "mechanism": "direct owner INSERT into public.exercise_catalog_import_runs, then direct owner INSERTs into public.exercise_catalog_run_items",
@@ -16,7 +23,7 @@
   "no_effect_statement": "Blank or null NEVER reads as approval. A run cannot be created from this form until it is completed by the operator, and creating the run still does not deliver anything: delivery additionally requires the seal and a production configuration change.",
   "requested_inputs": {
     "run_key_literal": {
-      "value": null,
+      "value": "w14e-weight-time-release1-staged-v1",
       "constraint": "8 to 200 characters after btrim; UNIQUE across exercise_catalog_import_runs FOREVER; the SAME string is later bound by the seal call exlib_approve_and_seal_run(run_key) and by the runtime delivery configuration CATALOG_DELIVERY_RUN_KEY - choose it as a permanent, meaningful release identifier",
       "preparer_proposal": "w14e-weight-time-release1-staged-v1",
       "preparer_proposal_derivation": "Mirrors the one promoted run key segment for segment: <staging milestone>-<subject>-release<N>-staged-v<M>, where exlib2u-plank-release1-staged-v1 is the precedent. Here the staging milestone is the W14 endgame, the subject is weight-time, it is the first release of that subject, and it is v1. Length 35, within the 8..200 constraint.",
@@ -24,23 +31,23 @@
       "must_not_be_reason": "That key identifies the already-sealed plank release. Reuse is structurally impossible because run_key is UNIQUE, and the governing instruction named this a high-risk boundary."
     },
     "product_approver_identity": {
-      "value": null,
+      "value": "Joseph Carfagno",
       "constraint": "a named human, non-blank after btrim; written to product_approved_by",
-      "product_approved_at": null,
+      "product_approved_at": "2026-09-13T18:25:13-04:00",
       "product_approved_at_constraint": "an explicit TIMESTAMPTZ with offset, supplied by the human; never generated, never defaulted to NOW()"
     },
     "legal_approver_identity": {
-      "value": null,
+      "value": "Joseph Carfagno",
       "constraint": "a named human, non-blank after btrim; written to legal_approved_by",
-      "legal_approved_at": null,
+      "legal_approved_at": "2026-09-13T18:25:13-04:00",
       "legal_approved_at_constraint": "an explicit TIMESTAMPTZ with offset, supplied by the human; never generated, never defaulted to NOW()"
     },
     "approval_rationale": {
-      "value": null,
+      "value": "I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.",
       "constraint": "non-blank after btrim; written to approval_rationale. The promoted precedent states plainly what the approval does NOT authorize, and the same discipline is expected here: creating and sealing a run is not the same as enabling production delivery."
     },
     "run_membership": {
-      "value": null,
+      "value": "CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES",
       "choices": [
         "CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES"
       ],
