@@ -1,19 +1,11 @@
 -- ============================================================
 -- W14-E stage 3 of 7 - CONTENT REVIEW (family B) for the five weight_time identities
--- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
+-- STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
 --   npx tsx scripts/generate-weight-time-five-entry-packages.ts
 -- Every value is derived from docs/weight-time-five-entry-lifecycle-manifest.json and the
 -- three human decision forms (family A gated; family B: docs/weight-time-five-entry-content-review-form.json).
---
--- WHY THIS FILE CANNOT RUN: every human decision leaf below is rendered as an
--- UNQUOTED <<UNRESOLVED:...>> token. That is a syntax error, deliberately: a
--- blank decision is never a string that could land in a column. The first
--- statement after BEGIN is a second deliberate syntax error, and the
--- precondition block raises before any read. When the forms are COMPLETED,
--- the same generator renders the executable package to this same path in a
--- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - performs EXACTLY FIVE public.apply_content_review calls under the exlib_catalog_reviewer authority, each carrying the HUMAN decision approved plus the reviewer, the exact offset timestamp and the rationale VERBATIM from the completed family B form
@@ -42,97 +34,6 @@
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
--- TEMPLATE RENDERING: NOT EXECUTABLE. 87 human decision leaves are blank:
---   A.132.decision
---   A.132.reviewer
---   A.132.reviewer_role_or_credential
---   A.132.reviewed_at
---   A.132.rationale
---   A.133.decision
---   A.133.reviewer
---   A.133.reviewer_role_or_credential
---   A.133.reviewed_at
---   A.133.rationale
---   A.137.decision
---   A.137.reviewer
---   A.137.reviewer_role_or_credential
---   A.137.reviewed_at
---   A.137.rationale
---   A.138.decision
---   A.138.reviewer
---   A.138.reviewer_role_or_credential
---   A.138.reviewed_at
---   A.138.rationale
---   A.139.decision
---   A.139.reviewer
---   A.139.reviewer_role_or_credential
---   A.139.reviewed_at
---   A.139.rationale
---   B.132.decision
---   B.132.reviewer
---   B.132.reviewer_role_or_credential
---   B.132.reviewed_at
---   B.132.rationale
---   B.132.confirm.instruction_coaching_quality
---   B.132.confirm.safety_adequacy
---   B.132.confirm.partner_plate_placement_guidance_appropriate
---   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
---   B.132.confirm.weight_time_contract_stated_correctly
---   B.132.confirm.easier_alternative_appropriate
---   B.133.decision
---   B.133.reviewer
---   B.133.reviewer_role_or_credential
---   B.133.reviewed_at
---   B.133.rationale
---   B.133.confirm.instruction_coaching_quality
---   B.133.confirm.safety_adequacy
---   B.133.confirm.vest_fit_guidance_appropriate
---   B.133.confirm.vest_loading_distinct_from_plate_placement
---   B.133.confirm.strap_and_pocket_check_sufficient
---   B.133.confirm.weight_time_contract_stated_correctly
---   B.133.confirm.easier_alternative_appropriate
---   B.137.decision
---   B.137.reviewer
---   B.137.reviewer_role_or_credential
---   B.137.reviewed_at
---   B.137.rationale
---   B.137.confirm.instruction_coaching_quality
---   B.137.confirm.safety_adequacy
---   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
---   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
---   B.137.confirm.weight_time_contract_stated_correctly
---   B.137.confirm.easier_alternative_appropriate
---   B.138.decision
---   B.138.reviewer
---   B.138.reviewer_role_or_credential
---   B.138.reviewed_at
---   B.138.rationale
---   B.138.confirm.instruction_coaching_quality
---   B.138.confirm.safety_adequacy
---   B.138.confirm.plate_on_thighs_near_hips_placement_correct
---   B.138.confirm.thighs_parallel_depth_cue_correct
---   B.138.confirm.position_first_then_load_ordering_appropriate
---   B.138.confirm.weight_time_contract_stated_correctly
---   B.138.confirm.easier_alternative_appropriate
---   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
---   B.139.decision
---   B.139.reviewer
---   B.139.reviewer_role_or_credential
---   B.139.reviewed_at
---   B.139.rationale
---   B.139.confirm.instruction_coaching_quality
---   B.139.confirm.safety_adequacy
---   B.139.confirm.vest_fit_guidance_appropriate
---   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
---   B.139.confirm.weight_time_contract_stated_correctly
---   B.139.confirm.easier_alternative_appropriate
---   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
--- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 87 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -184,7 +85,7 @@ DECLARE
   v_counts TEXT;
   v_line   TEXT;
 BEGIN
-  RAISE EXCEPTION 'W14E-3 content review: TEMPLATE RENDERING with unresolved human decision leaves; this file is not executable and must be regenerated from COMPLETED forms';
+
   IF to_regprocedure('public.apply_content_review(uuid,uuid,text,text,timestamptz,text)') IS NULL THEN
     RAISE EXCEPTION 'W14E-3 content review: migration-027 apply_content_review is missing at its exact signature; wrong or unmigrated database';
   END IF;
@@ -248,9 +149,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.132.rationale>>) THEN
+         AND e.reviewed_by = $ar132$Joseph Carfagno$ar132$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq132$I approve all five catalog snapshots as accurate for release.$aq132$) THEN
     RAISE EXCEPTION 'W14E-3 content review: inventory line 132 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000004') <> 1
@@ -276,9 +177,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.133.rationale>>) THEN
+         AND e.reviewed_by = $ar133$Joseph Carfagno$ar133$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq133$I approve all five catalog snapshots as accurate for release.$aq133$) THEN
     RAISE EXCEPTION 'W14E-3 content review: inventory line 133 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000005') <> 1
@@ -304,9 +205,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.137.rationale>>) THEN
+         AND e.reviewed_by = $ar137$Joseph Carfagno$ar137$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq137$I approve all five catalog snapshots as accurate for release.$aq137$) THEN
     RAISE EXCEPTION 'W14E-3 content review: inventory line 137 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000006') <> 1
@@ -332,9 +233,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.138.rationale>>) THEN
+         AND e.reviewed_by = $ar138$Joseph Carfagno$ar138$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq138$I approve all five catalog snapshots as accurate for release.$aq138$) THEN
     RAISE EXCEPTION 'W14E-3 content review: inventory line 138 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000007') <> 1
@@ -360,9 +261,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.139.rationale>>) THEN
+         AND e.reviewed_by = $ar139$Joseph Carfagno$ar139$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq139$I approve all five catalog snapshots as accurate for release.$aq139$) THEN
     RAISE EXCEPTION 'W14E-3 content review: inventory line 139 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000008') <> 1
@@ -439,9 +340,9 @@ BEGIN
     'e21b2c00-0000-4000-a000-000000000004',
     'e21b2c00-0000-4000-a000-000000000104',
     'approved',
-    <<UNRESOLVED:B.132.reviewer>>,
-    <<UNRESOLVED:B.132.reviewed_at>>,
-    <<UNRESOLVED:B.132.rationale>>);
+    $rv132$Nick Tkacz$rv132$,
+    TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+    $rr132$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$rr132$);
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000004',
        'content_id', 'e21b2c00-0000-4000-a000-000000000104',
@@ -452,9 +353,9 @@ BEGIN
     'e21b2c00-0000-4000-a000-000000000005',
     'e21b2c00-0000-4000-a000-000000000105',
     'approved',
-    <<UNRESOLVED:B.133.reviewer>>,
-    <<UNRESOLVED:B.133.reviewed_at>>,
-    <<UNRESOLVED:B.133.rationale>>);
+    $rv133$Nick Tkacz$rv133$,
+    TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+    $rr133$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$rr133$);
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000005',
        'content_id', 'e21b2c00-0000-4000-a000-000000000105',
@@ -465,9 +366,9 @@ BEGIN
     'e21b2c00-0000-4000-a000-000000000006',
     'e21b2c00-0000-4000-a000-000000000106',
     'approved',
-    <<UNRESOLVED:B.137.reviewer>>,
-    <<UNRESOLVED:B.137.reviewed_at>>,
-    <<UNRESOLVED:B.137.rationale>>);
+    $rv137$Nick Tkacz$rv137$,
+    TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+    $rr137$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$rr137$);
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000006',
        'content_id', 'e21b2c00-0000-4000-a000-000000000106',
@@ -478,9 +379,9 @@ BEGIN
     'e21b2c00-0000-4000-a000-000000000007',
     'e21b2c00-0000-4000-a000-000000000107',
     'approved',
-    <<UNRESOLVED:B.138.reviewer>>,
-    <<UNRESOLVED:B.138.reviewed_at>>,
-    <<UNRESOLVED:B.138.rationale>>);
+    $rv138$Nick Tkacz$rv138$,
+    TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+    $rr138$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$rr138$);
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000007',
        'content_id', 'e21b2c00-0000-4000-a000-000000000107',
@@ -491,9 +392,9 @@ BEGIN
     'e21b2c00-0000-4000-a000-000000000008',
     'e21b2c00-0000-4000-a000-000000000108',
     'approved',
-    <<UNRESOLVED:B.139.reviewer>>,
-    <<UNRESOLVED:B.139.reviewed_at>>,
-    <<UNRESOLVED:B.139.rationale>>);
+    $rv139$Nick Tkacz$rv139$,
+    TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+    $rr139$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$rr139$);
   IF v_result IS DISTINCT FROM jsonb_build_object(
        'logical_id', 'e21b2c00-0000-4000-a000-000000000008',
        'content_id', 'e21b2c00-0000-4000-a000-000000000108',
@@ -560,9 +461,9 @@ BEGIN
          AND c.equipment_setup = $qes132$One flat weight plate and a mat. A bumper plate sits more stably than a thin iron plate, and a training partner to place and remove it is strongly preferred.$qes132$
          AND c.accessibility_alternative = $qaa132$Hold an unweighted plank for the same duration, or hold the position with your knees on the floor and no plate, adding time before you add any load.$qaa132$
          AND c.content_status = 'approved'
-         AND c.reviewed_by = <<UNRESOLVED:B.132.reviewer>>
-         AND c.reviewed_at = <<UNRESOLVED:B.132.reviewed_at>>
-         AND c.review_rationale = <<UNRESOLVED:B.132.rationale>>
+         AND c.reviewed_by = $qrv132$Nick Tkacz$qrv132$
+         AND c.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND c.review_rationale = $qrr132$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$qrr132$
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
          AND c.admitted_fingerprint IS NULL AND c.admitted_source_sha256 IS NULL AND c.admitted_at IS NULL) THEN
@@ -582,9 +483,9 @@ BEGIN
          AND c.equipment_setup = $qes133$A weighted vest with secured, evenly distributed weight pockets, and a mat. Confirm the straps are snug and every pocket is closed before you start the hold.$qes133$
          AND c.accessibility_alternative = $qaa133$Hold an unweighted plank for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.$qaa133$
          AND c.content_status = 'approved'
-         AND c.reviewed_by = <<UNRESOLVED:B.133.reviewer>>
-         AND c.reviewed_at = <<UNRESOLVED:B.133.reviewed_at>>
-         AND c.review_rationale = <<UNRESOLVED:B.133.rationale>>
+         AND c.reviewed_by = $qrv133$Nick Tkacz$qrv133$
+         AND c.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND c.review_rationale = $qrr133$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$qrr133$
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
          AND c.admitted_fingerprint IS NULL AND c.admitted_source_sha256 IS NULL AND c.admitted_at IS NULL) THEN
@@ -604,9 +505,9 @@ BEGIN
          AND c.equipment_setup = $qes137$A secure pull-up bar rated for your bodyweight plus the added load, and a dipping belt loaded with a weight plate.$qes137$
          AND c.accessibility_alternative = $qaa137$Hang from the bar with no added weight for the same duration, or use a lower bar with your feet on the floor so your legs carry part of the load.$qaa137$
          AND c.content_status = 'approved'
-         AND c.reviewed_by = <<UNRESOLVED:B.137.reviewer>>
-         AND c.reviewed_at = <<UNRESOLVED:B.137.reviewed_at>>
-         AND c.review_rationale = <<UNRESOLVED:B.137.rationale>>
+         AND c.reviewed_by = $qrv137$Nick Tkacz$qrv137$
+         AND c.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND c.review_rationale = $qrr137$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$qrr137$
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
          AND c.admitted_fingerprint IS NULL AND c.admitted_source_sha256 IS NULL AND c.admitted_at IS NULL) THEN
@@ -626,9 +527,9 @@ BEGIN
          AND c.equipment_setup = $qes138$A flat wall and one weight plate held on the thighs near the hips. A bumper plate is easier to keep flat than a thin iron plate.$qes138$
          AND c.accessibility_alternative = $qaa138$Hold the wall sit with no plate for the same duration, or sit higher than parallel and add depth before you add any weight.$qaa138$
          AND c.content_status = 'approved'
-         AND c.reviewed_by = <<UNRESOLVED:B.138.reviewer>>
-         AND c.reviewed_at = <<UNRESOLVED:B.138.reviewed_at>>
-         AND c.review_rationale = <<UNRESOLVED:B.138.rationale>>
+         AND c.reviewed_by = $qrv138$Nick Tkacz$qrv138$
+         AND c.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND c.review_rationale = $qrr138$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$qrr138$
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
          AND c.admitted_fingerprint IS NULL AND c.admitted_source_sha256 IS NULL AND c.admitted_at IS NULL) THEN
@@ -648,9 +549,9 @@ BEGIN
          AND c.equipment_setup = $qes139$A flat wall and a weighted vest with secured, evenly distributed pockets. A vest keeps the hands free and distributes the external load across the torso rather than resting it on the thighs.$qes139$
          AND c.accessibility_alternative = $qaa139$Hold the wall sit with no vest for the same duration, or wear the vest for a shorter hold and build the time back up before adding any pockets.$qaa139$
          AND c.content_status = 'approved'
-         AND c.reviewed_by = <<UNRESOLVED:B.139.reviewer>>
-         AND c.reviewed_at = <<UNRESOLVED:B.139.reviewed_at>>
-         AND c.review_rationale = <<UNRESOLVED:B.139.rationale>>
+         AND c.reviewed_by = $qrv139$Nick Tkacz$qrv139$
+         AND c.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND c.review_rationale = $qrr139$I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.$qrr139$
          AND c.publication_status = 'draft'
          AND c.import_admitted = false
          AND c.admitted_fingerprint IS NULL AND c.admitted_source_sha256 IS NULL AND c.admitted_at IS NULL) THEN

@@ -821,7 +821,18 @@ const manifestObject = {
 
   migration_029: {
     path: 'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql',
-    status: 'PREPARED - NOT APPLIED hosted; applied only on disposable local clusters',
+    status:
+      'APPLIED hosted (OPERATOR-SUPPLIED, never Claude-observed); also applied on every disposable local cluster ' +
+      'by the two proofs that exercise it',
+    hosted_application: {
+      // OPERATOR-SUPPLIED. Claude did not apply this migration and did not read
+      // hosted state to confirm it; both facts below are the operator's, restated.
+      provenance: 'OPERATOR-SUPPLIED by the Joseph/ChatGPT operator path',
+      claude_observed_hosted_state: false,
+      claude_applied_it: false,
+      migration_record: '20260912181551_exlib_plank_cross_run_idempotency_029',
+      post_apply_read_state_probe: 'migration_029_plank_cross_run_idempotency = APPLIED',
+    },
     fixes: 'F-E8: exlib_plank_link_valid (migration 026, called from both paths of the migration-028 delivery body) required import_run_id = the delivering run',
     new_rule:
       'the existing Plank link is valid when its import_run_id is THIS run, OR identifies a PRIOR run that exists, ' +

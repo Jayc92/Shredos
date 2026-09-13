@@ -1,19 +1,11 @@
 -- ============================================================
 -- W14-E stage 1 of 7 - SNAPSHOT REVIEW (family A) for the five weight_time identities
--- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
+-- STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
 --   npx tsx scripts/generate-weight-time-five-entry-packages.ts
 -- Every value is derived from docs/weight-time-five-entry-lifecycle-manifest.json and the
 -- three human decision forms (family A: docs/weight-time-five-entry-snapshot-review-form.json).
---
--- WHY THIS FILE CANNOT RUN: every human decision leaf below is rendered as an
--- UNQUOTED <<UNRESOLVED:...>> token. That is a syntax error, deliberately: a
--- blank decision is never a string that could land in a column. The first
--- statement after BEGIN is a second deliberate syntax error, and the
--- precondition block raises before any read. When the forms are COMPLETED,
--- the same generator renders the executable package to this same path in a
--- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - performs EXACTLY FIVE snapshot review transitions (pending -> approved), one direct owner UPDATE per identity carrying its complete FRESH human audit tuple, resolved by logical_id + is_active (never a hosted surrogate UUID)
@@ -41,35 +33,6 @@
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
--- TEMPLATE RENDERING: NOT EXECUTABLE. 25 human decision leaves are blank:
---   A.132.decision
---   A.132.reviewer
---   A.132.reviewer_role_or_credential
---   A.132.reviewed_at
---   A.132.rationale
---   A.133.decision
---   A.133.reviewer
---   A.133.reviewer_role_or_credential
---   A.133.reviewed_at
---   A.133.rationale
---   A.137.decision
---   A.137.reviewer
---   A.137.reviewer_role_or_credential
---   A.137.reviewed_at
---   A.137.rationale
---   A.138.decision
---   A.138.reviewer
---   A.138.reviewer_role_or_credential
---   A.138.reviewed_at
---   A.138.rationale
---   A.139.decision
---   A.139.reviewer
---   A.139.reviewer_role_or_credential
---   A.139.reviewed_at
---   A.139.rationale
--- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 25 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -122,7 +85,7 @@ DECLARE
   v_counts TEXT;
   v_line   TEXT;
 BEGIN
-  RAISE EXCEPTION 'W14E-1 snapshot review: TEMPLATE RENDERING with unresolved human decision leaves; this file is not executable and must be regenerated from COMPLETED forms';
+
   IF current_user <> 'postgres' OR session_user <> 'postgres' THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: BOTH execution identities must be the hosted operator role postgres (got current_user=%, session_user=%); refusing before any write or authority change', current_user, session_user;
   END IF;
@@ -409,37 +372,37 @@ $pre$;
 --    appends its immutable review event itself) ───────────────────────────
 UPDATE public.exercise_catalog
    SET review_status    = 'approved',
-       reviewed_by      = <<UNRESOLVED:A.132.reviewer>>,
-       reviewed_at      = <<UNRESOLVED:A.132.reviewed_at>>,
-       review_rationale = <<UNRESOLVED:A.132.rationale>>
+       reviewed_by      = $rb132$Joseph Carfagno$rb132$,
+       reviewed_at      = TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+       review_rationale = $ra132$I approve all five catalog snapshots as accurate for release.$ra132$
  WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND is_active = true;
 
 UPDATE public.exercise_catalog
    SET review_status    = 'approved',
-       reviewed_by      = <<UNRESOLVED:A.133.reviewer>>,
-       reviewed_at      = <<UNRESOLVED:A.133.reviewed_at>>,
-       review_rationale = <<UNRESOLVED:A.133.rationale>>
+       reviewed_by      = $rb133$Joseph Carfagno$rb133$,
+       reviewed_at      = TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+       review_rationale = $ra133$I approve all five catalog snapshots as accurate for release.$ra133$
  WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND is_active = true;
 
 UPDATE public.exercise_catalog
    SET review_status    = 'approved',
-       reviewed_by      = <<UNRESOLVED:A.137.reviewer>>,
-       reviewed_at      = <<UNRESOLVED:A.137.reviewed_at>>,
-       review_rationale = <<UNRESOLVED:A.137.rationale>>
+       reviewed_by      = $rb137$Joseph Carfagno$rb137$,
+       reviewed_at      = TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+       review_rationale = $ra137$I approve all five catalog snapshots as accurate for release.$ra137$
  WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND is_active = true;
 
 UPDATE public.exercise_catalog
    SET review_status    = 'approved',
-       reviewed_by      = <<UNRESOLVED:A.138.reviewer>>,
-       reviewed_at      = <<UNRESOLVED:A.138.reviewed_at>>,
-       review_rationale = <<UNRESOLVED:A.138.rationale>>
+       reviewed_by      = $rb138$Joseph Carfagno$rb138$,
+       reviewed_at      = TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+       review_rationale = $ra138$I approve all five catalog snapshots as accurate for release.$ra138$
  WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND is_active = true;
 
 UPDATE public.exercise_catalog
    SET review_status    = 'approved',
-       reviewed_by      = <<UNRESOLVED:A.139.reviewer>>,
-       reviewed_at      = <<UNRESOLVED:A.139.reviewed_at>>,
-       review_rationale = <<UNRESOLVED:A.139.rationale>>
+       reviewed_by      = $rb139$Joseph Carfagno$rb139$,
+       reviewed_at      = TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+       review_rationale = $ra139$I approve all five catalog snapshots as accurate for release.$ra139$
  WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND is_active = true;
 
 -- ── Postconditions (ANY mismatch rolls back EVERYTHING) ──────────────
@@ -468,9 +431,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.132.rationale>>) THEN
+         AND e.reviewed_by = $ar132$Joseph Carfagno$ar132$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq132$I approve all five catalog snapshots as accurate for release.$aq132$) THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: inventory line 132 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT c.created_at FROM public.exercise_catalog c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND c.is_active = true)
@@ -480,9 +443,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.133.rationale>>) THEN
+         AND e.reviewed_by = $ar133$Joseph Carfagno$ar133$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq133$I approve all five catalog snapshots as accurate for release.$aq133$) THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: inventory line 133 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT c.created_at FROM public.exercise_catalog c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND c.is_active = true)
@@ -492,9 +455,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.137.rationale>>) THEN
+         AND e.reviewed_by = $ar137$Joseph Carfagno$ar137$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq137$I approve all five catalog snapshots as accurate for release.$aq137$) THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: inventory line 137 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT c.created_at FROM public.exercise_catalog c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND c.is_active = true)
@@ -504,9 +467,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.138.rationale>>) THEN
+         AND e.reviewed_by = $ar138$Joseph Carfagno$ar138$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq138$I approve all five catalog snapshots as accurate for release.$aq138$) THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: inventory line 138 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT c.created_at FROM public.exercise_catalog c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND c.is_active = true)
@@ -516,9 +479,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.139.rationale>>) THEN
+         AND e.reviewed_by = $ar139$Joseph Carfagno$ar139$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq139$I approve all five catalog snapshots as accurate for release.$aq139$) THEN
     RAISE EXCEPTION 'W14E-1 snapshot review: inventory line 139 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT c.created_at FROM public.exercise_catalog c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND c.is_active = true)
@@ -529,9 +492,9 @@ BEGIN
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000004'
          AND ev.from_status = 'pending' AND ev.to_status = 'approved'
-         AND ev.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND ev.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND ev.review_rationale = <<UNRESOLVED:A.132.rationale>>) <> 1
+         AND ev.reviewed_by = $er132$Joseph Carfagno$er132$
+         AND ev.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND ev.review_rationale = $eq132$I approve all five catalog snapshots as accurate for release.$eq132$) <> 1
      OR (SELECT count(*) FROM public.exercise_catalog_review_events ev
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000004') <> 1 THEN
@@ -541,9 +504,9 @@ BEGIN
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000005'
          AND ev.from_status = 'pending' AND ev.to_status = 'approved'
-         AND ev.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND ev.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND ev.review_rationale = <<UNRESOLVED:A.133.rationale>>) <> 1
+         AND ev.reviewed_by = $er133$Joseph Carfagno$er133$
+         AND ev.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND ev.review_rationale = $eq133$I approve all five catalog snapshots as accurate for release.$eq133$) <> 1
      OR (SELECT count(*) FROM public.exercise_catalog_review_events ev
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000005') <> 1 THEN
@@ -553,9 +516,9 @@ BEGIN
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000006'
          AND ev.from_status = 'pending' AND ev.to_status = 'approved'
-         AND ev.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND ev.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND ev.review_rationale = <<UNRESOLVED:A.137.rationale>>) <> 1
+         AND ev.reviewed_by = $er137$Joseph Carfagno$er137$
+         AND ev.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND ev.review_rationale = $eq137$I approve all five catalog snapshots as accurate for release.$eq137$) <> 1
      OR (SELECT count(*) FROM public.exercise_catalog_review_events ev
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000006') <> 1 THEN
@@ -565,9 +528,9 @@ BEGIN
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000007'
          AND ev.from_status = 'pending' AND ev.to_status = 'approved'
-         AND ev.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND ev.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND ev.review_rationale = <<UNRESOLVED:A.138.rationale>>) <> 1
+         AND ev.reviewed_by = $er138$Joseph Carfagno$er138$
+         AND ev.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND ev.review_rationale = $eq138$I approve all five catalog snapshots as accurate for release.$eq138$) <> 1
      OR (SELECT count(*) FROM public.exercise_catalog_review_events ev
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000007') <> 1 THEN
@@ -577,9 +540,9 @@ BEGIN
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000008'
          AND ev.from_status = 'pending' AND ev.to_status = 'approved'
-         AND ev.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND ev.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND ev.review_rationale = <<UNRESOLVED:A.139.rationale>>) <> 1
+         AND ev.reviewed_by = $er139$Joseph Carfagno$er139$
+         AND ev.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND ev.review_rationale = $eq139$I approve all five catalog snapshots as accurate for release.$eq139$) <> 1
      OR (SELECT count(*) FROM public.exercise_catalog_review_events ev
         JOIN public.exercise_catalog c ON c.id = ev.catalog_id
        WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000008') <> 1 THEN

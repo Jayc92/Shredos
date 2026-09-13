@@ -1,19 +1,11 @@
 -- ============================================================
 -- W14-E stage 7 of 7 - RUN SEAL (approve + PERMANENT seal) for the new five-entry run
--- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
+-- STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
 --   npx tsx scripts/generate-weight-time-five-entry-packages.ts
 -- Every value is derived from docs/weight-time-five-entry-lifecycle-manifest.json and the
 -- three human decision forms (families A, B and C gated).
---
--- WHY THIS FILE CANNOT RUN: every human decision leaf below is rendered as an
--- UNQUOTED <<UNRESOLVED:...>> token. That is a syntax error, deliberately: a
--- blank decision is never a string that could land in a column. The first
--- statement after BEGIN is a second deliberate syntax error, and the
--- precondition block raises before any read. When the forms are COMPLETED,
--- the same generator renders the executable package to this same path in a
--- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - performs EXACTLY ONE public.exlib_approve_and_seal_run call on the staged CUMULATIVE run (the historical six carried forward plus the five: 8 exercise + 3 alias members); from the committed migration-023 bytes that call atomically sets approved_for_delivery = true and sealed_at = NOW() in the single validated unsealed -> sealed transition, PERMANENTLY freezing the eleven-row membership and every approval-bound field
@@ -42,104 +34,6 @@
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
--- TEMPLATE RENDERING: NOT EXECUTABLE. 94 human decision leaves are blank:
---   A.132.decision
---   A.132.reviewer
---   A.132.reviewer_role_or_credential
---   A.132.reviewed_at
---   A.132.rationale
---   A.133.decision
---   A.133.reviewer
---   A.133.reviewer_role_or_credential
---   A.133.reviewed_at
---   A.133.rationale
---   A.137.decision
---   A.137.reviewer
---   A.137.reviewer_role_or_credential
---   A.137.reviewed_at
---   A.137.rationale
---   A.138.decision
---   A.138.reviewer
---   A.138.reviewer_role_or_credential
---   A.138.reviewed_at
---   A.138.rationale
---   A.139.decision
---   A.139.reviewer
---   A.139.reviewer_role_or_credential
---   A.139.reviewed_at
---   A.139.rationale
---   B.132.decision
---   B.132.reviewer
---   B.132.reviewer_role_or_credential
---   B.132.reviewed_at
---   B.132.rationale
---   B.132.confirm.instruction_coaching_quality
---   B.132.confirm.safety_adequacy
---   B.132.confirm.partner_plate_placement_guidance_appropriate
---   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
---   B.132.confirm.weight_time_contract_stated_correctly
---   B.132.confirm.easier_alternative_appropriate
---   B.133.decision
---   B.133.reviewer
---   B.133.reviewer_role_or_credential
---   B.133.reviewed_at
---   B.133.rationale
---   B.133.confirm.instruction_coaching_quality
---   B.133.confirm.safety_adequacy
---   B.133.confirm.vest_fit_guidance_appropriate
---   B.133.confirm.vest_loading_distinct_from_plate_placement
---   B.133.confirm.strap_and_pocket_check_sufficient
---   B.133.confirm.weight_time_contract_stated_correctly
---   B.133.confirm.easier_alternative_appropriate
---   B.137.decision
---   B.137.reviewer
---   B.137.reviewer_role_or_credential
---   B.137.reviewed_at
---   B.137.rationale
---   B.137.confirm.instruction_coaching_quality
---   B.137.confirm.safety_adequacy
---   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
---   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
---   B.137.confirm.weight_time_contract_stated_correctly
---   B.137.confirm.easier_alternative_appropriate
---   B.138.decision
---   B.138.reviewer
---   B.138.reviewer_role_or_credential
---   B.138.reviewed_at
---   B.138.rationale
---   B.138.confirm.instruction_coaching_quality
---   B.138.confirm.safety_adequacy
---   B.138.confirm.plate_on_thighs_near_hips_placement_correct
---   B.138.confirm.thighs_parallel_depth_cue_correct
---   B.138.confirm.position_first_then_load_ordering_appropriate
---   B.138.confirm.weight_time_contract_stated_correctly
---   B.138.confirm.easier_alternative_appropriate
---   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
---   B.139.decision
---   B.139.reviewer
---   B.139.reviewer_role_or_credential
---   B.139.reviewed_at
---   B.139.rationale
---   B.139.confirm.instruction_coaching_quality
---   B.139.confirm.safety_adequacy
---   B.139.confirm.vest_fit_guidance_appropriate
---   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
---   B.139.confirm.weight_time_contract_stated_correctly
---   B.139.confirm.easier_alternative_appropriate
---   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
---   C.run_key_literal
---   C.product_approver_identity
---   C.product_approved_at
---   C.legal_approver_identity
---   C.legal_approved_at
---   C.approval_rationale
---   C.run_membership
--- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 94 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -172,7 +66,7 @@ SELECT
   (SELECT md5(coalesce(string_agg(r::text, '|' ORDER BY r.from_logical_id, r.relation, r.to_logical_id), '-')) FROM public.exercise_catalog_relationships r) AS projection_digest,
   (SELECT md5(coalesce(string_agg(ri::text, '|' ORDER BY ri.id), '-')) FROM public.exercise_catalog_run_items ri) AS run_items_digest,
   (SELECT r.run_key || '#' || r.dry_run::text || '#' || r.product_approved_by || '#' || r.product_approved_at::text || '#' || r.legal_approved_by || '#' || r.legal_approved_at::text || '#' || md5(r.approval_rationale) || '#' || r.created_at::text
-     FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) AS new_run_evidence_line,
+     FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') AS new_run_evidence_line,
   (SELECT r::text FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'exlib2u-plank-release1-staged-v1') AS historical_run_row,
   (SELECT md5(coalesce(string_agg(ri::text, '|' ORDER BY ri.id), '-'))
      FROM public.exercise_catalog_run_items ri
@@ -197,7 +91,7 @@ DECLARE
   v_alias_members    INTEGER;
   v_unready          INTEGER;
 BEGIN
-  RAISE EXCEPTION 'W14E-7 run seal: TEMPLATE RENDERING with unresolved human decision leaves; this file is not executable and must be regenerated from COMPLETED forms';
+
   IF current_user <> 'postgres' OR session_user <> 'postgres' THEN
     RAISE EXCEPTION 'W14E-7 run seal: BOTH execution identities must be the hosted operator role postgres (got current_user=%, session_user=%); refusing before any write or authority change', current_user, session_user;
   END IF;
@@ -331,7 +225,7 @@ BEGIN
   END IF;
   SELECT * INTO v_run
     FROM public.exercise_catalog_import_runs
-   WHERE run_key = <<UNRESOLVED:C.run_key_literal>>
+   WHERE run_key = 'w14e-weight-time-release1-staged-v1'
    FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'W14E-7 run seal: the staged five-entry run is missing (unknown run key); stage 6 has not run, or the key differs; refusing - STOP / DO NOT SEAL';
@@ -351,11 +245,11 @@ BEGIN
      OR v_run.created_at IS NULL THEN
     RAISE EXCEPTION 'W14E-7 run seal: the staged run is not in the Design-S4 posture (dry_run or an operational field drifted); refusing - STOP / DO NOT SEAL';
   END IF;
-  IF v_run.product_approved_by IS DISTINCT FROM <<UNRESOLVED:C.product_approver_identity>>
-     OR v_run.product_approved_at IS DISTINCT FROM <<UNRESOLVED:C.product_approved_at>>
-     OR v_run.legal_approved_by IS DISTINCT FROM <<UNRESOLVED:C.legal_approver_identity>>
-     OR v_run.legal_approved_at IS DISTINCT FROM <<UNRESOLVED:C.legal_approved_at>>
-     OR v_run.approval_rationale IS DISTINCT FROM <<UNRESOLVED:C.approval_rationale>> THEN
+  IF v_run.product_approved_by IS DISTINCT FROM $pab$Joseph Carfagno$pab$
+     OR v_run.product_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.legal_approved_by IS DISTINCT FROM $lab$Joseph Carfagno$lab$
+     OR v_run.legal_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.approval_rationale IS DISTINCT FROM $apr$I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.$apr$ THEN
     RAISE EXCEPTION 'W14E-7 run seal: the run does not carry the reserved family C approval evidence character-for-character; refusing';
   END IF;
   SELECT string_agg(x.member, E'\n' ORDER BY x.member)
@@ -415,7 +309,7 @@ BEGIN
     RAISE EXCEPTION 'W14E-7 run seal: tenant rows already carry this run id before the seal (impossible unsealed posture); refusing - STOP / DO NOT SEAL';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
-       WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>
+       WHERE r.run_key = 'w14e-weight-time-release1-staged-v1'
          AND r.approved_for_delivery = true AND r.dry_run = false
          AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL) <> 0 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the run already satisfies the delivery predicate BEFORE sealing (impossible unsealed posture); refusing - STOP / DO NOT SEAL';
@@ -449,9 +343,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.132.rationale>>) THEN
+         AND e.reviewed_by = $ar132$Joseph Carfagno$ar132$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq132$I approve all five catalog snapshots as accurate for release.$aq132$) THEN
     RAISE EXCEPTION 'W14E-7 run seal: inventory line 132 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -483,9 +377,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.133.rationale>>) THEN
+         AND e.reviewed_by = $ar133$Joseph Carfagno$ar133$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq133$I approve all five catalog snapshots as accurate for release.$aq133$) THEN
     RAISE EXCEPTION 'W14E-7 run seal: inventory line 133 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -517,9 +411,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.137.rationale>>) THEN
+         AND e.reviewed_by = $ar137$Joseph Carfagno$ar137$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq137$I approve all five catalog snapshots as accurate for release.$aq137$) THEN
     RAISE EXCEPTION 'W14E-7 run seal: inventory line 137 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -551,9 +445,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.138.rationale>>) THEN
+         AND e.reviewed_by = $ar138$Joseph Carfagno$ar138$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq138$I approve all five catalog snapshots as accurate for release.$aq138$) THEN
     RAISE EXCEPTION 'W14E-7 run seal: inventory line 138 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -585,9 +479,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.139.rationale>>) THEN
+         AND e.reviewed_by = $ar139$Joseph Carfagno$ar139$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq139$I approve all five catalog snapshots as accurate for release.$aq139$) THEN
     RAISE EXCEPTION 'W14E-7 run seal: inventory line 139 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c
@@ -595,7 +489,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.132.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '9cbc10c9284f3e23f1123b647f17ee6bc05e8e452f5aa821b9a99256c9ddae7c'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 132 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -604,7 +498,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.133.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = 'bb705be0318c34b7fd2ecd51039a665ad087be8f69fc227cf44a53ddbb06f1a5'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 133 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -613,7 +507,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.137.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = 'e10369c291030ed61ddc48eda0c5c8759e0f3a7c68229a19a9b7c09792fe2008'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 137 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -622,7 +516,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.138.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '05ca70e920ac098f291c9928210f724ba15044bab7fac588591026b3d9d2b932'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 138 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -631,7 +525,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.139.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '8a7a94b2ede86cae694cde02fa5652154204a2093562f45c54778d0c2ff68c65'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the published, admitted, fingerprint-fresh content row for inventory line 139 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -646,9 +540,9 @@ DO $act$
 DECLARE
   v_result JSONB;
 BEGIN
-  v_result := public.exlib_approve_and_seal_run(<<UNRESOLVED:C.run_key_literal>>);
+  v_result := public.exlib_approve_and_seal_run('w14e-weight-time-release1-staged-v1');
   IF v_result IS DISTINCT FROM jsonb_build_object(
-       'run_key', <<UNRESOLVED:C.run_key_literal>>,
+       'run_key', 'w14e-weight-time-release1-staged-v1',
        'sealed', true,
        'exercise_members', 8,
        'alias_members', 3) THEN
@@ -686,7 +580,7 @@ BEGIN
   IF v_counts <> '8/8/10/3/11/6/2/2/2/17/8' THEN
     RAISE EXCEPTION 'W14E-7 run seal: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/17/8); rolling back everything', v_counts;
   END IF;
-  SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = <<UNRESOLVED:C.run_key_literal>>;
+  SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = 'w14e-weight-time-release1-staged-v1';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'W14E-7 run seal: the sealed run row is missing after the act; rolling back everything - the attempted seal does not survive';
   END IF;
@@ -703,11 +597,11 @@ BEGIN
      IS DISTINCT FROM v_cap.new_run_evidence_line THEN
     RAISE EXCEPTION 'W14E-7 run seal: an immutable evidence field changed across the seal (the seal freezes, never edits); rolling back everything - the attempted seal does not survive';
   END IF;
-  IF v_run.product_approved_by IS DISTINCT FROM <<UNRESOLVED:C.product_approver_identity>>
-     OR v_run.product_approved_at IS DISTINCT FROM <<UNRESOLVED:C.product_approved_at>>
-     OR v_run.legal_approved_by IS DISTINCT FROM <<UNRESOLVED:C.legal_approver_identity>>
-     OR v_run.legal_approved_at IS DISTINCT FROM <<UNRESOLVED:C.legal_approved_at>>
-     OR v_run.approval_rationale IS DISTINCT FROM <<UNRESOLVED:C.approval_rationale>> THEN
+  IF v_run.product_approved_by IS DISTINCT FROM $pab$Joseph Carfagno$pab$
+     OR v_run.product_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.legal_approved_by IS DISTINCT FROM $lab$Joseph Carfagno$lab$
+     OR v_run.legal_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.approval_rationale IS DISTINCT FROM $apr$I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.$apr$ THEN
     RAISE EXCEPTION 'W14E-7 run seal: the run does not carry the reserved family C approval evidence character-for-character; refusing';
   END IF;
   SELECT string_agg(x.member, E'\n' ORDER BY x.member)
@@ -767,7 +661,7 @@ BEGIN
   -- predicate NOW matches exactly this run (and still exactly the historical
   -- plank run). Delivery itself did NOT run for this run.
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
-       WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>
+       WHERE r.run_key = 'w14e-weight-time-release1-staged-v1'
          AND r.approved_for_delivery = true AND r.dry_run = false
          AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL) <> 1 THEN
     RAISE EXCEPTION 'W14E-7 run seal: the sealed run does not satisfy the delivery predicate exactly once; rolling back everything - the attempted seal does not survive';
@@ -786,7 +680,7 @@ BEGIN
      OR (SELECT md5(coalesce(string_agg(r::text, '|' ORDER BY r.from_logical_id, r.relation, r.to_logical_id), '-')) FROM public.exercise_catalog_relationships r) IS DISTINCT FROM v_cap.projection_digest
      OR (SELECT md5(coalesce(string_agg(ri::text, '|' ORDER BY ri.id), '-')) FROM public.exercise_catalog_run_items ri) IS DISTINCT FROM v_cap.run_items_digest
      OR (SELECT r.run_key || '#' || r.dry_run::text || '#' || r.product_approved_by || '#' || r.product_approved_at::text || '#' || r.legal_approved_by || '#' || r.legal_approved_at::text || '#' || md5(r.approval_rationale) || '#' || r.created_at::text
-     FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) IS DISTINCT FROM v_cap.new_run_evidence_line THEN
+     FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') IS DISTINCT FROM v_cap.new_run_evidence_line THEN
     RAISE EXCEPTION 'W14E-7 run seal: a surface this package must not change has changed (logical_digest, snapshots_digest, events_digest, anatomy_digest, alias_digest, claims_digest, content_digest, expected_rel_digest, projection_digest, run_items_digest, new_run_evidence_line); rolling back everything';
   END IF;
   IF (SELECT r::text FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'exlib2u-plank-release1-staged-v1') IS DISTINCT FROM v_cap.historical_run_row
@@ -827,10 +721,10 @@ SELECT 'W14E-7 RUN SEALED' AS result,
           || '/' || (SELECT count(*) FROM public.exercise_catalog_import_runs)::text
           || '/' || (SELECT count(*) FROM public.exercise_catalog_run_items)::text
           || '/' || (SELECT count(*) FROM public.exercise_catalog_review_events)::text) AS vector,
-       (SELECT r.approved_for_delivery FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) AS approved_for_delivery,
-       (SELECT r.sealed_at FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) AS sealed_at,
+       (SELECT r.approved_for_delivery FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') AS approved_for_delivery,
+       (SELECT r.sealed_at FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') AS sealed_at,
        (SELECT count(*) FROM public.exercise_catalog_import_runs x
          WHERE x.approved_for_delivery = true AND x.dry_run = false AND x.sealed_at IS NOT NULL AND x.revoked_at IS NULL) AS delivery_predicate_rows_total,
-       (SELECT count(*) FROM public.exercises e JOIN public.exercise_catalog_import_runs r ON r.id = e.import_run_id WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) AS delivered_tenant_rows_new_run;
+       (SELECT count(*) FROM public.exercises e JOIN public.exercise_catalog_import_runs r ON r.id = e.import_run_id WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') AS delivered_tenant_rows_new_run;
 
 COMMIT;

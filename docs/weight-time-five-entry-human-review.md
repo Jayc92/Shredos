@@ -1,6 +1,9 @@
 # weight_time five-entry release: human review page
 
-STATUS: FOR HUMAN REVIEW. Nothing here is approved. Blank is never approval. Every value below is
+STATUS: DECISIONS RECORDED. All three governing decision families are COMPLETE in their forms, so this page is
+no longer a blank-form surface. It is still the review surface and NOT the approval: the completed forms are the
+approval, and `docs/weight-time-five-entry-human-decision-record.md` binds them by bytes.
+Blank is never approval; the recorded decision timestamp is 2026-09-13T18:25:13-04:00. Every value below is
 rendered from committed bytes (`docs/weight-time-five-entry-lifecycle-manifest.json`), never retyped.
 
 GENERATED FILE. Do not edit by hand - regenerate with
@@ -9,7 +12,7 @@ GENERATED FILE. Do not edit by hand - regenerate with
 ## What you are deciding, in one paragraph
 
 Five weight_time catalog snapshots already exist on hosted ShredOS, pending review (loaded by the
-spent W14 act). Three decisions are needed, on three blank forms. **Family A** (one per exercise):
+spent W14 act). Three decisions were needed, and all three forms are now COMPLETE. **Family A** (one per exercise):
 is the catalog snapshot - its identity and metadata below - approved for release? **Family B** (one
 per exercise): is the AI-drafted instructional content below fit to publish? **Family C** (once):
 the permanent run key and the product + legal authority for the new delivery run. The three carries
@@ -34,7 +37,7 @@ the permanent run key and the product + legal authority for the new delivery run
 Only APPROVE (A) and approved (B) have prepared packages. Any other choice ends the release for that
 exercise and needs its own instruction; the generator refuses to render a package for it.
 
-## Open reviewer questions (answer at the sitting)
+## Reviewer questions the preparer raised (recorded as raised; never resolved by the preparer)
 
 - **RQ-1** (all five, family B): expected relationships are EMPTY for every entry; no substitution,
   progression or regression edge is proposed. Adding edges is legitimate and costs one regeneration.
@@ -75,7 +78,7 @@ exercise and needs its own instruction; the generator refuses to render a packag
 | retrieved_at / import_confidence | 2026-08-20 / human_review_required |
 | snapshot payload fingerprint (W14) | `f1f2843950c1426c5b5b615b50ec97d168e632b7e1c8946f98f5178efd5e1216` |
 
-**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**
+**Instructional content (family B decided this; AI-drafted, then reviewed and approved by Nick Tkacz, Physical Trainer)**
 
 - authored_by: ForgeFitOS content program (AI-drafted original prose; pending human specialist review); authored_at: 2026-09-12
 - content payload fingerprint: `fb04c3e93b3dc09e0b64879c9fb9c6141f511a32fc0586119b4399259dee43a8`
@@ -135,7 +138,7 @@ Expected relationships: (none proposed; see RQ-1)
 | retrieved_at / import_confidence | 2026-08-24 / human_review_required |
 | snapshot payload fingerprint (W14) | `42f26ff9b4265544bcde194ea1e77c38652abf1b4b0bbee7055e0911fc53fa1e` |
 
-**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**
+**Instructional content (family B decided this; AI-drafted, then reviewed and approved by Nick Tkacz, Physical Trainer)**
 
 - authored_by: ForgeFitOS content program (AI-drafted original prose; pending human specialist review); authored_at: 2026-09-12
 - content payload fingerprint: `454c9158bb79a07bb203f336d147ce6b6efab1cd373c7fb463fe92f4654efe1f`
@@ -194,7 +197,7 @@ Expected relationships: (none proposed; see RQ-1)
 | source fields | all four NULL (ForgeFitOS original; constraint-enforced) |
 | snapshot payload fingerprint (W14) | `ed584b1c2a8b224f2367642d8d32e67ee26214abac7e380dabba384a3de9922e` |
 
-**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**
+**Instructional content (family B decided this; AI-drafted, then reviewed and approved by Nick Tkacz, Physical Trainer)**
 
 - authored_by: ForgeFitOS content program (AI-drafted original prose; pending human specialist review); authored_at: 2026-09-12
 - content payload fingerprint: `0ab5a7048fc6a1619299281b9a200a9323c7793c91e89d6fea854b54a88e21a3`
@@ -253,7 +256,7 @@ Expected relationships: (none proposed; see RQ-1)
 | source fields | all four NULL (ForgeFitOS original; constraint-enforced) |
 | snapshot payload fingerprint (W14) | `b17b5b6be91df93a4aa17c18aa8384bd61515e4e9f43072d0d41d7c3af10db1e` |
 
-**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**
+**Instructional content (family B decided this; AI-drafted, then reviewed and approved by Nick Tkacz, Physical Trainer)**
 
 - authored_by: ForgeFitOS content program (AI-drafted original prose; pending human specialist review); authored_at: 2026-09-12
 - content payload fingerprint: `f3606f4aeef436e7c0b90fbc6585d6845bfb32024d47707eeb813138de018f98`
@@ -312,7 +315,7 @@ Expected relationships: (none proposed; see RQ-1)
 | source fields | all four NULL (ForgeFitOS original; constraint-enforced) |
 | snapshot payload fingerprint (W14) | `0366906db6e0399a2993b2c34841fe025293cbc166ea8f90e24b20bc77034d00` |
 
-**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**
+**Instructional content (family B decided this; AI-drafted, then reviewed and approved by Nick Tkacz, Physical Trainer)**
 
 - authored_by: ForgeFitOS content program (AI-drafted original prose; pending human specialist review); authored_at: 2026-09-12
 - content payload fingerprint: `552dc5810ff446ec219304e19adab0429f560323090fd3651ae57c0241362f45`
@@ -354,16 +357,18 @@ Expected relationships: (none proposed; see RQ-1)
 
 ## Family C, once for the run
 
-- run_key_literal: blank. Proposal for confirmation: `w14e-weight-time-release1-staged-v1` (must never be `exlib2u-plank-release1-staged-v1`).
+- run_key_literal: RECORDED as `w14e-weight-time-release1-staged-v1` (permanent, globally unique; never `exlib2u-plank-release1-staged-v1`).
 - product approver identity + timestamp (with offset), legal approver identity + timestamp (with offset).
 - approval_rationale: state plainly what the approval does NOT authorize (it does not enable production
   delivery; the Vercel run-key change is a separate operator act).
 - run_membership: the one offered choice, `CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES`
   (the historical plank run's 3 exercise + 3 alias members carried forward, plus the five: 8 + 3 = 11 rows).
 
-## What happens after the forms are complete
+## What happens now the forms are complete
 
-The same generator renders the seven executable hosted packages from the completed forms (a new
-commit, reviewed independently), and each package is then executed ONCE by Joseph/ChatGPT against
-ShredOS under its own one-use instruction, in the order stated in
-`docs/weight-time-five-entry-operator-runbook.md`. Nothing in this page performs any of that.
+The same generator has rendered the seven EXECUTABLE hosted packages from the completed forms (this commit,
+reviewed independently; every recorded tuple and every package digest is bound in `docs/weight-time-five-entry-human-decision-record.md`).
+Each package is still UNRUN. Each is executed ONCE by Joseph/ChatGPT against ShredOS under its own one-use
+instruction, in the order stated in `docs/weight-time-five-entry-operator-runbook.md`. Nothing in this page, and
+nothing in this repository, performs any of that: the run authority in family C authorizes the run ARTIFACT only
+and does not enable production delivery, the Vercel repoint, or any deployment.

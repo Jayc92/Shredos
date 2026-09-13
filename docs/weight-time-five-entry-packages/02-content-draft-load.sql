@@ -1,19 +1,11 @@
 -- ============================================================
 -- W14-E stage 2 of 7 - CONTENT DRAFT LOAD for the five weight_time identities
--- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
+-- STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
 --   npx tsx scripts/generate-weight-time-five-entry-packages.ts
 -- Every value is derived from docs/weight-time-five-entry-lifecycle-manifest.json and the
 -- three human decision forms (family A: docs/weight-time-five-entry-snapshot-review-form.json (gated, not written)).
---
--- WHY THIS FILE CANNOT RUN: every human decision leaf below is rendered as an
--- UNQUOTED <<UNRESOLVED:...>> token. That is a syntax error, deliberately: a
--- blank decision is never a string that could land in a column. The first
--- statement after BEGIN is a second deliberate syntax error, and the
--- precondition block raises before any read. When the forms are COMPLETED,
--- the same generator renders the executable package to this same path in a
--- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - performs EXACTLY FIVE public.load_catalog_content_draft calls under the exlib_catalog_loader authority, each with a PREDECLARED content id (…0104 to …0108, the established +0x100 convention over …0004 to …0008) and content_version 1, carrying the AI-drafted payload verbatim from the bound content carrier (sha256 8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb)
@@ -40,35 +32,6 @@
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
--- TEMPLATE RENDERING: NOT EXECUTABLE. 25 human decision leaves are blank:
---   A.132.decision
---   A.132.reviewer
---   A.132.reviewer_role_or_credential
---   A.132.reviewed_at
---   A.132.rationale
---   A.133.decision
---   A.133.reviewer
---   A.133.reviewer_role_or_credential
---   A.133.reviewed_at
---   A.133.rationale
---   A.137.decision
---   A.137.reviewer
---   A.137.reviewer_role_or_credential
---   A.137.reviewed_at
---   A.137.rationale
---   A.138.decision
---   A.138.reviewer
---   A.138.reviewer_role_or_credential
---   A.138.reviewed_at
---   A.138.rationale
---   A.139.decision
---   A.139.reviewer
---   A.139.reviewer_role_or_credential
---   A.139.reviewed_at
---   A.139.rationale
--- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 25 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -120,7 +83,7 @@ DECLARE
   v_counts TEXT;
   v_line   TEXT;
 BEGIN
-  RAISE EXCEPTION 'W14E-2 content draft load: TEMPLATE RENDERING with unresolved human decision leaves; this file is not executable and must be regenerated from COMPLETED forms';
+
   IF to_regprocedure('public.load_catalog_content_draft(uuid,uuid,integer,text,date,jsonb,jsonb,text,jsonb,text,text,text,jsonb)') IS NULL THEN
     RAISE EXCEPTION 'W14E-2 content draft load: migration-027 load_catalog_content_draft is missing at its exact signature; wrong or unmigrated database';
   END IF;
@@ -242,9 +205,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.132.rationale>>) THEN
+         AND e.reviewed_by = $ar132$Joseph Carfagno$ar132$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq132$I approve all five catalog snapshots as accurate for release.$aq132$) THEN
     RAISE EXCEPTION 'W14E-2 content draft load: inventory line 132 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000004') <> 0
@@ -280,9 +243,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.133.rationale>>) THEN
+         AND e.reviewed_by = $ar133$Joseph Carfagno$ar133$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq133$I approve all five catalog snapshots as accurate for release.$aq133$) THEN
     RAISE EXCEPTION 'W14E-2 content draft load: inventory line 133 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000005') <> 0
@@ -318,9 +281,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.137.rationale>>) THEN
+         AND e.reviewed_by = $ar137$Joseph Carfagno$ar137$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq137$I approve all five catalog snapshots as accurate for release.$aq137$) THEN
     RAISE EXCEPTION 'W14E-2 content draft load: inventory line 137 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000006') <> 0
@@ -356,9 +319,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.138.rationale>>) THEN
+         AND e.reviewed_by = $ar138$Joseph Carfagno$ar138$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq138$I approve all five catalog snapshots as accurate for release.$aq138$) THEN
     RAISE EXCEPTION 'W14E-2 content draft load: inventory line 138 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000007') <> 0
@@ -394,9 +357,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.139.rationale>>) THEN
+         AND e.reviewed_by = $ar139$Joseph Carfagno$ar139$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq139$I approve all five catalog snapshots as accurate for release.$aq139$) THEN
     RAISE EXCEPTION 'W14E-2 content draft load: inventory line 139 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c WHERE c.logical_id = 'e21b2c00-0000-4000-a000-000000000008') <> 0

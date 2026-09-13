@@ -1,19 +1,11 @@
 -- ============================================================
 -- W14-E stage 6 of 7 - CUMULATIVE DELIVERY RUN STAGING (family C) - the historical six carried forward plus the five
--- STATUS: TEMPLATE - NOT EXECUTABLE - human decision leaves UNRESOLVED
+-- STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent
 --
 -- GENERATED FILE. Do not edit by hand - regenerate:
 --   npx tsx scripts/generate-weight-time-five-entry-packages.ts
 -- Every value is derived from docs/weight-time-five-entry-lifecycle-manifest.json and the
 -- three human decision forms (families A and B gated; family C: docs/weight-time-five-entry-run-authority-form.json).
---
--- WHY THIS FILE CANNOT RUN: every human decision leaf below is rendered as an
--- UNQUOTED <<UNRESOLVED:...>> token. That is a syntax error, deliberately: a
--- blank decision is never a string that could land in a column. The first
--- statement after BEGIN is a second deliberate syntax error, and the
--- precondition block raises before any read. When the forms are COMPLETED,
--- the same generator renders the executable package to this same path in a
--- later, separately reviewed commit. Blank is never approval.
 --
 -- WHAT THIS PACKAGE DOES (and everything it refuses to do):
 --   - creates EXACTLY ONE new import run in the Design-S4 posture (dry_run = false, approved_for_delivery = false, sealed_at NULL, revoked_at NULL, operational fields NULL) carrying the family C product + legal approval evidence AT CREATION - derived from the promoted EXLIB-2U package: exlib_approve_and_seal_run only VALIDATES evidence, it never writes it
@@ -44,104 +36,6 @@
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
--- TEMPLATE RENDERING: NOT EXECUTABLE. 94 human decision leaves are blank:
---   A.132.decision
---   A.132.reviewer
---   A.132.reviewer_role_or_credential
---   A.132.reviewed_at
---   A.132.rationale
---   A.133.decision
---   A.133.reviewer
---   A.133.reviewer_role_or_credential
---   A.133.reviewed_at
---   A.133.rationale
---   A.137.decision
---   A.137.reviewer
---   A.137.reviewer_role_or_credential
---   A.137.reviewed_at
---   A.137.rationale
---   A.138.decision
---   A.138.reviewer
---   A.138.reviewer_role_or_credential
---   A.138.reviewed_at
---   A.138.rationale
---   A.139.decision
---   A.139.reviewer
---   A.139.reviewer_role_or_credential
---   A.139.reviewed_at
---   A.139.rationale
---   B.132.decision
---   B.132.reviewer
---   B.132.reviewer_role_or_credential
---   B.132.reviewed_at
---   B.132.rationale
---   B.132.confirm.instruction_coaching_quality
---   B.132.confirm.safety_adequacy
---   B.132.confirm.partner_plate_placement_guidance_appropriate
---   B.132.confirm.plate_position_between_shoulder_blades_correct
---   B.132.confirm.light_load_stable_position_gradual_progression_guidance_appropriate
---   B.132.confirm.weight_time_contract_stated_correctly
---   B.132.confirm.easier_alternative_appropriate
---   B.133.decision
---   B.133.reviewer
---   B.133.reviewer_role_or_credential
---   B.133.reviewed_at
---   B.133.rationale
---   B.133.confirm.instruction_coaching_quality
---   B.133.confirm.safety_adequacy
---   B.133.confirm.vest_fit_guidance_appropriate
---   B.133.confirm.vest_loading_distinct_from_plate_placement
---   B.133.confirm.strap_and_pocket_check_sufficient
---   B.133.confirm.weight_time_contract_stated_correctly
---   B.133.confirm.easier_alternative_appropriate
---   B.137.decision
---   B.137.reviewer
---   B.137.reviewer_role_or_credential
---   B.137.reviewed_at
---   B.137.rationale
---   B.137.confirm.instruction_coaching_quality
---   B.137.confirm.safety_adequacy
---   B.137.confirm.grip_and_hang_mechanics_correct
---   B.137.confirm.dipping_belt_as_sole_recommended_loading_method_appropriate
---   B.137.confirm.step_off_rather_than_jump_guidance_sufficient
---   B.137.confirm.weight_time_contract_stated_correctly
---   B.137.confirm.easier_alternative_appropriate
---   B.138.decision
---   B.138.reviewer
---   B.138.reviewer_role_or_credential
---   B.138.reviewed_at
---   B.138.rationale
---   B.138.confirm.instruction_coaching_quality
---   B.138.confirm.safety_adequacy
---   B.138.confirm.plate_on_thighs_near_hips_placement_correct
---   B.138.confirm.thighs_parallel_depth_cue_correct
---   B.138.confirm.position_first_then_load_ordering_appropriate
---   B.138.confirm.weight_time_contract_stated_correctly
---   B.138.confirm.easier_alternative_appropriate
---   B.138.confirm.shins_roughly_vertical_foot_placement_cue_correct
---   B.139.decision
---   B.139.reviewer
---   B.139.reviewer_role_or_credential
---   B.139.reviewed_at
---   B.139.rationale
---   B.139.confirm.instruction_coaching_quality
---   B.139.confirm.safety_adequacy
---   B.139.confirm.vest_fit_guidance_appropriate
---   B.139.confirm.vest_not_bunched_behind_back_cue_useful
---   B.139.confirm.hands_free_and_torso_load_distribution_distinction_accurate
---   B.139.confirm.weight_time_contract_stated_correctly
---   B.139.confirm.easier_alternative_appropriate
---   B.139.confirm.shins_roughly_vertical_foot_placement_cue_correct
---   C.run_key_literal
---   C.product_approver_identity
---   C.product_approved_at
---   C.legal_approver_identity
---   C.legal_approved_at
---   C.approval_rationale
---   C.run_membership
--- The next line is a deliberate syntax error so nothing below can ever run.
-SELECT <<UNRESOLVED-TEMPLATE: 94 human decision leaves are blank; regenerate from COMPLETED forms>>;
 
 LOCK TABLE
   public.exercise_catalog,
@@ -191,7 +85,7 @@ DECLARE
   v_counts TEXT;
   v_line   TEXT;
 BEGIN
-  RAISE EXCEPTION 'W14E-6 run staging: TEMPLATE RENDERING with unresolved human decision leaves; this file is not executable and must be regenerated from COMPLETED forms';
+
   IF current_user <> 'postgres' OR session_user <> 'postgres' THEN
     RAISE EXCEPTION 'W14E-6 run staging: BOTH execution identities must be the hosted operator role postgres (got current_user=%, session_user=%); refusing before any write or authority change', current_user, session_user;
   END IF;
@@ -268,7 +162,7 @@ BEGIN
   IF v_counts <> '8/8/10/3/11/6/2/2/1/6/8' THEN
     RAISE EXCEPTION 'W14E-6 run staging: the catalog surface is not the exact expected pre-state (expected 8/8/10/3/11/6/2/2/1/6/8, found %); this ONE-USE package refuses to run twice, over foreign state, or over an ambiguous surface - READ STATE FIRST', v_counts;
   END IF;
-  IF EXISTS (SELECT 1 FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) THEN
+  IF EXISTS (SELECT 1 FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') THEN
     RAISE EXCEPTION 'W14E-6 run staging: the chosen run key already exists; refusing - run_key is UNIQUE forever, this package is ONE-USE, and the historical plank key must never be reused; READ STATE FIRST';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
@@ -366,9 +260,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000004' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.132.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.132.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.132.rationale>>) THEN
+         AND e.reviewed_by = $ar132$Joseph Carfagno$ar132$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq132$I approve all five catalog snapshots as accurate for release.$aq132$) THEN
     RAISE EXCEPTION 'W14E-6 run staging: inventory line 132 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -400,9 +294,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000005' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.133.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.133.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.133.rationale>>) THEN
+         AND e.reviewed_by = $ar133$Joseph Carfagno$ar133$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq133$I approve all five catalog snapshots as accurate for release.$aq133$) THEN
     RAISE EXCEPTION 'W14E-6 run staging: inventory line 133 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -434,9 +328,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000006' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.137.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.137.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.137.rationale>>) THEN
+         AND e.reviewed_by = $ar137$Joseph Carfagno$ar137$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq137$I approve all five catalog snapshots as accurate for release.$aq137$) THEN
     RAISE EXCEPTION 'W14E-6 run staging: inventory line 137 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -468,9 +362,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000007' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.138.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.138.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.138.rationale>>) THEN
+         AND e.reviewed_by = $ar138$Joseph Carfagno$ar138$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq138$I approve all five catalog snapshots as accurate for release.$aq138$) THEN
     RAISE EXCEPTION 'W14E-6 run staging: inventory line 138 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog e
@@ -502,9 +396,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.exercise_catalog e
        WHERE e.logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND e.is_active = true
          AND e.review_status = 'approved'
-         AND e.reviewed_by = <<UNRESOLVED:A.139.reviewer>>
-         AND e.reviewed_at = <<UNRESOLVED:A.139.reviewed_at>>
-         AND e.review_rationale = <<UNRESOLVED:A.139.rationale>>) THEN
+         AND e.reviewed_by = $ar139$Joseph Carfagno$ar139$
+         AND e.reviewed_at = TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+         AND e.review_rationale = $aq139$I approve all five catalog snapshots as accurate for release.$aq139$) THEN
     RAISE EXCEPTION 'W14E-6 run staging: inventory line 139 does not bear the exact family A approval tuple; refusing';
   END IF;
   IF (SELECT count(*) FROM public.exercise_catalog_content c
@@ -512,7 +406,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.132.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '9cbc10c9284f3e23f1123b647f17ee6bc05e8e452f5aa821b9a99256c9ddae7c'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 132 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -521,7 +415,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.133.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = 'bb705be0318c34b7fd2ecd51039a665ad087be8f69fc227cf44a53ddbb06f1a5'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 133 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -530,7 +424,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.137.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = 'e10369c291030ed61ddc48eda0c5c8759e0f3a7c68229a19a9b7c09792fe2008'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 137 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -539,7 +433,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.138.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '05ca70e920ac098f291c9928210f724ba15044bab7fac588591026b3d9d2b932'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 138 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -548,7 +442,7 @@ BEGIN
          AND c.publication_status = 'published' AND c.import_admitted = true
          AND c.content_status = 'approved'
          AND c.admitted_source_sha256 = '8fa1d3402a3ca9beef8b1cbb7ba58692bea0d28c11926d6db33da72877f2afdb'
-         AND c.admitted_fingerprint = <<UNRESOLVED:B.139.admission_fingerprint(derived)>>
+         AND c.admitted_fingerprint = '8a7a94b2ede86cae694cde02fa5652154204a2093562f45c54778d0c2ff68c65'
          AND c.admitted_fingerprint = public.exlib_content_admission_fingerprint(c.id)) <> 1 THEN
     RAISE EXCEPTION 'W14E-6 run staging: the published, admitted, fingerprint-fresh content row for inventory line 139 is not exactly present; the run must never point at unpublished content; refusing';
   END IF;
@@ -565,10 +459,10 @@ INSERT INTO public.exercise_catalog_import_runs
    legal_approved_by, legal_approved_at,
    approval_rationale)
 VALUES
-  (<<UNRESOLVED:C.run_key_literal>>, false,
-   <<UNRESOLVED:C.product_approver_identity>>, <<UNRESOLVED:C.product_approved_at>>,
-   <<UNRESOLVED:C.legal_approver_identity>>, <<UNRESOLVED:C.legal_approved_at>>,
-   <<UNRESOLVED:C.approval_rationale>>);
+  ('w14e-weight-time-release1-staged-v1', false,
+   $pab$Joseph Carfagno$pab$, TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+   $lab$Joseph Carfagno$lab$, TIMESTAMPTZ '2026-09-13T18:25:13-04:00',
+   $apr$I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.$apr$);
 
 -- carried-forward EXERCISE members: the historical run's own membership rows,
 -- COPIED (same catalog snapshot ids), never retyped
@@ -578,7 +472,7 @@ SELECT r.id, ri.catalog_id
   JOIN public.exercise_catalog_import_runs h ON h.run_key = 'exlib2u-plank-release1-staged-v1'
   JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_id IS NOT NULL
   JOIN public.exercise_catalog c ON c.id = ri.catalog_id
- WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
+ WHERE r.run_key = 'w14e-weight-time-release1-staged-v1';
 
 -- NEW exercise members: the five approved weight_time identities, resolved by
 -- governed logical identity + is_active (never a surrogate)
@@ -592,7 +486,7 @@ SELECT r.id, c.id
                         'e21b2c00-0000-4000-a000-000000000007',
                         'e21b2c00-0000-4000-a000-000000000008')
    AND c.is_active = true
- WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
+ WHERE r.run_key = 'w14e-weight-time-release1-staged-v1';
 
 -- carried-forward ALIAS members: the historical run's own alias membership rows, COPIED
 INSERT INTO public.exercise_catalog_run_items (run_id, catalog_alias_id)
@@ -601,7 +495,7 @@ SELECT r.id, ri.catalog_alias_id
   JOIN public.exercise_catalog_import_runs h ON h.run_key = 'exlib2u-plank-release1-staged-v1'
   JOIN public.exercise_catalog_run_items ri ON ri.run_id = h.id AND ri.catalog_alias_id IS NOT NULL
   JOIN public.exercise_catalog_aliases a ON a.id = ri.catalog_alias_id
- WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>;
+ WHERE r.run_key = 'w14e-weight-time-release1-staged-v1';
 
 -- ── Postconditions (ANY mismatch rolls back EVERYTHING) ──────────────
 DO $post$
@@ -631,7 +525,7 @@ BEGIN
   IF v_counts <> '8/8/10/3/11/6/2/2/2/17/8' THEN
     RAISE EXCEPTION 'W14E-6 run staging: post-state vector is % (expected 8/8/10/3/11/6/2/2/2/17/8); rolling back everything', v_counts;
   END IF;
-  SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = <<UNRESOLVED:C.run_key_literal>>;
+  SELECT * INTO v_run FROM public.exercise_catalog_import_runs WHERE run_key = 'w14e-weight-time-release1-staged-v1';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'W14E-6 run staging: the staged run row is missing after the act; rolling back everything';
   END IF;
@@ -645,11 +539,11 @@ BEGIN
      OR v_run.created_at IS NULL THEN
     RAISE EXCEPTION 'W14E-6 run staging: the run row is not exactly the staged Design-S4 posture; rolling back everything';
   END IF;
-  IF v_run.product_approved_by IS DISTINCT FROM <<UNRESOLVED:C.product_approver_identity>>
-     OR v_run.product_approved_at IS DISTINCT FROM <<UNRESOLVED:C.product_approved_at>>
-     OR v_run.legal_approved_by IS DISTINCT FROM <<UNRESOLVED:C.legal_approver_identity>>
-     OR v_run.legal_approved_at IS DISTINCT FROM <<UNRESOLVED:C.legal_approved_at>>
-     OR v_run.approval_rationale IS DISTINCT FROM <<UNRESOLVED:C.approval_rationale>> THEN
+  IF v_run.product_approved_by IS DISTINCT FROM $pab$Joseph Carfagno$pab$
+     OR v_run.product_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.legal_approved_by IS DISTINCT FROM $lab$Joseph Carfagno$lab$
+     OR v_run.legal_approved_at IS DISTINCT FROM TIMESTAMPTZ '2026-09-13T18:25:13-04:00'
+     OR v_run.approval_rationale IS DISTINCT FROM $apr$I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.$apr$ THEN
     RAISE EXCEPTION 'W14E-6 run staging: the run does not carry the reserved family C approval evidence character-for-character; refusing';
   END IF;
   SELECT string_agg(x.member, E'\n' ORDER BY x.member)
@@ -719,7 +613,7 @@ BEGIN
   END IF;
   -- STRUCTURAL NON-DELIVERABILITY: the delivery predicate, evaluated - never the function
   IF (SELECT count(*) FROM public.exercise_catalog_import_runs r
-       WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>
+       WHERE r.run_key = 'w14e-weight-time-release1-staged-v1'
          AND r.approved_for_delivery = true
          AND r.dry_run = false
          AND r.sealed_at IS NOT NULL
@@ -778,6 +672,6 @@ SELECT 'W14E-6 CUMULATIVE RUN STAGED' AS result,
        (SELECT count(*) FROM public.exercise_catalog_import_runs) AS runs,
        (SELECT count(*) FROM public.exercise_catalog_run_items) AS run_items,
        (SELECT (r.dry_run = false AND r.approved_for_delivery = false AND r.sealed_at IS NULL AND r.revoked_at IS NULL)
-          FROM public.exercise_catalog_import_runs r WHERE r.run_key = <<UNRESOLVED:C.run_key_literal>>) AS staged_non_deliverable;
+          FROM public.exercise_catalog_import_runs r WHERE r.run_key = 'w14e-weight-time-release1-staged-v1') AS staged_non_deliverable;
 
 COMMIT;

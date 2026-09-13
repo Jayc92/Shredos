@@ -286,7 +286,14 @@
   },
   "migration_029": {
     "path": "supabase/migrations/029_exlib_plank_cross_run_idempotency.sql",
-    "status": "PREPARED - NOT APPLIED hosted; applied only on disposable local clusters",
+    "status": "APPLIED hosted (OPERATOR-SUPPLIED, never Claude-observed); also applied on every disposable local cluster by the two proofs that exercise it",
+    "hosted_application": {
+      "provenance": "OPERATOR-SUPPLIED by the Joseph/ChatGPT operator path",
+      "claude_observed_hosted_state": false,
+      "claude_applied_it": false,
+      "migration_record": "20260912181551_exlib_plank_cross_run_idempotency_029",
+      "post_apply_read_state_probe": "migration_029_plank_cross_run_idempotency = APPLIED"
+    },
     "fixes": "F-E8: exlib_plank_link_valid (migration 026, called from both paths of the migration-028 delivery body) required import_run_id = the delivering run",
     "new_rule": "the existing Plank link is valid when its import_run_id is THIS run, OR identifies a PRIOR run that exists, is approved_for_delivery, non-dry, sealed, unrevoked AND carries EXACTLY p_cat_id in its membership. The exact snapshot is the compatibility boundary; a different snapshot of the same logical identity does not qualify.",
     "unchanged": "every non-provenance invariant, the signature, SECURITY DEFINER, the internal-only posture, the lock discipline; deliver_catalog_exercises is not redefined",
@@ -493,18 +500,18 @@
     },
     {
       "path": "docs/weight-time-five-entry-snapshot-review-form.json",
-      "bytes": 9980,
-      "sha256": "51af2238ff1c5d4437b2072872a8e71bfe56cc2d8d3ecaba57bbe57d4b253834"
+      "bytes": 11203,
+      "sha256": "599032a870d0bc663d3b5193b9038caa5a7c2f3b05f8cdd73961255c871ee22e"
     },
     {
       "path": "docs/weight-time-five-entry-content-review-form.json",
-      "bytes": 10764,
-      "sha256": "b26704c7a23b9bd48d906c584f6fca4b629539ec1acc8c1d8974e6c7984821fb"
+      "bytes": 12387,
+      "sha256": "9e5e4087c5124295b98eca7b47edbfb371ef7095dd4045d491d39e336cb50420"
     },
     {
       "path": "docs/weight-time-five-entry-run-authority-form.json",
-      "bytes": 9630,
-      "sha256": "3a4bca76fa42dd11c6a309cb329e3f159e7cb4e4221c47eb88854fdd2d0fab92"
+      "bytes": 10684,
+      "sha256": "13e7b43e2af7f1e70ce306bdfd968fc825bc80a9a89ea2ae5a130dc15ac4c12f"
     },
     {
       "path": "docs/weight-time-five-entry-delivery-configuration-dependency.md",

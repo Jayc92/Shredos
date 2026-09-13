@@ -52,6 +52,7 @@ const MANIFEST_RELATIVE_PATH = 'docs/weight-time-five-entry-lifecycle-manifest.j
 const DEFAULT_FORMS_DIRECTORY = 'docs'
 const DEFAULT_OUT_DIRECTORY = 'docs/weight-time-five-entry-packages'
 const HUMAN_REVIEW_RELATIVE_PATH = 'docs/weight-time-five-entry-human-review.md'
+const DECISION_RECORD_RELATIVE_PATH = 'docs/weight-time-five-entry-human-decision-record.md'
 const FORM_FILE_NAMES = {
   A: 'weight-time-five-entry-snapshot-review-form.json',
   B: 'weight-time-five-entry-content-review-form.json',
@@ -133,6 +134,13 @@ interface Manifest {
     expected_membership: { exercise_members: number; alias_members: number; total_items: number; carried_forward_members: string[]; expected_member_lines: string[] }
   }
   scope: { deferred_out_of_scope: { logical_ids: string[]; names: string[] } }
+  migration_029?: {
+    path: string; status: string
+    hosted_application?: {
+      provenance: string; claude_observed_hosted_state: boolean; claude_applied_it: boolean
+      migration_record: string; post_apply_read_state_probe: string
+    }
+  }
   bound_artifacts: { path: string; bytes: number; sha256: string }[]
   entries: ManifestEntry[]
 }
@@ -465,6 +473,14 @@ const familyBResolved = decisionListB.every((d) => d.state === 'RESOLVED')
 const familyCResolved = decisionC.state === 'RESOLVED'
 if (decisionListA.some((d) => d.state === 'RESOLVED') && !familyAResolved) fail('family A is resolved for some identities and blank for others; a release decision covers all five or none')
 if (decisionListB.some((d) => d.state === 'RESOLVED') && !familyBResolved) fail('family B is resolved for some identities and blank for others; a release decision covers all five or none')
+/**
+ * The lifecycle has exactly two decision states, and every rendering is a
+ * function of which one holds: BLANK (no family decided - templates, and the
+ * human review page still says nothing is approved) or RECORDED (all three
+ * decided - executable packages, a truthful review page, and the decision
+ * record). A partial state is refused above, so there is no third mode.
+ */
+const decisionsRecorded = familyAResolved && familyBResolved && familyCResolved
 
 // ── Test-only mode detection and its refusals ────────────────────────
 const testFlags = [formA, formB, formC].map((f) => f.test_only_synthetic_decisions === true)
@@ -479,6 +495,14 @@ function humanStrings(): string[] {
   return out
 }
 const docsRoot = path.join(REPO_ROOT, 'docs')
+/**
+ * Where the two DOCUMENT renderings (review page, decision record) go. They are
+ * repository documents, not stage packages, so by default they are written at
+ * their fixed paths under docs/; but an explicit FIVE_ENTRY_OUT_DIR redirects
+ * them with the packages, which is what lets a scratch run - in particular the
+ * blank-form regression - render and --check them without touching docs/.
+ */
+const docRenderRoot = process.env.FIVE_ENTRY_OUT_DIR ? outDirectory : docsRoot
 const outIsUnderDocs = outDirectory === docsRoot || outDirectory.startsWith(`${docsRoot}${path.sep}`)
 if (isTestMode) {
   if (!(familyAResolved && familyBResolved && familyCResolved)) fail('test mode requires all three families RESOLVED with synthetic values')
@@ -2181,13 +2205,41 @@ COMMIT;
 `
 }
 
+/**
+ * The ONE timestamp every recorded decision carries, or null when the families
+ * disagree. Read off the completed forms; never the machine clock, and never a
+ * default - a disagreement is reported as a disagreement, not smoothed over.
+ */
+function governingDecisionTimestamp(): string | null {
+  const stamps: string[] = []
+  for (const d of decisionListA) if (d.state === 'RESOLVED') stamps.push(d.value.reviewedAt)
+  for (const d of decisionListB) if (d.state === 'RESOLVED') stamps.push(d.value.reviewedAt)
+  if (decisionC.state === 'RESOLVED') { stamps.push(decisionC.value.productApprovedAt); stamps.push(decisionC.value.legalApprovedAt) }
+  const distinct: string[] = []
+  stamps.forEach((stamp) => { if (!distinct.includes(stamp)) distinct.push(stamp) })
+  return distinct.length === 1 ? distinct[0] : null
+}
+
 // ── Human review page (reviewer-facing, one page for all five) ───────
+// Decision-state aware: in BLANK mode it renders the pre-decision review
+// surface verbatim (the bytes reviewed at 9bf9e6c8, which the blank-form
+// regression re-derives), and in RECORDED mode it states the truth instead of
+// leaving a regenerated artifact claiming the decisions are still blank.
 function renderHumanReview(): string {
   const L: string[] = []
   L.push('# weight_time five-entry release: human review page')
   L.push('')
-  L.push('STATUS: FOR HUMAN REVIEW. Nothing here is approved. Blank is never approval. Every value below is')
-  L.push('rendered from committed bytes (`docs/weight-time-five-entry-lifecycle-manifest.json`), never retyped.')
+  if (decisionsRecorded) {
+    const stamp = governingDecisionTimestamp()
+    L.push('STATUS: DECISIONS RECORDED. All three governing decision families are COMPLETE in their forms, so this page is')
+    L.push('no longer a blank-form surface. It is still the review surface and NOT the approval: the completed forms are the')
+    L.push(`approval, and \`${DECISION_RECORD_RELATIVE_PATH}\` binds them by bytes.`)
+    L.push(`Blank is never approval${stamp === null ? ' (the families carry differing decision timestamps; see the record)' : `; the recorded decision timestamp is ${stamp}`}. Every value below is`)
+    L.push('rendered from committed bytes (`docs/weight-time-five-entry-lifecycle-manifest.json`), never retyped.')
+  } else {
+    L.push('STATUS: FOR HUMAN REVIEW. Nothing here is approved. Blank is never approval. Every value below is')
+    L.push('rendered from committed bytes (`docs/weight-time-five-entry-lifecycle-manifest.json`), never retyped.')
+  }
   L.push('')
   L.push('GENERATED FILE. Do not edit by hand - regenerate with')
   L.push('`npx tsx scripts/generate-weight-time-five-entry-packages.ts`.')
@@ -2195,7 +2247,9 @@ function renderHumanReview(): string {
   L.push('## What you are deciding, in one paragraph')
   L.push('')
   L.push('Five weight_time catalog snapshots already exist on hosted ShredOS, pending review (loaded by the')
-  L.push('spent W14 act). Three decisions are needed, on three blank forms. **Family A** (one per exercise):')
+  L.push(decisionsRecorded
+    ? 'spent W14 act). Three decisions were needed, and all three forms are now COMPLETE. **Family A** (one per exercise):'
+    : 'spent W14 act). Three decisions are needed, on three blank forms. **Family A** (one per exercise):')
   L.push('is the catalog snapshot - its identity and metadata below - approved for release? **Family B** (one')
   L.push('per exercise): is the AI-drafted instructional content below fit to publish? **Family C** (once):')
   L.push('the permanent run key and the product + legal authority for the new delivery run. The three carries')
@@ -2220,7 +2274,9 @@ function renderHumanReview(): string {
   L.push(`Only APPROVE (A) and approved (B) have prepared packages. Any other choice ends the release for that`)
   L.push('exercise and needs its own instruction; the generator refuses to render a package for it.')
   L.push('')
-  L.push('## Open reviewer questions (answer at the sitting)')
+  L.push(decisionsRecorded
+    ? '## Reviewer questions the preparer raised (recorded as raised; never resolved by the preparer)'
+    : '## Open reviewer questions (answer at the sitting)')
   L.push('')
   L.push('- **RQ-1** (all five, family B): expected relationships are EMPTY for every entry; no substitution,')
   L.push('  progression or regression edge is proposed. Adding edges is legitimate and costs one regeneration.')
@@ -2268,7 +2324,10 @@ function renderHumanReview(): string {
     }
     L.push(`| snapshot payload fingerprint (W14) | \`${e.existing_snapshot_fingerprint.payload_fingerprint_sha256}\` |`)
     L.push('')
-    L.push('**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**')
+    const bDecision = decisionsB.get(e.logical_id)
+    L.push(decisionsRecorded && bDecision?.state === 'RESOLVED'
+      ? `**Instructional content (family B decided this; AI-drafted, then reviewed and approved by ${bDecision.value.reviewer}, ${bDecision.value.reviewerRole})**`
+      : '**Proposed instructional content (family B decides this; AI-drafted, no human endorsement yet)**')
     L.push('')
     L.push(`- authored_by: ${c.authored_by}; authored_at: ${c.authored_at}`)
     L.push(`- content payload fingerprint: \`${e.content_payload_fingerprint.sha256}\``)
@@ -2303,32 +2362,203 @@ function renderHumanReview(): string {
   }
   L.push('## Family C, once for the run')
   L.push('')
-  L.push(`- run_key_literal: blank. Proposal for confirmation: \`${manifest.delivery_run.proposed_run_key}\` (must never be \`${HISTORICAL_RUN_KEY}\`).`)
+  L.push(decisionsRecorded && decisionC.state === 'RESOLVED'
+    ? `- run_key_literal: RECORDED as \`${decisionC.value.runKey}\` (permanent, globally unique; never \`${HISTORICAL_RUN_KEY}\`).`
+    : `- run_key_literal: blank. Proposal for confirmation: \`${manifest.delivery_run.proposed_run_key}\` (must never be \`${HISTORICAL_RUN_KEY}\`).`)
   L.push('- product approver identity + timestamp (with offset), legal approver identity + timestamp (with offset).')
   L.push('- approval_rationale: state plainly what the approval does NOT authorize (it does not enable production')
   L.push('  delivery; the Vercel run-key change is a separate operator act).')
   L.push('- run_membership: the one offered choice, `CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES`')
   L.push('  (the historical plank run\'s 3 exercise + 3 alias members carried forward, plus the five: 8 + 3 = 11 rows).')
   L.push('')
-  L.push('## What happens after the forms are complete')
+  if (decisionsRecorded) {
+    L.push('## What happens now the forms are complete')
+    L.push('')
+    L.push('The same generator has rendered the seven EXECUTABLE hosted packages from the completed forms (this commit,')
+    L.push(`reviewed independently; every recorded tuple and every package digest is bound in \`${DECISION_RECORD_RELATIVE_PATH}\`).`)
+    L.push('Each package is still UNRUN. Each is executed ONCE by Joseph/ChatGPT against ShredOS under its own one-use')
+    L.push('instruction, in the order stated in `docs/weight-time-five-entry-operator-runbook.md`. Nothing in this page, and')
+    L.push('nothing in this repository, performs any of that: the run authority in family C authorizes the run ARTIFACT only')
+    L.push('and does not enable production delivery, the Vercel repoint, or any deployment.')
+    L.push('')
+  } else {
+    L.push('## What happens after the forms are complete')
+    L.push('')
+    L.push('The same generator renders the seven executable hosted packages from the completed forms (a new')
+    L.push('commit, reviewed independently), and each package is then executed ONCE by Joseph/ChatGPT against')
+    L.push('ShredOS under its own one-use instruction, in the order stated in')
+    L.push('`docs/weight-time-five-entry-operator-runbook.md`. Nothing in this page performs any of that.')
+    L.push('')
+  }
+  return `${L.join('\n')}`
+}
+
+
+// ── Human decision record (post-decision completion record) ──────────
+// Rendered ONLY when all three families are recorded, and only from what was
+// actually read: the form bytes it hashed, the tuples the resolvers validated,
+// the fingerprints it derived, and the digests of the seven package texts it
+// just rendered. Nothing here is authored, defaulted or restated from prose.
+function renderDecisionRecord(stageRenderings: { path: string; text: string }[]): string {
+  if (!(decisionsRecorded && decisionC.state === 'RESOLVED')) fail('the decision record may be rendered only when all three families are RECORDED')
+  const runAuthority = decisionC.state === 'RESOLVED' ? decisionC.value : null
+  if (runAuthority === null) return ''
+  const stamp = governingDecisionTimestamp()
+  const L: string[] = []
+  L.push('# weight_time five-entry release: human decision record')
   L.push('')
-  L.push('The same generator renders the seven executable hosted packages from the completed forms (a new')
-  L.push('commit, reviewed independently), and each package is then executed ONCE by Joseph/ChatGPT against')
-  L.push('ShredOS under its own one-use instruction, in the order stated in')
-  L.push('`docs/weight-time-five-entry-operator-runbook.md`. Nothing in this page performs any of that.')
+  L.push('STATUS: DECISIONS RECORDED. The three governing human decision families are COMPLETE. This record BINDS them;')
+  L.push('it does not make them, and it authorizes nothing on its own. The completed forms below are the approval, and')
+  L.push('every one of the seven packages is EXECUTABLE and UNRUN.')
+  L.push('')
+  L.push('GENERATED FILE. Do not edit by hand - regenerate with')
+  L.push('`npx tsx scripts/generate-weight-time-five-entry-packages.ts`. Every value is read from the bytes named here')
+  L.push('(the three forms, the lifecycle manifest, and the seven renderings this same run produced) and never retyped.')
+  L.push('')
+  L.push('The pre-decision review surface is NOT rewritten away: the blank-form rendering of')
+  L.push(`\`${HUMAN_REVIEW_RELATIVE_PATH}\` is preserved as the committed blob of the pre-decision commit, and the`)
+  L.push('endgame verifier re-derives it from that commit\'s blank forms on every run, so the wording the reviewers saw')
+  L.push('stays checkable after this record exists.')
+  L.push('')
+  L.push('## Governing decision timestamp')
+  L.push('')
+  L.push(stamp === null
+    ? '- the families carry DIFFERING decision timestamps; each is stated in its own section below'
+    : `- \`${stamp}\` - carried by every family A decision, every family B decision, and both family C approvals`)
+  L.push('')
+  L.push('## The three completed forms, bound by bytes')
+  L.push('')
+  L.push('| Family | Form | Bytes | sha256 |')
+  L.push('| --- | --- | --- | --- |')
+  for (const family of ['A', 'B', 'C'] as const) {
+    const bytes = readFileSync(path.join(formsDirectory, FORM_FILE_NAMES[family]))
+    L.push(`| ${family} | \`docs/${FORM_FILE_NAMES[family]}\` | ${bytes.length} | \`${sha256Hex(bytes)}\` |`)
+  }
+  L.push('')
+  L.push('## Family A - snapshot review, one decision per identity')
+  L.push('')
+  L.push('| Line | Identity | decision | reviewer | credential | reviewed_at | evidence |')
+  L.push('| --- | --- | --- | --- | --- | --- | --- |')
+  for (const e of manifest.entries) {
+    const d = decisionsA.get(e.logical_id)
+    if (d === undefined || d.state !== 'RESOLVED') continue
+    L.push(`| ${e.inventory_file_line} | \`${e.logical_id}\` | APPROVE | ${d.value.reviewer} | ${d.value.reviewerRole} | ${d.value.reviewedAt} | ${d.value.evidence === null ? '(null - optional)' : d.value.evidence} |`)
+  }
+  L.push('')
+  const aRationales: string[] = []
+  decisionListA.forEach((d) => { if (d.state === 'RESOLVED' && !aRationales.includes(d.value.rationale)) aRationales.push(d.value.rationale) })
+  L.push(aRationales.length === 1 ? `Rationale, identical for all five: "${aRationales[0]}"` : 'Rationales differ per identity; see the form.')
+  L.push('')
+  L.push('## Family B - content review, one decision per identity')
+  L.push('')
+  L.push('| Line | Content id | decision | reviewer | credential | reviewed_at | judgment confirmations |')
+  L.push('| --- | --- | --- | --- | --- | --- | --- |')
+  for (const e of manifest.entries) {
+    const d = decisionsB.get(e.logical_id)
+    if (d === undefined || d.state !== 'RESOLVED') continue
+    const formEntry = (formB.entries ?? []).find((x) => x.logical_id === e.logical_id)
+    const confirmations = Object.keys(formEntry?.needs_human_judgment_confirmations ?? {})
+    const allTrue = confirmations.every((k) => formEntry?.needs_human_judgment_confirmations?.[k] === true)
+    L.push(`| ${e.inventory_file_line} | \`${e.content_id}\` | approved | ${d.value.reviewer} | ${d.value.reviewerRole} | ${d.value.reviewedAt} | ${confirmations.length} keys, ${allTrue ? 'ALL true' : 'NOT all true'} |`)
+  }
+  L.push('')
+  const bRationales: string[] = []
+  decisionListB.forEach((d) => { if (d.state === 'RESOLVED' && !bRationales.includes(d.value.rationale)) bRationales.push(d.value.rationale) })
+  L.push(bRationales.length === 1 ? `Rationale, identical for all five: "${bRationales[0]}"` : 'Rationales differ per identity; see the form.')
+  L.push('')
+  L.push('The database stores a reviewer STRING, not a credential column (migration 027 `apply_content_review` takes')
+  L.push('six arguments and no role). The credential above is recorded in the form and in this record; the packages')
+  L.push('pass the reviewer string, which is what the admission fingerprint then binds.')
+  L.push('')
+  L.push('## Family C - delivery run authority, once for the run')
+  L.push('')
+  L.push('| Leaf | Recorded value |')
+  L.push('| --- | --- |')
+  L.push(`| run_key_literal | \`${runAuthority.runKey}\` |`)
+  L.push(`| product approver | ${runAuthority.productApprovedBy} at ${runAuthority.productApprovedAt} |`)
+  L.push(`| legal approver | ${runAuthority.legalApprovedBy} at ${runAuthority.legalApprovedAt} |`)
+  L.push(`| run_membership | \`${manifest.delivery_run.expected_membership.expected_member_lines.length === 11 ? 'CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES' : 'SEE FORM'}\` |`)
+  L.push(`| forbidden run key (never written) | \`${HISTORICAL_RUN_KEY}\` |`)
+  L.push('')
+  L.push(`approval_rationale, verbatim: "${runAuthority.approvalRationale}"`)
+  L.push('')
+  L.push('## The five content payload fingerprints - UNCHANGED by these decisions')
+  L.push('')
+  L.push('| Line | Content payload fingerprint (sha256) |')
+  L.push('| --- | --- |')
+  for (const e of manifest.entries) L.push(`| ${e.inventory_file_line} | \`${e.content_payload_fingerprint.sha256}\` |`)
+  L.push('')
+  L.push(`Carrier bound by the content form and the manifest: \`${manifest.admission_source_sha256.value}\`.`)
+  L.push('')
+  L.push('## The five admission fingerprints, DERIVED from the family B tuple')
+  L.push('')
+  L.push('Each is sha256 over migration 027\'s `exlib_content_admission_manifest` v2 canonical form, whose `review`')
+  L.push('line is `approved`, the family B reviewer, the reviewed_at epoch and the rationale. Change any of those and')
+  L.push('every fingerprint below changes; the database recomputes it at stage 4 and the packages pin it.')
+  L.push('')
+  L.push('| Line | Admission fingerprint (sha256) |')
+  L.push('| --- | --- |')
+  for (const e of manifest.entries) {
+    const d = decisionsB.get(e.logical_id)
+    if (d === undefined || d.state !== 'RESOLVED') continue
+    L.push(`| ${e.inventory_file_line} | \`${sha256Hex(expectedAdmissionManifest(e, d.value))}\` |`)
+  }
+  L.push('')
+  L.push('## The seven EXECUTABLE packages rendered from these decisions')
+  L.push('')
+  L.push('| Stage | File | Bytes | sha256 |')
+  L.push('| --- | --- | --- | --- |')
+  stageRenderings.forEach((r, index) => {
+    L.push(`| ${index + 1} | \`${DEFAULT_OUT_DIRECTORY}/${path.basename(r.path)}\` | ${Buffer.byteLength(r.text, 'utf8')} | \`${sha256Hex(r.text)}\` |`)
+  })
+  L.push('')
+  L.push('Every one is UNRUN. Each carries its own pre-state and post-state vector gate, is one-use, and is executed')
+  L.push('by the operator path only - never by Claude, and never twice.')
+  L.push('')
+  L.push('## Cumulative run membership')
+  L.push('')
+  const em = manifest.delivery_run.expected_membership
+  L.push(`- ${em.exercise_members} exercise members + ${em.alias_members} alias members = ${em.total_items} membership rows`)
+  L.push(`- carried forward from the sealed historical run \`${manifest.hosted_pre_state.historical_run.run_key}\` (its own six rows, COPIED by id, never retyped):`)
+  for (const line of manifest.hosted_pre_state.historical_run.members) L.push(`  - \`${line}\``)
+  L.push('- added by this release, the five reviewed identities:')
+  for (const e of manifest.entries) L.push(`  - \`exercise#${e.logical_id}\` (line ${e.inventory_file_line}, ${e.canonical_name})`)
+  L.push('')
+  L.push('## Migration 029 hosted status - OPERATOR-SUPPLIED')
+  L.push('')
+  const hosted = manifest.migration_029?.hosted_application
+  L.push(`- status: ${manifest.migration_029?.status ?? '(absent from the manifest)'}`)
+  if (hosted !== undefined) {
+    L.push(`- provenance: ${hosted.provenance}`)
+    L.push(`- hosted migration record: \`${hosted.migration_record}\``)
+    L.push(`- post-apply read-state probe: \`${hosted.post_apply_read_state_probe}\``)
+    L.push(`- Claude observed hosted state: ${hosted.claude_observed_hosted_state ? 'YES' : 'NO'}; Claude applied it: ${hosted.claude_applied_it ? 'YES' : 'NO'}`)
+  }
+  L.push('')
+  L.push('This is the operator\'s fact, restated. Claude did not contact hosted Supabase in the round that produced')
+  L.push('this record, and nothing here may be read as Claude-observed hosted state.')
+  L.push('')
+  L.push('## What these decisions do NOT authorize')
+  L.push('')
+  L.push('- they do not run any package: all seven are prepared, unrun, and operator-only;')
+  L.push('- they do not enable production delivery: the run-key configuration change is a separate operator act;')
+  L.push('- they do not repoint Vercel, deploy anything, or deliver a single tenant row.')
   L.push('')
   return `${L.join('\n')}`
 }
 
 // ── Emit or check ────────────────────────────────────────────────────
-const renderings: { path: string; text: string }[] = [
+const stageRenderings: { path: string; text: string }[] = [
   renderStage1, renderStage2, renderStage3, renderStage4, renderStage5, renderStage6, renderStage7,
 ].map((render, index) => ({
   path: path.join(outDirectory, path.basename(manifest.stage_packages[index].path)),
   text: render(),
 }))
+const renderings: { path: string; text: string }[] = stageRenderings.slice()
 if (!isTestMode) {
-  renderings.push({ path: path.join(REPO_ROOT, HUMAN_REVIEW_RELATIVE_PATH), text: renderHumanReview() })
+  renderings.push({ path: path.join(docRenderRoot, path.basename(HUMAN_REVIEW_RELATIVE_PATH)), text: renderHumanReview() })
+  // The completion record exists only where there are recorded decisions to bind.
+  if (decisionsRecorded) renderings.push({ path: path.join(docRenderRoot, path.basename(DECISION_RECORD_RELATIVE_PATH)), text: renderDecisionRecord(stageRenderings) })
 }
 
 // Fail closed: a real (non-test) executable rendering must never carry the
