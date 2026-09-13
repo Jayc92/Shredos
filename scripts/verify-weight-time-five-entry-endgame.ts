@@ -30,7 +30,8 @@
 // ============================================================
 
 import path from 'node:path'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 
@@ -45,6 +46,7 @@ const FORM_C_PATH = 'docs/weight-time-five-entry-run-authority-form.json'
 const MATRIX_PATH = 'docs/weight-time-five-entry-endgame-discovery-matrix.md'
 const DEPENDENCY_PATH = 'docs/weight-time-five-entry-delivery-configuration-dependency.md'
 const HUMAN_REVIEW_PATH = 'docs/weight-time-five-entry-human-review.md'
+const DECISION_RECORD_PATH = 'docs/weight-time-five-entry-human-decision-record.md'
 const RUNBOOK_PATH = 'docs/weight-time-five-entry-operator-runbook.md'
 const PROBE_PATH = 'docs/weight-time-five-entry-read-state.sql'
 const REPORT_PATH = 'docs/weight-time-five-entry-endgame-report.md'
@@ -61,6 +63,61 @@ const PACKAGE_FILES = [
 /** The published production main this preparation descends from. */
 const PRODUCTION_BASE_COMMIT = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
 const PRODUCTION_BASE_TREE = '0b438079693867fd1757cec383a2bc986b1c905c'
+
+/**
+ * The PRE-DECISION commit: the three BLANK forms, the seven NON-EXECUTABLE
+ * templates and the pre-review human page, exactly as the humans reviewed them.
+ *
+ * When the decisions arrived the blank-form lifecycle was not deleted, it was
+ * RETARGETED at this immutable object - the treatment W11 (76bfffcc) and W12-C
+ * (ff2e6ee4) used for migration-inventory pins - so every fail-closed
+ * blank-state assertion below still runs, against the bytes it was written
+ * for. Section A runs the assertion set in RECORDED mode against the working
+ * tree; section A0 runs the identical set in BLANK mode against this commit.
+ */
+const PRE_DECISION_COMMIT = '9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8'
+const PRE_DECISION_TREE = 'c9ead021907af098a1467b6cc7bad7a2eabdcf79'
+
+/**
+ * The governing human decisions, pinned here as literals. None of it is
+ * derived from the forms or the packages this file reads, so a later silent
+ * edit to a reviewer, a role, a timestamp or a rationale - in a form, in a
+ * rendered package, or in the decision record - fails here rather than
+ * shipping.
+ */
+const DECISION_TIMESTAMP = '2026-09-13T18:25:13-04:00'
+const FAMILY_A_DECISION = {
+  decision: 'APPROVE',
+  reviewer: 'Joseph Carfagno',
+  role: 'ForgeFitOS operator',
+  rationale: 'I approve all five catalog snapshots as accurate for release.',
+}
+const FAMILY_B_DECISION = {
+  decision: 'approved',
+  reviewer: 'Nick Tkacz',
+  role: 'Physical Trainer',
+  rationale: 'I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.',
+}
+const FAMILY_C_APPROVER = 'Joseph Carfagno'
+const RESOLVED_RUN_KEY = 'w14e-weight-time-release1-staged-v1'
+const RESOLVED_RUN_MEMBERSHIP = 'CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES'
+/**
+ * The five admission fingerprints stage 4 pins, in manifest order. Literals on
+ * purpose: PostgreSQL computes these itself from Nick's review tuple
+ * (exlib_content_admission_fingerprint), the disposable live proof requires the
+ * rendered pins to equal what the database computes, and this pin requires the
+ * rendered pins to be the ones that were proved.
+ */
+const ADMISSION_FINGERPRINTS = [
+  '9cbc10c9284f3e23f1123b647f17ee6bc05e8e452f5aa821b9a99256c9ddae7c',
+  'bb705be0318c34b7fd2ecd51039a665ad087be8f69fc227cf44a53ddbb06f1a5',
+  'e10369c291030ed61ddc48eda0c5c8759e0f3a7c68229a19a9b7c09792fe2008',
+  '05ca70e920ac098f291c9928210f724ba15044bab7fac588591026b3d9d2b932',
+  '8a7a94b2ede86cae694cde02fa5652154204a2093562f45c54778d0c2ff68c65',
+]
+/** The hosted migration-029 facts. OPERATOR-SUPPLIED; never Claude-observed. */
+const MIGRATION_029_HOSTED_RECORD = '20260912181551_exlib_plank_cross_run_idempotency_029'
+const MIGRATION_029_HOSTED_PROBE = 'migration_029_plank_cross_run_idempotency = APPLIED'
 
 const MIGRATION_028 = 'supabase/migrations/028_weight_time_tracking_mode.sql'
 const MIGRATION_029 = 'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
@@ -102,7 +159,7 @@ const HISTORICAL_LOGICAL_IDS = ['e21b2c00-0000-4000-a000-000000000001', 'e21b2c0
 
 const ALLOWED_CHANGED_PATHS = [
   CARRIER_PATH, MATRIX_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, DEPENDENCY_PATH, MANIFEST_PATH,
-  HUMAN_REVIEW_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
+  HUMAN_REVIEW_PATH, DECISION_RECORD_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
   MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, STATIC_VERIFIER_PATH,
   MIGRATION_029, MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH,
   ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`),
@@ -206,6 +263,13 @@ function check(name: string, condition: boolean, detail?: string): void {
 function read(relativePath: string): string {
   return readFileSync(path.join(repositoryRoot, relativePath), 'utf8')
 }
+/**
+ * Bytes as committed at a given commit. NOT through git() - that trims, and a
+ * claim about bytes cannot be made about trimmed bytes.
+ */
+function readAtCommit(commit: string, relativePath: string): string {
+  return execFileSync('git', ['-C', repositoryRoot, 'show', `${commit}:${relativePath}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+}
 function sha256(text: string | Buffer): string {
   return createHash('sha256').update(text).digest('hex')
 }
@@ -227,6 +291,10 @@ function tsx(args: string[], env: Record<string, string> = {}): { ok: boolean; o
 /** SQL with `--` comments removed, so claims about calls are about executable text. */
 function executableSql(sql: string): string {
   return sql.split('\n').map((line) => { const at = line.indexOf('--'); return at === -1 ? line : line.slice(0, at) }).join('\n')
+}
+/** A literal escaped for use inside a RegExp. */
+function rx(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 function canonicalJson(value: unknown): string {
   if (value === null) return 'null'
@@ -263,7 +331,7 @@ type ManifestShape = {
   boundary_statement: { human_approval: string }
   delivery_configuration_dependency: { required: boolean; claude_performed_the_change: boolean; variable: string }
   bound_artifacts: { path: string; bytes: number; sha256: string }[]
-  migration_029?: { path: string; status: string; new_rule: string; hosted_order_dependency: string }
+  migration_029?: { path: string; status: string; new_rule: string; hosted_order_dependency: string; hosted_application?: { provenance: string; claude_observed_hosted_state: boolean; claude_applied_it: boolean; migration_record: string; post_apply_read_state_probe: string } }
   expected_delivery_effect?: { case_existing_plank_user_from_historical_run?: { after_migration_029?: { summary?: { inserted: number; skipped_already_delivered: number; plank_disposition: string } } } }
 }
 type W14EntryShape = Record<string, unknown> & { logical_id: string; canonical_name: string; anatomy: unknown; payload_fingerprint_sha256: string }
@@ -299,21 +367,31 @@ type World = {
 function parseCarrier(text: string): CarrierRecord[] {
   return text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0 && !l.startsWith('#') && !l.startsWith('//')).map((l) => JSON.parse(l) as CarrierRecord)
 }
-function loadWorld(): World {
+/**
+ * Which decision state a World is in. Every assertion that reads a human leaf,
+ * or reads a rendering that a human leaf resolves, is a function of this: the
+ * lifecycle has exactly two states and the generator refuses the third.
+ */
+type DecisionMode = 'BLANK' | 'RECORDED'
+function loadWorldFrom(readText: (relativePath: string) => string): World {
   const packages: Record<string, string> = {}
-  for (const f of PACKAGE_FILES) packages[f] = read(`${PACKAGE_DIR}/${f}`)
-  const carrierText = read(CARRIER_PATH)
+  for (const f of PACKAGE_FILES) packages[f] = readText(`${PACKAGE_DIR}/${f}`)
+  const carrierText = readText(CARRIER_PATH)
   return {
-    manifest: JSON.parse(read(MANIFEST_PATH)) as ManifestShape,
-    w14: JSON.parse(read(W14_MANIFEST_PATH)) as W14Shape,
+    manifest: JSON.parse(readText(MANIFEST_PATH)) as ManifestShape,
+    w14: JSON.parse(readText(W14_MANIFEST_PATH)) as W14Shape,
     carrierText,
     carrierRecords: parseCarrier(carrierText),
-    formA: JSON.parse(read(FORM_A_PATH)) as FormAShape,
-    formB: JSON.parse(read(FORM_B_PATH)) as FormBShape,
-    formC: JSON.parse(read(FORM_C_PATH)) as FormCShape,
+    formA: JSON.parse(readText(FORM_A_PATH)) as FormAShape,
+    formB: JSON.parse(readText(FORM_B_PATH)) as FormBShape,
+    formC: JSON.parse(readText(FORM_C_PATH)) as FormCShape,
     packages,
   }
 }
+/** The working tree: completed forms, executable renderings. */
+function loadWorld(): World { return loadWorldFrom(read) }
+/** The pre-decision commit: blank forms, non-executable templates. */
+function loadPreDecisionWorld(): World { return loadWorldFrom((p) => readAtCommit(PRE_DECISION_COMMIT, p)) }
 
 const CONTENT_PARAMETERS: { name: string; field: string; json: boolean }[] = [
   { name: 'p_logical_id', field: 'logical_id', json: false }, { name: 'p_content_id', field: 'content_id', json: false },
@@ -334,7 +412,7 @@ function contentFingerprint(record: CarrierRecord): string {
   return sha256(form)
 }
 
-function assertArtifacts(w: World, out: Finding[]): void {
+function assertArtifacts(w: World, out: Finding[], mode: DecisionMode): void {
   const c = (name: string, ok: boolean, detail?: string) => out.push({ name, ok, detail })
   const m = w.manifest
 
@@ -389,9 +467,23 @@ function assertArtifacts(w: World, out: Finding[]): void {
     && JSON.stringify([...(em?.expected_member_lines ?? [])].sort()) === JSON.stringify(six.concat(GOVERNED.map((g) => `exercise#${g.logicalId}`)).sort())
     && em?.exercise_members === 8 && em?.alias_members === 3 && em?.total_items === 11
     && six.every((l) => !GOVERNED.some((g) => l.includes(g.logicalId)) && !CARRY_IDS.some((id) => l.includes(id))))
-  c('M15 the manifest carries the migration-029 block (path, PREPARED - NOT APPLIED, the exact-snapshot prior-run rule, the hosted-order dependency: before stage 8, not a precondition of stages 1-7) and the existing-plank-user expectation AFTER 029 (eligible 8, inserted 5, skipped 3, alias_already 3, already_valid_idempotent)',
-    m.migration_029?.path === MIGRATION_029 && String(m.migration_029?.status).includes('NOT APPLIED') && String(m.migration_029?.new_rule).includes('EXACTLY p_cat_id') && String(m.migration_029?.hosted_order_dependency).includes('BEFORE the run-key repoint') && String(m.migration_029?.hosted_order_dependency).includes('NOT a precondition of stages 1-7')
-    && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.inserted === 5 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.skipped_already_delivered === 3 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.plank_disposition === 'already_valid_idempotent')
+  const m029Block = m.migration_029
+  const m029Hosted = m029Block?.hosted_application
+  const m029Shape = m029Block?.path === MIGRATION_029 && String(m029Block?.new_rule).includes('EXACTLY p_cat_id') && String(m029Block?.hosted_order_dependency).includes('BEFORE the run-key repoint') && String(m029Block?.hosted_order_dependency).includes('NOT a precondition of stages 1-7')
+    && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.inserted === 5 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.skipped_already_delivered === 3 && m.expected_delivery_effect?.case_existing_plank_user_from_historical_run?.after_migration_029?.summary?.plank_disposition === 'already_valid_idempotent'
+  if (mode === 'BLANK') {
+    c('M15 the manifest carries the migration-029 block (path, PREPARED - NOT APPLIED, the exact-snapshot prior-run rule, the hosted-order dependency: before stage 8, not a precondition of stages 1-7) and the existing-plank-user expectation AFTER 029 (eligible 8, inserted 5, skipped 3, alias_already 3, already_valid_idempotent)',
+      m029Shape && String(m029Block?.status).includes('NOT APPLIED'), `status: ${m029Block?.status}`)
+  } else {
+    // The operator applied 029 hosted between the pre-decision commit and this
+    // one. The manifest may say so; it may NOT say Claude saw it. This pin is
+    // the guard on that distinction.
+    c('M15 the manifest carries the migration-029 block (path, APPLIED hosted and never "NOT APPLIED", the exact-snapshot prior-run rule, the same hosted-order dependency) with the hosted application labelled OPERATOR-SUPPLIED - Claude neither applied it nor observed hosted state - carrying the exact hosted migration record and read-state probe, and the existing-plank-user expectation AFTER 029 (eligible 8, inserted 5, skipped 3, alias_already 3, already_valid_idempotent)',
+      m029Shape && String(m029Block?.status).includes('APPLIED hosted') && !String(m029Block?.status).includes('NOT APPLIED')
+      && String(m029Hosted?.provenance).includes('OPERATOR-SUPPLIED') && m029Hosted?.claude_observed_hosted_state === false && m029Hosted?.claude_applied_it === false
+      && m029Hosted?.migration_record === MIGRATION_029_HOSTED_RECORD && m029Hosted?.post_apply_read_state_probe === MIGRATION_029_HOSTED_PROBE,
+      `status: ${m029Block?.status}`)
+  }
   c('M13 the manifest records that a production configuration change IS required and that Claude did not perform it',
     m.delivery_configuration_dependency?.required === true && m.delivery_configuration_dependency?.claude_performed_the_change === false && m.delivery_configuration_dependency?.variable === 'CATALOG_DELIVERY_RUN_KEY')
 
@@ -401,9 +493,36 @@ function assertArtifacts(w: World, out: Finding[]): void {
   const bLeaves = (w.formB.entries ?? []).flatMap((e) => bLeafNames.map((k) => e[k]).concat(Object.values(e.needs_human_judgment_confirmations ?? {})))
   const rc = w.formC.requested_inputs
   const cLeaves = [rc.run_key_literal?.value, rc.product_approver_identity?.value, rc.product_approver_identity?.product_approved_at, rc.legal_approver_identity?.value, rc.legal_approver_identity?.legal_approved_at, rc.approval_rationale?.value, rc.run_membership?.value]
-  c('F1 EVERY human decision leaf in the three committed forms is null - blank is never approval, and nothing was prefilled',
-    aLeaves.length === 30 && aLeaves.every((v: unknown) => v === null) && bLeaves.every((v: unknown) => v === null) && cLeaves.every((v) => v === null),
-    `A filled: ${aLeaves.filter((v: unknown) => v !== null).length}, B filled: ${bLeaves.filter((v: unknown) => v !== null).length}, C filled: ${cLeaves.filter((v) => v !== null).length}`)
+  if (mode === 'BLANK') {
+    c('F1 EVERY human decision leaf in the three committed forms is null - blank is never approval, and nothing was prefilled',
+      aLeaves.length === 30 && aLeaves.every((v: unknown) => v === null) && bLeaves.every((v: unknown) => v === null) && cLeaves.every((v) => v === null),
+      `A filled: ${aLeaves.filter((v: unknown) => v !== null).length}, B filled: ${bLeaves.filter((v: unknown) => v !== null).length}, C filled: ${cLeaves.filter((v) => v !== null).length}`)
+  } else {
+    // Exact equality against the literals at the top of this file, not merely
+    // "non-null": a recorded decision is one specific human saying one specific
+    // thing at one specific time, and any other value is a different decision.
+    const aFilled = (w.formA.entries ?? []).length === 5 && (w.formA.entries ?? []).every((e) => {
+      const h = e.human_fields ?? {}
+      return h.decision === FAMILY_A_DECISION.decision && h.reviewer === FAMILY_A_DECISION.reviewer
+        && h.reviewer_role_or_credential === FAMILY_A_DECISION.role && h.reviewed_at === DECISION_TIMESTAMP && h.rationale === FAMILY_A_DECISION.rationale
+    })
+    const bFilled = (w.formB.entries ?? []).length === 5 && (w.formB.entries ?? []).every((e) =>
+      e.decision === FAMILY_B_DECISION.decision && e.reviewer === FAMILY_B_DECISION.reviewer && e.reviewer_role_or_credential === FAMILY_B_DECISION.role
+      && e.reviewed_at === DECISION_TIMESTAMP && e.rationale === FAMILY_B_DECISION.rationale
+      && Object.keys(e.needs_human_judgment_confirmations ?? {}).length >= 5
+      && Object.values(e.needs_human_judgment_confirmations ?? {}).every((v) => v === true))
+    // No "and it is not the historical key" clause here: equality with
+    // RESOLVED_RUN_KEY already excludes it, and F5 pins the form's own
+    // must_not_be independently.
+    const cFilled = rc.run_key_literal?.value === RESOLVED_RUN_KEY
+      && rc.product_approver_identity?.value === FAMILY_C_APPROVER && rc.product_approver_identity?.product_approved_at === DECISION_TIMESTAMP
+      && rc.legal_approver_identity?.value === FAMILY_C_APPROVER && rc.legal_approver_identity?.legal_approved_at === DECISION_TIMESTAMP
+      && String(rc.approval_rationale?.value).includes(RESOLVED_RUN_KEY) && String(rc.approval_rationale?.value).includes('does not itself enable production delivery')
+      && rc.run_membership?.value === RESOLVED_RUN_MEMBERSHIP
+    c(`F1 EVERY REQUIRED human decision leaf carries the EXACT governing tuple, all at the one governing decision timestamp ${DECISION_TIMESTAMP}: family A ${FAMILY_A_DECISION.decision} by ${FAMILY_A_DECISION.reviewer} (${FAMILY_A_DECISION.role}) on all five, family B ${FAMILY_B_DECISION.decision} by ${FAMILY_B_DECISION.reviewer} (${FAMILY_B_DECISION.role}) on all five with EVERY judgment confirmation true, family C the cumulative run authority; nothing partially filled`,
+      aFilled && bFilled && cFilled && aLeaves.length === 30 && cLeaves.every((v) => v !== null),
+      `A ${aFilled}, B ${bFilled}, C ${cFilled}; C nulls: ${cLeaves.filter((v) => v === null).length}`)
+  }
   c('F2 every form entry carries every REQUIRED leaf as an explicit key (a missing key is not a blank decision, it is a broken form)',
     (w.formA.entries ?? []).length === 5 && (w.formA.entries ?? []).every((e) => ['decision', 'reviewer', 'reviewer_role_or_credential', 'reviewed_at', 'rationale', 'evidence'].every((k) => Object.prototype.hasOwnProperty.call(e.human_fields ?? {}, k)))
     && (w.formB.entries ?? []).length === 5 && (w.formB.entries ?? []).every((e) => bLeafNames.every((k) => Object.prototype.hasOwnProperty.call(e, k)) && Object.keys(e.needs_human_judgment_confirmations ?? {}).length >= 5)
@@ -432,10 +551,17 @@ function assertArtifacts(w: World, out: Finding[]): void {
     const sql = w.packages[file] ?? ''
     const exe = executableSql(sql)
     const label = `T${stage}`
-    c(`${label}.a the template carries the deliberate first-statement syntax-error sentinel and a template RAISE in its precondition block`,
-      /^SELECT <<UNRESOLVED-TEMPLATE: \d+ human decision leaves are blank; regenerate from COMPLETED forms>>;$/m.test(sql) && sql.includes('TEMPLATE RENDERING with unresolved human decision leaves'))
-    c(`${label}.b the template carries at least one unresolved token and NO synthetic marker, and is labelled TEMPLATE - NOT EXECUTABLE`,
-      (sql.match(/<<UNRESOLVED:/g) ?? []).length >= 1 && !sql.includes(SYNTHETIC_MARKER) && sql.includes('STATUS: TEMPLATE - NOT EXECUTABLE'))
+    if (mode === 'BLANK') {
+      c(`${label}.a the template carries the deliberate first-statement syntax-error sentinel and a template RAISE in its precondition block`,
+        /^SELECT <<UNRESOLVED-TEMPLATE: \d+ human decision leaves are blank; regenerate from COMPLETED forms>>;$/m.test(sql) && sql.includes('TEMPLATE RENDERING with unresolved human decision leaves'))
+      c(`${label}.b the template carries at least one unresolved token and NO synthetic marker, and is labelled TEMPLATE - NOT EXECUTABLE`,
+        (sql.match(/<<UNRESOLVED:/g) ?? []).length >= 1 && !sql.includes(SYNTHETIC_MARKER) && sql.includes('STATUS: TEMPLATE - NOT EXECUTABLE'))
+    } else {
+      c(`${label}.a the EXECUTABLE rendering carries NO unresolved-template sentinel, NO template RAISE and NO template status label - nothing deliberately unparseable survives into a package an operator may run`,
+        !sql.includes('<<UNRESOLVED-TEMPLATE') && !sql.includes('TEMPLATE RENDERING with unresolved human decision leaves') && !sql.includes('STATUS: TEMPLATE - NOT EXECUTABLE'))
+      c(`${label}.b the EXECUTABLE rendering carries NO unresolved token of any kind and NO synthetic marker, and is labelled PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent`,
+        !sql.includes('<<UNRESOLVED') && !sql.includes(SYNTHETIC_MARKER) && sql.includes('STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent'))
+    }
     c(`${label}.c one BEGIN, REPEATABLE READ, one COMMIT, no ROLLBACK statement, and the eleven-table SHARE ROW EXCLUSIVE lock`,
       (exe.match(/^BEGIN;$/gm) ?? []).length === 1 && (exe.match(/^COMMIT;$/gm) ?? []).length === 1 && !/^\s*ROLLBACK/mi.test(exe)
       && exe.includes('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;') && GATED_TABLES.every((t) => new RegExp(`^  ${t.replace('.', '\\.')},?$`, 'm').test(exe)) && exe.includes('IN SHARE ROW EXCLUSIVE MODE;'))
@@ -463,9 +589,17 @@ function assertArtifacts(w: World, out: Finding[]): void {
   }
   const s1 = executableSql(w.packages['01-snapshot-review.sql'] ?? '')
   const s1Updates = s1.match(/^UPDATE public\.exercise_catalog\n[\s\S]*?;$/gm) ?? []
-  c('T1.h stage 1 carries EXACTLY FIVE UPDATE statements, each targeting one governed identity by logical_id + is_active, each with the three human leaves UNRESOLVED and no other SET column',
-    s1Updates.length === 5 && GOVERNED.every((g) => s1Updates.some((u) => u.includes(`WHERE logical_id = '${g.logicalId}' AND is_active = true;`)))
-    && s1Updates.every((u) => /reviewed_by\s+= <<UNRESOLVED:A\.\d+\.reviewer>>/.test(u) && /reviewed_at\s+= <<UNRESOLVED:A\.\d+\.reviewed_at>>/.test(u) && /review_rationale = <<UNRESOLVED:A\.\d+\.rationale>>/.test(u) && (u.match(/^\s+(SET )?\w+\s+= /gm) ?? []).length === 4))
+  const s1Shape = s1Updates.length === 5 && GOVERNED.every((g) => s1Updates.some((u) => u.includes(`WHERE logical_id = '${g.logicalId}' AND is_active = true;`)))
+    && s1Updates.every((u) => (u.match(/^\s+(SET )?\w+\s+= /gm) ?? []).length === 4)
+  if (mode === 'BLANK') {
+    c('T1.h stage 1 carries EXACTLY FIVE UPDATE statements, each targeting one governed identity by logical_id + is_active, each with the three human leaves UNRESOLVED and no other SET column',
+      s1Shape && s1Updates.every((u) => /reviewed_by\s+= <<UNRESOLVED:A\.\d+\.reviewer>>/.test(u) && /reviewed_at\s+= <<UNRESOLVED:A\.\d+\.reviewed_at>>/.test(u) && /review_rationale = <<UNRESOLVED:A\.\d+\.rationale>>/.test(u)))
+  } else {
+    c(`T1.h stage 1 carries EXACTLY FIVE UPDATE statements, each targeting one governed identity by logical_id + is_active, each carrying ${FAMILY_A_DECISION.reviewer}'s family-A tuple verbatim at the governing timestamp, and no other SET column`,
+      s1Shape && s1Updates.every((u) => new RegExp(`reviewed_by\\s+= \\$rb\\d+\\$${rx(FAMILY_A_DECISION.reviewer)}\\$rb\\d+\\$`).test(u)
+        && new RegExp(`reviewed_at\\s+= TIMESTAMPTZ '${rx(DECISION_TIMESTAMP)}'`).test(u)
+        && new RegExp(`review_rationale = \\$ra\\d+\\$${rx(FAMILY_A_DECISION.rationale)}\\$ra\\d+\\$`).test(u)))
+  }
   const s2 = executableSql(w.packages['02-content-draft-load.sql'] ?? '')
   const s2Calls = s2.match(/public\.load_catalog_content_draft\(\n[\s\S]*?\);$/gm) ?? []
   c('T2.h stage 2 carries EXACTLY FIVE load_catalog_content_draft calls under SET ROLE exlib_catalog_loader with the grantor-scoped REVOKE, each naming a governed logical id and its +0x100 content id in order',
@@ -477,13 +611,29 @@ function assertArtifacts(w: World, out: Finding[]): void {
       return !!r && s2Calls[i]?.includes(`${JSON.stringify(r.setup_steps)}`) && s2Calls[i]?.includes(`${JSON.stringify(r.execution_steps)}`) && s2Calls[i]?.includes(`${JSON.stringify(r.common_mistakes)}`) && s2Calls[i]?.includes(String(r.breathing_cue)) && s2Calls[i]?.includes(String(r.safety_guidance)) && s2Calls[i]?.includes(String(r.accessibility_alternative)) && s2Calls[i]?.includes(String(r.equipment_setup)) && s2Calls[i]?.includes(`DATE '${r.authored_at}'`)
     }))
   const s3 = executableSql(w.packages['03-content-review.sql'] ?? '')
-  c('T3.h stage 3 carries EXACTLY FIVE apply_content_review calls under SET ROLE exlib_catalog_reviewer with the decision literal approved and the reviewer / timestamp / rationale UNRESOLVED',
-    (s3.match(/:= public\.apply_content_review\(/g) ?? []).length === 5 && (s3.match(/'approved',\n\s+<<UNRESOLVED:B\.\d+\.reviewer>>,\n\s+<<UNRESOLVED:B\.\d+\.reviewed_at>>,\n\s+<<UNRESOLVED:B\.\d+\.rationale>>\);/g) ?? []).length === 5
-    && s3.includes('SET ROLE exlib_catalog_reviewer;') && s3.includes('REVOKE exlib_catalog_reviewer FROM postgres GRANTED BY postgres;'))
+  const s3Shape = (s3.match(/:= public\.apply_content_review\(/g) ?? []).length === 5
+    && s3.includes('SET ROLE exlib_catalog_reviewer;') && s3.includes('REVOKE exlib_catalog_reviewer FROM postgres GRANTED BY postgres;')
+  if (mode === 'BLANK') {
+    c('T3.h stage 3 carries EXACTLY FIVE apply_content_review calls under SET ROLE exlib_catalog_reviewer with the decision literal approved and the reviewer / timestamp / rationale UNRESOLVED',
+      s3Shape && (s3.match(/'approved',\n\s+<<UNRESOLVED:B\.\d+\.reviewer>>,\n\s+<<UNRESOLVED:B\.\d+\.reviewed_at>>,\n\s+<<UNRESOLVED:B\.\d+\.rationale>>\);/g) ?? []).length === 5)
+  } else {
+    // The whole tuple in ONE regex per call: a reviewer paired with someone
+    // else's rationale, or with a different timestamp, is not this review.
+    const reviewCalls = (s3.match(new RegExp(`'${FAMILY_B_DECISION.decision}',\\n\\s+\\$rv\\d+\\$${rx(FAMILY_B_DECISION.reviewer)}\\$rv\\d+\\$,\\n\\s+TIMESTAMPTZ '${rx(DECISION_TIMESTAMP)}',\\n\\s+\\$rr\\d+\\$${rx(FAMILY_B_DECISION.rationale)}\\$rr\\d+\\$\\);`, 'g')) ?? []).length
+    c(`T3.h stage 3 carries EXACTLY FIVE apply_content_review calls under SET ROLE exlib_catalog_reviewer, each passing the decision literal ${FAMILY_B_DECISION.decision} with ${FAMILY_B_DECISION.reviewer}'s name, the governing timestamp and ${FAMILY_B_DECISION.reviewer}'s rationale verbatim as ONE tuple`,
+      s3Shape && reviewCalls === 5, `complete review tuples: ${reviewCalls}`)
+  }
   const s4 = executableSql(w.packages['04-content-admission.sql'] ?? '')
-  c('T4.h stage 4 carries EXACTLY FIVE admit_catalog_content calls under SET ROLE exlib_catalog_admission, each passing the carrier digest the manifest binds, with the admission fingerprint pin UNRESOLVED (it derives from the family B tuple)',
-    (s4.match(/:= public\.admit_catalog_content\(/g) ?? []).length === 5 && (s4.match(new RegExp(`'${m.admission_source_sha256?.value}'\\);`, 'g')) ?? []).length === 5
-    && (s4.match(/'admitted_fingerprint', <<UNRESOLVED:B\.\d+\.admission_fingerprint\(derived\)>>/g) ?? []).length === 5 && s4.includes('SET ROLE exlib_catalog_admission;'))
+  const s4Shape = (s4.match(/:= public\.admit_catalog_content\(/g) ?? []).length === 5 && (s4.match(new RegExp(`'${m.admission_source_sha256?.value}'\\);`, 'g')) ?? []).length === 5
+    && s4.includes('SET ROLE exlib_catalog_admission;')
+  if (mode === 'BLANK') {
+    c('T4.h stage 4 carries EXACTLY FIVE admit_catalog_content calls under SET ROLE exlib_catalog_admission, each passing the carrier digest the manifest binds, with the admission fingerprint pin UNRESOLVED (it derives from the family B tuple)',
+      s4Shape && (s4.match(/'admitted_fingerprint', <<UNRESOLVED:B\.\d+\.admission_fingerprint\(derived\)>>/g) ?? []).length === 5)
+  } else {
+    const rendered = (s4.match(/'admitted_fingerprint', '[0-9a-f]{64}'/g) ?? []).map((l) => l.slice(-65, -1))
+    c('T4.h stage 4 carries EXACTLY FIVE admit_catalog_content calls under SET ROLE exlib_catalog_admission, each passing the carrier digest the manifest binds, and pins EXACTLY the five admission fingerprints derived from Nick Tkacz\'s review tuple, in manifest order (the same five PostgreSQL computes for itself in the disposable proof)',
+      s4Shape && JSON.stringify(rendered) === JSON.stringify(ADMISSION_FINGERPRINTS), `rendered: ${rendered.map((f) => f.slice(0, 8)).join(',')}`)
+  }
   const s5 = executableSql(w.packages['05-content-publication.sql'] ?? '')
   c('T5.h stage 5 carries EXACTLY FIVE publish_catalog_content calls under SET ROLE exlib_catalog_admin, each asserting retired NULL and projected_relationships 0',
     (s5.match(/:= public\.publish_catalog_content\(/g) ?? []).length === 5 && (s5.match(/'retired', NULL,\n\s+'content_version', 1,\n\s+'projected_relationships', 0\)/g) ?? []).length === 5 && s5.includes('SET ROLE exlib_catalog_admin;'))
@@ -491,10 +641,15 @@ function assertArtifacts(w: World, out: Finding[]): void {
   const inList = s6.match(/INSERT INTO public\.exercise_catalog_run_items[\s\S]*?ON c\.logical_id IN \(([\s\S]*?)\)\n\s+AND c\.is_active = true/)
   const listed = inList ? (inList[1].match(/e21b2c00-0000-4000-a000-[0-9a-f]{12}/g) ?? []) : []
   const copyStatements = s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, (catalog_id|catalog_alias_id)\)\nSELECT r\.id, ri\.catalog(_alias)?_id\n[\s\S]*?;$/gm) ?? []
-  c('T6.h stage 6 carries ONE run INSERT (run_key UNRESOLVED, dry_run false, five evidence leaves UNRESOLVED), TWO carry-forward INSERTs that COPY the historical run\'s own exercise and alias membership rows (never retyped ids), and ONE new-member INSERT whose IN list is EXACTLY the five governed identities',
+  c(`T6.h stage 6 carries ONE run INSERT (dry_run false, and ${mode === 'BLANK' ? 'run_key plus all five approval-evidence leaves UNRESOLVED' : `run_key '${RESOLVED_RUN_KEY}' with ${FAMILY_C_APPROVER}'s product and legal approvals, both at the governing timestamp, and the approval rationale verbatim`}), TWO carry-forward INSERTs that COPY the historical run\'s own exercise and alias membership rows (never retyped ids), and ONE new-member INSERT whose IN list is EXACTLY the five governed identities`,
     (s6.match(/^INSERT INTO public\.exercise_catalog_import_runs$/gm) ?? []).length === 1 && (s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_id\)$/gm) ?? []).length === 2 && (s6.match(/^INSERT INTO public\.exercise_catalog_run_items \(run_id, catalog_alias_id\)$/gm) ?? []).length === 1
     && copyStatements.length === 2 && copyStatements.every((st) => st.includes(`JOIN public.exercise_catalog_import_runs h ON h.run_key = '${HISTORICAL_RUN_KEY}'`))
-    && s6.includes('(<<UNRESOLVED:C.run_key_literal>>, false,') && (s6.match(/<<UNRESOLVED:C\.(product_approver_identity|product_approved_at|legal_approver_identity|legal_approved_at|approval_rationale)>>/g) ?? []).length >= 5
+    && (mode === 'BLANK'
+      ? s6.includes('(<<UNRESOLVED:C.run_key_literal>>, false,') && (s6.match(/<<UNRESOLVED:C\.(product_approver_identity|product_approved_at|legal_approver_identity|legal_approved_at|approval_rationale)>>/g) ?? []).length >= 5
+      : s6.includes(`('${RESOLVED_RUN_KEY}', false,`)
+        && s6.includes(`$pab$${FAMILY_C_APPROVER}$pab$, TIMESTAMPTZ '${DECISION_TIMESTAMP}'`)
+        && s6.includes(`$lab$${FAMILY_C_APPROVER}$lab$, TIMESTAMPTZ '${DECISION_TIMESTAMP}'`)
+        && s6.includes(`$apr$I approve \`${RESOLVED_RUN_KEY}\``) && s6.includes('this approval does not itself enable production delivery.$apr$'))
     && JSON.stringify([...listed].sort()) === JSON.stringify(GOVERNED.map((g) => g.logicalId).sort()) && listed.length === 5, `listed: ${listed.join(',')}; copies: ${copyStatements.length}`)
   const sixLines = historicalSixFromPromotedPackage()
   c('T6.i stage 6 gates the historical source run on EXACTLY the promoted six membership lines (parsed independently from the 2U package), expects a membership of exactly those six plus the five new exercise lines, seal-shape 8 + 3, evaluates the delivery predicate (never calls the function), and demands published, admitted, fingerprint-fresh content for all five',
@@ -503,9 +658,12 @@ function assertArtifacts(w: World, out: Finding[]): void {
     && s6.includes('AND r.approved_for_delivery = true\n         AND r.dry_run = false\n         AND r.sealed_at IS NOT NULL\n         AND r.revoked_at IS NULL) <> 0 THEN') && (s6.match(/the run must never point at unpublished content/g) ?? []).length === 5
     && s6.includes('does not carry exactly the promoted six membership lines'))
   const s7 = executableSql(w.packages['07-run-seal.sql'] ?? '')
-  c('T7.h stage 7 carries EXACTLY ONE exlib_approve_and_seal_run call on the UNRESOLVED run key, asserts exercise_members 8 / alias_members 3, gates the historical six and the eleven cumulative lines, and states the seal is one-use and irreversible',
-    (s7.match(/public\.exlib_approve_and_seal_run\(<<UNRESOLVED:C\.run_key_literal>>\)/g) ?? []).length === 1 && s7.includes("'exercise_members', 8,\n       'alias_members', 3)")
-    && sixLines.every((l) => s7.includes(`'${l}'`)) && GOVERNED.every((g) => s7.includes(`'exercise#${g.logicalId}'`)) && (w.packages['07-run-seal.sql'] ?? '').includes('IRREVERSIBILITY, PLAINLY'))
+  const sealCalls = mode === 'BLANK'
+    ? (s7.match(/public\.exlib_approve_and_seal_run\(<<UNRESOLVED:C\.run_key_literal>>\)/g) ?? []).length
+    : (s7.match(new RegExp(rx(`public.exlib_approve_and_seal_run('${RESOLVED_RUN_KEY}')`), 'g')) ?? []).length
+  c(`T7.h stage 7 carries EXACTLY ONE exlib_approve_and_seal_run call on ${mode === 'BLANK' ? 'the UNRESOLVED run key' : `the authorized run key '${RESOLVED_RUN_KEY}'`}, asserts exercise_members 8 / alias_members 3, gates the historical six and the eleven cumulative lines, and states the seal is one-use and irreversible`,
+    sealCalls === 1 && s7.includes("'exercise_members', 8,\n       'alias_members', 3)")
+    && sixLines.every((l) => s7.includes(`'${l}'`)) && GOVERNED.every((g) => s7.includes(`'exercise#${g.logicalId}'`)) && (w.packages['07-run-seal.sql'] ?? '').includes('IRREVERSIBILITY, PLAINLY'), `seal calls: ${sealCalls}`)
 }
 
 // ── boundaries (repository state; not part of the corruptible World) ──
@@ -542,6 +700,9 @@ function verifyBoundaries(world: World): void {
     && !RETARGET_SURFACE.includes('scripts/verify-weight-time-w14.ts') && !RETARGET_SURFACE.includes('scripts/verify-weight-time-w14-closeout.ts')
     && !surface.includes('scripts/verify-weight-time-w14.ts') && !surface.includes('scripts/verify-weight-time-w14-closeout.ts'),
     `retargeted ${retargeted.length}; unlabelled: ${unlabelled.join(', ')}`)
+  check(`B14 the PRE-DECISION commit ${PRE_DECISION_COMMIT.slice(0, 8)} still resolves to its pinned tree and is an ancestor of HEAD: the reviewed pre-decision surface (blank forms, seven non-executable templates, "Nothing here is approved" review page) is preserved as an immutable git object rather than rewritten in place, and section A0 above evaluates the blank-form lifecycle against it`,
+    git('rev-parse', `${PRE_DECISION_COMMIT}^{tree}`) === PRE_DECISION_TREE && gitSucceeds('merge-base', '--is-ancestor', PRE_DECISION_COMMIT, 'HEAD'),
+    git('rev-parse', `${PRE_DECISION_COMMIT}^{tree}`))
   check('B7 no src/ application code is touched', surface.every((p) => !p.startsWith('src/')))
   check('B8 under supabase/ only the authorized migration 029 is touched (no other migration, no 026/027/028 edit)', surface.filter((p) => p.startsWith('supabase/')).every((p) => p === MIGRATION_029))
   check('B9 the deferred F2/F2a/F2b/F3/F4 maintenance sites are NOT modified on account of this work', DEFERRED_MAINTENANCE_FILES.every((p) => !surface.includes(p)))
@@ -621,7 +782,13 @@ function verifyDocuments(world: World): void {
     GOVERNED.every((g) => review.includes(`### ${g.line}. ${g.name}`) && review.includes(g.logicalId) && review.includes(g.contentId))
     && ['Setup:', 'Execution:', 'Breathing cue:', 'Common mistakes:', 'Safety:', 'Equipment setup:', 'Accessibility alternative:', 'Expected relationships:'].every((h) => (review.match(new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length === 5)
     && review.includes('RQ-4') && review.includes('Family A') && review.includes('Family B') && review.includes('Family C') && review.includes('Blank is never approval'))
-  check('D2 the human review page carries no synthetic marker and no filled decision', !review.includes(SYNTHETIC_MARKER) && review.includes('Nothing here is approved'))
+  check(`D2 the CURRENT human review page tells the truth about the decisions: it states DECISIONS RECORDED, names ${FAMILY_B_DECISION.reviewer} as the content reviewer, carries the governing timestamp and the authorized run key, still states that blank is never approval, and no longer claims nothing is approved; no synthetic marker`,
+    !review.includes(SYNTHETIC_MARKER) && review.includes('STATUS: DECISIONS RECORDED') && !review.includes('Nothing here is approved')
+    && review.includes(FAMILY_B_DECISION.reviewer) && review.includes(DECISION_TIMESTAMP) && review.includes(RESOLVED_RUN_KEY) && review.includes('Blank is never approval'))
+  const preReview = readAtCommit(PRE_DECISION_COMMIT, HUMAN_REVIEW_PATH)
+  check(`D2b the PRE-DECISION review page the humans actually reviewed is preserved unrewritten at ${PRE_DECISION_COMMIT.slice(0, 8)}: it still says "Nothing here is approved", still carries no decision timestamp and no reviewer name, and its bytes differ from the current page (the historical review prose was not edited - it was superseded)`,
+    preReview.includes('STATUS: FOR HUMAN REVIEW. Nothing here is approved') && !preReview.includes(DECISION_TIMESTAMP) && !preReview.includes(FAMILY_B_DECISION.reviewer)
+    && !preReview.includes('DECISIONS RECORDED') && sha256(preReview) !== sha256(review))
   const dep = read(DEPENDENCY_PATH)
   check('D3 the dependency document proves the configuration change is required from committed code, states repointing DE-SELECTS the plank release, says delivered counts are UNKNOWN, and records no Vercel contact',
     dep.includes('a configuration change IS required') && dep.includes('CUMULATIVE') && dep.includes('F-E8') && dep.includes('029') && dep.includes('Delivered counts are UNKNOWN') && dep.includes('no Vercel contact') && dep.includes('`CATALOG` + `_DELIVERY` + `_ENABLED`'))
@@ -645,17 +812,75 @@ function verifyDocuments(world: World): void {
     && live.includes('FIVE_ENTRY_FORMS_DIR') && live.includes('FIVE_ENTRY_VARIANT') && live.includes('029_') && !/supabase\.(co|com)|vercel\.(app|com)|npx supabase|supabase (db|projects|link|login)/i.test(live))
   check('D9 the manifest generator regenerates the committed manifest byte-for-byte (--check)', tsx([MANIFEST_GENERATOR_PATH, '--check']).ok)
   const pkgCheck = tsx([PACKAGE_GENERATOR_PATH, '--check'])
-  check('D10 the package generator regenerates the seven committed templates and the human review page byte-for-byte from the BLANK forms (--check)', pkgCheck.ok, pkgCheck.out.slice(-200))
+  check('D10 the package generator regenerates all NINE committed artifacts byte-for-byte from the COMPLETED forms - the seven executable packages, the human review page and the human decision record (--check)', pkgCheck.ok, pkgCheck.out.slice(-200))
+  // The blank-form regression, EXECUTED rather than asserted: materialise the
+  // pre-decision forms and renderings from the immutable commit into a scratch
+  // tree and require the SAME generator, unchanged, to reproduce all eight of
+  // them byte-for-byte. If a later edit makes the review page claim decisions
+  // unconditionally, or resolves a template leaf that has no decision behind
+  // it, this fails here.
+  const blankRoot = path.join(tmpdir(), 'w14e-static-blank-form-regression')
+  rmSync(blankRoot, { recursive: true, force: true })
+  const blankForms = path.join(blankRoot, 'forms')
+  const blankOut = path.join(blankRoot, 'out')
+  mkdirSync(blankForms, { recursive: true })
+  mkdirSync(blankOut, { recursive: true })
+  for (const formPath of [FORM_A_PATH, FORM_B_PATH, FORM_C_PATH]) writeFileSync(path.join(blankForms, path.basename(formPath)), readAtCommit(PRE_DECISION_COMMIT, formPath))
+  for (const f of PACKAGE_FILES) writeFileSync(path.join(blankOut, f), readAtCommit(PRE_DECISION_COMMIT, `${PACKAGE_DIR}/${f}`))
+  writeFileSync(path.join(blankOut, path.basename(HUMAN_REVIEW_PATH)), preReview)
+  const blankCheck = tsx([PACKAGE_GENERATOR_PATH, '--check'], { FIVE_ENTRY_FORMS_DIR: blankForms, FIVE_ENTRY_OUT_DIR: blankOut })
+  check('D10b BLANK-FORM REGRESSION: handed the pre-decision BLANK forms, this same generator still renders the seven NON-EXECUTABLE templates and the pre-review "Nothing here is approved" page byte-for-byte, and renders NO decision record (--check, eight renderings) - blank mode was retargeted, never weakened',
+    blankCheck.ok && blankCheck.out.includes('8 renderings') && !existsSync(path.join(blankOut, path.basename(DECISION_RECORD_PATH))), blankCheck.out.slice(-300))
+  // PARTIAL is the third state the lifecycle refuses: one blanked leaf inside
+  // an otherwise complete family is neither a blank decision nor a recorded one.
+  const partialRoot = path.join(tmpdir(), 'w14e-static-partial-refusal')
+  rmSync(partialRoot, { recursive: true, force: true })
+  mkdirSync(partialRoot, { recursive: true })
+  writeFileSync(path.join(partialRoot, path.basename(FORM_A_PATH)), read(FORM_A_PATH))
+  writeFileSync(path.join(partialRoot, path.basename(FORM_C_PATH)), read(FORM_C_PATH))
+  const partialB = JSON.parse(read(FORM_B_PATH)) as { entries: Record<string, unknown>[] }
+  partialB.entries[2].reviewer = null
+  writeFileSync(path.join(partialRoot, path.basename(FORM_B_PATH)), `${JSON.stringify(partialB, null, 2)}\n`)
+  const partialRefusal = tsx([PACKAGE_GENERATOR_PATH, '--check'], { FIVE_ENTRY_FORMS_DIR: partialRoot, FIVE_ENTRY_OUT_DIR: path.join(partialRoot, 'out') })
+  check('D10c POSITIVE CONTROL: with one reviewer leaf blanked out of an otherwise COMPLETE family B, the generator refuses the render as a PARTIALLY completed decision (exit non-zero, named reason) - it will not render executable SQL for a half-decided family',
+    !partialRefusal.ok && partialRefusal.out.includes('PARTIALLY completed decision is not a decision'), partialRefusal.out.slice(-200))
   const gen = read(PACKAGE_GENERATOR_PATH)
   check('D11 the package generator refuses, by code, to write synthetic renderings under docs/, refuses variants outside test mode, refuses partial decisions, refuses non-APPROVE/approved decisions and refuses the historical key',
     gen.includes('test mode REFUSES to write under') && gen.includes('is permitted in test mode only') && gen.includes('a PARTIALLY completed decision is not a decision') && gen.includes('only APPROVE has a prepared package') && gen.includes('only approved has a prepared package') && gen.includes('reuses the historical plank release key'))
-  const variantRefusal = tsx([PACKAGE_GENERATOR_PATH], { FIVE_ENTRY_VARIANT: 'carry_stage1', FIVE_ENTRY_OUT_DIR: '/tmp/w14e-static-variant-refusal' })
-  check('D12 POSITIVE CONTROL: invoking a negative-control variant against the real (blank) forms is refused by the generator (exit non-zero, named reason)', !variantRefusal.ok && variantRefusal.out.includes('permitted in test mode only'))
+  const variantRefusal = tsx([PACKAGE_GENERATOR_PATH], { FIVE_ENTRY_VARIANT: 'carry_stage1', FIVE_ENTRY_OUT_DIR: path.join(tmpdir(), 'w14e-static-variant-refusal') })
+  check('D12 POSITIVE CONTROL: invoking a negative-control variant against the REAL forms is refused by the generator (exit non-zero, named reason)', !variantRefusal.ok && variantRefusal.out.includes('permitted in test mode only'))
+  // The completion record: the artifact that binds the three filled forms, the
+  // decisions, and everything rendered from them. Every digest below is
+  // recomputed here from the bytes on disk, so the record cannot agree with
+  // itself - it has to agree with the tree.
+  const record = read(DECISION_RECORD_PATH)
+  const formBindings = [FORM_A_PATH, FORM_B_PATH, FORM_C_PATH].map((formPath) => { const bytes = readFileSync(path.join(repositoryRoot, formPath)); return { formPath, length: bytes.length, sha: sha256(bytes) } })
+  const packageDigests = PACKAGE_FILES.map((f) => sha256(readFileSync(path.join(repositoryRoot, `${PACKAGE_DIR}/${f}`))))
+  check('D14 the human decision record binds - by digests recomputed here from the tree, not copied from the record - all three COMPLETED forms (path, bytes, sha256), all seven EXECUTABLE packages (sha256), the five unchanged content payload fingerprints and the five generated admission fingerprints',
+    formBindings.every((b) => record.includes(b.formPath) && record.includes(String(b.length)) && record.includes(b.sha))
+    && packageDigests.every((d) => record.includes(d))
+    && (world.manifest.entries ?? []).every((e) => record.includes(e.content_payload_fingerprint.sha256))
+    && ADMISSION_FINGERPRINTS.every((f) => record.includes(f)),
+    `forms bound: ${formBindings.filter((b) => record.includes(b.sha)).length}/3, packages bound: ${packageDigests.filter((d) => record.includes(d)).length}/7`)
+  check(`D15 the human decision record states the governing decision timestamp, both Joseph tuples and the ${FAMILY_B_DECISION.reviewer} / ${FAMILY_B_DECISION.role} tuple with its rationale verbatim, ALL judgment confirmations true for all five entries, the authorized run key with the cumulative 8 exercise + 3 alias membership, and labels hosted migration 029 OPERATOR-SUPPLIED with its exact hosted record and read-state probe; it is a GENERATED file carrying no synthetic marker and no unresolved token`,
+    record.includes(DECISION_TIMESTAMP) && (record.match(new RegExp(rx(DECISION_TIMESTAMP), 'g')) ?? []).length >= 12
+    && [FAMILY_A_DECISION, FAMILY_B_DECISION].every((d) => record.includes(d.decision) && record.includes(d.reviewer) && record.includes(d.role) && record.includes(d.rationale))
+    && (record.match(/ALL true/g) ?? []).length === 5
+    && record.includes(RESOLVED_RUN_KEY) && record.includes(RESOLVED_RUN_MEMBERSHIP) && record.includes('8 exercise members + 3 alias members = 11 membership rows')
+    && record.includes('OPERATOR-SUPPLIED') && record.includes(MIGRATION_029_HOSTED_RECORD) && record.includes(MIGRATION_029_HOSTED_PROBE)
+    && record.includes('GENERATED FILE') && !record.includes(SYNTHETIC_MARKER) && !record.includes('<<UNRESOLVED'))
 }
 
 // ── negative controls ─────────────────────────────────────────────────
-function runControls(baseline: World): void {
-  const controls: Array<{ label: string; expect: string; mutate: (w: World) => void }> = [
+/**
+ * Every control names the decision state it attacks. A control that deletes a
+ * template sentinel has nothing to delete in an executable rendering, and a
+ * control that fills a blank leaf has nothing to fill in a completed form: the
+ * blank-state controls run against the pre-decision commit, the recorded-state
+ * ones against the working tree, and both sets run every time.
+ */
+function runControls(recorded: World, blank: World): void {
+  const controls: Array<{ label: string; expect: string; mode?: DecisionMode; mutate: (w: World) => void }> = [
     { label: 'NC-WRONG-UUID: one of the five frozen logical UUIDs replaced', expect: 'M2', mutate: (w) => { w.manifest.entries[4].logical_id = 'e21b2c00-0000-4000-a000-0000000000ff' } },
     { label: 'NC-SIXTH-IDENTITY: a sixth entry appended to the manifest', expect: 'M1', mutate: (w) => { w.manifest.entries.push({ ...w.manifest.entries[0], logical_id: 'e21b2c00-0000-4000-a000-0000000000f6', content_id: 'e21b2c00-0000-4000-a000-0000000001f6' }) } },
     { label: 'NC-CONTENT-ID-CONVENTION: a content id off the +0x100 convention', expect: 'M3', mutate: (w) => { w.manifest.entries[1].content_id = 'e21b2c00-0000-4000-a000-000000000205' } },
@@ -668,7 +893,7 @@ function runControls(baseline: World): void {
     { label: 'NC-CARRIER-SHA: the manifest binds a carrier digest other than the on-disk bytes', expect: 'M9', mutate: (w) => { w.manifest.admission_source_sha256.value = 'e'.repeat(64) } },
     { label: 'NC-SLOT-FILLED: a manifest human decision slot marked filled', expect: 'M11', mutate: (w) => { w.manifest.entries[0].human_decision_slots.snapshot_review.filled = true } },
     { label: 'NC-HISTORICAL-KEY-PROPOSED: the historical plank key proposed as the new run key', expect: 'M12', mutate: (w) => { w.manifest.delivery_run.proposed_run_key = HISTORICAL_RUN_KEY } },
-    { label: 'NC-DECISION-FILLED: a family A decision tuple filled in the committed form', expect: 'F1', mutate: (w) => { Object.assign(w.formA.entries[0].human_fields, { decision: 'APPROVE', reviewer: 'Someone', reviewer_role_or_credential: 'x', reviewed_at: '2026-09-12T10:00:00-04:00', rationale: 'Approved because it looks right.' }) } },
+    { label: 'NC-DECISION-FILLED: a family A decision tuple filled in the blank committed form', expect: 'F1', mode: 'BLANK', mutate: (w) => { Object.assign(w.formA.entries[0].human_fields, { decision: 'APPROVE', reviewer: 'Someone', reviewer_role_or_credential: 'x', reviewed_at: '2026-09-12T10:00:00-04:00', rationale: 'Approved because it looks right.' }) } },
     { label: 'NC-DECISION-FIELD-MISSING: a required leaf key removed from a family B entry', expect: 'F2', mutate: (w) => { delete w.formB.entries[2].rationale } },
     { label: 'NC-SYNTHETIC-FLAG: the synthetic-decision flag set on a committed form', expect: 'F3', mutate: (w) => { w.formC.test_only_synthetic_decisions = true } },
     { label: 'NC-FORM-CARRIER-SHA: the content form bound to a different carrier digest', expect: 'F4', mutate: (w) => { w.formB.content_fingerprint.sha256 = 'a'.repeat(64) } },
@@ -680,12 +905,12 @@ function runControls(baseline: World): void {
     { label: 'NC-CARRY-FORWARD-SOURCE: the stage-6 carry-forward copies from a different run key', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].split(`JOIN public.exercise_catalog_import_runs h ON h.run_key = '${HISTORICAL_RUN_KEY}'`).join("JOIN public.exercise_catalog_import_runs h ON h.run_key = 'some-other-run'") } },
     { label: 'NC-HISTORICAL-LINE-DROPPED: a promoted historical membership line removed from the stage-6 gate', expect: 'T6.i', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].split("'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller rollout'").join("'alias#e21b2c00-0000-4000-a000-000000000003#Ab roller'") } },
     { label: 'NC-SEAL-SHAPE: stage 7 asserts the five-only seal shape', expect: 'T7.h', mutate: (w) => { w.packages['07-run-seal.sql'] = w.packages['07-run-seal.sql'].replace("'exercise_members', 8,\n       'alias_members', 3)", "'exercise_members', 5,\n       'alias_members', 0)") } },
-    { label: 'NC-SENTINEL-REMOVED: the stage-1 template made syntactically runnable by deleting its sentinel', expect: 'T1.a', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(/^SELECT <<UNRESOLVED-TEMPLATE:.*$/m, '') } },
-    { label: 'NC-RESOLVED-LITERAL: a human leaf in the stage-1 template replaced by a resolved string literal', expect: 'T1.h', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace('reviewed_by      = <<UNRESOLVED:A.132.reviewer>>', "reviewed_by      = 'Someone'") } },
+    { label: 'NC-SENTINEL-REMOVED: the stage-1 template made syntactically runnable by deleting its sentinel', expect: 'T1.a', mode: 'BLANK', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(/^SELECT <<UNRESOLVED-TEMPLATE:.*$/m, '') } },
+    { label: 'NC-RESOLVED-LITERAL: a human leaf in the stage-1 template replaced by a resolved string literal', expect: 'T1.h', mode: 'BLANK', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace('reviewed_by      = <<UNRESOLVED:A.132.reviewer>>', "reviewed_by      = 'Someone'") } },
     { label: 'NC-SYNTHETIC-MARKER: the synthetic marker present in a committed template', expect: 'T3.b', mutate: (w) => { w.packages['03-content-review.sql'] += `\n-- ${SYNTHETIC_MARKER}\n` } },
     { label: 'NC-SIXTH-UPDATE: a sixth review UPDATE added to stage 1', expect: 'T1.h', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(/^COMMIT;$/m, `UPDATE public.exercise_catalog\n   SET review_status    = 'approved'\n WHERE logical_id = '${PLANK_ID}' AND is_active = true;\nCOMMIT;`) } },
     { label: 'NC-DELIVERY-CALL: a tenant delivery call appended to stage 7', expect: 'T7.d', mutate: (w) => { w.packages['07-run-seal.sql'] = w.packages['07-run-seal.sql'].replace(/^COMMIT;$/m, "SELECT public.deliver_catalog_exercises('x');\nCOMMIT;") } },
-    { label: 'NC-HISTORICAL-KEY-WRITTEN: stage 6 INSERTs the historical plank key as the new run_key', expect: 'T6.g', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace('(<<UNRESOLVED:C.run_key_literal>>, false,', `('${HISTORICAL_RUN_KEY}', false,`) } },
+    { label: 'NC-HISTORICAL-KEY-WRITTEN: the stage-6 TEMPLATE INSERTs the historical plank key as the new run_key', expect: 'T6.g', mode: 'BLANK', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace('(<<UNRESOLVED:C.run_key_literal>>, false,', `('${HISTORICAL_RUN_KEY}', false,`) } },
     { label: 'NC-MISSING-MEMBER: the stage-6 membership IN list reduced to four', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list.split(',').slice(0, 4).join(',')})`) } },
     { label: 'NC-EXTRA-MEMBER: the plank identity added to the stage-6 NEW-member IN list (a duplicate of a carried-forward member)', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list},\n                        '${PLANK_ID}')`) } },
     { label: 'NC-CARRY-MEMBER: a deferred carry added to the stage-6 membership IN list', expect: 'T6.f', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(/ON c\.logical_id IN \(([\s\S]*?)\)/, (mm: string, list: string) => `ON c.logical_id IN (${list},\n                        '${CARRY_IDS[0]}')`) } },
@@ -694,9 +919,29 @@ function runControls(baseline: World): void {
     { label: 'NC-UNGOVERNED-UUID: a substitute identity introduced into the stage-1 executable text', expect: 'T1.f', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace("WHERE logical_id = 'e21b2c00-0000-4000-a000-000000000008' AND is_active = true;", "WHERE logical_id = 'e21b2c00-0000-4000-a000-0000000000ff' AND is_active = true;") } },
     { label: 'NC-PAYLOAD-DRIFT-IN-PACKAGE: a stage-2 payload literal differs from the carrier', expect: 'T2.i', mutate: (w) => { w.packages['02-content-draft-load.sql'] = w.packages['02-content-draft-load.sql'].replace('Set your forearms on the floor shoulder-width apart', 'Set your forearms on the floor shoulder-width apart (drifted)') } },
     { label: 'NC-REVOKE-DROPPED: the grantor-scoped REVOKE removed from stage 2', expect: 'T2.h', mutate: (w) => { w.packages['02-content-draft-load.sql'] = w.packages['02-content-draft-load.sql'].replace('REVOKE exlib_catalog_loader FROM postgres GRANTED BY postgres;', '') } },
-    { label: 'NC-ADMISSION-SHA: stage 4 passes a digest other than the bound carrier digest', expect: 'T4.h', mutate: (w) => { w.packages['04-content-admission.sql'] = w.packages['04-content-admission.sql'].split(`'${baseline.manifest.admission_source_sha256.value}');`).join(`'${'b'.repeat(64)}');`) } },
+    { label: 'NC-ADMISSION-SHA: stage 4 passes a digest other than the bound carrier digest', expect: 'T4.h', mutate: (w) => { w.packages['04-content-admission.sql'] = w.packages['04-content-admission.sql'].split(`'${recorded.manifest.admission_source_sha256.value}');`).join(`'${'b'.repeat(64)}');`) } },
+    // ── the recorded decisions themselves ──
+    { label: 'NC-DECISION-SUBSTITUTED: the family B reviewer replaced by a different person in the completed form', expect: 'F1', mutate: (w) => { w.formB.entries.forEach((e) => { e.reviewer = 'A. N. Other' }) } },
+    { label: 'NC-DECISION-TIMESTAMP-DRIFT: one family A decision moved one second off the governing timestamp', expect: 'F1', mutate: (w) => { w.formA.entries[3].human_fields.reviewed_at = '2026-09-13T18:25:14-04:00' } },
+    { label: 'NC-CONFIRMATION-UNSET: one judgment confirmation flipped back to false in the completed form', expect: 'F1', mutate: (w) => { const key = Object.keys(w.formB.entries[1].needs_human_judgment_confirmations)[0]; w.formB.entries[1].needs_human_judgment_confirmations[key] = false } },
+    { label: 'NC-MEMBERSHIP-DECISION-CHANGED: the family C membership decision changed to the rejected five-only design', expect: 'F1', mutate: (w) => { w.formC.requested_inputs.run_membership.value = 'FIVE_WEIGHT_TIME_IDENTITIES_ONLY' } },
+    { label: 'NC-ROLE-DROPPED: the family B reviewer credential blanked while the name survives', expect: 'F1', mutate: (w) => { w.formB.entries[4].reviewer_role_or_credential = null } },
+    { label: 'NC-PACKAGE-REVIEWER-DRIFT: stage 3 renders a reviewer other than the human who reviewed', expect: 'T3.h', mutate: (w) => { w.packages['03-content-review.sql'] = w.packages['03-content-review.sql'].split(`$rv132$${FAMILY_B_DECISION.reviewer}$rv132$`).join('$rv132$A. N. Other$rv132$') } },
+    { label: 'NC-PACKAGE-RATIONALE-DRIFT: stage 3 renders a rationale the reviewer did not write', expect: 'T3.h', mutate: (w) => { w.packages['03-content-review.sql'] = w.packages['03-content-review.sql'].split(`$rr137$${FAMILY_B_DECISION.rationale}$rr137$`).join('$rr137$Looks fine to me.$rr137$') } },
+    { label: 'NC-PACKAGE-TIMESTAMP-DRIFT: one stage-1 review timestamp rendered one second off the governing timestamp', expect: 'T1.h', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(/reviewed_at(\s+)= TIMESTAMPTZ '[^']*'/, "reviewed_at$1= TIMESTAMPTZ '2026-09-13T18:25:14-04:00'") } },
+    { label: 'NC-UNRESOLVED-TOKEN-SURVIVED: an unresolved human token left behind in an executable package', expect: 'T1.b', mutate: (w) => { w.packages['01-snapshot-review.sql'] = w.packages['01-snapshot-review.sql'].replace(`$ra132$${FAMILY_A_DECISION.rationale}$ra132$`, '<<UNRESOLVED:A.132.rationale>>') } },
+    { label: 'NC-ADMISSION-FINGERPRINT-DRIFT: one stage-4 admission fingerprint pin perturbed', expect: 'T4.h', mutate: (w) => { w.packages['04-content-admission.sql'] = w.packages['04-content-admission.sql'].split(ADMISSION_FINGERPRINTS[2]).join('c'.repeat(64)) } },
+    { label: 'NC-ADMISSION-FINGERPRINT-SWAPPED: two stage-4 admission fingerprints exchanged between identities (each value still present, both now on the wrong content)', expect: 'T4.h', mutate: (w) => { w.packages['04-content-admission.sql'] = w.packages['04-content-admission.sql'].split(ADMISSION_FINGERPRINTS[0]).join('__SWAP__').split(ADMISSION_FINGERPRINTS[1]).join(ADMISSION_FINGERPRINTS[0]).split('__SWAP__').join(ADMISSION_FINGERPRINTS[1]) } },
+    { label: 'NC-HISTORICAL-KEY-WRITTEN-RECORDED: the EXECUTABLE stage 6 INSERTs the historical plank key as the new run_key', expect: 'T6.g', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].replace(`('${RESOLVED_RUN_KEY}', false,`, `('${HISTORICAL_RUN_KEY}', false,`) } },
+    { label: 'NC-SEALED-KEY-DRIFT: stage 7 seals a run key other than the authorized one', expect: 'T7.h', mutate: (w) => { w.packages['07-run-seal.sql'] = w.packages['07-run-seal.sql'].split(`exlib_approve_and_seal_run('${RESOLVED_RUN_KEY}')`).join("exlib_approve_and_seal_run('some-other-run-key')") } },
+    { label: 'NC-RUN-APPROVER-DRIFT: the stage-6 run row credits a legal approver who did not approve', expect: 'T6.h', mutate: (w) => { w.packages['06-run-staging.sql'] = w.packages['06-run-staging.sql'].split(`$lab$${FAMILY_C_APPROVER}$lab$`).join('$lab$A. N. Other$lab$') } },
+    { label: 'NC-CLAUDE-OBSERVED-HOSTED: the manifest claims Claude observed the hosted migration-029 state', expect: 'M15', mutate: (w) => { const h = w.manifest.migration_029?.hosted_application; if (h) h.claude_observed_hosted_state = true } },
+    { label: 'NC-HOSTED-PROVENANCE-DROPPED: the hosted migration-029 application no longer labelled OPERATOR-SUPPLIED', expect: 'M15', mutate: (w) => { const h = w.manifest.migration_029?.hosted_application; if (h) h.provenance = 'verified in this round' } },
+    { label: 'NC-HOSTED-PROBE-DRIFT: the operator\'s post-apply read-state probe restated inexactly', expect: 'M15', mutate: (w) => { const h = w.manifest.migration_029?.hosted_application; if (h) h.post_apply_read_state_probe = 'migration_029_plank_cross_run_idempotency = PRESENT' } },
   ]
   for (const control of controls) {
+    const mode: DecisionMode = control.mode ?? 'RECORDED'
+    const baseline = mode === 'BLANK' ? blank : recorded
     const world: World = {
       manifest: structuredClone(baseline.manifest), w14: baseline.w14, carrierText: baseline.carrierText,
       carrierRecords: structuredClone(baseline.carrierRecords), formA: structuredClone(baseline.formA), formB: structuredClone(baseline.formB), formC: structuredClone(baseline.formC),
@@ -704,26 +949,32 @@ function runControls(baseline: World): void {
     }
     control.mutate(world)
     const findings: Finding[] = []
-    assertArtifacts(world, findings)
+    assertArtifacts(world, findings, mode)
+    const prefix = mode === 'BLANK' ? '[blank] ' : ''
     const targeted = findings.filter((f) => f.name.startsWith(control.expect + ' ') || f.name.startsWith(control.expect + '.') || f.name === control.expect)
-    if (targeted.length === 0) { check(`${control.label} -> rejected by ${control.expect}`, false, `no assertion named ${control.expect} exists - the control targets a pin that is GONE`); continue }
+    if (targeted.length === 0) { check(`${prefix}${control.label} -> rejected by ${control.expect}`, false, `no assertion named ${control.expect} exists in ${mode} mode - the control targets a pin that is GONE`); continue }
     const rejected = targeted.some((f) => !f.ok)
     const collateral = findings.filter((f) => !f.ok && !targeted.includes(f)).length
-    check(`${control.label} -> rejected by ${control.expect}${collateral > 0 ? ` (and ${collateral} further assertion${collateral === 1 ? '' : 's'})` : ''}`, rejected, `${control.expect} still PASSED on the corrupted artifact - that pin is dead`)
+    check(`${prefix}${control.label} -> rejected by ${control.expect}${collateral > 0 ? ` (and ${collateral} further assertion${collateral === 1 ? '' : 's'})` : ''}`, rejected, `${control.expect} still PASSED on the corrupted ${mode} artifact - that pin is dead`)
   }
 }
 
 function main(): number {
   console.log('W14-E — five-entry endgame: static verification of the complete local preparation\n')
-  const required = [MANIFEST_PATH, W14_MANIFEST_PATH, CARRIER_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, MATRIX_PATH, DEPENDENCY_PATH, HUMAN_REVIEW_PATH, PROBE_PATH, MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`)]
+  const required = [MANIFEST_PATH, W14_MANIFEST_PATH, CARRIER_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, MATRIX_PATH, DEPENDENCY_PATH, HUMAN_REVIEW_PATH, DECISION_RECORD_PATH, PROBE_PATH, MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`)]
   const missing = required.filter((p) => !existsSync(path.join(repositoryRoot, p)))
   check(`P1 all ${required.length} required artifacts exist`, missing.length === 0, missing.join(', '))
   if (missing.length > 0) { console.log(`\n${passed} passed, ${failed} failed`); return 1 }
   const world = loadWorld()
-  console.log('\nA. Artifacts: manifest, forms, templates')
+  console.log('\nA. Artifacts (RECORDED decisions): manifest, completed forms, seven executable packages')
   const findings: Finding[] = []
-  assertArtifacts(world, findings)
+  assertArtifacts(world, findings, 'RECORDED')
   for (const f of findings) check(f.name, f.ok, f.detail)
+  const preWorld = loadPreDecisionWorld()
+  console.log(`\nA0. The SAME assertion set in BLANK mode against the pre-decision commit ${PRE_DECISION_COMMIT.slice(0, 8)} - the fail-closed blank-form lifecycle, retargeted rather than deleted`)
+  const preFindings: Finding[] = []
+  assertArtifacts(preWorld, preFindings, 'BLANK')
+  for (const f of preFindings) check(`A0 ${f.name}`, f.ok, f.detail)
   console.log('\nB. Boundaries: migrations, ancestry, change surface, frozen artifacts')
   verifyBoundaries(world)
   console.log('\nS. Governance signatures the packages depend on')
@@ -731,7 +982,7 @@ function main(): number {
   console.log('\nD. Documents, probe, verifiers, generators')
   verifyDocuments(world)
   console.log('\nN. Negative controls - each must be rejected by the assertion it targets')
-  runControls(world)
+  runControls(world, preWorld)
   console.log(`\n${passed} passed, ${failed} failed`)
   return failed === 0 ? 0 : 1
 }

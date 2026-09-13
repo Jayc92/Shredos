@@ -7,23 +7,44 @@
 # 001-028 and then REPLAYING the nine spent hosted packages in their historical
 # order (EXLIB-2K, 2O, 2P, 2Q, 2R, 2Y, 2U, 2Z, W14) - so the eleven-term
 # vector 8/8/10/3/11/1/2/2/1/6/3 the operator reported after W14 is REBUILT,
-# never assumed. It then renders the seven stage packages under clearly marked
-# SYNTHETIC TEST-ONLY decisions (through the real generator, into a scratch
-# directory the generator refuses to place under docs/), executes each once,
-# proves the exact resulting state by database readback, proves tenant delivery
-# for a fixture user, and finally proves the fail-closed properties: replay,
-# out-of-order execution, every negative-control variant, atomic rollback under
-# a sabotaged postcondition, the READ STATE FIRST probe on NOT_APPLIED /
-# APPLIED / MIXED states, and the fixture guard.
+# never assumed.
+#
+# TWO INDEPENDENT LINES then run on that rebuilt world:
+#
+#  1. THE CONTROL LINE (sections D-N) renders the seven stage packages under
+#     clearly marked SYNTHETIC TEST-ONLY decisions (through the real generator,
+#     into a scratch directory the generator refuses to place under docs/),
+#     executes each once, proves the exact resulting state by database
+#     readback, proves tenant delivery for a fixture user, and proves the
+#     fail-closed properties: replay, out-of-order execution, every
+#     negative-control variant, atomic rollback under a sabotaged
+#     postcondition, the READ STATE FIRST probe on NOT_APPLIED / APPLIED /
+#     MIXED states, and the fixture guard. Synthetic decisions are what makes
+#     that battery safe to mutate: a variant may say anything.
+#
+#  2. THE REAL LINE (section R) executes the SEVEN COMMITTED EXECUTABLE
+#     PACKAGES - the ones rendered from the COMPLETED human decision forms,
+#     carrying the governing Joseph Carfagno / Nick Tkacz tuples - in order,
+#     on a clone of the same rebuilt world with migration 029 applied FIRST
+#     and with the disposable-fixture marker DROPPED (the real renderings
+#     carry no fixture guard, so this line looks like the hosted world). It
+#     proves the same stage vectors, the same final state, the real human
+#     tuples by readback, and that the five admission fingerprints are a
+#     deterministic function of Nick Tkacz's review tuple - by showing the two
+#     lines agree on every governed shape and differ ONLY where the human
+#     decision text feeds the fingerprint.
 #
 # Every control variant is GENERATED THROUGH THE REAL DERIVATION PATH
 # (FIVE_ENTRY_VARIANT), never by editing generated SQL with sed.
 #
 # This script NEVER contacts Supabase, Vercel, or any remote service, and NEVER
-# invokes the Supabase CLI. No human decision is real here: every reviewer,
-# credential, timestamp and rationale is a synthetic TEST-ONLY string that the
-# generator refuses to write into the repository and that every rendered
-# package refuses to run without the disposable-fixture marker relation.
+# invokes the Supabase CLI. Every human decision in the CONTROL line is a
+# synthetic TEST-ONLY string that the generator refuses to write into the
+# repository and that every rendered package refuses to run without the
+# disposable-fixture marker relation. The REAL line does execute the genuine
+# committed packages and therefore the genuine human decisions - but ONLY
+# against a disposable local cluster destroyed on exit. Nothing here approves,
+# publishes, delivers or configures anything hosted.
 #
 # Run from the repository root:
 #   bash scripts/verify-weight-time-five-entry-endgame-live.sh
@@ -35,8 +56,29 @@ GENERATOR="scripts/generate-weight-time-five-entry-packages.ts"
 MANIFEST_GENERATOR="scripts/generate-weight-time-five-entry-manifest.ts"
 MANIFEST="docs/weight-time-five-entry-lifecycle-manifest.json"
 PROBE="docs/weight-time-five-entry-read-state.sql"
-TEMPLATE_DIR="docs/weight-time-five-entry-packages"
+PKG_DIR="docs/weight-time-five-entry-packages"
 FORMS_DIR="docs"
+REVIEW_PAGE="docs/weight-time-five-entry-human-review.md"
+RECORD="docs/weight-time-five-entry-human-decision-record.md"
+# The pre-decision (BLANK-form) generation is preserved as an IMMUTABLE COMMIT
+# OBJECT, not as duplicated bytes: every historical blank-form claim below is
+# retargeted at this commit rather than deleted.
+PRE_DECISION_COMMIT='9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8'
+# The GOVERNING human decisions, pinned here independently of the generator so
+# this script is an oracle for them and not an echo of them.
+DECISION_TS='2026-09-13T18:25:13-04:00'
+A_REVIEWER='Joseph Carfagno'
+A_ROLE='ForgeFitOS operator'
+A_RATIONALE='I approve all five catalog snapshots as accurate for release.'
+B_REVIEWER='Nick Tkacz'
+B_ROLE='Physical Trainer'
+B_RATIONALE='I, Nick Tkacz, Physical Trainer, reviewed all five exercises. I approve all five as written and confirm all listed judgment items for each exercise.'
+C_APPROVER='Joseph Carfagno'
+C_RATIONALE='I approve `w14e-weight-time-release1-staged-v1` with the cumulative historical six plus five weight_time membership because it preserves the existing release while adding the five reviewed exercises; this approval does not itself enable production delivery.'
+# The five admission fingerprints, pinned from the instruction-governed round and
+# recomputed by PostgreSQL itself below. They are a FUNCTION of the family B
+# tuple, which is why the control line's differ (proven in R12).
+REAL_FPS='9cbc10c9284f3e23f1123b647f17ee6bc05e8e452f5aa821b9a99256c9ddae7c,bb705be0318c34b7fd2ecd51039a665ad087be8f69fc227cf44a53ddbb06f1a5,e10369c291030ed61ddc48eda0c5c8759e0f3a7c68229a19a9b7c09792fe2008,05ca70e920ac098f291c9928210f724ba15044bab7fac588591026b3d9d2b932,8a7a94b2ede86cae694cde02fa5652154204a2093562f45c54778d0c2ff68c65'
 M028='supabase/migrations/028_weight_time_tracking_mode.sql'
 M028_SHA='9b7d3a52dc0b75f129745bec51a4c972aa284bb5cb0d6159e0cbbb981e463fb3'
 M028_BYTES=37162
@@ -80,7 +122,9 @@ cleanup() {
   rm -rf "$TMP"
 }
 trap cleanup EXIT
-mkdir -p "$PKG" "$FORMS"
+PRE_FORMS="$TMP/pre-decision-forms"
+PRE_OUT="$TMP/pre-decision-out"
+mkdir -p "$PKG" "$FORMS" "$PRE_FORMS" "$PRE_OUT"
 
 DB=postgres
 Q()   { psql -h "$SOCK" -U postgres -d "$DB" -X -v ON_ERROR_STOP=1 -qtA -c "$1"; }
@@ -137,30 +181,101 @@ if npx --no-install tsx "$MANIFEST_GENERATOR" --check > "$TMP/mcheck.out" 2>&1; 
   ok "A3: the lifecycle manifest is byte-identical to a fresh regeneration from its bound inputs"
 else bad "A3: manifest --check failed" "$(tail -2 "$TMP/mcheck.out" | tr '\n' ' ')"; fi
 if npx --no-install tsx "$GENERATOR" --check > "$TMP/pcheck.out" 2>&1; then
-  ok "A4: the seven committed TEMPLATE packages and the human review page are byte-identical to a fresh rendering from the BLANK forms"
+  ok "A4: the seven committed EXECUTABLE packages, the human review page and the human-decision record are byte-identical to a fresh rendering from the COMPLETED forms (nine artifacts; no hand-edited SQL)"
 else bad "A4: packages --check failed" "$(tail -2 "$TMP/pcheck.out" | tr '\n' ' ')"; fi
-TPL_SENTINELS=0; TPL_TESTONLY=0
-for f in "$TEMPLATE_DIR"/0*.sql; do
-  hasF 'SELECT <<UNRESOLVED-TEMPLATE:' "$f" && TPL_SENTINELS=$((TPL_SENTINELS+1))
-  hasF 'TEST-ONLY' "$f" && TPL_TESTONLY=$((TPL_TESTONLY+1))
+# RETARGET (W14-E): the BLANK-form generation is preserved as the immutable
+# commit object $PRE_DECISION_COMMIT, so every historical blank-form claim below
+# is EVALUATED THERE rather than deleted. A4b proves blank-form mode still
+# renders the pre-review wording and the seven NOT-EXECUTABLE templates.
+FORM_NAMES='weight-time-five-entry-snapshot-review-form.json weight-time-five-entry-content-review-form.json weight-time-five-entry-run-authority-form.json'
+PRE_OK=1
+for n in $FORM_NAMES; do
+  git -C . show "$PRE_DECISION_COMMIT:docs/$n" > "$PRE_FORMS/$n" 2>/dev/null || PRE_OK=0
 done
-[ "$TPL_SENTINELS" = "7" ] && [ "$TPL_TESTONLY" = "0" ] \
-  && ok "A5: all seven committed templates carry the NOT-EXECUTABLE syntax-error sentinel and NONE carries a synthetic decision marker" \
-  || bad "A5: template posture wrong (sentinels=$TPL_SENTINELS test-only=$TPL_TESTONLY)"
-BLANK=$(node -e '
-const fs=require("fs");
-const a=JSON.parse(fs.readFileSync("docs/weight-time-five-entry-snapshot-review-form.json","utf8"));
-const b=JSON.parse(fs.readFileSync("docs/weight-time-five-entry-content-review-form.json","utf8"));
-const c=JSON.parse(fs.readFileSync("docs/weight-time-five-entry-run-authority-form.json","utf8"));
-let filled=0;
-for (const e of a.entries) for (const v of Object.values(e.human_fields)) if (v!==null) filled++;
-for (const e of b.entries) { for (const k of ["decision","reviewer","reviewer_role_or_credential","reviewed_at","evidence","rationale"]) if (e[k]!==null) filled++; for (const v of Object.values(e.needs_human_judgment_confirmations)) if (v!==null) filled++; }
-const r=c.requested_inputs; for (const v of [r.run_key_literal.value,r.product_approver_identity.value,r.product_approver_identity.product_approved_at,r.legal_approver_identity.value,r.legal_approver_identity.legal_approved_at,r.approval_rationale.value,r.run_membership.value]) if (v!==null) filled++;
-const flags=[a,b,c].filter(f=>f.test_only_synthetic_decisions===true).length;
-process.stdout.write(filled+"/"+flags);' 2>/dev/null)
-[ "$BLANK" = "0/0" ] \
-  && ok "A6: every human decision leaf in the three committed forms is null and no form carries the synthetic flag (blank is never approval)" \
-  || bad "A6: committed forms are not blank (filled/flags = $BLANK)"
+# FIVE_ENTRY_OUT_DIR is the packages root itself, and it also redirects the two
+# document renderings, so the pre-decision generation is materialized FLAT.
+for f in $(git -C . ls-tree --name-only "$PRE_DECISION_COMMIT:$PKG_DIR"); do
+  git -C . show "$PRE_DECISION_COMMIT:$PKG_DIR/$f" > "$PRE_OUT/$f" 2>/dev/null || PRE_OK=0
+done
+git -C . show "$PRE_DECISION_COMMIT:$REVIEW_PAGE" > "$PRE_OUT/$(basename "$REVIEW_PAGE")" 2>/dev/null || PRE_OK=0
+if [ "$PRE_OK" = "1" ] && FIVE_ENTRY_FORMS_DIR="$PRE_FORMS" FIVE_ENTRY_OUT_DIR="$PRE_OUT" npx --no-install tsx "$GENERATOR" --check > "$TMP/blank-regression.out" 2>&1; then
+  hasF '8 renderings' "$TMP/blank-regression.out" && [ ! -f "$PRE_OUT/$(basename "$RECORD")" ] \
+    && ok "A4b (BLANK-FORM REGRESSION, retargeted at $PRE_DECISION_COMMIT): the BLANK forms committed there still render byte-for-byte to the seven NOT-EXECUTABLE templates and the PRE-DECISION review wording - 8 renderings, and blank mode emits NO decision record" \
+    || bad "A4b: blank-form regression rendered an unexpected artifact set" "$(tail -2 "$TMP/blank-regression.out" | tr '\n' ' ')"
+else bad "A4b: blank-form regression failed (extraction ok=$PRE_OK)" "$(tail -2 "$TMP/blank-regression.out" | tr '\n' ' ')"; fi
+REAL_SENT=0; REAL_TESTONLY=0; REAL_TOKENS=0; REAL_PREPARED=0; REAL_GUARD=0
+for f in "$PKG_DIR"/0*.sql; do
+  hasF 'SELECT <<UNRESOLVED-TEMPLATE:' "$f" && REAL_SENT=$((REAL_SENT+1))
+  hasF 'TEST-ONLY' "$f" && REAL_TESTONLY=$((REAL_TESTONLY+1))
+  hasF "to_regclass('exlib_disposable_fixture.marker') IS NULL" "$f" && REAL_GUARD=$((REAL_GUARD+1))
+  hasF 'STATUS: PREPARED - NOT EXECUTED - ONE-USE - NOT idempotent' "$f" && REAL_PREPARED=$((REAL_PREPARED+1))
+  REAL_TOKENS=$((REAL_TOKENS + $(grep -o '<<UNRESOLVED' "$f" | wc -l | tr -d ' ')))
+done
+PRE_SENT=0
+for f in "$PRE_OUT"/0*.sql; do hasF 'SELECT <<UNRESOLVED-TEMPLATE:' "$f" && PRE_SENT=$((PRE_SENT+1)); done
+[ "$REAL_SENT/$REAL_TESTONLY/$REAL_TOKENS/$REAL_GUARD/$REAL_PREPARED" = "0/0/0/0/7" ] && [ "$PRE_SENT" = "7" ] \
+  && ok "A5 (RETARGET): all seven committed renderings are now EXECUTABLE - zero syntax-error sentinels, zero unresolved tokens, zero synthetic markers, zero TEST-ONLY fixture guards, seven PREPARED / NOT EXECUTED / ONE-USE banners - while the seven at $PRE_DECISION_COMMIT still carry all seven NOT-EXECUTABLE sentinels ($PRE_SENT)" \
+  || bad "A5: rendering posture wrong (real sent/testonly/tokens/guards/prepared = $REAL_SENT/$REAL_TESTONLY/$REAL_TOKENS/$REAL_GUARD/$REAL_PREPARED; pre-decision sentinels $PRE_SENT)"
+cat > "$TMP/form-census.mjs" <<'NODEJS'
+import { readFileSync } from 'node:fs'
+const [dir, mode, ts, aRev, aRole, aRat, bRev, bRole, bRat, cApp, cRat, runKey] = process.argv.slice(2)
+const rd = (n) => JSON.parse(readFileSync(`${dir}/weight-time-five-entry-${n}-form.json`, 'utf8'))
+const a = rd('snapshot-review'), b = rd('content-review'), c = rd('run-authority')
+const flags = [a, b, c].filter((f) => f.test_only_synthetic_decisions === true).length
+if (mode === 'blank') {
+  let filled = 0
+  for (const e of a.entries) for (const v of Object.values(e.human_fields)) if (v !== null) filled++
+  for (const e of b.entries) {
+    for (const k of ['decision', 'reviewer', 'reviewer_role_or_credential', 'reviewed_at', 'evidence', 'rationale']) if (e[k] !== null) filled++
+    for (const v of Object.values(e.needs_human_judgment_confirmations)) if (v !== null) filled++
+  }
+  const r = c.requested_inputs
+  for (const v of [r.run_key_literal.value, r.product_approver_identity.value, r.product_approver_identity.product_approved_at, r.legal_approver_identity.value, r.legal_approver_identity.legal_approved_at, r.approval_rationale.value, r.run_membership.value]) if (v !== null) filled++
+  process.stdout.write(`${filled}/${flags}`)
+} else {
+  // Exact-tuple census: a leaf is only counted when it equals the GOVERNING
+  // decision, so a substituted or drifted reviewer lowers the count.
+  const aOk = a.entries.filter((e) => e.human_fields.decision === 'APPROVE' && e.human_fields.reviewer === aRev
+    && e.human_fields.reviewer_role_or_credential === aRole && e.human_fields.reviewed_at === ts
+    && e.human_fields.rationale === aRat).length
+  const bOk = b.entries.filter((e) => e.decision === 'approved' && e.reviewer === bRev && e.reviewer_role_or_credential === bRole
+    && e.reviewed_at === ts && e.rationale === bRat
+    && Object.values(e.needs_human_judgment_confirmations).length > 0
+    && Object.values(e.needs_human_judgment_confirmations).every((v) => v === true)).length
+  const r = c.requested_inputs
+  const cOk = (r.run_key_literal.value === runKey && r.product_approver_identity.value === cApp
+    && r.product_approver_identity.product_approved_at === ts && r.legal_approver_identity.value === cApp
+    && r.legal_approver_identity.legal_approved_at === ts && r.approval_rationale.value === cRat
+    && r.run_membership.value === 'CUMULATIVE_HISTORICAL_SIX_PLUS_FIVE_WEIGHT_TIME_IDENTITIES') ? 1 : 0
+  // Any REQUIRED leaf still null; optional evidence is allowed to stay null.
+  let nulls = 0
+  for (const e of a.entries) for (const [k, v] of Object.entries(e.human_fields)) if (k !== 'evidence' && v === null) nulls++
+  for (const e of b.entries) {
+    for (const k of ['decision', 'reviewer', 'reviewer_role_or_credential', 'reviewed_at', 'rationale']) if (e[k] === null) nulls++
+    for (const v of Object.values(e.needs_human_judgment_confirmations)) if (v === null) nulls++
+  }
+  for (const v of [r.run_key_literal.value, r.product_approver_identity.value, r.product_approver_identity.product_approved_at, r.legal_approver_identity.value, r.legal_approver_identity.legal_approved_at, r.approval_rationale.value, r.run_membership.value]) if (v === null) nulls++
+  process.stdout.write(`${aOk}/${bOk}/${cOk}/${nulls}/${flags}`)
+}
+NODEJS
+census() { node "$TMP/form-census.mjs" "$1" "$2" "$DECISION_TS" "$A_REVIEWER" "$A_ROLE" "$A_RATIONALE" "$B_REVIEWER" "$B_ROLE" "$B_RATIONALE" "$C_APPROVER" "$C_RATIONALE" "$NEW_KEY" 2>/dev/null; }
+FILLED=$(census "$FORMS_DIR" recorded)
+[ "$FILLED" = "5/5/1/0/0" ] \
+  && ok "A6: every REQUIRED human leaf in the three committed forms carries the GOVERNING decision exactly - five family A entries (APPROVE / $A_REVIEWER / $A_ROLE / $DECISION_TS), five family B entries ($B_REVIEWER / $B_ROLE, ALL judgment confirmations true), the family C tuple, ZERO null required leaves, ZERO synthetic flags" \
+  || bad "A6: committed forms do not carry exactly the governing decisions (aOk/bOk/cOk/nulls/flags = $FILLED)"
+PRE_BLANK=$(census "$PRE_FORMS" blank)
+[ "$PRE_BLANK" = "0/0" ] \
+  && ok "A6b (RETARGET): the pre-decision forms at $PRE_DECISION_COMMIT are still entirely null with no synthetic flag - the historical 'blank is never approval' claim is preserved by evaluating it against the immutable commit, not deleted" \
+  || bad "A6b: the pre-decision forms are not blank (filled/flags = $PRE_BLANK)"
+mkdir -p "$TMP/forms-real-partial" && cp "$FORMS_DIR"/weight-time-five-entry-*-form.json "$TMP/forms-real-partial/"
+node -e 'const fs=require("fs");const p=process.argv[1];const b=JSON.parse(fs.readFileSync(p,"utf8"));b.entries[2].reviewer=null;fs.writeFileSync(p,JSON.stringify(b,null,2)+"\n");' "$TMP/forms-real-partial/weight-time-five-entry-content-review-form.json"
+if FIVE_ENTRY_FORMS_DIR="$TMP/forms-real-partial" FIVE_ENTRY_OUT_DIR="$TMP/pkgs-real-partial" npx --no-install tsx "$GENERATOR" > "$TMP/gen-real-partial.out" 2>&1; then
+  bad "A6c: a PARTIAL real form rendered a package - the partial refusal is dead"
+else
+  hasF 'PARTIALLY completed decision is not a decision' "$TMP/gen-real-partial.out" \
+    && ok "A6c: blanking ONE required leaf of the REAL completed family B form (entry 3 reviewer) is still refused - 'a PARTIALLY completed decision is not a decision' applies to the resolved forms too, not only to synthetic ones" \
+    || bad "A6c: unexpected refusal" "$(tail -1 "$TMP/gen-real-partial.out")"
+fi
 
 echo
 echo "=== B. Disposable cluster, migrations 001-028, hosted posture, tenant fixture"
@@ -260,15 +375,15 @@ const r=c.requested_inputs; r.run_key_literal.value=process.argv[3]; r.product_a
 wr("weight-time-five-entry-run-authority-form.json",c);
 ' "$FORMS_DIR" "$FORMS" "$NEW_KEY" && ok "D1: synthetic TEST-ONLY completed forms written to the scratch directory only (nothing under docs/ touched)" || bad "D1: form synthesis failed"
 # Generator refusals - each must exit non-zero for the named reason.
-TPL_BEFORE=$(cat "$TEMPLATE_DIR"/0*.sql docs/weight-time-five-entry-human-review.md | shasum -a 256 | awk '{print $1}')
+TPL_BEFORE=$(cat "$PKG_DIR"/0*.sql "$REVIEW_PAGE" "$RECORD" | shasum -a 256 | awk '{print $1}')
 if FIVE_ENTRY_FORMS_DIR="$FORMS" npx --no-install tsx "$GENERATOR" > "$TMP/gen-refuse-docs.out" 2>&1; then
   bad "D2: the generator WROTE test renderings under docs/ - the docs refusal is dead"
 else
   hasF 'test mode REFUSES to write under' "$TMP/gen-refuse-docs.out" && ok "D2: the generator REFUSES to write TEST-ONLY renderings under docs/ (exit non-zero, named reason)" \
     || bad "D2: generator refused for an unexpected reason" "$(tail -1 "$TMP/gen-refuse-docs.out")"
 fi
-TPL_AFTER=$(cat "$TEMPLATE_DIR"/0*.sql docs/weight-time-five-entry-human-review.md | shasum -a 256 | awk '{print $1}')
-[ "$TPL_AFTER" = "$TPL_BEFORE" ] && ok "D2b: the refused run left the seven templates and the review page byte-identical (digest ${TPL_BEFORE:0:12}...)" \
+TPL_AFTER=$(cat "$PKG_DIR"/0*.sql "$REVIEW_PAGE" "$RECORD" | shasum -a 256 | awk '{print $1}')
+[ "$TPL_AFTER" = "$TPL_BEFORE" ] && ok "D2b: the refused run left the seven committed renderings, the review page and the human-decision record byte-identical (digest ${TPL_BEFORE:0:12}...)" \
   || bad "D2b: the refused run modified the committed docs renderings" "$TPL_BEFORE -> $TPL_AFTER"
 mkdir -p "$TMP/forms-reject" && cp "$FORMS"/*.json "$TMP/forms-reject/"
 node -e 'const fs=require("fs");const p=process.argv[1];const a=JSON.parse(fs.readFileSync(p,"utf8"));a.entries[2].human_fields.decision="REJECT";fs.writeFileSync(p,JSON.stringify(a,null,2));' "$TMP/forms-reject/weight-time-five-entry-snapshot-review-form.json"
@@ -738,9 +853,13 @@ QD noguard "DROP SCHEMA exlib_disposable_fixture CASCADE" >/dev/null 2>&1
 if run_pkg noguard "$S1" "$TMP/noguard.out"; then bad "L1: a TEST-ONLY rendering RAN without the fixture marker"; else
   grep -qF 'refuses to run outside the disposable fixture' "$TMP/noguard.out" && ok "L1: without the disposable-fixture marker relation the TEST-ONLY stage-1 rendering refuses before any read - hosted has no such relation" || bad "L1: unexpected refusal" "$(grep -m2 ERROR "$TMP/noguard.out" | tr '\n' ' ')"; fi
 expect_eq "L2: the refused run changed nothing on that clone" "$VECTOR_SQL" "$V0" noguard
-if run_pkg noguard "$(stage_file "$TEMPLATE_DIR" 1)" "$TMP/template-run.out"; then bad "L3: a committed TEMPLATE package EXECUTED"; else
-  SENT_LINE=$(grep -n 'SELECT <<UNRESOLVED-TEMPLATE' "$(stage_file "$TEMPLATE_DIR" 1)" | cut -d: -f1)
-  grep -qE "01-snapshot-review.sql:${SENT_LINE}: ERROR:  syntax error at or near" "$TMP/template-run.out" && ok "L3: the committed stage-1 TEMPLATE fails at its FIRST statement (line $SENT_LINE, the deliberate sentinel) with a syntax error - non-executable by construction, before any read" || bad "L3: template failed for an unexpected reason" "$(grep -m2 ERROR "$TMP/template-run.out" | tr '\n' ' ')"; fi
+# RETARGET (W14-E): the committed stage 1 is now the REAL executable rendering,
+# so the non-executable-template claim is evaluated against the TEMPLATE the
+# pre-decision commit still holds. The claim is preserved, not weakened.
+PRE_S1=$(stage_file "$PRE_OUT" 1)
+if run_pkg noguard "$PRE_S1" "$TMP/template-run.out"; then bad "L3: a committed TEMPLATE package EXECUTED"; else
+  SENT_LINE=$(grep -n 'SELECT <<UNRESOLVED-TEMPLATE' "$PRE_S1" | cut -d: -f1)
+  grep -qE "01-snapshot-review.sql:${SENT_LINE}: ERROR:  syntax error at or near" "$TMP/template-run.out" && ok "L3 (RETARGET at $PRE_DECISION_COMMIT): the stage-1 TEMPLATE committed there fails at its FIRST statement (line $SENT_LINE, the deliberate sentinel) with a syntax error - blank forms were non-executable by construction, before any read" || bad "L3: template failed for an unexpected reason" "$(grep -m2 ERROR "$TMP/template-run.out" | tr '\n' ' ')"; fi
 expect_eq "L4: the template attempt changed nothing" "$VECTOR_SQL" "$V0" noguard
 
 echo
@@ -759,6 +878,92 @@ SAB_B=$(QD m029_sab "SET app.uid = '$U2'; SELECT public.deliver_catalog_exercise
 echo "$SAB_B" | grep -qF 'inconsistent prior Plank reconciliation' && ok "N6: and the F-E8 refusal is still present on that clone (the defect returns exactly when 029 is absent)" || bad "N6" "$SAB_B"
 
 echo
+echo "=== R. THE REAL LINE: the SEVEN COMMITTED executable packages, rendered from the COMPLETED human decision forms, executed in order on the migration-029 world"
+# This is the ONLY line in this script that executes the genuine committed
+# renderings and therefore the genuine human decisions. It runs on a throwaway
+# clone with the disposable-fixture marker DROPPED, because the real renderings
+# carry no fixture guard - so this clone is the closest local analogue of the
+# hosted world the operator will run the seven stages against.
+QT "CREATE DATABASE real7 TEMPLATE pre1 OWNER postgres" >/dev/null 2>&1 && ok "R0: a clone of the rebuilt post-W14 world captured for the real line" || bad "R0: real-line clone failed"
+QD real7 "DROP SCHEMA exlib_disposable_fixture CASCADE" >/dev/null 2>&1
+expect_eq "R0b: the disposable-fixture marker relation is ABSENT on the real line and the pre-state vector is the operator-reported $V0 - the committed renderings must run where no fixture exists" \
+  "SELECT (to_regclass('exlib_disposable_fixture.marker') IS NULL)::text||'/'||($VECTOR_SQL)" "true/$V0" real7
+psql -h "$SOCK" -U postgres -d real7 -X -v ON_ERROR_STOP=1 -q -f "$M029" > "$TMP/real-m029.out" 2>&1 \
+  && ok "R1: migration 029 applied FIRST on the real line, before any stage - the world the operator described: post-W14 plus 029 already applied" \
+  || bad "R1: 029 failed on the real line" "$(head -3 "$TMP/real-m029.out")"
+expect_eq "R1b: the live helper carries the exact-snapshot prior-run clause and 029 moved nothing: vector still $V0, historical run and authority baseline byte-identical" \
+  "SELECT (pg_get_functiondef('$HELPER_SIG'::regprocedure) LIKE '%pri.catalog_id = p_cat_id%')::text||'#'||($VECTOR_SQL)||'#'||($HIST_RUN_SQL)||'#'||($AUTH_SQL)" "true#$V0#$HIST_BEFORE#$AUTH_OK" real7
+REAL_VEC="$V1 $V2 $V2 $V2 $V2 $V6 $V6"
+RN=0; RFAIL=0
+for want in $REAL_VEC; do
+  RN=$((RN+1)); RF=$(stage_file "$PKG_DIR" "$RN")
+  if run_pkg real7 "$RF" "$TMP/real-stage-$RN.out"; then
+    GOTV=$(QD real7 "$VECTOR_SQL")
+    if [ "$GOTV" = "$want" ]; then ok "R2.$RN: the COMMITTED stage $RN ($(basename "$RF")) executed once and COMMITTED; vector $GOTV"
+    else RFAIL=$((RFAIL+1)); bad "R2.$RN: vector after the committed stage $RN" "expected [$want], got [$GOTV]"; fi
+  else
+    RFAIL=$((RFAIL+1)); bad "R2.$RN: the COMMITTED stage $RN FAILED" "$(grep -m3 -E 'ERROR|DETAIL|CONTEXT' "$TMP/real-stage-$RN.out" | tr '\n' ' ')"
+  fi
+done
+[ "$RFAIL" = "0" ] && ok "R2: all seven COMMITTED renderings executed in order, each exactly once, through the SAME stage vectors the control line proved ($V0 -> $V1 -> $V2 -> $V6)" || true
+expect_eq "R3: the five snapshots are approved carrying the GOVERNING family A tuple - $A_REVIEWER, $A_ROLE, decided at $DECISION_TS, with the exact approval rationale - and none is left pending" \
+  "SELECT (SELECT count(*) FROM public.exercise_catalog WHERE logical_id IN ($FIVE) AND is_active AND review_status='approved' AND reviewed_by='$A_REVIEWER' AND reviewed_at=TIMESTAMPTZ '$DECISION_TS' AND review_rationale='$A_RATIONALE')::text||'/'||(SELECT count(*) FROM public.exercise_catalog WHERE logical_id IN ($FIVE) AND review_status='pending')::text" "5/0" real7
+expect_eq "R3b: the five trigger-appended review events carry the same family A tuple (one pending -> approved transition per identity, the three historical events untouched)" \
+  "SELECT (SELECT count(*) FROM public.exercise_catalog_review_events e JOIN public.exercise_catalog c ON c.id=e.catalog_id WHERE c.logical_id IN ($FIVE) AND e.from_status='pending' AND e.to_status='approved' AND e.reviewed_by='$A_REVIEWER' AND e.reviewed_at=TIMESTAMPTZ '$DECISION_TS' AND e.review_rationale='$A_RATIONALE')::text||'/'||(SELECT count(*) FROM public.exercise_catalog_review_events)::text" "5/8" real7
+expect_eq "R4: the five content rows are approved carrying $B_REVIEWER's exact review tuple ($B_ROLE, $DECISION_TS, the verbatim rationale), admitted and published at the end of the order" \
+  "SELECT count(*)::text FROM public.exercise_catalog_content c WHERE c.logical_id IN ($FIVE) AND c.content_status='approved' AND c.reviewed_by='$B_REVIEWER' AND c.reviewed_at=TIMESTAMPTZ '$DECISION_TS' AND c.review_rationale='$B_RATIONALE' AND c.import_admitted AND c.publication_status='published'" "5" real7
+PINNED_REAL=$(grep -oE "'admitted_fingerprint', '[0-9a-f]{64}'" "$(stage_file "$PKG_DIR" 4)" | grep -oE '[0-9a-f]{64}' | tr '\n' ',' | sed 's/,$//')
+DB_REAL=$(QD real7 "SELECT string_agg(public.exlib_content_admission_fingerprint(c.id), ',' ORDER BY c.id) FROM public.exercise_catalog_content c WHERE c.logical_id IN ($FIVE)")
+STORED_REAL=$(QD real7 "SELECT string_agg(c.admitted_fingerprint, ',' ORDER BY c.id) FROM public.exercise_catalog_content c WHERE c.logical_id IN ($FIVE)")
+[ "$PINNED_REAL" = "$REAL_FPS" ] && [ "$DB_REAL" = "$REAL_FPS" ] && [ "$STORED_REAL" = "$REAL_FPS" ] \
+  && ok "R5: the five admission fingerprints agree three ways - PINNED in the committed stage-4 package (recomputed in TypeScript from the manifest before any database existed), STORED by the admission function, and RECOMPUTED by the database's own exlib_content_admission_fingerprint - and all three equal the values pinned in this script independently: ${REAL_FPS:0:16}..." \
+  || bad "R5: the real admission fingerprints disagree" "pinned=$PINNED_REAL stored=$STORED_REAL recomputed=$DB_REAL script=$REAL_FPS"
+DB_CTRL=$(Q "SELECT string_agg(public.exlib_content_admission_fingerprint(c.id), ',' ORDER BY c.id) FROM public.exercise_catalog_content c WHERE c.logical_id IN ($FIVE)")
+[ -n "$DB_CTRL" ] && [ -n "$DB_REAL" ] && [ "$DB_CTRL" != "$DB_REAL" ] \
+  && ok "R5b: POSITIVE CONTROL - the control line's five fingerprints (same content payload, same admission provenance, DIFFERENT reviewer tuple) differ from the real line's: ${DB_CTRL:0:16}... vs ${DB_REAL:0:16}... So the admission fingerprints are a deterministic FUNCTION of the family B review tuple, not a constant baked into the package" \
+  || bad "R5b: the two lines' fingerprints did not differ" "control=$DB_CTRL real=$DB_REAL"
+expect_eq "R6: the cumulative run carries the governing family C authority - product and legal approver $C_APPROVER at $DECISION_TS with the verbatim approval rationale - and is sealed, approved, non-dry and unrevoked" \
+  "SELECT count(*)::text FROM public.exercise_catalog_import_runs r WHERE r.run_key='$NEW_KEY' AND r.product_approved_by='$C_APPROVER' AND r.product_approved_at=TIMESTAMPTZ '$DECISION_TS' AND r.legal_approved_by='$C_APPROVER' AND r.legal_approved_at=TIMESTAMPTZ '$DECISION_TS' AND r.approval_rationale='$C_RATIONALE' AND r.approved_for_delivery AND r.sealed_at IS NOT NULL AND r.revoked_at IS NULL AND NOT r.dry_run" "1" real7
+expect_eq "R7: the sealed cumulative membership is EXACTLY 8 exercise + 3 alias rows, resolving through governed identity to the historical six lines plus the five weight_time identities (eleven lines)" \
+  "SELECT (SELECT count(*) FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs r ON r.id=ri.run_id WHERE r.run_key='$NEW_KEY' AND ri.catalog_id IS NOT NULL)::text||'/'||(SELECT count(*) FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs r ON r.id=ri.run_id WHERE r.run_key='$NEW_KEY' AND ri.catalog_alias_id IS NOT NULL)::text||E'\\n'||(SELECT string_agg(x.member, E'\\n' ORDER BY x.member) FROM (SELECT 'exercise#'||c.logical_id::text AS member FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs h ON h.id=ri.run_id JOIN public.exercise_catalog c ON c.id=ri.catalog_id WHERE h.run_key='$NEW_KEY' AND ri.catalog_id IS NOT NULL UNION ALL SELECT 'alias#'||a.logical_id::text||'#'||a.alias FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs h ON h.id=ri.run_id JOIN public.exercise_catalog_aliases a ON a.id=ri.catalog_alias_id WHERE h.run_key='$NEW_KEY' AND ri.catalog_alias_id IS NOT NULL) x)" \
+  "8/3
+$HIST_SIX
+exercise#$U132
+exercise#$U133
+exercise#$U137
+exercise#$U138
+exercise#$U139" real7
+psql -h "$SOCK" -U postgres -d real7 -X -v ON_ERROR_STOP=1 -qtA -F$'\t' -c \
+ "SELECT c.logical_id::text, c.id::text, c.content_version::text, c.authored_by, to_char(c.authored_at,'YYYY-MM-DD'), c.setup_steps::text, c.execution_steps::text, c.breathing_cue, c.common_mistakes::text, c.safety_guidance, c.equipment_setup, c.accessibility_alternative,
+         (SELECT count(*) FROM public.exercise_catalog_content_expected_relationships x WHERE x.content_id=c.id)::text
+    FROM public.exercise_catalog_content c WHERE c.logical_id IN ($FIVE) ORDER BY c.logical_id" > "$TMP/real-content.tsv" 2>"$TMP/real-content.err"
+if node "$TMP/content-readback.mjs" "$MANIFEST" "$TMP/real-content.tsv" > "$TMP/real-content-readback.log" 2>&1; then
+  ok "R7b: every content payload field read back out of the REAL line's database still recomputes to the five manifest content fingerprints ($(grep RESULT "$TMP/real-content-readback.log")) - the human decisions changed no instructional content"
+else bad "R7b: the real line's content readback does not match the manifest" "$(grep -m3 MISMATCH "$TMP/real-content-readback.log" | tr '\n' ' ')"; fi
+expect_eq "R8: exactly five draft loads, five content reviews, five admissions, five publications and ONE seal were called on the real line, deliver_catalog_exercises NEVER by any package; the delivery predicate now matches exactly two runs (historical + cumulative)" \
+  "SELECT ($CALLS_SQL)||'#'||(SELECT count(*) FROM public.exercise_catalog_import_runs WHERE approved_for_delivery AND NOT dry_run AND sealed_at IS NOT NULL AND revoked_at IS NULL)::text" "5/5/5/5/1/0#2" real7
+expect_eq "R9: across all seven REAL renderings the historical plank run and its six members, the entire plank world outside the five, every tenant surface and the authority baseline are byte-identical to the pre-stage captures" \
+  "SELECT ($HIST_RUN_SQL)||'#'||($PLANK_WORLD_SQL)||'#'||($TENANT_SQL)||'#'||($AUTH_SQL)" "$HIST_BEFORE#$PLANK_BEFORE#$TENANT_BEFORE#$AUTH_OK" real7
+P_REAL=$(probe real7)
+[ "$(echo "$P_REAL" | grep -c '|APPLIED|')" = "8" ] && echo "$P_REAL" | grep -qx "0|catalog_vector|INFO|$V6" && echo "$P_REAL" | grep -qx '0|migration_029_plank_cross_run_idempotency|APPLIED|.*' \
+  && ok "R10: the read-only probe reads all SEVEN stages APPLIED plus migration_029 APPLIED (eight APPLIED rows) and the vector $V6 on the real line - the same instrument the operator will read hosted state with" \
+  || bad "R10: probe on the real line unexpected" "$(echo "$P_REAL" | tr '\n' ' ')"
+URA=$(QD real7 "INSERT INTO auth.users DEFAULT VALUES RETURNING id;")
+RDEL=$(QD real7 "SET app.uid = '$URA'; SELECT (public.deliver_catalog_exercises('$NEW_KEY') IS NOT DISTINCT FROM (jsonb_build_object('run_key','$NEW_KEY','eligible',8,'inserted',8,'skipped_already_delivered',0,'skipped_name_collision',0,'collision_names','[]'::jsonb,'alias_inserted',3,'alias_added_to_existing',0,'alias_already_delivered',0,'alias_skipped_no_exercise',0,'alias_skipped_inactive_exercise',0,'alias_skipped_collision',0,'inserted_catalog_logical_ids',$NEW_IDS_ORDERED,'plank_disposition','delivered_canonical_timed_plank')))::text")
+[ "$RDEL" = "true" ] && ok "R11: a fresh user on the REAL line receives the complete cumulative release in one call - eligible 8, inserted 8, alias_inserted 3, every other counter 0, plank_disposition delivered_canonical_timed_plank: the release the committed packages stage is deliverable, byte-for-byte the same summary the control line derived" \
+  || bad "R11: the real line's fresh-user delivery differs" "$RDEL $(QD real7 "SET app.uid = '$URA'; SELECT public.deliver_catalog_exercises('$NEW_KEY')::text" | head -c 400)"
+SHAPE_SQL="SELECT md5(coalesce((SELECT string_agg(c.logical_id::text||'|'||c.canonical_name||'|'||c.tracking_mode||'|'||c.laterality||'|'||c.catalog_version::text||'|'||c.review_status||'|'||c.is_active::text, ',' ORDER BY c.logical_id, c.catalog_version) FROM public.exercise_catalog c),'-')||coalesce((SELECT string_agg(k.logical_id::text||'|'||k.id::text||'|'||k.content_version::text||'|'||k.content_status||'|'||k.publication_status||'|'||k.import_admitted::text||'|'||coalesce(k.admitted_source_sha256,'-'), ',' ORDER BY k.id) FROM public.exercise_catalog_content k),'-')||coalesce((SELECT string_agg(r.run_key||'|'||r.approved_for_delivery::text||'|'||(r.sealed_at IS NOT NULL)::text||'|'||r.dry_run::text||'|'||(r.revoked_at IS NULL)::text, ',' ORDER BY r.run_key) FROM public.exercise_catalog_import_runs r),'-')||coalesce((SELECT string_agg(y.line, ',' ORDER BY y.line) FROM (SELECT h.run_key||'>exercise#'||c.logical_id::text AS line FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs h ON h.id=ri.run_id JOIN public.exercise_catalog c ON c.id=ri.catalog_id UNION ALL SELECT h.run_key||'>alias#'||a.logical_id::text||'#'||a.alias FROM public.exercise_catalog_run_items ri JOIN public.exercise_catalog_import_runs h ON h.id=ri.run_id JOIN public.exercise_catalog_aliases a ON a.id=ri.catalog_alias_id) y),'-')||coalesce((SELECT string_agg(rel.from_logical_id::text||'|'||rel.relation||'|'||rel.to_logical_id::text, ',' ORDER BY rel.from_logical_id, rel.relation, rel.to_logical_id) FROM public.exercise_catalog_relationships rel),'-')||coalesce((SELECT string_agg(al.logical_id::text||'|'||al.alias, ',' ORDER BY al.logical_id, al.alias) FROM public.exercise_catalog_aliases al),'-')||coalesce((SELECT string_agg(mu.catalog_id::text||'|'||mu.muscle||'|'||mu.role, ',' ORDER BY mu.catalog_id, mu.muscle) FROM public.exercise_catalog_muscles mu),'-'))"
+SHAPE_REAL=$(QD real7 "$SHAPE_SQL"); SHAPE_CTRL=$(Q "$SHAPE_SQL")
+[ -n "$SHAPE_REAL" ] && [ "$SHAPE_REAL" = "$SHAPE_CTRL" ] \
+  && ok "R12: the GOVERNED SHAPE of the two independent lines is identical ($SHAPE_REAL) - identity, tracking mode, laterality, version, review status, content ids/versions/status/publication/admission provenance, run keys and their seal posture, resolved membership, relationships, aliases and anatomy all match. The lines differ ONLY where a human decision string enters the record (the tuples themselves and the fingerprints derived from them, R5b), so the real decisions changed the AUDIT RECORD and nothing else" \
+  || bad "R12: the two lines' governed shape differs" "real=$SHAPE_REAL control=$SHAPE_CTRL"
+MARKS_SQL="SELECT (SELECT count(*) FROM public.exercise_catalog WHERE coalesce(reviewed_by,'')||coalesce(review_rationale,'') LIKE '%TEST-ONLY%')::text||'/'||(SELECT count(*) FROM public.exercise_catalog_content WHERE coalesce(reviewed_by,'')||coalesce(review_rationale,'')||coalesce(authored_by,'') LIKE '%TEST-ONLY%')::text||'/'||(SELECT count(*) FROM public.exercise_catalog_import_runs WHERE coalesce(product_approved_by,'')||coalesce(legal_approved_by,'')||coalesce(approval_rationale,'') LIKE '%TEST-ONLY%')::text||'/'||(SELECT count(*) FROM public.exercise_catalog_review_events WHERE coalesce(reviewed_by,'')||coalesce(review_rationale,'') LIKE '%TEST-ONLY%')::text"
+MARKS_REAL=$(QD real7 "$MARKS_SQL"); MARKS_CTRL=$(Q "$MARKS_SQL")
+[ "$MARKS_REAL" = "0/0/0/0" ] && [ "$MARKS_CTRL" != "0/0/0/0" ] \
+  && ok "R13: not one recorded human string on the real line carries the synthetic marker (snapshots/content/runs/events = $MARKS_REAL), while the same detector finds the control line's synthetic decisions everywhere ($MARKS_CTRL) - so R13's zero is a measured absence, not a blind spot" \
+  || bad "R13: marker census unexpected" "real=$MARKS_REAL control=$MARKS_CTRL"
+
+echo
 echo "=== M. No hosted contact, ever"
 HOSTPAT='supabase[.](co|com)|vercel[.](app|com)|[-][-]db[-]url|[-][-]linked|project[-]ref|db[ ](push|dump)|npx[ ]supabase|supabase[ ](db|projects|link|login)'
 HOSTHITS=$(awk -v pat="$HOSTPAT" 'tolower($0) ~ pat {n++} END{print n+0}' "$0")
@@ -773,7 +978,7 @@ BADPOS=$(printf '%s\n' "${C} -h db.example.com -U postgres" "${K} -D /var/lib/pg
 git -C . status --porcelain -- docs scripts > "$TMP/porcelain-final.txt"
 FINAL_PORC=$(grep -vE '^\?\? |^ M |^A  |^M  ' "$TMP/porcelain-final.txt" | wc -l | tr -d ' ')
 ok "M3: no TEST-ONLY rendering was written under docs/ (the generator refused D2; every executable rendering lives under $TMP and is destroyed on exit)"
-ok "M4: NOTHING HOSTED WAS TOUCHED. No Supabase contact, no Supabase CLI, no Vercel contact, no push. Migration 029 was applied ONLY to disposable local clusters destroyed on exit. Every human decision used here was SYNTHETIC and marked TEST-ONLY; the committed forms remain blank. No production review, publication, delivery or approval occurred or is implied."
+ok "M4: NOTHING HOSTED WAS TOUCHED. No Supabase contact, no Supabase CLI, no Vercel contact, no push. Migration 029 was applied ONLY to disposable local clusters destroyed on exit. Every human decision on the CONTROL line was SYNTHETIC and marked TEST-ONLY; the REAL line (section R) executed the genuine committed packages, carrying the governing human decisions, against a disposable clone only. No production review, publication, delivery or approval occurred or is implied."
 
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
