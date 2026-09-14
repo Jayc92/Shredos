@@ -13,14 +13,16 @@ recorded with the exit code that produced each verdict.
 
 | Item | Value |
 | --- | --- |
-| final candidate SHA (every gate in section 3 was measured here) | `f14683ea7f86f515d8388ca6483d7fce938f5b57` |
-| final candidate tree | `b69ac9427bebd77cea86ef6919434372288f7d27` |
+| measured candidate SHA - the last fully gated commit before this bundle was frozen, where sections 3.1 to 3.6 were measured | `f14683ea7f86f515d8388ca6483d7fce938f5b57` |
+| measured candidate tree | `b69ac9427bebd77cea86ef6919434372288f7d27` |
+| the FINAL candidate (branch tip) | NOT stateable here: it is this bundle's own commit or a successor of it, and a document cannot state a SHA that depends on its own bytes. The tip SHA and tree are delivered in the round's final report (section 3.7). CORRECTED forward: the first two rows of this table were headed "final candidate", which stopped being true the moment a successor commit existed; amending was not available, so the correction is a plain-forward commit. |
 | this bundle's own commit | the plain-forward freeze commit after `f14683e`; a document cannot state its own SHA. That commit changes exactly two files - this bundle and the endgame static verifier that adds D16, the check which binds this bundle to the tree (section 3.7) - which `git show --stat` proves and the change-surface census (endgame static B6) admits by name. CORRECTED forward: this row first said "ONLY change is this file", which contradicted section 3.7; amending was not available, so the correction is this commit. |
 | branch | `feature/weight-time` (local only, NOT pushed, NOT tagged) |
 | required starting commit | `9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8` (tree `c9ead021907af098a1467b6cc7bad7a2eabdcf79`) - confirmed ancestor |
-| commits added over the required starting commit | 4 gated commits plus this freeze commit, plain forward only: `5f0255b` (forms), `8abf870` (generator + rendered packages + decision record), `8f6b46c` (static and live verification), `f14683e` (operator-facing status documents) |
+| commits added over the required starting commit | plain forward only, in order: `5f0255b` (forms), `8abf870` (generator + rendered packages + decision record), `8f6b46c` (static and live verification), `f14683e` (operator-facing status documents), then this bundle's freeze commit and its successors |
+| successors of the freeze commit | `7ade5c4df7eaa419a93297fddf3e29c0dc275509` (tree `20e0cc3db2a91ba7bb3579da3de11f91597eb7a0`) corrected the freeze-commit row above; `b579a43d17bd13b82937b2f941e92fd0347a2c82` (tree `4242ca7efc7a42944096d1dcf5bd15ffc45df3c2`) fixed a TS2802 compile error D16 itself introduced (found by re-running type-check in a clean clone, not by reading the code) and recorded that finding in the endgame report; and this correction commit, which no document can name. The enumeration cannot be complete, so the standing claim is the one that does not go stale: **every successor is a plain-forward local commit that touches no form, no package, no decision record, no manifest and no migration, and D16 recomputes every machine value in this bundle FROM THE TREE on every run - so a successor that invalidated one of them would fail the gate rather than pass silently.** |
 | history operations used | none: no amend, no rebase, no squash, no merge, no push, no tag |
-| change surface | 19 paths, all under `docs/weight-time-five-entry-*` and `scripts/*five-entry*`; 0 paths under `src/`; 0 paths under `supabase/` |
+| change surface | measured at the last gated commit `f14683e`: 19 paths, all under `docs/weight-time-five-entry-*` and `scripts/*five-entry*`; 0 paths under `src/`; 0 paths under `supabase/`. The freeze commit added this bundle as the 20th path and every successor stays inside that same set - which is not a promise, it is what the endgame static change-surface census (B6) enforces against its allowlist on every run |
 
 Migrations 026, 027, 028 and 029 are byte-identical to the pre-decision commit (blob ids
 `96a8b070b77b`, `48722966736e`, `8a1964609cf9`, `8f96f3384daf`); 026, 027 and 028 are additionally
