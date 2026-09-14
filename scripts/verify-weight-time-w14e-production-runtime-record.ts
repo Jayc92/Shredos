@@ -40,7 +40,10 @@
 //      and not any package assembled outside the repository for review. The
 //      absence of passwords, API keys, bearer tokens and other NON-EMAIL
 //      credential material is an AUTHORSHIP COMMITMENT that this verifier
-//      does not mechanize; check A18d holds the record to that same limit.
+//      does not mechanize; check A18d holds the record to that same limit,
+//      and check A18e rejects any sentence that claims such proof in other
+//      words. Neither check inspects a password, a key or a token: they
+//      police the CLAIM, which is the only part a byte reader can see.
 //
 // Run from the repository root:
 //   npx tsx scripts/verify-weight-time-w14e-production-runtime-record.ts
@@ -435,12 +438,21 @@ function assertRecord(world: World, findings: Finding[]): void {
   // guard an author walks around without noticing. It is scoped to the
   // initialization/refresh subject so ordinary prose that happens to say
   // "second" is left alone.
-  const ORDINAL_LANGUAGE = /\b(second|2nd|number two|twice|invocation count|initialization count)\b/i
-  const INITIALIZATION_SUBJECT = /(\binitiali[sz]ation\b|\binitiali[sz]ed\b|\brefresh\b|\binvocation\b|\/workouts)/i
+  // Both halves are FAMILIES, not spellings. The ordinal side covers the word,
+  // the digit, "number two", "ran twice", the bare cardinal, "both", "the
+  // latter", "again", a named count, and the COUNT-PAIR shape "once ... and
+  // ... once" — an author who writes "there were two initializations" has made
+  // exactly the claim "it was the second one" makes. The subject side is
+  // PLURAL-TOLERANT, because the plural is where the count naturally lives.
+  // /workouts is deliberately NOT a subject discriminator: it names a request
+  // route, not an initialization, so route-review prose such as "a second
+  // review of the /workouts logs" was a FALSE POSITIVE of the round-2 guard.
+  const ORDINAL_LANGUAGE = /(\b(second|2nd|number two|twice|two|both|latter|again|invocation count|initialization count)\b|\bonce\b[^.]{0,60}\b(and|then)\b[^.]{0,30}\bonce\b)/i
+  const INITIALIZATION_SUBJECT = /(\binitiali[sz]ations?\b|\binitiali[sz]ed\b|\binvocations?\b|\brefresh\b)/i
   const ordinalSentences = sentences.filter((sentence) =>
     ORDINAL_LANGUAGE.test(sentence) && INITIALIZATION_SUBJECT.test(sentence))
   const ordinalClaims = ordinalSentences.filter((sentence) => !NEGATION.test(sentence))
-  add('A13h structurally, no sentence asserts an initialization ORDINAL or COUNT — "the second", "the 2nd", "number two" and "ran twice" are all rejected unless the sentence disclaims the ordinal',
+  add('A13h structurally, no sentence asserts an initialization ORDINAL or COUNT — the word, the digit, "number two", "ran twice", "two initializations", "both", "the latter" and the count pair "once ... and ... once" are all rejected unless the sentence disclaims the ordinal; the subject is the initialization / invocation / refresh noun, never the /workouts route',
     ordinalClaims.length === 0, ordinalClaims[0])
 
   // ── A14 the uncaptured counters may appear ONLY inside a disclaimer ──
@@ -511,6 +523,24 @@ function assertRecord(world: World, findings: Finding[]): void {
     /The mechanical check covers email-shaped strings across all four paths/i.test(prose)
     && /absence of identifiers, passwords, API keys, bearer tokens and other non-email credential material is an AUTHORSHIP COMMITMENT that this verifier does not mechanize/i.test(prose)
     && !/That is the exact scope the verifier proves/i.test(prose))
+  // A18d forbids ONE sentence. The over-claim it removed can return in
+  // paraphrase — "the verifier proves that no password or API key appears" —
+  // so A18e forbids the SHAPE: a mechanized-proof subject, a proof verb and a
+  // NON-EMAIL credential noun in one sentence, unless the sentence carries an
+  // explicit limitation. The record's own authorship-commitment wording names
+  // the same nouns and passes, because it carries "does not mechanize" and
+  // claims no proof verb at all.
+  const MECHANIZED_PROOF_SUBJECT = /\b(verifier|mechanical check|the scan|this check)\b/i
+  const PROOF_VERB = /\b(proves|proved|proven|verifies|verified|guarantees|guaranteed|confirms|confirmed|establishes|established|demonstrates)\b/i
+  const NON_EMAIL_CREDENTIAL_NOUN = /\b(passwords?|passwd|API keys?|bearer tokens?|secrets?|credentials?|credential material)\b/i
+  const CREDENTIAL_LIMITATION = /(does not mechanize|do not mechanize|not mechanized|does not prove|cannot prove|does not establish|does not extend|AUTHORSHIP COMMITMENT)/i
+  const credentialProofOverclaims = sentences.filter((sentence) =>
+    MECHANIZED_PROOF_SUBJECT.test(sentence)
+    && PROOF_VERB.test(sentence)
+    && NON_EMAIL_CREDENTIAL_NOUN.test(sentence)
+    && !CREDENTIAL_LIMITATION.test(sentence))
+  add('A18e structurally, no sentence claims this verifier MECHANICALLY PROVES the absence of non-email credential material — a mechanized-proof subject plus a proof verb plus a password / API key / bearer token / secret / credential noun is rejected unless the sentence carries an explicit limitation such as "does not mechanize"',
+    credentialProofOverclaims.length === 0, credentialProofOverclaims[0])
 
   // ── A26 the initial failure's causality boundary ──
   add('A26a the record states the initial attempt established only that the key did not identify a sealed, approved, unrevoked run',
@@ -533,12 +563,28 @@ function assertRecord(world: World, findings: Finding[]): void {
   // because "it had no bearing on this run" is exactly as unsupported as
   // "it caused the mismatch". Hedged prose survives: the record states the
   // question is NOT ESTABLISHED, and that sentence has to stay legal.
+  // The DISCRIMINATOR IS THE FAILURE, not the alleged cause. Round 2 enumerated
+  // ways of saying "whitespace", and a trailing newline, a tab character and a
+  // "stray invisible character" all walked through — an enumerated cause list
+  // can always be renamed. Selecting on the SECTION-3 FAILURE as well means
+  // any unhedged causal attribution about that failure is rejected whatever
+  // the alleged cause is called; the trim family stays because the anti-causal
+  // direction ("the untrimmed return had no bearing") talks about the trim
+  // behaviour without naming the failure at all.
   const TRIM_SUBJECT = /\b(whitespace|trailing space|leading space|blank character|padding|untrimmed|trim(?:s|med|ming)?)\b/i
+  // The POSSESSIVE form "section 3's failure" is deliberately NOT a subject
+  // here. It was tried, and the acceptance controls rejected it: section 9
+  // says the live delivery body is 028's, "which is why section 3's failure
+  // TEXT is bound to 028" — provenance of the quoted string, not a claim about
+  // what caused the failure. Widening to catch the possessive turned that
+  // honest sentence into a violation, so the enumerated forms stay as they are.
+  const FAILURE_SUBJECT = /(initial mismatch|the mismatch|initial attempt|first attempt|first delivery attempt|failed attempt|initial (configuration )?failure|initial rejection|section 3 failure|this run)/i
   const CAUSAL_LANGUAGE = /\b(caused|causes|was the cause|because of|due to|responsible for|explains why|explains|is why|attributable to|broke|breaks|no bearing|no effect|irrelevant to|diagnosis|did not cause|was not the cause|had no effect|defect that affected)\b/i
   const HEDGE = /\b(NOT ESTABLISHED|not captured|neither|nor|candidate|unresolved|whether|would)\b/i
-  const trimSentences = sentences.filter((sentence) => TRIM_SUBJECT.test(sentence))
-  const settledCausality = trimSentences.filter((sentence) => CAUSAL_LANGUAGE.test(sentence) && !HEDGE.test(sentence))
-  add('A26f structurally, no sentence settles trim/spacing causality in EITHER direction — asserting a trailing space caused the failure and asserting the untrimmed return had no bearing are both rejected, whatever words the claim uses',
+  const causalityCandidates = sentences.filter((sentence) =>
+    TRIM_SUBJECT.test(sentence) || FAILURE_SUBJECT.test(sentence))
+  const settledCausality = causalityCandidates.filter((sentence) => CAUSAL_LANGUAGE.test(sentence) && !HEDGE.test(sentence))
+  add('A26f structurally, no sentence settles the Section-3 failure\'s causality in EITHER direction — any sentence naming the trim/spacing family OR the initial mismatch/attempt/failure itself is rejected if it carries unhedged causal or anti-causal language. The coverage is those two subject families crossed with the enumerated causal verbs, and no more than that',
     settledCausality.length === 0, settledCausality[0])
 
   // ── A27 the review-time readback, kept distinct from the original query ──
@@ -578,13 +624,22 @@ function assertRecord(world: World, findings: Finding[]): void {
   // sentences survive; it cannot notice a sentence added ALONGSIDE them that
   // credits the immediate post-refresh query with the enumeration, which is
   // the contradiction that matters — the record would then say both things.
+  // Enumeration is detected three ways, because the phrase list alone was
+  // walkable: "already listed every identifier it found" and "gave the eight
+  // logical ids" both escaped round 2, and so did the strongest form of the
+  // claim — naming the frozen logical-ID literals outright. A sentence that
+  // SPELLS a frozen logical id IS an enumeration whatever verb introduces it.
   const ENUMERATION_LANGUAGE = /(enumerat\w*|exactly those|listed the ids|listed the identit\w*|returned[^.]{0,80}(logical id|alias id|identity set))/i
+  const ENUMERATION_VERB_NEAR_IDENTITY = /\b(list|lists|listed|give|gives|gave|name|names|named|show|shows|showed|return|returns|returned|report|reports|reported)\b[^.]{0,60}\b(identifier|identifiers|logical ids?|alias ids?|identity sets?|ids)\b/i
+  const FROZEN_LOGICAL_ID_LITERAL = /e21b2c00-[0-9a-f-]+/i
   const ORIGINAL_READBACK_LANGUAGE = /(immediate post-refresh|original query|original readback|post-refresh query|post-refresh readback|earlier readback|first readback)/i
   const misattributedEnumeration = sentences.filter((sentence) =>
-    ENUMERATION_LANGUAGE.test(sentence)
+    (ENUMERATION_LANGUAGE.test(sentence)
+      || ENUMERATION_VERB_NEAR_IDENTITY.test(sentence)
+      || FROZEN_LOGICAL_ID_LITERAL.test(sentence))
     && ORIGINAL_READBACK_LANGUAGE.test(sentence)
     && !NEGATION.test(sentence))
-  add('A27h structurally, no sentence credits the immediate post-refresh / original readback with ENUMERATING the identity sets — that enumeration belongs only to the later REVIEW-TIME READBACK',
+  add('A27h structurally, no sentence credits the immediate post-refresh / original readback with ENUMERATING the identity sets — detected by the enumeration phrases, by an enumeration verb within 60 characters of an identity noun, or by a frozen logical-ID literal appearing beside original-readback provenance. That is the coverage; it is not a general paraphrase detector',
     misattributedEnumeration.length === 0, misattributedEnumeration[0])
 
   // ── A19 the deferred hardening observation ──
@@ -1012,6 +1067,70 @@ function runRecordControls(baseline: World): void {
       expect: 'A18d',
       mutate: (w) => { w.record = w.record.replace(/The\s+mechanical\s+check\s+covers\s+email-shaped\s+strings\s+across\s+all\s+four\s+paths/i, 'That is the exact scope the verifier proves') },
     },
+    // ── correction round 3: the claims that walked through the round-2 ──
+    // ── guards. Each sentence below was measured PASSING against the   ──
+    // ── round-2 selectors; each must now fail, and each stays here so  ──
+    // ── that re-narrowing a selector shows up as a dead control.       ──
+    {
+      label: 'NC-ADD: the mismatch attributed to a TRAILING NEWLINE — a cause the trim word-list never named',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nA trailing newline in the configured value caused the initial mismatch.\n' },
+    },
+    {
+      label: 'NC-ADD: the first attempt attributed to a TAB CHARACTER',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nA tab character in the configured key is what broke the first attempt.\n' },
+    },
+    {
+      label: 'NC-ADD: the failure attributed to a STRAY INVISIBLE CHARACTER — no spacing vocabulary at all',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nA stray invisible character at the end of the configured value is why the first delivery attempt failed.\n' },
+    },
+    {
+      label: 'NC-ADD: the initial rejection attributed to BAD SPACING in the environment variable',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nBad spacing in the environment variable was responsible for the initial rejection.\n' },
+    },
+    {
+      label: 'NC-ADD: the anti-causal direction as HAD NO EFFECT ON THIS RUN — settled exoneration in other words',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nThe extra character at the end of the value had no effect on this run.\n' },
+    },
+    {
+      label: 'NC-ADD: the count asserted as a PAIR OF ONCES — the ordinal without an ordinal word',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nInitialization ran once during onboarding and once at the controlled refresh.\n' },
+    },
+    {
+      label: 'NC-ADD: the count asserted in the PLURAL — two initializations in total',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nThere were two initializations in total for this tenant.\n' },
+    },
+    {
+      label: 'NC-ADD: the ordinal asserted as THE LATTER OF THE TWO initializations',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nThe controlled refresh was the latter of the two initializations.\n' },
+    },
+    {
+      label: 'NC-ADD: the original query credited with having ALREADY LISTED EVERY IDENTIFIER',
+      expect: 'A27h',
+      mutate: (w) => { w.record += '\n\nThe immediate post-refresh query already listed every identifier it found.\n' },
+    },
+    {
+      label: 'NC-ADD: the original query credited with having GAVE THE EIGHT LOGICAL IDS',
+      expect: 'A27h',
+      mutate: (w) => { w.record += '\n\nThe original query gave the eight logical ids and the three alias ids.\n' },
+    },
+    {
+      label: 'NC-ADD: the original readback credited with the FROZEN LOGICAL-ID LITERALS themselves — the strongest form of the claim',
+      expect: 'A27h',
+      mutate: (w) => { w.record += '\n\nThe immediate post-refresh readback showed e21b2c00-0000-4000-a000-000000000001 through e21b2c00-0000-4000-a000-000000000008.\n' },
+    },
+    {
+      label: 'NC-ADD: the credential over-claim returning as a PARAPHRASE — the verifier proves no password, API key or bearer token appears',
+      expect: 'A18e',
+      mutate: (w) => { w.record += '\n\nThe verifier proves that no password, API key or bearer token appears in any of the four paths.\n' },
+    },
   ]
 
   for (const control of controls) {
@@ -1034,6 +1153,61 @@ function runRecordControls(baseline: World): void {
     const collateral = findings.filter((f) => !f.ok && !f.name.startsWith(control.expect)).length
     check(`${control.label} -> rejected by ${control.expect}${collateral > 0 ? ` (and ${collateral} further assertion${collateral === 1 ? '' : 's'})` : ''}`,
       rejected, `${control.expect} still PASSED on the corrupted record — that pin is dead`)
+  }
+}
+
+/**
+ * Widening a guard is only half the work: a guard that also rejects HONEST
+ * prose pushes an author toward saying less than they know, which is the same
+ * evidentiary loss in the other direction. These controls append sentences
+ * that MUST remain legal and require the ENTIRE assertion set to stay clean —
+ * not merely the guard that was widened, because a false positive is just as
+ * likely to land somewhere else.
+ */
+function runAcceptanceControls(baseline: World): void {
+  const acceptances: Array<{ label: string; sentence: string }> = [
+    {
+      label: 'hedged Section-3 causality — the question marked NOT ESTABLISHED',
+      sentence: 'Whether whitespace caused the mismatch is NOT ESTABLISHED.',
+    },
+    {
+      label: 'hedged Section-3 causality — whitespace offered as one candidate cause',
+      sentence: 'Whitespace is one candidate cause among several.',
+    },
+    {
+      label: 'hedged Section-3 causality — the relationship left UNRESOLVED in either direction',
+      sentence: 'Whether the untrimmed return had any bearing on the initial attempt remains UNRESOLVED.',
+    },
+    {
+      label: 'route-review prose — a second review of the /workouts logs is not an initialization ordinal',
+      sentence: 'A second review of the /workouts logs was performed on the operator path.',
+    },
+    {
+      label: 'the later-initialization disclaimer — invocation number two explicitly not claimed',
+      sentence: `The controlled refresh at ${SECOND_REQUEST_AT} is not claimed to be invocation number two.`,
+    },
+    {
+      label: 'the honest cardinality-only original readback — counted, did not enumerate',
+      sentence: 'The immediate post-refresh query established a cardinality only, and did not enumerate which identifiers were present.',
+    },
+    {
+      label: 'the review-time enumeration — enumerating identities is legal for the LATER readback',
+      sentence: 'The review-time readback listed the eight logical ids and the three catalog alias ids.',
+    },
+    {
+      label: 'the A18 authorship commitment — the same credential nouns, carried as a limitation',
+      sentence: 'The absence of passwords, API keys and bearer tokens in the four paths is an authorship commitment that this verifier does not mechanize.',
+    },
+  ]
+
+  for (const acceptance of acceptances) {
+    const world: World = { record: `${baseline.record}\n\n${acceptance.sentence}\n` }
+    const findings: Finding[] = []
+    assertRecord(world, findings)
+    const broken = findings.filter((finding) => !finding.ok)
+    check(`AC ${acceptance.label} -> still accepted, all ${findings.length} assertions clean`,
+      broken.length === 0,
+      broken.length === 0 ? undefined : `FALSE POSITIVE: ${broken.map((b) => b.name.split(' ')[0]).join(', ')} rejected legitimate prose — ${acceptance.sentence}`)
   }
 }
 
@@ -1101,6 +1275,9 @@ function main(): number {
 
   console.log('\n— Negative controls: every pin must reject the corruption it targets')
   runRecordControls(baseline)
+
+  console.log('\n— Acceptance controls: the widened guards must still accept honest prose')
+  runAcceptanceControls(baseline)
 
   console.log('\n— Pin ablations: every byte and tree pin must be demonstrably live')
   runPinAblations()
