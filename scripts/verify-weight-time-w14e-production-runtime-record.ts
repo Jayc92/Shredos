@@ -4,8 +4,8 @@
 // The W14-E hosted delivery lifecycle HAS RUN against Production. This
 // verifier does not re-prove the lifecycle (the endgame verifier governs the
 // packages) and it does not re-read hosted state — it CANNOT: the only
-// external command it spawns is git, and check X12 proves that about its own
-// source.
+// external command it spawns is git, and checks X9a/X9b prove that about its
+// own source.
 //
 // What it proves is that the durable runtime evidence record tells the truth
 // about the bytes it describes, and that recording the runtime act disturbed
@@ -17,16 +17,27 @@
 //      uncaptured RPC-summary counters may appear ONLY inside a sentence that
 //      disclaims them; a record that quietly starts reporting
 //      skipped_already_delivered as an observed value fails here.
-//   2. RECORD FIDELITY. Every identity, name, equipment mapping, alias,
-//      digest, size, run key, commit and tree in the record is re-derived
-//      FROM THE TREE and compared. Nothing is a retyped constant that could
-//      drift into a comfortable summary of itself.
+//   2. RECORD FIDELITY, WITHIN THE LIMIT OF A GIT-ONLY VERIFIER. Every
+//      TREE-DERIVABLE value in the record — identities, names, equipment
+//      mappings, aliases, digests, sizes, the run key, commits, trees — is
+//      re-derived FROM THE TREE and compared, so none of them can drift into
+//      a comfortable summary of itself. Operator-supplied values (the
+//      corrective deployment id, the hosted timestamps, the hosted readback
+//      figures, the alias and import-run ids from the review-time readback)
+//      are a different thing: they are pinned here as literals so that
+//      TRANSCRIPTION DRIFT is caught, but this verifier cannot confirm them
+//      against any hosted system and does not claim to. Their truth rests on
+//      the operator path, and the record labels them accordingly.
 //   3. THE FAILURE TEXT IS REPRODUCIBLE. The operator-supplied failure string
 //      is the composition of two halves that are still readable here, at the
 //      SAME git blobs as the deployed source commit. That is what turns a
 //      quoted error message into evidence.
-//   4. NO CREDENTIAL MATERIAL. The record carries no email address and no
-//      credential value.
+//   4. NO CREDENTIAL MATERIAL. None of the four paths this round changed
+//      carries an email-shaped string. That includes this file: its own
+//      synthetic negative-control address is assembled from fragments at
+//      runtime, so an honest scan of this source finds nothing. The scope is
+//      file CONTENTS — not Git author metadata, and not any package
+//      assembled outside the repository for review.
 //
 // Run from the repository root:
 //   npx tsx scripts/verify-weight-time-w14e-production-runtime-record.ts
@@ -69,6 +80,36 @@ const SECOND_REQUEST_AT = '2026-09-14T15:32:35Z'
 const MIGRATION_029_HOSTED_RECORD = '20260912181551_exlib_plank_cross_run_idempotency_029'
 
 /** The historical run key that is forbidden forever. */
+/**
+ * REVIEW-TIME READBACK — operator-supplied, read-only, performed on the
+ * operator path AFTER 66548fd was presented for review. Pinned here so a
+ * later edit cannot silently perturb a digit; NOT independently confirmable
+ * by a git-only verifier, and not claimed to be.
+ */
+/**
+ * One email-shaped pattern, used to scan the CONTENTS of all four paths this
+ * round changed. A regex is not itself email-shaped, so this line does not
+ * defeat the check it implements.
+ */
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
+
+/**
+ * The synthetic address used by the credential negative control, ASSEMBLED
+ * from fragments rather than spelled out. Writing it literally would put an
+ * email-shaped string in this file and make A18a.verifier unpassable — a check
+ * you can only satisfy by weakening it is not a check. The domain is an
+ * RFC 2606 reserved name, so it can never belong to anyone.
+ */
+const syntheticEmailFixture = (): string =>
+  ['w14e', '-', 'smoke', '-', 'fixture', String.fromCharCode(64), 'example', '.', 'invalid'].join('')
+
+const REVIEW_READBACK_IMPORT_RUN_ID = '29fa5437-7e5b-4241-ad82-58b5851ffe95'
+const REVIEW_READBACK_ALIAS_IDS: Array<{ alias: string; catalogAliasId: string }> = [
+  { alias: 'Ab roller rollout', catalogAliasId: '57c46595-38c5-435f-b6de-dd5092cf1b8a' },
+  { alias: 'Forearm plank', catalogAliasId: 'af7df99a-77af-42bc-96a7-dbdc56992f52' },
+  { alias: 'Front plank', catalogAliasId: 'fcb74ce1-b74f-453e-a7e5-ed39e6ee16d1' },
+]
+
 const FORBIDDEN_RUN_KEY = 'exlib2u-plank-release1-staged-v1'
 
 /** The three RPC-summary counters that were NOT captured. */
@@ -358,17 +399,30 @@ function assertRecord(world: World, findings: Finding[]): void {
       new RegExp(`${alias.alias}[^\\n]*${alias.targetLogicalId}`).test(record))
   }
 
-  // ── A13 the second initialization ──
-  add('A13a the second initialization is recorded as exactly one refresh',
-    /refreshed for a second initialization\s+exactly once/i.test(prose))
-  add(`A13b the second /workouts request time ${SECOND_REQUEST_AT} and HTTP 200 are recorded exactly`,
+  // ── A13 the controlled post-delivery refresh (NOT an ordinal) ──
+  add('A13a the controlled post-delivery refresh is recorded as exactly one refresh',
+    /refreshed for the controlled post-delivery refresh\s+exactly once/i.test(prose))
+  add(`A13b the controlled /workouts request time ${SECOND_REQUEST_AT} and HTTP 200 are recorded exactly`,
     record.includes(SECOND_REQUEST_AT) && /HTTP 200/.test(record))
-  add(`A13c post-second-init persisted state is recorded as unchanged at ${membership.exerciseMembers}/${membership.aliasMembers} with unchanged distinct identities`,
+  add(`A13c persisted state after the controlled later initialization is recorded as unchanged at ${membership.exerciseMembers}/${membership.aliasMembers} with unchanged distinct identities`,
     new RegExp(`${membership.exerciseMembers} exercises / ${membership.aliasMembers} aliases / ${membership.exerciseMembers} distinct logical IDs / ${membership.aliasMembers} distinct alias IDs`).test(record))
-  add('A13d no new tenant catalog rows are recorded for the second initialization',
-    /new tenant catalog rows created by the second initialization\s+none/i.test(prose))
-  add('A13e no /workouts runtime errors are recorded after the second initialization',
-    /runtime errors observed after the second initialization\s+none/i.test(prose))
+  add('A13d no tenant catalog row carries a creation timestamp later than the delivery transaction',
+    /creation timestamp later than the delivery transaction\s+none/i.test(prose))
+  add('A13e no /workouts runtime errors are recorded after the controlled later initialization',
+    /runtime errors observed after the controlled later initialization\s+none/i.test(prose))
+  add('A13f the record refuses the ordinal claim: the invocation count is NOT ESTABLISHED, because multiple /workouts requests preceded the tenant-row commit',
+    /ordinal invocation count is NOT ESTABLISHED/i.test(prose)
+    && /multiple .?\/workouts.? requests/i.test(prose)
+    && /before the tenant rows were committed/i.test(prose))
+  add('A13g the record states the acceptance leg needs a LATER initialization to create nothing, not invocation number two',
+    /needs a LATER initialization\s*to create nothing|needs a LATER initialization to create nothing/i.test(prose)
+    && /does not need that initialization to have been\s*invocation number two|invocation number two/i.test(prose))
+  // Structural: any sentence that reaches for the ordinal must disclaim it.
+  const ordinalSentences = sentences.filter((sentence) => /second (invocation|initialization|init)/i.test(sentence))
+  const ordinalClaims = ordinalSentences.filter((sentence) =>
+    !/\b(not|never|NOT ESTABLISHED|does not|is not|nor|neither|rather than)\b/i.test(sentence))
+  add('A13h structurally, no sentence asserts the controlled refresh WAS the second invocation of initialization',
+    ordinalClaims.length === 0, ordinalClaims[0])
 
   // ── A14 the uncaptured counters may appear ONLY inside a disclaimer ──
   add('A14a the record states plainly that the successful RPC response was NOT captured',
@@ -406,11 +460,85 @@ function assertRecord(world: World, findings: Finding[]): void {
   add('A17g provenance honesty, checked structurally: every sentence naming Claude alongside a hosted system carries a negation',
     dishonest.length === 0, dishonest[0])
 
-  // ── A18 no credential material ──
-  const emails = record.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) ?? []
-  add('A18a the record contains no email address', emails.length === 0, emails[0])
-  add('A18b the record states that no credential material is recorded in any committed artifact of this round',
-    /No test account identifier, email address, password or other credential\s*material is recorded/i.test(prose))
+  // ── A18 no credential material, across the CONTENTS of all four round paths ──
+  //
+  // The record's own claim is scoped to exactly what can be proven here: the
+  // file contents of the four changed paths. Git author metadata and any
+  // externally assembled review package are outside that scope, and the record
+  // says so rather than over-claiming.
+  const roundPathTexts: Array<{ label: string; path: string; text: string }> = [
+    { label: 'record', path: RECORD_PATH, text: record },
+    { label: 'verifier', path: VERIFIER_PATH, text: read(VERIFIER_PATH) },
+    { label: 'endgame-verifier', path: ENDGAME_VERIFIER_PATH, text: read(ENDGAME_VERIFIER_PATH) },
+    { label: 'review-bundle', path: REVIEW_BUNDLE_PATH, text: read(REVIEW_BUNDLE_PATH) },
+  ]
+  for (const subject of roundPathTexts) {
+    const found = subject.text.match(EMAIL_PATTERN) ?? []
+    add(`A18a.${subject.label} no email-shaped string appears in ${subject.path}`,
+      found.length === 0, found[0])
+  }
+  add('A18b the record scopes the credential claim to the contents of the four changed paths — not Git metadata, not an external review package',
+    /no actual test-account identifier, email address, password or other\s*credential material appears in the CONTENTS of the four paths/i.test(prose)
+    && /does not extend to Git author or\s*committer metadata|does not extend to Git author or committer metadata/i.test(prose)
+    && /assembled outside the repository/i.test(prose))
+  add('A18c the record states the verifier scans all four paths and builds its own fixture from fragments',
+    /scans the file\s*contents of all four paths|scans the file contents of all four paths/i.test(prose)
+    && /assembled from fragments at\s*runtime|assembled from fragments at runtime/i.test(prose))
+
+  // ── A26 the initial failure's causality boundary ──
+  add('A26a the record states the initial attempt established only that the key did not identify a sealed, approved, unrevoked run',
+    /did not identify a sealed, approved,\s*unrevoked delivery run|did not identify a sealed, approved, unrevoked delivery run/i.test(prose)
+    && /does not establish WHY/i.test(prose))
+  add('A26b the record states the initially configured value was NOT CAPTURED',
+    /the exact configured value/i.test(record)
+    && /at the time of the failed attempt/i.test(prose)
+    && /were \*{0,2}NOT CAPTURED\*{0,2}/i.test(record))
+  add('A26c the record marks the whitespace question NOT ESTABLISHED / NOT CAPTURED',
+    /NOT ESTABLISHED \/ NOT CAPTURED/i.test(record) && /whitespace/i.test(prose))
+  add('A26d the record records the remedy and its effect — the exact intended literal, redeployed',
+    /re-entering the exact\s*intended literal and redeploying resolved the mismatch|re-entering the exact intended literal and redeploying resolved the mismatch/i.test(prose))
+  add('A26e the record keeps the trim behaviour a deferred hardening observation, not the diagnosis of this failure',
+    /not offered as the diagnosis of this failure/i.test(prose))
+  // Structural: whitespace causality may not be settled in EITHER direction.
+  const whitespaceSentences = sentences.filter((sentence) => /whitespace/i.test(sentence))
+  const causalVerb = /\b(caused|causes|was the cause|because of|due to|responsible for|explains why|diagnosis|did not cause|was not the cause|had no effect|defect that affected)\b/i
+  const hedge = /\b(NOT ESTABLISHED|not captured|neither|nor|candidate|unresolved|whether|would)\b/i
+  const settledCausality = whitespaceSentences.filter((sentence) => causalVerb.test(sentence) && !hedge.test(sentence))
+  add('A26f structurally, no sentence settles whitespace causality in EITHER direction — asserting it caused the failure and asserting it did not are both rejected',
+    settledCausality.length === 0, settledCausality[0])
+
+  // ── A27 the review-time readback, kept distinct from the original query ──
+  const reviewSection = record.split('### Review-time readback')[1] ?? ''
+  // Whitespace-normalised, so a line wrap inside a sentence cannot decide a check.
+  const reviewProse = asProse(reviewSection).replace(/\s+/g, ' ')
+  add('A27a the review-time readback exists and is labelled REVIEW-TIME READBACK, supplied through the operator path, never observed by Claude',
+    reviewSection.length > 600
+    && /REVIEW-TIME READBACK/.test(reviewSection)
+    && /operator path/i.test(reviewSection)
+    && /never observed by Claude/i.test(reviewSection))
+  add('A27b the review-time readback records the successor run key and the 8/3 row counts still present',
+    reviewSection.includes(membership.runKey)
+    && new RegExp(`exactly ${membership.exerciseMembers} exercise rows and ${membership.aliasMembers} alias rows`, 'i').test(reviewSection))
+  add(`A27c the review-time readback pins created_at ${FIRST_DELIVERY_AT} on all 11 rows and one import run id`,
+    reviewSection.includes(FIRST_DELIVERY_AT)
+    && new RegExp(`all ${membership.totalItems} rows`, 'i').test(reviewSection)
+    && reviewSection.includes(REVIEW_READBACK_IMPORT_RUN_ID))
+  for (const line of membership.memberLines.filter((member) => member.startsWith('exercise#'))) {
+    const logicalId = line.split('#')[1]
+    add(`A27d.${logicalId.slice(-3)} the review-time enumeration lists the tree-derived logical id ${logicalId}`,
+      reviewSection.includes(logicalId))
+  }
+  for (const alias of REVIEW_READBACK_ALIAS_IDS) {
+    add(`A27e.${alias.alias.replace(/\s+/g, '-')} the review-time enumeration pairs "${alias.alias}" with its catalog alias id`,
+      new RegExp(`${alias.alias}[^\\n]*${alias.catalogAliasId}`).test(reviewSection))
+  }
+  add('A27f the record states the review-time readback CORROBORATES and is NOT the immediate post-refresh query',
+    /CORROBORATES the persisted idempotency conclusion/i.test(reviewProse)
+    && /corroboration of a conclusion already carried by the earlier readback, not the readback that carried it/i.test(reviewProse)
+    && /must not be read as the immediate post-refresh query/i.test(reviewProse))
+  add('A27g the record states the original readbacks COUNTED identities and did not enumerate them',
+    /did not enumerate WHICH identifiers were present/i.test(prose)
+    && /It did NOT\s*enumerate the identity sets themselves|It did NOT enumerate the identity sets themselves/i.test(prose))
 
   // ── A19 the deferred hardening observation ──
   add('A19a the deferred hardening observation names catalogDeliveryRunKey and the untrimmed return',
@@ -444,7 +572,7 @@ function assertRecord(world: World, findings: Finding[]): void {
   add('A22b it is carried on exactly the three legs and nothing else',
     /FAILED CLOSED on a wrong run key/i.test(prose)
     && /created exactly the frozen expected membership/i.test(prose)
-    && /A second initialization created nothing/i.test(prose)
+    && /A controlled later initialization created nothing/i.test(prose)
     && /on these three legs and nothing\s*else|on these three legs and nothing else/i.test(prose))
 
   // ── A23 corroboration is not proof ──
@@ -694,7 +822,7 @@ function runRecordControls(baseline: World): void {
       mutate: (w) => { w.record = w.record.replace(new RegExp(FIRST_DELIVERY_AT, 'g'), FIRST_DELIVERY_AT.replace('898777', '898778')) },
     },
     {
-      label: 'NC-SUBSTITUTE: the second-request timestamp replaced',
+      label: 'NC-SUBSTITUTE: the controlled-refresh request timestamp replaced',
       expect: 'A13b',
       mutate: (w) => { w.record = w.record.replace(new RegExp(SECOND_REQUEST_AT, 'g'), '2026-09-14T16:32:35Z') },
     },
@@ -719,7 +847,7 @@ function runRecordControls(baseline: World): void {
       mutate: (w) => { w.record = w.record.replace(/23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc/g, `${'0'.repeat(63)}f`) },
     },
     {
-      label: 'NC-SUBSTITUTE: the post-second-init state changed so idempotency is silently no longer what was measured',
+      label: 'NC-SUBSTITUTE: the post-refresh persisted state changed so idempotency is silently no longer what was measured',
       expect: 'A13c',
       mutate: (w) => { w.record = w.record.replace(/8 exercises \/ 3 aliases \/ 8 distinct logical IDs \/ 3 distinct alias IDs/g, '9 exercises / 3 aliases / 9 distinct logical IDs / 3 distinct alias IDs') },
     },
@@ -746,12 +874,49 @@ function runRecordControls(baseline: World): void {
     {
       label: 'NC-ADD: an observed value reported for a counter that was never captured',
       expect: 'A14.skipped_already_delivered',
-      mutate: (w) => { w.record += '\n\nThe delivery summary reported skipped_already_delivered = 8 for the second initialization.\n' },
+      mutate: (w) => { w.record += '\n\nThe delivery summary reported skipped_already_delivered = 8 for the controlled later initialization.\n' },
     },
     {
-      label: 'NC-ADD: the test account\'s email address leaked into the record',
+      label: 'NC-ADD: a test-account email address leaked into the record',
       expect: 'A18a',
-      mutate: (w) => { w.record += '\n\nThe test account was w14e-smoke-test@example.com.\n' },
+      // The fixture is ASSEMBLED, never spelled: an honest scan of this file
+      // must find no email-shaped string, or A18a.verifier would be unpassable.
+      mutate: (w) => { w.record += `\n\nThe test account was ${syntheticEmailFixture()}.\n` },
+    },
+    {
+      label: 'NC-ADD: whitespace asserted as the definite cause of the initial failure',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nLeading whitespace in the configured value caused the initial mismatch.\n' },
+    },
+    {
+      label: 'NC-ADD: whitespace asserted as definitely NOT the cause of the initial failure',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nThe untrimmed return is not a defect that affected this run, and whitespace did not cause the initial failure.\n' },
+    },
+    {
+      label: 'NC-ADD: the controlled refresh claimed as provably the second invocation of initialization',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nThe controlled refresh was the second invocation of initialization.\n' },
+    },
+    {
+      label: 'NC-SUBSTITUTE: one review-time catalog alias id perturbed by a character',
+      expect: 'A27e.Front-plank',
+      mutate: (w) => { w.record = w.record.replace('fcb74ce1-b74f-453e-a7e5-ed39e6ee16d1', 'fcb74ce1-b74f-453e-a7e5-ed39e6ee16d2') },
+    },
+    {
+      label: 'NC-DELETE: the separation between the review-time readback and the original query removed',
+      expect: 'A27f',
+      mutate: (w) => { w.record = w.record.replace(/It is\s*corroboration of a conclusion already carried by the earlier readback, not\s*the readback that carried it/i, 'It is the readback that carried it') },
+    },
+    {
+      label: 'NC-DELETE: the record stops saying the original readback only COUNTED identities',
+      expect: 'A27g',
+      mutate: (w) => { w.record = w.record.replace(/did not enumerate WHICH identifiers were present/gi, 'enumerated exactly which identifiers were present') },
+    },
+    {
+      label: 'NC-DELETE: the NOT-CAPTURED status of the initially configured run key value removed',
+      expect: 'A26b',
+      mutate: (w) => { w.record = w.record.replace(/exact configured value/gi, 'configured value') },
     },
   ]
 
@@ -849,9 +1014,11 @@ function main(): number {
   const recordBytes = bytesOf(RECORD_PATH)
   console.log(`\nunder test: ${RECORD_PATH} ${recordBytes.length} B sha256 ${sha256(recordBytes)}`)
   console.log('W14-E PRODUCTION RUNTIME ACCEPTANCE: MET (fail-closed, then first delivery of the')
-  console.log('frozen 8/3 membership from a measured 0/0/0/0 baseline, then a second initialization')
-  console.log('that created nothing). The successful RPC response itself was NOT CAPTURED.')
-  console.log('Every hosted figure is operator-supplied and was never observed by Claude.')
+  console.log('frozen 8/3 membership from a measured 0/0/0/0 baseline, then a CONTROLLED LATER')
+  console.log('INITIALIZATION that created nothing — not claimed to be invocation number two).')
+  console.log('The successful RPC response itself was NOT CAPTURED, and whether whitespace caused')
+  console.log('the initial configuration failure is NOT ESTABLISHED. Every hosted figure is')
+  console.log('operator-supplied and was never observed by Claude.')
   console.log(`\n${passed} passed, ${failed} failed`)
   return failed === 0 ? 0 : 1
 }

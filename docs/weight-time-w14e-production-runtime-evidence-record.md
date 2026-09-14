@@ -93,6 +93,29 @@ delivery contract, a partial write, or a silent fallback to the seed path.
 Zero inserted rows is the fail-closed guarantee holding: the delivery path
 never seeds.
 
+### What the initial failure does and does not establish about its cause
+
+The initial attempt establishes exactly one thing about causality: the key
+that reached `deliver_catalog_exercises` did not identify a sealed, approved,
+unrevoked delivery run. It does not establish WHY that key failed to identify
+one.
+
+- The exact bytes — the exact configured value — of Production
+  `CATALOG_DELIVERY_RUN_KEY` as it stood at the time of the failed attempt
+  were **NOT CAPTURED**. No transcript of that value before the correction
+  exists in this record or in any local artifact.
+- Whether leading or trailing whitespace in that configured value caused the
+  mismatch is therefore **NOT ESTABLISHED / NOT CAPTURED**. Whitespace is one
+  candidate cause among several — a different literal, a typo, a stale value
+  from an earlier release, a variable scoped to the wrong environment — and
+  this record selects none of them. It is neither asserted nor ruled out.
+- What is recorded is the remedy and its effect: re-entering the exact
+  intended literal and redeploying resolved the mismatch.
+- The `return key` versus `return key.trim()` behavior of
+  `catalogDeliveryRunKey()` (section 10) is consequently a DEFERRED HARDENING
+  observation about future configurations, outside runtime acceptance. It is
+  not offered as the diagnosis of this failure.
+
 ### The correction
 
 | Fact | Value | Provenance |
@@ -125,8 +148,16 @@ before delivery is what makes the post-state attributable to the delivery
 transaction, and it is why the eleven rows are recorded as CREATED rather
 than merely PRESENT.
 
-No test account identifier, email address, password or other credential
-material is recorded in this or any committed artifact of this round.
+No actual test-account identifier, email address, password or other
+credential material appears in the CONTENTS of the four paths this round
+changed. That is the exact scope the verifier proves: it scans the file
+contents of all four paths — this record, its verifier, the endgame verifier
+and the executable-package review bundle — with an email-shaped pattern, and
+its own synthetic negative-control fixture is assembled from fragments at
+runtime so that no email-shaped string exists in the verifier source either.
+The scope is file contents only. It does not extend to Git author or
+committer metadata, nor to any artifact assembled outside the repository
+(for example an external review package or ZIP prepared for review).
 
 ### Post-first-initialization persisted state
 
@@ -141,7 +172,11 @@ material is recorded in this or any committed artifact of this round.
 
 Eight rows carrying eight DISTINCT logical IDs is a stronger statement than
 a count of eight: it forecloses a duplicate-delivery shape in which the
-cardinality is right and the identity set is not.
+cardinality is right and the identity set is not. It is a statement about
+CARDINALITY — six numbers. Those queries counted rows and counted distinct
+identifiers; they did not enumerate WHICH identifiers were present. The
+enumeration arrives later and separately, from the review-time readback
+recorded under section 6.
 
 ---
 
@@ -191,15 +226,28 @@ manifest's carried-forward membership lines
 
 ---
 
-## 6. Second initialization: the idempotency observation
+## 6. Controlled post-delivery refresh: the idempotency observation
 
 | Fact | Value | Provenance |
 |---|---|---|
-| `/workouts` refreshed for a second initialization | exactly once | OPERATOR-SUPPLIED |
-| Vercel observed the second `/workouts` request at | `2026-09-14T15:32:35Z`, HTTP 200 | OPERATOR-SUPPLIED |
-| post-second-initialization persisted state | 8 exercises / 3 aliases / 8 distinct logical IDs / 3 distinct alias IDs | INDEPENDENT READBACK |
-| new tenant catalog rows created by the second initialization | none | INDEPENDENT READBACK |
-| `/workouts` runtime errors observed after the second initialization | none | OPERATOR-SUPPLIED |
+| `/workouts` refreshed for the controlled post-delivery refresh | exactly once | OPERATOR-SUPPLIED |
+| Vercel observed that controlled `/workouts` request at | `2026-09-14T15:32:35Z`, HTTP 200 | OPERATOR-SUPPLIED |
+| persisted state after the controlled later initialization | 8 exercises / 3 aliases / 8 distinct logical IDs / 3 distinct alias IDs | INDEPENDENT READBACK |
+| tenant catalog rows carrying a creation timestamp later than the delivery transaction | none | INDEPENDENT READBACK |
+| `/workouts` runtime errors observed after the controlled later initialization | none | OPERATOR-SUPPLIED |
+
+**Terminology, deliberately not an ordinal.** This is recorded as a
+CONTROLLED POST-DELIVERY REFRESH — a controlled later initialization — and
+NOT as "the second initialization". The ordinal invocation count is NOT
+ESTABLISHED: Production logs around the first successful delivery contained
+multiple `/workouts` requests before the tenant rows were committed, so how
+many times initialization had already run by then is unknown. What is
+supported is that the operator refreshed `/workouts` exactly once for this
+controlled idempotency check, that Vercel observed that request at
+`2026-09-14T15:32:35Z` with HTTP 200, and that persisted tenant state was
+unchanged afterward. The acceptance condition needs a LATER initialization
+to create nothing; it does not need that initialization to have been
+invocation number two.
 
 **How the idempotency proof actually works, and where it stops.** The
 successful RPC response was NOT captured (section 8). The idempotency
@@ -210,13 +258,62 @@ Cardinality alone would permit a delete-and-reinsert shape; unchanged
 distinct identities alongside unchanged cardinality, with no new rows
 created, is the property that was wanted.
 
+What that immediate post-refresh readback established, precisely, is six
+numbers plus one absence: 8 exercise rows, 3 alias rows, 8 distinct catalog
+logical IDs, 3 distinct catalog alias IDs, and no tenant catalog row carrying
+a creation timestamp later than the delivery transaction. It did NOT
+enumerate the identity sets themselves; that query counted distinct values,
+it did not list them.
+
+### Review-time readback — separate, later, and NOT the original query
+
+After commit `66548fd` was presented for review, a further READ-ONLY
+Production review readback was performed on the operator path and its results
+supplied for the record. It is a distinct observation with its own timing, and
+it is recorded as REVIEW-TIME READBACK (an INDEPENDENT READBACK supplied
+through the operator path; never observed by Claude). It must not be read as
+the immediate post-refresh query above.
+
+| Measurement | Value | Provenance |
+|---|---|---|
+| successor run key | `w14e-weight-time-release1-staged-v1` | REVIEW-TIME READBACK |
+| rows still present | exactly 8 exercise rows and 3 alias rows | REVIEW-TIME READBACK |
+| creation timestamp on all 11 rows | `created_at = 2026-09-14T15:25:02.898777Z` | REVIEW-TIME READBACK |
+| import run id on all 11 rows | `29fa5437-7e5b-4241-ad82-58b5851ffe95` | REVIEW-TIME READBACK |
+
+Exercise logical IDs remain exactly the eight:
+
+- `e21b2c00-0000-4000-a000-000000000001`
+- `e21b2c00-0000-4000-a000-000000000002`
+- `e21b2c00-0000-4000-a000-000000000003`
+- `e21b2c00-0000-4000-a000-000000000004`
+- `e21b2c00-0000-4000-a000-000000000005`
+- `e21b2c00-0000-4000-a000-000000000006`
+- `e21b2c00-0000-4000-a000-000000000007`
+- `e21b2c00-0000-4000-a000-000000000008`
+
+Aliases remain exactly the three:
+
+| Alias | Catalog alias id |
+|---|---|
+| `Ab roller rollout` | `57c46595-38c5-435f-b6de-dd5092cf1b8a` |
+| `Forearm plank` | `af7df99a-77af-42bc-96a7-dbdc56992f52` |
+| `Front plank` | `fcb74ce1-b74f-453e-a7e5-ed39e6ee16d1` |
+
+This enumeration CORROBORATES the persisted idempotency conclusion: the
+identities that were only counted at the time are, later, exactly the eight
+and the three the frozen membership requires, all still stamped with the
+single delivery transaction's timestamp and one import run id. It is
+corroboration of a conclusion already carried by the earlier readback, not
+the readback that carried it, and not a re-run of anything.
+
 **What HTTP 200 does not prove.** `/workouts` returns 200 whether delivery
 succeeds or fails closed. The fail-closed path in
 `src/lib/supabase/deliver-catalog.ts` logs to `console.error` and RETURNS an
 outcome — it does not throw, and it does not change the response status.
 That is exactly why the first attempt's failure was visible in logs and not
-as an error page. So the second request's 200 establishes that the request
-completed and rendered; it does not by itself establish that the RPC
+as an error page. So the controlled request's 200 establishes that the
+request completed and rendered; it does not by itself establish that the RPC
 succeeded. The persisted-state readback is what carries the idempotency
 claim, and the absence of runtime errors is corroboration, not the proof.
 
@@ -233,8 +330,11 @@ else:
    exactly the frozen expected membership — 11 tenant rows, 8 exercises
    with 8 distinct logical IDs and 3 aliases with 3 distinct alias IDs —
    from a measured `0/0/0/0` baseline.
-3. A second initialization created nothing: same cardinality, same distinct
-   identities, no new rows, no runtime errors.
+3. A controlled later initialization created nothing: same cardinality, same
+   distinct identities, no row with a later creation timestamp, no runtime
+   errors. This leg requires a LATER initialization to create nothing; it
+   does not require, and this record does not claim, that it was the literal
+   second invocation of initialization.
 
 The deferred hardening observation in section 10 is explicitly NOT part of
 this acceptance condition and did not gate it.
@@ -253,6 +353,18 @@ this record does NOT claim a directly observed value for any of:
 Nothing in this document should be read as reporting those values. Where
 idempotency is asserted, it is asserted from persisted-state cardinality
 and distinct identities, per section 6.
+
+Two further values are NOT CAPTURED and are named here so no later reading
+can quietly supply them:
+
+- The exact configured value of Production `CATALOG_DELIVERY_RUN_KEY` at the
+  time of the failed attempt. Whether whitespace caused that mismatch is NOT
+  ESTABLISHED (section 3).
+- The ordinal invocation count of initialization. Multiple `/workouts`
+  requests appear in Production logs around the first successful delivery,
+  before the tenant rows were committed, so the controlled refresh at
+  `2026-09-14T15:32:35Z` is not claimed to be invocation number two
+  (section 6).
 
 Two further limits, recorded so the boundary of this evidence stays
 visible:
@@ -322,15 +434,18 @@ export function catalogDeliveryRunKey(): string | null {
 }
 ```
 
-A configured value carrying leading or trailing whitespace therefore passes
-the emptiness check and is sent to the RPC verbatim, where it cannot match
-the sealed run key and produces exactly the section 3 failure — a failure
-whose cause is invisible in the message text. A future maintenance change
-should return `key.trim()`.
+A configured value carrying leading or trailing whitespace would therefore
+pass the emptiness check and be sent to the RPC verbatim, where it could not
+match the sealed run key and would produce a failure of exactly the section 3
+shape — one whose origin is invisible in the message text. That is a statement
+about the mechanism, not a claim about what happened in this run (section 3).
+A future maintenance change should return `key.trim()`.
 
-This is DEFERRED HARDENING. It is NOT a defect that affected this run, it
-is NOT part of the W14-E runtime acceptance condition in section 7, and it
-requires its own instruction: no application code was modified in the round
+This is DEFERRED HARDENING, and its relationship to the section 3 failure is
+UNRESOLVED, not settled in either direction: the initially configured value
+was not captured, so this record neither asserts nor denies that whitespace
+caused that mismatch (section 3). It is NOT part of the W14-E runtime
+acceptance condition in section 7, and it requires its own instruction: no application code was modified in the round
 that produced this record. The verifier asserts that the untrimmed return
 is still what the bytes say, so that if the hardening lands, this section
 must be corrected forward rather than left stale.
@@ -352,7 +467,12 @@ must be corrected forward rather than left stale.
 - The static verifier for this record is
   `scripts/verify-weight-time-w14e-production-runtime-record.ts`. It reads
   bytes and git objects only, spawns no command but `git`, and re-derives
-  every machine value above from the tree on every run.
+  every TREE-DERIVABLE value above — sizes, digests, blob identities, the
+  frozen membership, the derived run key — from the tree on every run.
+  Operator-supplied values (the deployment id, the timestamps, the hosted
+  readback figures) are pinned as literals so transcription drift is caught,
+  but a git-only verifier cannot independently confirm them and does not
+  claim to.
 
 ---
 
