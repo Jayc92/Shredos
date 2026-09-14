@@ -32,12 +32,15 @@
 //      is the composition of two halves that are still readable here, at the
 //      SAME git blobs as the deployed source commit. That is what turns a
 //      quoted error message into evidence.
-//   4. NO CREDENTIAL MATERIAL. None of the four paths this round changed
-//      carries an email-shaped string. That includes this file: its own
-//      synthetic negative-control address is assembled from fragments at
-//      runtime, so an honest scan of this source finds nothing. The scope is
-//      file CONTENTS — not Git author metadata, and not any package
-//      assembled outside the repository for review.
+//   4. NO EMAIL-SHAPED STRING, AND NO LARGER CLAIM THAN THAT. None of the
+//      four paths this round changed carries an email-shaped string. That
+//      includes this file: its own synthetic negative-control address is
+//      assembled from fragments at runtime, so an honest scan of this source
+//      finds nothing. The scope is file CONTENTS — not Git author metadata,
+//      and not any package assembled outside the repository for review. The
+//      absence of passwords, API keys, bearer tokens and other NON-EMAIL
+//      credential material is an AUTHORSHIP COMMITMENT that this verifier
+//      does not mechanize; check A18d holds the record to that same limit.
 //
 // Run from the repository root:
 //   npx tsx scripts/verify-weight-time-w14e-production-runtime-record.ts
@@ -308,6 +311,13 @@ function assertRecord(world: World, findings: Finding[]): void {
   const numericProse = withoutDigitGroupSeparators(prose)
   const sentences = sentencesOf(record)
   const add = (name: string, ok: boolean, detail?: string): void => { findings.push({ name, ok, detail }) }
+  /**
+   * The escape every structural guard shares: a sentence that REACHES FOR a
+   * prohibited claim in order to disclaim it is legal, and the record is full
+   * of exactly those sentences. Without a single shared escape the guards
+   * would drift apart and one of them would start rejecting honest prose.
+   */
+  const NEGATION = /\b(not|never|NOT ESTABLISHED|does not|is not|nor|neither|rather than)\b/i
 
   // ── A1 substance ──
   add('A1 the record is a substantial durable document, not a stub', record.length > 8000, `${record.length} characters`)
@@ -417,11 +427,20 @@ function assertRecord(world: World, findings: Finding[]): void {
   add('A13g the record states the acceptance leg needs a LATER initialization to create nothing, not invocation number two',
     /needs a LATER initialization\s*to create nothing|needs a LATER initialization to create nothing/i.test(prose)
     && /does not need that initialization to have been\s*invocation number two|invocation number two/i.test(prose))
-  // Structural: any sentence that reaches for the ordinal must disclaim it.
-  const ordinalSentences = sentences.filter((sentence) => /second (invocation|initialization|init)/i.test(sentence))
-  const ordinalClaims = ordinalSentences.filter((sentence) =>
-    !/\b(not|never|NOT ESTABLISHED|does not|is not|nor|neither|rather than)\b/i.test(sentence))
-  add('A13h structurally, no sentence asserts the controlled refresh WAS the second invocation of initialization',
+  // Structural: any sentence that reaches for an initialization ORDINAL or
+  // COUNT must disclaim it. The guard reads the FAMILY of ways to say "it was
+  // the second one" — the word, the digit form, "number two", "ran twice", a
+  // named count — because "the 2nd invocation" and "the second invocation" are
+  // the same unsupported claim, and a guard that only knows one spelling is a
+  // guard an author walks around without noticing. It is scoped to the
+  // initialization/refresh subject so ordinary prose that happens to say
+  // "second" is left alone.
+  const ORDINAL_LANGUAGE = /\b(second|2nd|number two|twice|invocation count|initialization count)\b/i
+  const INITIALIZATION_SUBJECT = /(\binitiali[sz]ation\b|\binitiali[sz]ed\b|\brefresh\b|\binvocation\b|\/workouts)/i
+  const ordinalSentences = sentences.filter((sentence) =>
+    ORDINAL_LANGUAGE.test(sentence) && INITIALIZATION_SUBJECT.test(sentence))
+  const ordinalClaims = ordinalSentences.filter((sentence) => !NEGATION.test(sentence))
+  add('A13h structurally, no sentence asserts an initialization ORDINAL or COUNT — "the second", "the 2nd", "number two" and "ran twice" are all rejected unless the sentence disclaims the ordinal',
     ordinalClaims.length === 0, ordinalClaims[0])
 
   // ── A14 the uncaptured counters may appear ONLY inside a disclaimer ──
@@ -484,6 +503,14 @@ function assertRecord(world: World, findings: Finding[]): void {
   add('A18c the record states the verifier scans all four paths and builds its own fixture from fragments',
     /scans the file\s*contents of all four paths|scans the file contents of all four paths/i.test(prose)
     && /assembled from fragments at\s*runtime|assembled from fragments at runtime/i.test(prose))
+  // The scan proves the absence of EMAIL-SHAPED STRINGS. It does not prove
+  // the absence of a password, an API key or a bearer token, and the record
+  // may not say it does — a claim of mechanical proof that no machine makes
+  // is worse than no claim, because a reader stops looking.
+  add('A18d the record states the mechanical check covers EMAIL-SHAPED STRINGS only, and that the wider credential absence is an AUTHORSHIP COMMITMENT this verifier does not mechanize',
+    /The mechanical check covers email-shaped strings across all four paths/i.test(prose)
+    && /absence of identifiers, passwords, API keys, bearer tokens and other non-email credential material is an AUTHORSHIP COMMITMENT that this verifier does not mechanize/i.test(prose)
+    && !/That is the exact scope the verifier proves/i.test(prose))
 
   // ── A26 the initial failure's causality boundary ──
   add('A26a the record states the initial attempt established only that the key did not identify a sealed, approved, unrevoked run',
@@ -499,12 +526,19 @@ function assertRecord(world: World, findings: Finding[]): void {
     /re-entering the exact\s*intended literal and redeploying resolved the mismatch|re-entering the exact intended literal and redeploying resolved the mismatch/i.test(prose))
   add('A26e the record keeps the trim behaviour a deferred hardening observation, not the diagnosis of this failure',
     /not offered as the diagnosis of this failure/i.test(prose))
-  // Structural: whitespace causality may not be settled in EITHER direction.
-  const whitespaceSentences = sentences.filter((sentence) => /whitespace/i.test(sentence))
-  const causalVerb = /\b(caused|causes|was the cause|because of|due to|responsible for|explains why|diagnosis|did not cause|was not the cause|had no effect|defect that affected)\b/i
-  const hedge = /\b(NOT ESTABLISHED|not captured|neither|nor|candidate|unresolved|whether|would)\b/i
-  const settledCausality = whitespaceSentences.filter((sentence) => causalVerb.test(sentence) && !hedge.test(sentence))
-  add('A26f structurally, no sentence settles whitespace causality in EITHER direction — asserting it caused the failure and asserting it did not are both rejected',
+  // Structural: trim/spacing causality may not be settled in EITHER direction.
+  // The subject is the SEMANTIC FAMILY rather than the token "whitespace" —
+  // "a trailing space", "the untrimmed return" and "padding" are the same
+  // claim in other words — and the causal language covers both directions,
+  // because "it had no bearing on this run" is exactly as unsupported as
+  // "it caused the mismatch". Hedged prose survives: the record states the
+  // question is NOT ESTABLISHED, and that sentence has to stay legal.
+  const TRIM_SUBJECT = /\b(whitespace|trailing space|leading space|blank character|padding|untrimmed|trim(?:s|med|ming)?)\b/i
+  const CAUSAL_LANGUAGE = /\b(caused|causes|was the cause|because of|due to|responsible for|explains why|explains|is why|attributable to|broke|breaks|no bearing|no effect|irrelevant to|diagnosis|did not cause|was not the cause|had no effect|defect that affected)\b/i
+  const HEDGE = /\b(NOT ESTABLISHED|not captured|neither|nor|candidate|unresolved|whether|would)\b/i
+  const trimSentences = sentences.filter((sentence) => TRIM_SUBJECT.test(sentence))
+  const settledCausality = trimSentences.filter((sentence) => CAUSAL_LANGUAGE.test(sentence) && !HEDGE.test(sentence))
+  add('A26f structurally, no sentence settles trim/spacing causality in EITHER direction — asserting a trailing space caused the failure and asserting the untrimmed return had no bearing are both rejected, whatever words the claim uses',
     settledCausality.length === 0, settledCausality[0])
 
   // ── A27 the review-time readback, kept distinct from the original query ──
@@ -539,6 +573,19 @@ function assertRecord(world: World, findings: Finding[]): void {
   add('A27g the record states the original readbacks COUNTED identities and did not enumerate them',
     /did not enumerate WHICH identifiers were present/i.test(prose)
     && /It did NOT\s*enumerate the identity sets themselves|It did NOT enumerate the identity sets themselves/i.test(prose))
+  // Structural: the identity ENUMERATION belongs to the later REVIEW-TIME
+  // READBACK and to nothing else. A27g proves the honest CARDINALITY-only
+  // sentences survive; it cannot notice a sentence added ALONGSIDE them that
+  // credits the immediate post-refresh query with the enumeration, which is
+  // the contradiction that matters — the record would then say both things.
+  const ENUMERATION_LANGUAGE = /(enumerat\w*|exactly those|listed the ids|listed the identit\w*|returned[^.]{0,80}(logical id|alias id|identity set))/i
+  const ORIGINAL_READBACK_LANGUAGE = /(immediate post-refresh|original query|original readback|post-refresh query|post-refresh readback|earlier readback|first readback)/i
+  const misattributedEnumeration = sentences.filter((sentence) =>
+    ENUMERATION_LANGUAGE.test(sentence)
+    && ORIGINAL_READBACK_LANGUAGE.test(sentence)
+    && !NEGATION.test(sentence))
+  add('A27h structurally, no sentence credits the immediate post-refresh / original readback with ENUMERATING the identity sets — that enumeration belongs only to the later REVIEW-TIME READBACK',
+    misattributedEnumeration.length === 0, misattributedEnumeration[0])
 
   // ── A19 the deferred hardening observation ──
   add('A19a the deferred hardening observation names catalogDeliveryRunKey and the untrimmed return',
@@ -854,7 +901,10 @@ function runRecordControls(baseline: World): void {
     {
       label: 'NC-DELETE: the record stops accounting for the two governance paths this round also touched',
       expect: 'A25a',
-      mutate: (w) => { w.record = w.record.replace(/four paths/g, 'two paths') },
+      // A25a reads the markup-stripped PROSE, where a line wrap is one space,
+      // so the control has to reach every wrapped occurrence too — otherwise a
+      // hard-wrapped "four\npaths" would leave the pin looking alive.
+      mutate: (w) => { w.record = w.record.replace(/four\s+paths/g, 'two paths') },
     },
     {
       label: 'NC-SUBSTITUTE: the census widening described as a relaxation rather than a named addition',
@@ -917,6 +967,50 @@ function runRecordControls(baseline: World): void {
       label: 'NC-DELETE: the NOT-CAPTURED status of the initially configured run key value removed',
       expect: 'A26b',
       mutate: (w) => { w.record = w.record.replace(/exact configured value/gi, 'configured value') },
+    },
+    // ── correction round 2: the same prohibited claims, in other words ──
+    // Each of the six sentences below passed the round-1 guards untouched.
+    // They are kept as controls rather than as prose in a report so that a
+    // future weakening of a selector shows up here as a broken control.
+    {
+      label: 'NC-ADD: the initial mismatch attributed to a TRAILING SPACE — the token "whitespace" never appears',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nThe initial mismatch was caused by a trailing space in the configured value.\n' },
+    },
+    {
+      label: 'NC-ADD: the UNTRIMMED return declared harmless to this run — the anti-causal direction, in synonyms',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nThe untrimmed return had no bearing on this run.\n' },
+    },
+    {
+      label: 'NC-ADD: whitespace named as what BROKE the first attempt — a causal verb outside the round-1 list',
+      expect: 'A26f',
+      mutate: (w) => { w.record += '\n\nWhitespace in the configured key is what broke the first attempt.\n' },
+    },
+    {
+      label: 'NC-ADD: the ordinal asserted in DIGIT form — the 2nd invocation of initialization',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nThe controlled refresh was the 2nd invocation of initialization.\n' },
+    },
+    {
+      label: 'NC-ADD: the ordinal asserted as a COUNT — initialization ran exactly twice',
+      expect: 'A13h',
+      mutate: (w) => { w.record += '\n\nInitialization ran exactly twice: once during onboarding and once at the controlled refresh.\n' },
+    },
+    {
+      label: 'NC-ADD: the ordinal asserted in WORDS — initialization number two',
+      expect: 'A13h',
+      mutate: (w) => { w.record += `\n\nThe refresh observed at ${SECOND_REQUEST_AT} was initialization number two.\n` },
+    },
+    {
+      label: 'NC-ADD: the review-time enumeration re-attributed to the immediate post-refresh query',
+      expect: 'A27h',
+      mutate: (w) => { w.record += '\n\nThe immediate post-refresh query returned exactly those eight logical IDs and those three catalog alias ids.\n' },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the credential scope back-claimed as exactly what the verifier proves',
+      expect: 'A18d',
+      mutate: (w) => { w.record = w.record.replace(/The\s+mechanical\s+check\s+covers\s+email-shaped\s+strings\s+across\s+all\s+four\s+paths/i, 'That is the exact scope the verifier proves') },
     },
   ]
 

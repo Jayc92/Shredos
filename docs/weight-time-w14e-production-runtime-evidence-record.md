@@ -1,7 +1,8 @@
 # W14-E — Production fresh-account delivery runtime evidence record
 
 STATUS: the W14-E hosted delivery lifecycle HAS RUN against Production and
-its first-delivery and second-initialization behaviour has been observed.
+its first-delivery and controlled-later-initialization behaviour has been
+observed.
 This document is the durable, reviewable record of that runtime act. It is
 LOCAL-ONLY: it is committed to `feature/weight-time` and is not published,
 pushed or tagged.
@@ -150,14 +151,19 @@ than merely PRESENT.
 
 No actual test-account identifier, email address, password or other
 credential material appears in the CONTENTS of the four paths this round
-changed. That is the exact scope the verifier proves: it scans the file
-contents of all four paths — this record, its verifier, the endgame verifier
-and the executable-package review bundle — with an email-shaped pattern, and
-its own synthetic negative-control fixture is assembled from fragments at
-runtime so that no email-shaped string exists in the verifier source either.
-The scope is file contents only. It does not extend to Git author or
-committer metadata, nor to any artifact assembled outside the repository
-(for example an external review package or ZIP prepared for review).
+changed. The mechanical check is NARROWER than that sentence, and this
+record does not conflate the two: it scans the file contents of all four
+paths — this record, its verifier, the endgame verifier and the
+executable-package review bundle — with an email-shaped pattern, and its
+own synthetic negative-control fixture is assembled from fragments at
+runtime so that no email-shaped string exists in the verifier source
+either. The mechanical check covers email-shaped strings across all four
+paths; the absence of identifiers, passwords, API keys, bearer tokens and
+other non-email credential material is an AUTHORSHIP COMMITMENT that this
+verifier does not mechanize. The scope is file contents only. It does not
+extend to Git author or committer metadata, nor to any artifact assembled
+outside the repository (for example an external review package or ZIP
+prepared for review).
 
 ### Post-first-initialization persisted state
 
@@ -360,9 +366,10 @@ can quietly supply them:
 - The exact configured value of Production `CATALOG_DELIVERY_RUN_KEY` at the
   time of the failed attempt. Whether whitespace caused that mismatch is NOT
   ESTABLISHED (section 3).
-- The ordinal invocation count of initialization. Multiple `/workouts`
-  requests appear in Production logs around the first successful delivery,
-  before the tenant rows were committed, so the controlled refresh at
+- The ordinal invocation count of initialization — NOT ESTABLISHED, and not
+  claimed anywhere in this record. Multiple `/workouts` requests appear in
+  Production logs around the first successful delivery, before the tenant
+  rows were committed, so the controlled refresh at
   `2026-09-14T15:32:35Z` is not claimed to be invocation number two
   (section 6).
 
