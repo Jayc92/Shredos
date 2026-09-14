@@ -48,6 +48,8 @@ const DEPENDENCY_PATH = 'docs/weight-time-five-entry-delivery-configuration-depe
 const HUMAN_REVIEW_PATH = 'docs/weight-time-five-entry-human-review.md'
 const DECISION_RECORD_PATH = 'docs/weight-time-five-entry-human-decision-record.md'
 const RUNBOOK_PATH = 'docs/weight-time-five-entry-operator-runbook.md'
+/** The frozen W14-E executable-package review bundle: a review record, not a generated artifact, so D16 makes it agree with the tree rather than with itself. */
+const REVIEW_BUNDLE_PATH = 'docs/weight-time-five-entry-executable-package-review-bundle.md'
 const PROBE_PATH = 'docs/weight-time-five-entry-read-state.sql'
 const REPORT_PATH = 'docs/weight-time-five-entry-endgame-report.md'
 const MANIFEST_GENERATOR_PATH = 'scripts/generate-weight-time-five-entry-manifest.ts'
@@ -159,7 +161,7 @@ const HISTORICAL_LOGICAL_IDS = ['e21b2c00-0000-4000-a000-000000000001', 'e21b2c0
 
 const ALLOWED_CHANGED_PATHS = [
   CARRIER_PATH, MATRIX_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, DEPENDENCY_PATH, MANIFEST_PATH,
-  HUMAN_REVIEW_PATH, DECISION_RECORD_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
+  HUMAN_REVIEW_PATH, DECISION_RECORD_PATH, REVIEW_BUNDLE_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
   MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, STATIC_VERIFIER_PATH,
   MIGRATION_029, MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH,
   ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`),
@@ -869,6 +871,43 @@ function verifyDocuments(world: World): void {
     && record.includes(RESOLVED_RUN_KEY) && record.includes(RESOLVED_RUN_MEMBERSHIP) && record.includes('8 exercise members + 3 alias members = 11 membership rows')
     && record.includes('OPERATOR-SUPPLIED') && record.includes(MIGRATION_029_HOSTED_RECORD) && record.includes(MIGRATION_029_HOSTED_PROBE)
     && record.includes('GENERATED FILE') && !record.includes(SYNTHETIC_MARKER) && !record.includes('<<UNRESOLVED'))
+  // The frozen review bundle. It is hand-assembled prose around machine-copied
+  // tables, so it is checked the same way as the record: every digest is
+  // recomputed here from the tree, and the candidate it claims to have measured
+  // must be a real ancestor commit whose tree it also states correctly. A
+  // bundle cannot state its own SHA, so the pin is the MEASURED candidate.
+  const bundle = existsSync(path.join(repositoryRoot, REVIEW_BUNDLE_PATH)) ? read(REVIEW_BUNDLE_PATH) : ''
+  // Every 40-hex token the bundle states must be a real object in THIS repository:
+  // a commit that is an ancestor of HEAD (whose tree the bundle also states), or a
+  // tree. A token that resolves to nothing - or to a commit off this history - is a
+  // fabricated pin. The MEASURED candidate is then the stated ancestor commit that
+  // is not the pre-decision commit; the bundle cannot state its own SHA, so this is
+  // the strongest pin available to it.
+  const bundleShas = [...new Set([...bundle.matchAll(/`([0-9a-f]{40})`/g)].map((m) => m[1]))]
+  const objectType = (sha: string) => (gitSucceeds('cat-file', '-e', sha) ? git('cat-file', '-t', sha) : 'MISSING')
+  const bundleCommits = bundleShas.filter((sha) => objectType(sha) === 'commit')
+  const bundleTrees = bundleShas.filter((sha) => objectType(sha) === 'tree')
+  const unresolvable = bundleShas.filter((sha) => !bundleCommits.includes(sha) && !bundleTrees.includes(sha))
+  const offHistory = bundleCommits.filter((sha) => !gitSucceeds('merge-base', '--is-ancestor', sha, 'HEAD'))
+  const treeUnstated = bundleCommits.filter((sha) => !bundle.includes(git('rev-parse', `${sha}^{tree}`)))
+  const measured = bundleCommits.find((sha) => sha !== PRE_DECISION_COMMIT)
+  check('D16 the frozen executable-package review bundle exists and agrees with the TREE, not with itself: the three form digests and all seven package digests recomputed here, the five content payload and five admission fingerprints, the governing timestamp, both Joseph tuples, the Nick Tkacz tuple, the run key and the 8 + 3 membership, the OPERATOR-SUPPLIED migration-029 label with its exact hosted record and probe, and a measured candidate commit that is a real ancestor of HEAD whose stated tree resolves',
+    bundle.length > 0
+    && formBindings.every((b) => bundle.includes(b.formPath) && bundle.includes(String(b.length)) && bundle.includes(b.sha))
+    && packageDigests.every((d) => bundle.includes(d))
+    && (world.manifest.entries ?? []).every((e) => bundle.includes(e.content_payload_fingerprint.sha256))
+    && ADMISSION_FINGERPRINTS.every((f) => bundle.includes(f))
+    && bundle.includes(DECISION_TIMESTAMP)
+    && [FAMILY_A_DECISION, FAMILY_B_DECISION].every((d) => bundle.includes(d.reviewer) && bundle.includes(d.role) && bundle.includes(d.rationale))
+    && bundle.includes(RESOLVED_RUN_KEY) && bundle.includes(RESOLVED_RUN_MEMBERSHIP)
+    && bundle.includes('8 exercise members + 3 alias members = 11 membership rows')
+    && bundle.includes('OPERATOR-SUPPLIED') && bundle.includes(MIGRATION_029_HOSTED_RECORD) && bundle.includes(MIGRATION_029_HOSTED_PROBE)
+    && bundle.includes(PRE_DECISION_COMMIT)
+    && !bundle.includes('<<UNRESOLVED')
+    && unresolvable.length === 0 && offHistory.length === 0 && treeUnstated.length === 0
+    && bundleCommits.includes(PRE_DECISION_COMMIT)
+    && measured !== undefined && gitSucceeds('merge-base', '--is-ancestor', measured, 'HEAD') && bundle.includes(git('rev-parse', `${measured}^{tree}`)),
+    `measured candidate: ${measured ?? 'NONE'}; commits: ${bundleCommits.length}, trees: ${bundleTrees.length}, unresolvable: ${unresolvable.join(', ') || 'none'}, off-history: ${offHistory.join(', ') || 'none'}, tree-unstated: ${treeUnstated.join(', ') || 'none'}`)
 }
 
 // ── negative controls ─────────────────────────────────────────────────
