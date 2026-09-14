@@ -883,7 +883,9 @@ function verifyDocuments(world: World): void {
   // fabricated pin. The MEASURED candidate is then the stated ancestor commit that
   // is not the pre-decision commit; the bundle cannot state its own SHA, so this is
   // the strongest pin available to it.
-  const bundleShas = [...new Set([...bundle.matchAll(/`([0-9a-f]{40})`/g)].map((m) => m[1]))]
+  // No Set spread and no matchAll spread: this repository's tsconfig has no
+  // downlevelIteration, so iterating either is a TS2802 compile error.
+  const bundleShas = (bundle.match(/`[0-9a-f]{40}`/g) ?? []).map((t) => t.slice(1, -1)).filter((sha, i, all) => all.indexOf(sha) === i)
   const objectType = (sha: string) => (gitSucceeds('cat-file', '-e', sha) ? git('cat-file', '-t', sha) : 'MISSING')
   const bundleCommits = bundleShas.filter((sha) => objectType(sha) === 'commit')
   const bundleTrees = bundleShas.filter((sha) => objectType(sha) === 'tree')

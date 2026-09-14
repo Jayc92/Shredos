@@ -632,3 +632,26 @@ forms on every run.
 Still true after this round: no hosted Supabase contact, no Supabase CLI, no Vercel contact, no push, no tag,
 no hosted package execution, no configuration change, no delivery. The seven packages are EXECUTABLE and
 UNRUN.
+
+### 15.A What the post-freeze clean-clone re-verification found
+
+The freeze commit was re-verified by bundling the branch, cloning it, and running the matrix inside the clone.
+Three things came out of that, recorded here because two of them were defects in the verification scaffolding
+and one was a real regression in committed code:
+
+1. **A real regression, fixed forward.** The D16 check added by the freeze commit used `[...new Set([...
+   bundle.matchAll(...)])]`. This repository's tsconfig has no `downlevelIteration`, so `npm run type-check`
+   failed with two `TS2802` errors. Only the clean clone caught it: the working-repo type-check had been run
+   before D16 existed. The check was rewritten with a `match` plus an `indexOf` dedupe, all four D16
+   ablations were re-run against the real bundle bytes and still fail, and the bundle was confirmed
+   byte-identical after each. The lesson is the ordinary one: a gate run before the last edit is not a gate
+   on the commit.
+2. **`git bundle create <branch>` carries no tags.** Thirty-seven suites pin ancestry to this repository's
+   stable tags, so they failed in the first clone for want of `refs/tags/*`. `git bundle create --all` (158
+   tags) makes them pass. A reconstruction that omits tags silently under-tests the ancestry gates.
+3. **`verify-ui6a` / `verify-ui6c` need build output.** Both read `.next/static/css`, which a fresh clone has
+   not got. They pass in a worktree that has been built; in a clone they abort with `ENOENT` rather than
+   reporting a failed check.
+
+Neither 2 nor 3 is a defect in the candidate. They are recorded so the next reconstruction is set up
+correctly the first time.
