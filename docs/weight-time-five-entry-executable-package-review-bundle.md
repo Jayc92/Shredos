@@ -15,7 +15,7 @@ recorded with the exit code that produced each verdict.
 | --- | --- |
 | final candidate SHA (every gate in section 3 was measured here) | `f14683ea7f86f515d8388ca6483d7fce938f5b57` |
 | final candidate tree | `b69ac9427bebd77cea86ef6919434372288f7d27` |
-| this bundle's own commit | the next plain-forward commit after `f14683e`, and a document cannot state its own SHA; that commit's ONLY change is this file, which `git show --stat` proves and the change-surface census (endgame static B6) admits by name |
+| this bundle's own commit | the plain-forward freeze commit after `f14683e`; a document cannot state its own SHA. That commit changes exactly two files - this bundle and the endgame static verifier that adds D16, the check which binds this bundle to the tree (section 3.7) - which `git show --stat` proves and the change-surface census (endgame static B6) admits by name. CORRECTED forward: this row first said "ONLY change is this file", which contradicted section 3.7; amending was not available, so the correction is this commit. |
 | branch | `feature/weight-time` (local only, NOT pushed, NOT tagged) |
 | required starting commit | `9bf9e6c861c226fd12b67e2dcd72dd7d4cdbafa8` (tree `c9ead021907af098a1467b6cc7bad7a2eabdcf79`) - confirmed ancestor |
 | commits added over the required starting commit | 4 gated commits plus this freeze commit, plain forward only: `5f0255b` (forms), `8abf870` (generator + rendered packages + decision record), `8f6b46c` (static and live verification), `f14683e` (operator-facing status documents) |
