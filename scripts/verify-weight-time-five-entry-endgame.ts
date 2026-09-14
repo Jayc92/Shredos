@@ -159,12 +159,25 @@ const PLANK_ID = 'e21b2c00-0000-4000-a000-000000000001'
 /** The three historical plank-release identities (Plank, Dead bug, Ab wheel rollout): lawful in gates and in the stage-6/7 carry-forward. */
 const HISTORICAL_LOGICAL_IDS = ['e21b2c00-0000-4000-a000-000000000001', 'e21b2c00-0000-4000-a000-000000000002', 'e21b2c00-0000-4000-a000-000000000003']
 
+/** W14-E runtime evidence, written after the hosted run: the record and its verifier. */
+const RUNTIME_EVIDENCE_RECORD_PATH = 'docs/weight-time-w14e-production-runtime-evidence-record.md'
+const RUNTIME_EVIDENCE_VERIFIER_PATH = 'scripts/verify-weight-time-w14e-production-runtime-record.ts'
+
 const ALLOWED_CHANGED_PATHS = [
   CARRIER_PATH, MATRIX_PATH, FORM_A_PATH, FORM_B_PATH, FORM_C_PATH, DEPENDENCY_PATH, MANIFEST_PATH,
   HUMAN_REVIEW_PATH, DECISION_RECORD_PATH, REVIEW_BUNDLE_PATH, RUNBOOK_PATH, PROBE_PATH, REPORT_PATH,
   MANIFEST_GENERATOR_PATH, PACKAGE_GENERATOR_PATH, LIVE_VERIFIER_PATH, STATIC_VERIFIER_PATH,
   MIGRATION_029, MIGRATION_029_VERIFIER_PATH, MIGRATION_029_LIVE_VERIFIER_PATH,
   ...PACKAGE_FILES.map((f) => `${PACKAGE_DIR}/${f}`),
+  // W14-E RUNTIME EVIDENCE (post-run): the durable record of the Production
+  // fresh-account delivery smoke test and its own static verifier. Admitted by
+  // NAME, exactly two paths, because B6 measures the whole worktree from the
+  // production base: there is no way to record what the run did without the
+  // census seeing the record. Widening it here keeps the census green ON A
+  // KNOWN PAIR rather than leaving it red, where a genuinely stray path would
+  // hide inside an already-failing check. Nothing else is admitted, and
+  // neither path is under src/ or supabase/, so B7/B8 stay untouched.
+  RUNTIME_EVIDENCE_RECORD_PATH, RUNTIME_EVIDENCE_VERIFIER_PATH,
 ]
 /**
  * RETARGET (W14-E — migration 029) surface: the 65 NON-FROZEN historical suites whose migration-inventory

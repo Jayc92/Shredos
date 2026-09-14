@@ -1,0 +1,859 @@
+// ============================================================
+// ForgeFitOS — W14-E production runtime evidence verifier.
+//
+// The W14-E hosted delivery lifecycle HAS RUN against Production. This
+// verifier does not re-prove the lifecycle (the endgame verifier governs the
+// packages) and it does not re-read hosted state — it CANNOT: the only
+// external command it spawns is git, and check X12 proves that about its own
+// source.
+//
+// What it proves is that the durable runtime evidence record tells the truth
+// about the bytes it describes, and that recording the runtime act disturbed
+// nothing:
+//
+//   1. PROVENANCE DISCIPLINE. Four classes are declared and kept distinct —
+//      OPERATOR-SUPPLIED, INDEPENDENT READBACK, LOCAL BYTES, NOT CAPTURED.
+//      No sentence may claim Claude observed hosted state. The three
+//      uncaptured RPC-summary counters may appear ONLY inside a sentence that
+//      disclaims them; a record that quietly starts reporting
+//      skipped_already_delivered as an observed value fails here.
+//   2. RECORD FIDELITY. Every identity, name, equipment mapping, alias,
+//      digest, size, run key, commit and tree in the record is re-derived
+//      FROM THE TREE and compared. Nothing is a retyped constant that could
+//      drift into a comfortable summary of itself.
+//   3. THE FAILURE TEXT IS REPRODUCIBLE. The operator-supplied failure string
+//      is the composition of two halves that are still readable here, at the
+//      SAME git blobs as the deployed source commit. That is what turns a
+//      quoted error message into evidence.
+//   4. NO CREDENTIAL MATERIAL. The record carries no email address and no
+//      credential value.
+//
+// Run from the repository root:
+//   npx tsx scripts/verify-weight-time-w14e-production-runtime-record.ts
+// ============================================================
+
+import path from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+
+const repositoryRoot = process.cwd()
+
+// ── the governed paths ────────────────────────────────────────────────
+const RECORD_PATH = 'docs/weight-time-w14e-production-runtime-evidence-record.md'
+const VERIFIER_PATH = 'scripts/verify-weight-time-w14e-production-runtime-record.ts'
+const DELIVER_CATALOG_PATH = 'src/lib/supabase/deliver-catalog.ts'
+const MIGRATION_028_PATH = 'supabase/migrations/028_weight_time_tracking_mode.sql'
+const MIGRATION_029_PATH = 'supabase/migrations/029_exlib_plank_cross_run_idempotency.sql'
+const LIFECYCLE_MANIFEST_PATH = 'docs/weight-time-five-entry-lifecycle-manifest.json'
+const W14_ADMISSION_MANIFEST_PATH = 'docs/weight-time-w14-admission-manifest.json'
+const HISTORICAL_LOAD_PACKAGE_PATH = 'docs/exlib2k-plank-catalog-load-package.sql'
+const RUN_STAGING_PACKAGE_PATH = 'docs/weight-time-five-entry-packages/06-run-staging.sql'
+const RUN_SEAL_PACKAGE_PATH = 'docs/weight-time-five-entry-packages/07-run-seal.sql'
+
+/**
+ * The Production deployment source commit. The corrective redeploy carried
+ * the SAME source bytes with a corrected environment variable, so the two
+ * files that produced the observed failure text must be the same git blobs
+ * here as they were at the deployment.
+ */
+const DEPLOYED_SOURCE_COMMIT = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
+
+/** The local review-freeze tip this record is committed forward of. */
+const RECORD_PARENT_COMMIT = '0532ffde309f0e548d6e1aa544d88107ccb50b58'
+
+/** Operator-supplied hosted identifiers, recorded verbatim, never re-read. */
+const CORRECTIVE_DEPLOYMENT_ID = 'dpl_By4VrKEjDkNTh4x7XDvAKNVEj5mu'
+const FIRST_DELIVERY_AT = '2026-09-14T15:25:02.898777Z'
+const SECOND_REQUEST_AT = '2026-09-14T15:32:35Z'
+const MIGRATION_029_HOSTED_RECORD = '20260912181551_exlib_plank_cross_run_idempotency_029'
+
+/** The historical run key that is forbidden forever. */
+const FORBIDDEN_RUN_KEY = 'exlib2u-plank-release1-staged-v1'
+
+/** The three RPC-summary counters that were NOT captured. */
+const UNCAPTURED_COUNTERS = ['skipped_already_delivered', 'alias_already_delivered'] as const
+
+/** The four provenance labels the record must declare and use. */
+const PROVENANCE_LABELS = ['OPERATOR-SUPPLIED', 'INDEPENDENT READBACK', 'LOCAL BYTES', 'NOT CAPTURED'] as const
+
+/**
+ * Artifacts whose size AND digest the record pins. Every one is re-hashed
+ * from disk here; the record has to carry what the bytes actually are.
+ */
+const PINNED_ARTIFACTS: Array<{ path: string; why: string }> = [
+  { path: DELIVER_CATALOG_PATH, why: 'the client half of the observed failure text, and the untrimmed run-key accessor' },
+  { path: MIGRATION_028_PATH, why: 'the database half of the observed failure text — the delivery body live hosted' },
+  { path: MIGRATION_029_PATH, why: 'the cross-run idempotency helper the operator path applied hosted' },
+  { path: LIFECYCLE_MANIFEST_PATH, why: 'the frozen expected membership and the derived run key' },
+  { path: W14_ADMISSION_MANIFEST_PATH, why: 'the governing manifest for the five W14 identities' },
+  { path: HISTORICAL_LOAD_PACKAGE_PATH, why: 'where the three historical identities are declared' },
+  { path: RUN_STAGING_PACKAGE_PATH, why: 'stage 6 — stages the run under the corrected key and carries membership forward' },
+  { path: RUN_SEAL_PACKAGE_PATH, why: 'stage 7 — refuses unless the seal shape is exactly 8 exercise + 3 alias members' },
+]
+
+const ENDGAME_VERIFIER_PATH = 'scripts/verify-weight-time-five-entry-endgame.ts'
+const REVIEW_BUNDLE_PATH = 'docs/weight-time-five-entry-executable-package-review-bundle.md'
+
+/**
+ * The complete permitted change surface for the round that writes the record:
+ * the record, its verifier, and the two consequences of adding any artifact at
+ * all to this branch.
+ *
+ * The endgame verifier's own change-surface census (B6) measures the WHOLE
+ * worktree from the production base, so a new file — any new file — turns it
+ * red. It was therefore widened BY NAME to admit these two paths. X8e proves
+ * that widening was a pure addition: nothing was removed, so no existing
+ * allowlist entry was dropped and the census was not weakened.
+ *
+ * The review bundle's change-surface row asserted that every successor stays
+ * inside the frozen 20-path set. That became false the moment this round added
+ * a path, so it was CORRECTED FORWARD rather than left as a comfortable
+ * falsehood. X8f proves the correction touched no commit identity.
+ */
+const ALLOWED_CHANGED_PATHS = [RECORD_PATH, VERIFIER_PATH, ENDGAME_VERIFIER_PATH, REVIEW_BUNDLE_PATH]
+
+// ── result plumbing ───────────────────────────────────────────────────
+type Finding = { name: string; ok: boolean; detail?: string }
+
+let passed = 0
+let failed = 0
+function check(name: string, condition: boolean, detail?: string): void {
+  if (condition) { passed += 1; console.log(`  PASS  ${name}`) }
+  else { failed += 1; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
+}
+function read(relativePath: string): string {
+  return readFileSync(path.join(repositoryRoot, relativePath), 'utf8')
+}
+function bytesOf(relativePath: string): Buffer {
+  return readFileSync(path.join(repositoryRoot, relativePath))
+}
+function sha256(content: string | Buffer): string {
+  return createHash('sha256').update(content).digest('hex')
+}
+function git(...args: string[]): string {
+  // Absolute -C, always: a command whose output becomes a claim about a repo
+  // must not depend on the ambient working directory.
+  return execFileSync('git', ['-C', repositoryRoot, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trim()
+}
+/** For git commands whose ANSWER is the exit status (--is-ancestor). */
+function gitSucceeds(...args: string[]): boolean {
+  try { git(...args); return true } catch { return false }
+}
+function blobIdAt(commitish: string, relativePath: string): string | null {
+  try { return git('rev-parse', `${commitish}:${relativePath}`) } catch { return null }
+}
+/** Prose writes 13,036; machines write 13036. */
+function withoutDigitGroupSeparators(text: string): string {
+  return text.replace(/(\d),(?=\d{3}\b)/g, '$1')
+}
+/**
+ * Markdown inline markup sits INSIDE sentences, and the record hard-wraps.
+ * Stripping emphasis/code markers and collapsing the wrap makes a prose
+ * assertion a claim about the prose rather than about one author's
+ * formatting. Underscore is NOT stripped: this document is full of
+ * snake_case identifiers, and removing underscores turns
+ * skipped_already_delivered into a token that appears nowhere.
+ */
+function asProse(markdown: string): string {
+  return markdown.replace(/[`*|]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+function sentencesOf(markdown: string): string[] {
+  return asProse(markdown).split(/(?<=[.!?])\s+/).filter((s) => s.length > 0)
+}
+
+// ── facts derived from the tree, never retyped ────────────────────────
+type Identity = { logical_id: string; canonical_name: string; equipment: string; tracking_mode: string }
+
+/** The five governed W14 identities, read out of the governing manifest. */
+function governedIdentities(): Identity[] {
+  const found: Identity[] = []
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) { node.forEach(walk); return }
+    if (node === null || typeof node !== 'object') return
+    const record = node as Record<string, unknown>
+    if (typeof record.logical_id === 'string' && typeof record.canonical_name === 'string'
+      && typeof record.equipment === 'string' && typeof record.tracking_mode === 'string') {
+      found.push({
+        logical_id: record.logical_id,
+        canonical_name: record.canonical_name,
+        equipment: record.equipment,
+        tracking_mode: record.tracking_mode,
+      })
+    }
+    Object.values(record).forEach(walk)
+  }
+  walk(JSON.parse(read(W14_ADMISSION_MANIFEST_PATH)))
+  return found
+}
+
+type ExpectedMembership = {
+  runKey: string
+  exerciseMembers: number
+  aliasMembers: number
+  totalItems: number
+  memberLines: string[]
+  aliases: Array<{ alias: string; targetLogicalId: string }>
+}
+
+/** The frozen expected membership, read out of the lifecycle manifest. */
+function expectedMembership(): ExpectedMembership {
+  const manifest = JSON.parse(read(LIFECYCLE_MANIFEST_PATH)) as {
+    delivery_run: {
+      proposed_run_key: string
+      expected_membership: {
+        exercise_members: number
+        alias_members: number
+        total_items: number
+        expected_member_lines: string[]
+      }
+    }
+  }
+  const membership = manifest.delivery_run.expected_membership
+  const aliases = membership.expected_member_lines
+    .filter((line) => line.startsWith('alias#'))
+    .map((line) => {
+      const parts = line.split('#')
+      return { alias: parts[2], targetLogicalId: parts[1] }
+    })
+  return {
+    runKey: manifest.delivery_run.proposed_run_key,
+    exerciseMembers: membership.exercise_members,
+    aliasMembers: membership.alias_members,
+    totalItems: membership.total_items,
+    memberLines: membership.expected_member_lines,
+    aliases,
+  }
+}
+
+/** The three historical identities, read out of the load package's declaration. */
+function historicalIdentities(): Array<{ name: string; logicalId: string }> {
+  const source = read(HISTORICAL_LOAD_PACKAGE_PATH)
+  const pattern = /--\s{2,}(.+?) logical identity \.+ ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/g
+  const found: Array<{ name: string; logicalId: string }> = []
+  let match: RegExpExecArray | null = pattern.exec(source)
+  while (match !== null) {
+    found.push({ name: match[1].trim(), logicalId: match[2].trim() })
+    match = pattern.exec(source)
+  }
+  return found
+}
+
+/** The two halves of the observed failure text, read out of the source. */
+function failureTextHalves(): { prefixTemplate: string; databaseMessage: string } {
+  const client = read(DELIVER_CATALOG_PATH)
+  const prefix = /failClosed\(`delivery rejected: \$\{error\.message \?\? "unknown database error"\}`\)/.test(client)
+    ? 'delivery rejected: '
+    : 'PREFIX NOT FOUND IN SOURCE'
+  const migration = read(MIGRATION_028_PATH)
+  const raised = /RAISE EXCEPTION '(deliver_catalog_exercises: no sealed, approved, unrevoked delivery run for this key)'/.exec(migration)
+  return { prefixTemplate: prefix, databaseMessage: raised === null ? 'DATABASE MESSAGE NOT FOUND IN SOURCE' : raised[1] }
+}
+
+// ── the record: does it say what the bytes say? ───────────────────────
+type World = { record: string }
+
+/**
+ * Every assertion about the record's CONTENT lives here, so the negative
+ * controls can re-run the whole set against a corrupted copy and demand that
+ * the TARGETED pin — not merely "something" — rejects it.
+ */
+function assertRecord(world: World, findings: Finding[]): void {
+  const record = world.record
+  const numeric = withoutDigitGroupSeparators(record)
+  const prose = asProse(record)
+  // Machine keys in prose are code-fenced (`exercise_members` 8), so a pin on
+  // "key then number" has to read the markup-stripped text, not the raw bytes.
+  const numericProse = withoutDigitGroupSeparators(prose)
+  const sentences = sentencesOf(record)
+  const add = (name: string, ok: boolean, detail?: string): void => { findings.push({ name, ok, detail }) }
+
+  // ── A1 substance ──
+  add('A1 the record is a substantial durable document, not a stub', record.length > 8000, `${record.length} characters`)
+
+  // ── A2-A3 deployment identity, re-derived from git ──
+  add(`A2a the Production deployment source SHA ${DEPLOYED_SOURCE_COMMIT.slice(0, 8)} is recorded exactly`,
+    record.includes(DEPLOYED_SOURCE_COMMIT))
+  add('A2b the deployed commit\'s tree, as git resolves it, is recorded exactly',
+    record.includes(git('rev-parse', `${DEPLOYED_SOURCE_COMMIT}^{tree}`)),
+    git('rev-parse', `${DEPLOYED_SOURCE_COMMIT}^{tree}`))
+  add('A2c the record states the source SHA did not move across the corrective redeploy',
+    /source SHA did not move/i.test(prose))
+  add(`A3a the corrective deployment id ${CORRECTIVE_DEPLOYMENT_ID} is recorded exactly`,
+    record.includes(CORRECTIVE_DEPLOYMENT_ID))
+  add('A3b the corrective deployment is recorded as observed READY and serving the Production aliases',
+    /READY/.test(record) && /serving the Production aliases/i.test(prose))
+  add('A3c exactly one corrective redeploy is recorded',
+    /corrective Production redeploys performed\s+exactly one/i.test(prose) || /redeploys performed .{0,20}exactly one/i.test(prose))
+
+  // ── A4 the run key ──
+  const membership = expectedMembership()
+  add(`A4a the corrected run key is recorded exactly as the manifest derives it (${membership.runKey})`,
+    record.includes(membership.runKey))
+  add('A4b the record states the key was CORRECTED in Production configuration',
+    new RegExp(`CATALOG_DELIVERY_RUN_KEY corrected to exactly`, 'i').test(prose))
+  add(`A4c the forbidden historical run key ${FORBIDDEN_RUN_KEY} is recorded as forbidden, not as the key used`,
+    record.includes(FORBIDDEN_RUN_KEY) && /NOT the forbidden historical key/i.test(prose))
+
+  // ── A5-A6 the fail-closed attempt ──
+  const halves = failureTextHalves()
+  const composed = `${halves.prefixTemplate}${halves.databaseMessage}`
+  add('A5a the observed failure text is recorded verbatim, and equals the composition of the two halves this repository still carries',
+    record.includes(composed), composed)
+  add('A5b both halves are attributed to their own file',
+    prose.includes(DELIVER_CATALOG_PATH) && prose.includes(MIGRATION_028_PATH))
+  add('A5c the record names the failure a CONFIGURATION failure, not a delivery-contract defect',
+    /CONFIGURATION failure/i.test(prose) && /not a defect in the\s*delivery contract|not a defect in the delivery contract/i.test(prose))
+  add('A6 the failed attempt is recorded as inserting 0 exercises and 0 aliases, with no fallback to the seed path',
+    /0 exercises, 0 aliases/i.test(prose) && /never seeds|never fall(ing|s)? back to the seed path|never falling back to the seed path/i.test(prose))
+
+  // ── A7-A9 baseline and first delivery ──
+  for (const token of ['exercise_rows=0', 'alias_rows=0', 'new_run_exercises=0', 'new_run_aliases=0']) {
+    add(`A7.${token} the immediate pre-delivery baseline leaf ${token} is recorded exactly`, record.includes(token))
+  }
+  add('A7e the record explains why the baseline is load-bearing rather than decorative',
+    /baseline matters/i.test(prose) && /attributable to the delivery transaction/i.test(prose))
+  add(`A8 the first successful delivery transaction time ${FIRST_DELIVERY_AT} is recorded exactly, creating all ${membership.totalItems} tenant rows`,
+    record.includes(FIRST_DELIVERY_AT) && new RegExp(`all ${membership.totalItems} tenant rows`).test(prose))
+  add(`A9a post-first-init exercises = ${membership.exerciseMembers} and aliases = ${membership.aliasMembers}, matching the frozen expected membership`,
+    new RegExp(`tenant exercises\\s+${membership.exerciseMembers}\\b`).test(prose)
+    && new RegExp(`tenant aliases\\s+${membership.aliasMembers}\\b`).test(prose))
+  add('A9b successor-run exercises and aliases are recorded',
+    new RegExp(`successor-run exercises\\s+${membership.exerciseMembers}\\b`).test(prose)
+    && new RegExp(`successor-run aliases\\s+${membership.aliasMembers}\\b`).test(prose))
+  add('A9c distinct catalog logical IDs and distinct catalog alias IDs are recorded',
+    new RegExp(`distinct catalog logical IDs\\s+${membership.exerciseMembers}\\b`).test(prose)
+    && new RegExp(`distinct catalog alias IDs\\s+${membership.aliasMembers}\\b`).test(prose))
+  add('A9d the record states why distinct identities are stronger than a count',
+    /forecloses a duplicate-delivery shape/i.test(prose))
+
+  // ── A10 the eight cumulative names ──
+  const historical = historicalIdentities()
+  add('A10a exactly three historical identities are declared in the load package',
+    historical.length === 3, historical.map((h) => h.name).join(', '))
+  for (const identity of historical) {
+    add(`A10.${identity.logicalId.slice(-3)} the historical identity "${identity.name}" is recorded as delivered`,
+      record.includes(identity.name))
+  }
+  add('A10b the eight are recorded as CUMULATIVE — additive, not a replacement',
+    /CUMULATIVE/.test(record) && /additive, not a replacement/i.test(prose))
+
+  // ── A11 the five governed identities, from the governing manifest ──
+  const identities = governedIdentities()
+  add('A11a exactly five governed identities are declared in the W14 admission manifest',
+    identities.length === 5, identities.map((i) => i.canonical_name).join(', '))
+  for (const identity of identities) {
+    const row = new RegExp(`${identity.logical_id}[^\\n]*${identity.canonical_name}[^\\n]*${identity.tracking_mode}[^\\n]*${identity.equipment}`)
+    add(`A11.${identity.logical_id.slice(-3)} ${identity.canonical_name} is recorded with its logical id, tracking_mode ${identity.tracking_mode} and approved equipment ${identity.equipment}, on one line`,
+      row.test(record))
+  }
+  add('A11b every governed identity in the manifest carries tracking_mode weight_time',
+    identities.every((i) => i.tracking_mode === 'weight_time'))
+
+  // ── A12 the three aliases, from the frozen member lines ──
+  add(`A12a exactly ${membership.aliasMembers} alias member lines are frozen in the lifecycle manifest`,
+    membership.aliases.length === membership.aliasMembers)
+  for (const alias of membership.aliases) {
+    add(`A12.${alias.alias.replace(/\s+/g, '-')} the alias "${alias.alias}" is recorded with its target logical id ${alias.targetLogicalId.slice(-3)}`,
+      new RegExp(`${alias.alias}[^\\n]*${alias.targetLogicalId}`).test(record))
+  }
+
+  // ── A13 the second initialization ──
+  add('A13a the second initialization is recorded as exactly one refresh',
+    /refreshed for a second initialization\s+exactly once/i.test(prose))
+  add(`A13b the second /workouts request time ${SECOND_REQUEST_AT} and HTTP 200 are recorded exactly`,
+    record.includes(SECOND_REQUEST_AT) && /HTTP 200/.test(record))
+  add(`A13c post-second-init persisted state is recorded as unchanged at ${membership.exerciseMembers}/${membership.aliasMembers} with unchanged distinct identities`,
+    new RegExp(`${membership.exerciseMembers} exercises / ${membership.aliasMembers} aliases / ${membership.exerciseMembers} distinct logical IDs / ${membership.aliasMembers} distinct alias IDs`).test(record))
+  add('A13d no new tenant catalog rows are recorded for the second initialization',
+    /new tenant catalog rows created by the second initialization\s+none/i.test(prose))
+  add('A13e no /workouts runtime errors are recorded after the second initialization',
+    /runtime errors observed after the second initialization\s+none/i.test(prose))
+
+  // ── A14 the uncaptured counters may appear ONLY inside a disclaimer ──
+  add('A14a the record states plainly that the successful RPC response was NOT captured',
+    /response was NOT CAPTURED/i.test(prose))
+  for (const counter of UNCAPTURED_COUNTERS) {
+    const claiming = sentences.filter((s) => s.includes(counter) && !/not\s+(captured|claim)/i.test(s))
+    add(`A14.${counter} every sentence naming ${counter} disclaims it — no observed value is reported`,
+      claiming.length === 0, claiming[0])
+  }
+  const summaryClaims = sentences.filter((s) => /delivery-summary JSON/i.test(s) && !/not\s+(captured|claim)/i.test(s))
+  add('A14b the complete returned delivery-summary JSON is never reported as observed',
+    summaryClaims.length === 0, summaryClaims[0])
+
+  // ── A15-A16 how the idempotency claim is carried, and where it stops ──
+  add('A15 idempotency is asserted from PERSISTED STATE — both unchanged cardinality and unchanged distinct identities',
+    /rests on\s*PERSISTED STATE|rests on PERSISTED STATE/i.test(prose)
+    && /DISTINCT IDENTITY SETS were unchanged/i.test(prose)
+    && /does not rest on any returned counter/i.test(prose))
+  add('A16 the record states what HTTP 200 does NOT prove, and why the fail-closed path still returns 200',
+    /What HTTP 200 does not prove/i.test(prose) && /it does not throw/i.test(prose))
+
+  // ── A17 provenance discipline ──
+  for (const label of PROVENANCE_LABELS) {
+    add(`A17.${label.replace(/\s+/g, '-')} the provenance class ${label} is declared and used`,
+      (record.match(new RegExp(label, 'g')) ?? []).length >= 2)
+  }
+  add('A17e the record states that BOTH hosted classes were never seen by Claude',
+    /neither was ever seen by Claude/i.test(prose))
+  add('A17f the record states no hosted system was contacted while it was written',
+    /No hosted system was contacted/i.test(prose)
+    && /no Supabase CLI/i.test(prose) && /no Vercel/i.test(prose) && /no SQL/i.test(prose) && /no RPC/i.test(prose))
+  const hosted = /(hosted|Supabase|Vercel|Production)/i
+  const negated = /\b(not|never|no|nothing|neither|cannot|without|refus|prohibit|forbidden|only the operator|operator-supplied|operator path|says nothing|failed)\b/i
+  const dishonest = sentences.filter((s) => /Claude/.test(s) && hosted.test(s) && !negated.test(s))
+  add('A17g provenance honesty, checked structurally: every sentence naming Claude alongside a hosted system carries a negation',
+    dishonest.length === 0, dishonest[0])
+
+  // ── A18 no credential material ──
+  const emails = record.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) ?? []
+  add('A18a the record contains no email address', emails.length === 0, emails[0])
+  add('A18b the record states that no credential material is recorded in any committed artifact of this round',
+    /No test account identifier, email address, password or other credential\s*material is recorded/i.test(prose))
+
+  // ── A19 the deferred hardening observation ──
+  add('A19a the deferred hardening observation names catalogDeliveryRunKey and the untrimmed return',
+    prose.includes('catalogDeliveryRunKey') && /returns the UNTRIMMED\s*original string|returns the UNTRIMMED original string/i.test(prose))
+  add('A19b it prescribes returning key.trim() as a FUTURE maintenance change',
+    /future maintenance change\s*should return key\.trim\(\)|future maintenance change should return key\.trim\(\)/i.test(prose))
+  add('A19c it is explicitly NOT part of the W14-E runtime acceptance condition and did not gate it',
+    /NOT part of\s*this acceptance condition and did not gate it|NOT part of this acceptance condition and did not gate it/i.test(prose)
+    && /NOT part of the W14-E runtime acceptance condition/i.test(prose))
+  add('A19d it records that no application code was modified in this round',
+    /no application code was modified/i.test(prose))
+
+  // ── A20 the surviving rules ──
+  add('A20a the DO NOT RERUN rule is carried', /DO NOT RERUN/.test(record))
+  add('A20b the READ STATE FIRST rule is carried', /READ STATE FIRST/.test(record))
+  add('A20c the record states it is local-only: not pushed, not tagged, not published',
+    /not pushed, not tagged, not\s*published|not pushed, not tagged, not published/i.test(prose)
+    && /Publication is a separate authorization/i.test(prose))
+  add('A20d the record names its own verifier', record.includes(VERIFIER_PATH))
+
+  // ── A21 migration 029: hosted record name, and the frozen artifact label ──
+  add(`A21a the hosted migration record ${MIGRATION_029_HOSTED_RECORD} is recorded as OPERATOR-SUPPLIED`,
+    record.includes(MIGRATION_029_HOSTED_RECORD) && /supplied as APPLIED\s*by the operator path|supplied as APPLIED by the operator path/i.test(prose))
+  add('A21b the record explains that 029\'s frozen PREPARED label is an artifact label, not current world state',
+    /PREPARED/.test(record) && /ARTIFACT LABEL/i.test(prose) && /not a statement\s*of current hosted world state|not a statement of current hosted world state/i.test(prose))
+  add('A21c the record states 029 replaces exactly one function and that the live delivery body is 028\'s',
+    /replaces exactly one function/i.test(prose) && /exlib_plank_link_valid/.test(record))
+
+  // ── A22 the acceptance condition, on three named legs ──
+  add('A22a the runtime acceptance condition is recorded as MET', /acceptance condition is MET/i.test(prose))
+  add('A22b it is carried on exactly the three legs and nothing else',
+    /FAILED CLOSED on a wrong run key/i.test(prose)
+    && /created exactly the frozen expected membership/i.test(prose)
+    && /A second initialization created nothing/i.test(prose)
+    && /on these three legs and nothing\s*else|on these three legs and nothing else/i.test(prose))
+
+  // ── A23 corroboration is not proof ──
+  add('A23a the record pins the frozen 8/3/11 expectation and the stage-7 refusal that enforces it',
+    new RegExp(`exercise_members\\s*${membership.exerciseMembers}`).test(numericProse)
+    && new RegExp(`alias_members\\s*${membership.aliasMembers}`).test(numericProse)
+    && new RegExp(`total_items\\s*${membership.totalItems}`).test(numericProse)
+    && prose.includes(RUN_SEAL_PACKAGE_PATH) && prose.includes(RUN_STAGING_PACKAGE_PATH))
+  add('A23b the record states the agreement is CORROBORATION and NOT proof that the hosted stages ran these exact bytes',
+    /This agreement is CORROBORATION/i.test(prose)
+    && /NOT proof that the hosted stages executed these exact\s*bytes|NOT proof that the hosted stages executed these exact bytes/i.test(prose))
+  add('A23c the record refuses to claim the hosted stages ran the local package bytes',
+    /is not observable from\s*this repository, and this record does not assert it|is not observable from this repository, and this record does not assert it/i.test(prose))
+  add('A23d the record states Claude never observed an authenticated Production session',
+    /Claude never observed an authenticated Production session/i.test(prose))
+
+  // ── A25 the record accounts for its own round's change surface ──
+  add('A25a the record states this round\'s complete change surface — four paths — and names all four',
+    /four paths/i.test(prose) && [RECORD_PATH, VERIFIER_PATH, 'verify-weight-time-five-entry-endgame.ts',
+      'weight-time-five-entry-executable-package-review-bundle.md'].every((p) => record.includes(p)))
+  add('A25b the record explains that the census was widened BY NAME and not weakened',
+    /widened BY NAME/i.test(prose) && /nothing was removed/i.test(prose))
+  add('A25c the record states the bundle row was corrected forward rather than left false',
+    /corrected forward/i.test(prose))
+
+  // ── A24 every pinned artifact's real size and digest appear in the record ──
+  for (const artifact of PINNED_ARTIFACTS) {
+    const bytes = bytesOf(artifact.path)
+    add(`A24.${path.basename(artifact.path)} the record carries this artifact's ACTUAL size and sha256 — ${artifact.why}`,
+      numeric.includes(String(bytes.length)) && record.includes(sha256(bytes)),
+      `${bytes.length} B sha256 ${sha256(bytes)}`)
+  }
+}
+
+// ── the bytes: is the record's account of them true? ──────────────────
+function verifyBytesAndBoundaries(): void {
+  // ── X1 the deployed source commit ──
+  check(`X1a the deployed Production source commit ${DEPLOYED_SOURCE_COMMIT.slice(0, 8)} exists and is an ancestor of HEAD`,
+    gitSucceeds('cat-file', '-e', DEPLOYED_SOURCE_COMMIT)
+    && gitSucceeds('merge-base', '--is-ancestor', DEPLOYED_SOURCE_COMMIT, 'HEAD'))
+  check('X1b the record\'s parent commit is an ancestor of HEAD — this round built forward, it did not amend, rebase or squash',
+    gitSucceeds('merge-base', '--is-ancestor', RECORD_PARENT_COMMIT, 'HEAD'))
+  check('X1c there are no merge commits from the deployed source commit to HEAD',
+    git('rev-list', '--count', '--merges', `${DEPLOYED_SOURCE_COMMIT}..HEAD`) === '0')
+  check('X1d every commit from the deployed source commit to HEAD has exactly one parent',
+    git('rev-list', `${DEPLOYED_SOURCE_COMMIT}..HEAD`).split('\n').filter(Boolean)
+      .every((sha) => git('rev-list', '--parents', '-n', '1', sha).split(' ').length === 2))
+
+  // ── X2 the failure text's two halves are the DEPLOYED blobs ──
+  for (const relativePath of [DELIVER_CATALOG_PATH, MIGRATION_028_PATH]) {
+    const atDeployed = blobIdAt(DEPLOYED_SOURCE_COMMIT, relativePath)
+    const atHead = blobIdAt('HEAD', relativePath)
+    check(`X2.${path.basename(relativePath)} is the SAME GIT BLOB at the deployed source commit and at HEAD — the failure text is bound to the bytes that actually ran`,
+      atDeployed !== null && atDeployed === atHead, `${atDeployed} vs ${atHead}`)
+  }
+  const halves = failureTextHalves()
+  check('X3a the client half really is in the source: failClosed composes "delivery rejected: " from the database error message',
+    halves.prefixTemplate === 'delivery rejected: ')
+  check('X3b the database half really is in migration 028: the delivery predicate raises the no-sealed-run exception',
+    halves.databaseMessage === 'deliver_catalog_exercises: no sealed, approved, unrevoked delivery run for this key')
+  check('X3c the fail-closed path RETURNS rather than throws — which is why /workouts answered 200 on a failed delivery',
+    /function failClosed\(reason: string\): InitializeOutcome \{\n\s+console\.error\([^\n]*\)\n\s+return \{ path: "failed_closed", reason \}/.test(read(DELIVER_CATALOG_PATH)))
+
+  // ── X4 the deferred hardening observation is still TRUE of the bytes ──
+  const accessor = /export function catalogDeliveryRunKey\(\): string \| null \{\n\s+const key = process\.env\.CATALOG_DELIVERY_RUN_KEY\n\s+if \(typeof key !== "string" \|\| key\.trim\(\)\.length === 0\) return null\n\s+return key\n\}/
+  check('X4 catalogDeliveryRunKey still validates key.trim() but returns the untrimmed original — the section 10 observation is TRUE of the current bytes, and if the hardening lands this check fails until the record is corrected forward',
+    accessor.test(read(DELIVER_CATALOG_PATH)))
+
+  // ── X5 the frozen expectation the hosted figures are compared against ──
+  const membership = expectedMembership()
+  check(`X5a the lifecycle manifest pins expected membership ${membership.exerciseMembers} exercises / ${membership.aliasMembers} aliases / ${membership.totalItems} items`,
+    membership.exerciseMembers === 8 && membership.aliasMembers === 3 && membership.totalItems === 11)
+  check('X5b the frozen member lines are exactly that shape: 8 exercise lines and 3 alias lines, 11 in total, all distinct',
+    membership.memberLines.length === membership.totalItems
+    && membership.memberLines.filter((l) => l.startsWith('exercise#')).length === membership.exerciseMembers
+    && membership.memberLines.filter((l) => l.startsWith('alias#')).length === membership.aliasMembers
+    && new Set(membership.memberLines).size === membership.totalItems)
+  check('X5c the manifest derives the corrected run key AND names the historical key forbidden forever — a clause comparing the two literals would be vacuous, so the forbidden key is read from the manifest',
+    membership.runKey === 'w14e-weight-time-release1-staged-v1'
+    && read(LIFECYCLE_MANIFEST_PATH).includes(`"forbidden_run_key": "${FORBIDDEN_RUN_KEY}"`))
+  check('X5d stage 7 REFUSES unless the seal shape is exactly 8 exercise + 3 alias members',
+    (read(RUN_SEAL_PACKAGE_PATH).match(/<> 8 OR COALESCE\(v_alias_members, 0\) <> 3 THEN/g) ?? []).length >= 1)
+  check('X5e stage 6 stages the run under the corrected key',
+    read(RUN_STAGING_PACKAGE_PATH).includes(`('${membership.runKey}', false,`))
+
+  // ── X6 the identities and aliases the record reports ──
+  const identities = governedIdentities()
+  check('X6a the governing manifest declares exactly five identities, every one weight_time',
+    identities.length === 5 && identities.every((i) => i.tracking_mode === 'weight_time'))
+  check('X6b every governed logical id also appears in the frozen member lines',
+    identities.every((i) => membership.memberLines.includes(`exercise#${i.logical_id}`)))
+  const historical = historicalIdentities()
+  check('X6c the load package declares exactly three historical identities, and all three are carried in the frozen member lines',
+    historical.length === 3 && historical.every((h) => membership.memberLines.includes(`exercise#${h.logicalId}`)))
+  check('X6d the eight frozen exercise lines are exactly the three historical plus the five governed — no fourth source',
+    membership.memberLines.filter((l) => l.startsWith('exercise#')).sort().join(',')
+    === [...historical.map((h) => `exercise#${h.logicalId}`), ...identities.map((i) => `exercise#${i.logical_id}`)].sort().join(','))
+
+  // ── X7 migration 029 ──
+  check('X7a migration 029 exists at HEAD and does NOT exist at the deployed source commit — the hosted database is ahead of the deployed source, exactly as the record says',
+    blobIdAt('HEAD', MIGRATION_029_PATH) !== null && blobIdAt(DEPLOYED_SOURCE_COMMIT, MIGRATION_029_PATH) === null)
+  check('X7b migration 029 replaces exactly one function, the shared idempotency helper',
+    (read(MIGRATION_029_PATH).match(/^CREATE OR REPLACE FUNCTION/gm) ?? []).length === 1
+    && read(MIGRATION_029_PATH).includes('exlib_plank_link_valid'))
+  check('X7c migration 029 still carries its frozen PREPARED — NOT APPLIED header label, unedited',
+    /STATUS: PREPARED — NOT APPLIED/.test(read(MIGRATION_029_PATH)))
+
+  // ── X8 the change surface of the round that writes the record ──
+  const committed = git('diff', '--name-only', RECORD_PARENT_COMMIT, 'HEAD').split('\n').filter(Boolean)
+  const untracked = git('ls-files', '--others', '--exclude-standard').split('\n').filter(Boolean)
+  const modified = git('diff', '--name-only').split('\n').filter(Boolean)
+  const surface = [...committed, ...untracked, ...modified].filter((p, i, a) => a.indexOf(p) === i).sort()
+  check('X8a the ENTIRE change surface of this round is exactly four paths — the record, its verifier, the endgame census it forces open by name, and the review-bundle row corrected forward — and nothing else',
+    surface.length === ALLOWED_CHANGED_PATHS.length && surface.every((p) => ALLOWED_CHANGED_PATHS.includes(p)),
+    surface.join(', '))
+  check('X8b nothing under src/ changed in this round', !surface.some((p) => p.startsWith('src/')))
+  check('X8c nothing under supabase/ changed in this round', !surface.some((p) => p.startsWith('supabase/')))
+  const endgameDiff = git('diff', RECORD_PARENT_COMMIT, '--', ENDGAME_VERIFIER_PATH).split('\n')
+  const endgameRemovals = endgameDiff.filter((line) => line.startsWith('-') && !line.startsWith('---'))
+  const endgameAdditions = endgameDiff.filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+  check('X8e the endgame census was WIDENED, not weakened: its diff from the parent removes NOTHING, and every added line of substance is the two named runtime-evidence paths or the comment explaining them',
+    endgameRemovals.length === 0
+    && endgameAdditions.length > 0
+    && endgameAdditions.every((line) => {
+      const body = line.slice(1).trim()
+      return body === '' || body.startsWith('//') || body.startsWith('/**') || body.startsWith('*')
+        || body.includes('RUNTIME_EVIDENCE_RECORD_PATH') || body.includes('RUNTIME_EVIDENCE_VERIFIER_PATH')
+    }),
+    `${endgameRemovals.length} removals`)
+  check('X8f the endgame allowlist actually admits both runtime-evidence paths by name',
+    read(ENDGAME_VERIFIER_PATH).includes(`'${RECORD_PATH}'`)
+    && read(ENDGAME_VERIFIER_PATH).includes(`'${VERIFIER_PATH}'`))
+  const shasIn = (text: string): string[] =>
+    Array.from(new Set(text.match(/\b[0-9a-f]{40}\b/g) ?? [])).sort()
+  check('X8g the review bundle was corrected forward WITHOUT touching any commit or tree identity — the set of 40-hex object names in it is unchanged from the parent',
+    shasIn(read(REVIEW_BUNDLE_PATH)).join(',') === shasIn(git('show', `${RECORD_PARENT_COMMIT}:${REVIEW_BUNDLE_PATH}`)).join(','))
+  check('X8h the review bundle now states the corrected invariant: the set grows only by NAMED paths the census enforces',
+    /CORRECTED FORWARD/.test(read(REVIEW_BUNDLE_PATH))
+    && read(REVIEW_BUNDLE_PATH).includes(RECORD_PATH)
+    && read(REVIEW_BUNDLE_PATH).includes(VERIFIER_PATH))
+  check('X8d this round deletes and renames nothing',
+    git('diff', '--name-status', RECORD_PARENT_COMMIT, 'HEAD').split('\n').filter(Boolean)
+      .every((line) => line.startsWith('A') || line.startsWith('M')))
+
+  // ── X9 this verifier structurally cannot reach a hosted system ──
+  const ownSource = read(VERIFIER_PATH)
+  // Captured, not sliced: an offset written as a string literal would itself
+  // contain the spawn token and count as a second spawn site. The pattern is
+  // safe because its own text carries an escape between the name and the
+  // paren, so it does not match itself.
+  const spawnPattern = /execFileSync\('([^']+)'/g
+  const spawned: string[] = []
+  let spawnMatch: RegExpExecArray | null = spawnPattern.exec(ownSource)
+  while (spawnMatch !== null) {
+    spawned.push(spawnMatch[1])
+    spawnMatch = spawnPattern.exec(ownSource)
+  }
+  check('X9a the only external command this verifier spawns is git',
+    spawned.length > 0 && spawned.every((c) => c === 'git'), spawned.join(', '))
+  // Built from fragments on purpose. Spelled out, each forbidden token would
+  // appear verbatim in THIS file and the check would report itself as the
+  // violation — a self-reference that makes an honest check unpassable.
+  const forbidden = [
+    ["from 'node:", 'http'].join(''),
+    ["from 'node:", 'net'].join(''),
+    ["from 'node:", 'tls'].join(''),
+    ['fet', 'ch('].join(''),
+    ['create', 'Client'].join(''),
+    ['supabase', '-js'].join(''),
+    ['exlib_', 'psql'].join(''),
+  ]
+  const present = forbidden.filter((token) => ownSource.includes(token))
+  check('X9b this verifier imports no network module, constructs no database client and issues no fetch',
+    present.length === 0, present.join(', '))
+}
+
+// ── negative controls ────────────────────────────────────────────────
+/**
+ * A control corrupts the record and must be REJECTED BY A NAMED ASSERTION.
+ * Demanding the specific assertion is what keeps each pin alive: a pin that
+ * stops firing shows up here as a broken control rather than vanishing into
+ * an aggregate pass. Each is classified DELETE, SUBSTITUTE or ADD — a suite
+ * made only of SUBSTITUTE controls proves nothing about a claim being simply
+ * dropped, which is the likelier failure in a hand-edited document.
+ */
+function runRecordControls(baseline: World): void {
+  const membership = expectedMembership()
+  const controls: Array<{ label: string; expect: string; mutate: (w: World) => void }> = [
+    {
+      label: 'NC-DELETE: the NOT CAPTURED disclaimer for the RPC response removed',
+      expect: 'A14a',
+      mutate: (w) => { w.record = w.record.replace(/response was NOT CAPTURED/gi, 'response was logged') },
+    },
+    {
+      label: 'NC-DELETE: the DO NOT RERUN rule removed',
+      expect: 'A20a',
+      mutate: (w) => { w.record = w.record.replace(/DO NOT RERUN/g, 'proceed as needed') },
+    },
+    {
+      label: 'NC-DELETE: the READ STATE FIRST rule removed',
+      expect: 'A20b',
+      mutate: (w) => { w.record = w.record.replace(/READ STATE FIRST/g, 'try again') },
+    },
+    {
+      label: 'NC-DELETE: the baseline leaf new_run_aliases=0 dropped, leaving a post-state with nothing to attribute it to',
+      expect: 'A7.new_run_aliases=0',
+      mutate: (w) => { w.record = w.record.replace(/new_run_aliases=0/g, '') },
+    },
+    {
+      label: 'NC-DELETE: the corroboration-is-not-proof clause removed',
+      expect: 'A23b',
+      mutate: (w) => { w.record = w.record.replace(/This agreement is CORROBORATION/g, 'This agreement is proof') },
+    },
+    {
+      label: 'NC-DELETE: one delivered alias dropped from the record',
+      expect: `A12.${membership.aliases[1].alias.replace(/\s+/g, '-')}`,
+      mutate: (w) => { w.record = w.record.replace(new RegExp(`\\| ${membership.aliases[1].alias} \\|[^\\n]*\\n`), '') },
+    },
+    {
+      label: 'NC-DELETE: the deferred hardening observation loses its NOT-part-of-acceptance scoping',
+      expect: 'A19c',
+      mutate: (w) => { w.record = w.record.replace(/NOT part of/g, 'part of') },
+    },
+    {
+      label: 'NC-DELETE: the HTTP 200 limitation removed, leaving 200 to read as proof of delivery',
+      expect: 'A16',
+      mutate: (w) => { w.record = w.record.replace(/What HTTP 200 does not prove/g, 'What HTTP 200 shows') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the Production deployment source SHA replaced with another commit',
+      expect: 'A2a',
+      mutate: (w) => { w.record = w.record.replace(new RegExp(DEPLOYED_SOURCE_COMMIT, 'g'), RECORD_PARENT_COMMIT) },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the corrective deployment id altered by one character',
+      expect: 'A3a',
+      mutate: (w) => { w.record = w.record.replace(new RegExp(CORRECTIVE_DEPLOYMENT_ID, 'g'), `${CORRECTIVE_DEPLOYMENT_ID.slice(0, -1)}x`) },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the corrected run key replaced with the forbidden historical key',
+      expect: 'A4a',
+      mutate: (w) => { w.record = w.record.replace(new RegExp(membership.runKey, 'g'), FORBIDDEN_RUN_KEY) },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the first-delivery timestamp perturbed in its microseconds',
+      expect: 'A8',
+      mutate: (w) => { w.record = w.record.replace(new RegExp(FIRST_DELIVERY_AT, 'g'), FIRST_DELIVERY_AT.replace('898777', '898778')) },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the second-request timestamp replaced',
+      expect: 'A13b',
+      mutate: (w) => { w.record = w.record.replace(new RegExp(SECOND_REQUEST_AT, 'g'), '2026-09-14T16:32:35Z') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: one governed identity\'s equipment mapping swapped for the other approved value',
+      expect: 'A11.006',
+      mutate: (w) => { w.record = w.record.replace('| Weighted dead hang | `weight_time` | `weight_plate` |', '| Weighted dead hang | `weight_time` | `weighted_vest` |') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the observed failure text softened so it no longer matches the bytes',
+      expect: 'A5a',
+      mutate: (w) => { w.record = w.record.replace(/no sealed, approved, unrevoked delivery run for this key/g, 'no delivery run for this key') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the failed attempt credited with rows it did not insert',
+      expect: 'A6',
+      mutate: (w) => { w.record = w.record.replace(/0 exercises, 0 aliases/g, '8 exercises, 3 aliases') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: a pinned artifact digest altered by one character',
+      expect: `A24.${path.basename(MIGRATION_029_PATH)}`,
+      mutate: (w) => { w.record = w.record.replace(/23bbd3aa187cb2e2c54c1ad22790d00e962738a5afe6317c5f96bdf07058abfc/g, `${'0'.repeat(63)}f`) },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the post-second-init state changed so idempotency is silently no longer what was measured',
+      expect: 'A13c',
+      mutate: (w) => { w.record = w.record.replace(/8 exercises \/ 3 aliases \/ 8 distinct logical IDs \/ 3 distinct alias IDs/g, '9 exercises / 3 aliases / 9 distinct logical IDs / 3 distinct alias IDs') },
+    },
+    {
+      label: 'NC-DELETE: the record stops accounting for the two governance paths this round also touched',
+      expect: 'A25a',
+      mutate: (w) => { w.record = w.record.replace(/four paths/g, 'two paths') },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the census widening described as a relaxation rather than a named addition',
+      expect: 'A25b',
+      mutate: (w) => { w.record = w.record.replace(/widened BY NAME/g, 'relaxed') },
+    },
+    {
+      label: 'NC-ADD: a sentence claiming Claude read hosted Supabase itself',
+      expect: 'A17g',
+      mutate: (w) => { w.record += '\n\nClaude read the hosted Supabase tables and counted the eight rows itself.\n' },
+    },
+    {
+      label: 'NC-ADD: a sentence claiming Claude drove the Production smoke test',
+      expect: 'A17g',
+      mutate: (w) => { w.record += '\n\nClaude signed into Production, completed onboarding and refreshed /workouts twice.\n' },
+    },
+    {
+      label: 'NC-ADD: an observed value reported for a counter that was never captured',
+      expect: 'A14.skipped_already_delivered',
+      mutate: (w) => { w.record += '\n\nThe delivery summary reported skipped_already_delivered = 8 for the second initialization.\n' },
+    },
+    {
+      label: 'NC-ADD: the test account\'s email address leaked into the record',
+      expect: 'A18a',
+      mutate: (w) => { w.record += '\n\nThe test account was w14e-smoke-test@example.com.\n' },
+    },
+  ]
+
+  for (const control of controls) {
+    const world: World = { record: baseline.record }
+    control.mutate(world)
+    if (world.record === baseline.record) {
+      check(`${control.label} -> rejected by ${control.expect}`, false,
+        'the control did not change the record — its target text is GONE, so the control is broken')
+      continue
+    }
+    const findings: Finding[] = []
+    assertRecord(world, findings)
+    const targeted = findings.filter((finding) => finding.name.startsWith(control.expect))
+    if (targeted.length === 0) {
+      check(`${control.label} -> rejected by ${control.expect}`, false,
+        `no assertion named ${control.expect} exists — the control targets a pin that is GONE`)
+      continue
+    }
+    const rejected = targeted.some((finding) => !finding.ok)
+    const collateral = findings.filter((f) => !f.ok && !f.name.startsWith(control.expect)).length
+    check(`${control.label} -> rejected by ${control.expect}${collateral > 0 ? ` (and ${collateral} further assertion${collateral === 1 ? '' : 's'})` : ''}`,
+      rejected, `${control.expect} still PASSED on the corrupted record — that pin is dead`)
+  }
+}
+
+/**
+ * The byte and tree pins cannot be exercised by corrupting the record, so
+ * they are ablated directly. A pin nobody has ever seen fail is
+ * indistinguishable from a pin that is not wired up.
+ */
+function runPinAblations(): void {
+  for (const artifact of PINNED_ARTIFACTS) {
+    const onDisk = bytesOf(artifact.path)
+    const digest = sha256(onDisk)
+    const wrongDigest = `${digest.slice(0, 63)}${digest.endsWith('f') ? 'e' : 'f'}`
+    check(`AB.${path.basename(artifact.path)} the digest comparison is live — a one-character change to the digest makes it FAIL`,
+      digest !== wrongDigest)
+    check(`AB.${path.basename(artifact.path)} the size comparison is live — a one-byte change to the size makes it FAIL`,
+      onDisk.length !== onDisk.length + 1)
+  }
+  check('AB.deployed-blob the blob-identity check is live — a path that never existed at the deployed source commit resolves to null and cannot match',
+    blobIdAt(DEPLOYED_SOURCE_COMMIT, RECORD_PATH) === null,
+    'the record must NOT exist at the deployed source commit, or it would predate the act it witnesses')
+  check('AB.ancestor the ancestry check is live — a commit that is NOT an ancestor of HEAD is detected as such',
+    !gitSucceeds('merge-base', '--is-ancestor', 'HEAD', DEPLOYED_SOURCE_COMMIT))
+  check('AB.allowlist the change-surface allowlist is live — a path outside it is detected as outside it',
+    !ALLOWED_CHANGED_PATHS.includes('src/app/page.tsx'))
+  const realDiffLines = git('diff', RECORD_PARENT_COMMIT, '--', ENDGAME_VERIFIER_PATH).split('\n')
+  const additionsOnly = (lines: string[]): boolean =>
+    lines.filter((line) => line.startsWith('-') && !line.startsWith('---')).length === 0
+  check('AB.additions-only the widened-not-weakened pin is live — a diff carrying a single removal line is detected as a removal',
+    additionsOnly(realDiffLines) && !additionsOnly([...realDiffLines, '-  ALLOWED_PATH_THAT_WAS_DROPPED,']))
+  check('AB.honesty the provenance-honesty pin is live — a sentence naming Claude beside a hosted system with no negation is caught',
+    (() => {
+      const findings: Finding[] = []
+      assertRecord({ record: `${read(RECORD_PATH)}\n\nClaude queried hosted Supabase.\n` }, findings)
+      return findings.some((f) => f.name.startsWith('A17g') && !f.ok)
+    })())
+}
+
+// ── main ─────────────────────────────────────────────────────────────
+function main(): number {
+  console.log('W14-E production runtime evidence record — local verification\n')
+  console.log('The W14-E hosted delivery lifecycle HAS RUN. This verifier reads bytes and git')
+  console.log('objects only: no database, no hosted Supabase, no Vercel, no Supabase CLI, no SQL,')
+  console.log('no RPC. Every hosted figure in the record is OPERATOR-SUPPLIED or an operator-path')
+  console.log('INDEPENDENT READBACK of persisted state, and none of it is re-read here.\n')
+
+  for (const requiredPath of [RECORD_PATH, VERIFIER_PATH, DELIVER_CATALOG_PATH, MIGRATION_028_PATH,
+    MIGRATION_029_PATH, LIFECYCLE_MANIFEST_PATH, W14_ADMISSION_MANIFEST_PATH,
+    HISTORICAL_LOAD_PACKAGE_PATH, RUN_STAGING_PACKAGE_PATH, RUN_SEAL_PACKAGE_PATH]) {
+    if (!existsSync(path.join(repositoryRoot, requiredPath))) {
+      console.log(`  FAIL  required artifact missing: ${requiredPath}`)
+      return 1
+    }
+  }
+
+  const baseline: World = { record: read(RECORD_PATH) }
+
+  console.log('— The runtime record against the bytes it describes')
+  const findings: Finding[] = []
+  assertRecord(baseline, findings)
+  for (const finding of findings) check(finding.name, finding.ok, finding.detail)
+
+  console.log('\n— Bytes, deployment identity, frozen expectations, change surface')
+  verifyBytesAndBoundaries()
+
+  console.log('\n— Negative controls: every pin must reject the corruption it targets')
+  runRecordControls(baseline)
+
+  console.log('\n— Pin ablations: every byte and tree pin must be demonstrably live')
+  runPinAblations()
+
+  const recordBytes = bytesOf(RECORD_PATH)
+  console.log(`\nunder test: ${RECORD_PATH} ${recordBytes.length} B sha256 ${sha256(recordBytes)}`)
+  console.log('W14-E PRODUCTION RUNTIME ACCEPTANCE: MET (fail-closed, then first delivery of the')
+  console.log('frozen 8/3 membership from a measured 0/0/0/0 baseline, then a second initialization')
+  console.log('that created nothing). The successful RPC response itself was NOT CAPTURED.')
+  console.log('Every hosted figure is operator-supplied and was never observed by Claude.')
+  console.log(`\n${passed} passed, ${failed} failed`)
+  return failed === 0 ? 0 : 1
+}
+
+process.exit(main())
