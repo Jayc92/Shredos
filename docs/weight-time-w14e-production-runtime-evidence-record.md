@@ -29,6 +29,8 @@ this one is indistinguishable from a guess.
 | **LOCAL BYTES** | Derived from this repository's committed bytes and git objects, and re-derived on every run by the verifier named in section 11. It is the only class that verifier re-derives, and establishing it needs no network at all. | Claude |
 | **REMOTE READBACK** | Read back from the git remote `origin` with read-only `git ls-remote`, about git refs only, during the separately authorized publication act recorded in the section 11 addendum. It is not hosted Supabase and not Vercel, and no hosted system was contacted to obtain it. The static verifier makes no network call, so it pins these values as literals against transcription drift and does NOT re-derive them. | the publication act |
 | **NOT CAPTURED** | Named explicitly so that nobody later mistakes its absence for a value. See section 8. | nobody |
+| **REVIEW-TIME VERCEL READBACK** | Read read-only out of Vercel by the reviewing operator path, DURING its independent byte review of `7f039764479f652b9b3f231835ed1f2dae6edf18`, and supplied to this record as text. Claude did not query Vercel, then or ever. It is a hosted observation exactly like OPERATOR-SUPPLIED, and the static verifier pins it as literals rather than re-deriving it. | the reviewing operator path |
+| **PUBLICATION-ACT REPORT** | Facts reported by Claude from the separately authorized Git publication act, including the actual refspecs and command posture. The static verifier pins these facts against transcription drift but cannot independently re-derive the historical push command. Remote readback corroborates the resulting refs, but does not prove the historical command mechanics. | Claude, at the publication act |
 
 Both OPERATOR-SUPPLIED and INDEPENDENT READBACK are hosted observations,
 and neither was ever seen by Claude. No hosted system was contacted while
@@ -36,10 +38,25 @@ this record was written: no hosted Supabase, no Supabase CLI, no Vercel, no
 SQL, no RPC. The standing rule that hosted acts belong to the
 Joseph/ChatGPT operator path alone was not relaxed for this round.
 
-That enumeration is exact, and it still holds — including for the later
-publication addendum in section 11. Reading git refs from GitHub is none of
-those five things, and no hosted Supabase, Supabase CLI, Vercel, SQL or RPC
-contact occurred at any point in this round or in the publication act.
+Two further classes were added LATER, and only because the publication act
+and the independent review that followed it produced facts none of the five
+original classes could hold honestly. REVIEW-TIME VERCEL READBACK is a third
+hosted class with the same property as the first two: it too was never seen
+by Claude — it was read out of Vercel by the reviewing operator path after
+`7f039764479f652b9b3f231835ed1f2dae6edf18` was presented for byte review.
+PUBLICATION-ACT REPORT is narrower still: it is what Claude reported about
+how the publication command was actually run. LOCAL BYTES could carry neither
+of them — committed bytes and local git objects cannot establish how a
+command was invoked, and they cannot see a deployment at all.
+
+The enumeration in the paragraph above is about Claude's own actions in
+authoring these bytes, and as such it still holds: reading git refs from
+GitHub is none of those five things. It is NOT a claim that nothing happened
+on the Vercel side. The publication push automatically triggered a Vercel
+deployment through this repository's existing Git integration, and no
+operator invoked one deliberately; section 11 records that deployment, the
+review-time readback that established it, and the sentence at
+`7f039764479f652b9b3f231835ed1f2dae6edf18` it corrects.
 
 ---
 
@@ -516,13 +533,19 @@ commit already carried this wording.
 - That tag's peeled target is
   `08d9c68821da28c71c594639dc6f6c1678111c84`, the approved tip — REMOTE
   READBACK.
-- Remote `main` remained `54a9d128bca659ec89d3ae149d47450e74a2ad2e`; the act
-  did not update it, and `main` was never an argument to it — REMOTE READBACK.
-- The refs published were exactly `refs/heads/feature/weight-time` and
-  `refs/tags/w14e-production-runtime-evidence-stable`, and no others — REMOTE
-  READBACK.
-- Publication used ONE atomic push, with no force option of any kind — LOCAL
-  BYTES.
+- Remote `main` remained `54a9d128bca659ec89d3ae149d47450e74a2ad2e`, and the
+  act did not update it — REMOTE READBACK.
+- The refs that exist on the remote from this act are
+  `refs/heads/feature/weight-time` and
+  `refs/tags/w14e-production-runtime-evidence-stable` — REMOTE READBACK.
+- Exactly those two explicit refspecs were supplied to the push, and no
+  others; `main` was never one of them — PUBLICATION-ACT REPORT.
+- Publication used ONE atomic push, with no force option of any kind — PUBLICATION-ACT REPORT.
+- Those last two bullets are command mechanics, and they are deliberately NOT
+  LOCAL BYTES: committed bytes and local git objects cannot establish how a
+  push was invoked. Remote readback corroborates the refs the push left
+  behind, but an existing ref cannot show which arguments produced it, and a
+  missing ref cannot show that no third refspec was offered and rejected.
 
 Publication was subsequently authorized and performed; this verifier pins the
 supplied publication facts but does not independently query the remote. It
@@ -531,9 +554,67 @@ determine what a remote presently holds. The figures above are pinned as
 literals for exactly one purpose: so that transcription drift inside this
 document is caught.
 
-No Vercel, Supabase, deploy, SQL or RPC action occurred during publication.
-Production deploys from `main`, and `main` did not move, so the act triggered
-no deployment.
+No operator-initiated Vercel API or UI deployment action occurred during the
+publication act, and no Supabase, SQL or RPC action occurred during it. The
+Git push nevertheless triggered an automatic Vercel deployment through the
+repository's Git integration; review-time Vercel readback later established
+the deployment facts recorded in the subsection below.
+
+### Review-time Vercel correction — a LATER forward correction, written after `7f039764`
+
+**None of this subsection existed in the record at
+`7f039764479f652b9b3f231835ed1f2dae6edf18`.** The order of events is the
+whole point of it, so it is stated as an order:
+
+1. `08d9c68821da28c71c594639dc6f6c1678111c84` was authored, and then
+   independently reviewed. No deployment fact of any kind was available to
+   anybody at that time, because the branch was not published yet — a
+   PRE-PUBLICATION / HISTORICAL FACT.
+2. `feature/weight-time` was published, under its own separate authorization.
+3. `7f039764479f652b9b3f231835ed1f2dae6edf18` was written to record that
+   publication. Its closing paragraph mis-stated the deployment consequences
+   of the push: it reasoned from local git state alone, and local git state
+   cannot see the Vercel side of the system at all.
+4. That commit was then independently byte-reviewed. The reviewing operator
+   path tested the mis-stated assertion against Vercel itself, read-only, and
+   found the automatic deployment described below.
+5. This subsection carries that newly established fact FORWARD. Nothing above
+   it has been backdated: the earlier commits are preserved as the statements
+   they actually were, and the wrong sentence is corrected here, at the point
+   where the knowledge actually arrived.
+
+The automatic deployment, as observed by the reviewing operator path during
+its independent byte review:
+
+- Its deployment id is `dpl_BFkcTYAwqJSZXLvLcBvQRXXSgmb5` — REVIEW-TIME VERCEL READBACK.
+- It was created at `2026-09-15T02:02:44.655Z` — REVIEW-TIME VERCEL READBACK.
+- Its source is `git`: the push itself triggered it, automatically, through
+  the repository's existing Vercel Git integration, and no operator invoked a
+  deployment deliberately — REVIEW-TIME VERCEL READBACK.
+- Its github ref is `feature/weight-time` — REVIEW-TIME VERCEL READBACK.
+- Its github SHA is `08d9c68821da28c71c594639dc6f6c1678111c84`, the published
+  tip and nothing else — REVIEW-TIME VERCEL READBACK.
+- Its state is `READY` — REVIEW-TIME VERCEL READBACK.
+- Its target is `null`. This was NOT a Production-target deployment, and it
+  must never be read as one — REVIEW-TIME VERCEL READBACK.
+- It is served at the branch alias
+  `shredos-git-feature-weight-time-trackside-s-projects.vercel.app`, which is
+  a branch alias and not a Production alias — REVIEW-TIME VERCEL READBACK.
+- Production did NOT redeploy as a consequence of the publication. The
+  Production deployment remained `dpl_By4VrKEjDkNTh4x7XDvAKNVEj5mu`, its
+  Production source remained `main` at
+  `54a9d128bca659ec89d3ae149d47450e74a2ad2e`, and `main` did not move —
+  REVIEW-TIME VERCEL READBACK.
+- No Supabase, SQL or RPC action occurred, at any point, in the publication
+  act or in the review that followed it — OPERATOR-SUPPLIED.
+
+These figures are pinned exactly the way the REMOTE READBACK figures above
+are pinned, and for the same reason. This verifier makes no network call of
+any kind: it does not query the git remote, and it does not query Vercel, so
+it cannot independently confirm the deployment state and does not claim to.
+It pins the supplied deployment facts as literals so that transcription drift
+inside this document is caught, and that is the whole of what it does with
+them.
 
 ---
 

@@ -104,6 +104,23 @@ const STABLE_TAG_OBJECT = 'dce6557ba6c63f2ae105ffe42a3656242161efab'
 /** The local review-freeze tip this record is committed forward of. */
 const RECORD_PARENT_COMMIT = '0532ffde309f0e548d6e1aa544d88107ccb50b58'
 
+/**
+ * ROUND 5 — the review-time Vercel correction, later still.
+ *
+ * The publication push automatically triggered a Vercel deployment through the
+ * repository's Git integration. Nobody knew that when 08d9c688 was reviewed,
+ * when the push happened, or when 7f039764 was written: it was found by the
+ * reviewing operator path, read-only, during the independent byte review of
+ * 7f039764. These are REVIEW-TIME VERCEL READBACK facts, supplied as text.
+ * This verifier makes no network call and never will, so it pins them as
+ * literals against transcription drift and CANNOT confirm the deployment
+ * state itself.
+ */
+const CORRECTION_PARENT_COMMIT = '7f039764479f652b9b3f231835ed1f2dae6edf18'
+const AUTO_DEPLOY_ID = 'dpl_BFkcTYAwqJSZXLvLcBvQRXXSgmb5'
+const AUTO_DEPLOY_CREATED_AT = '2026-09-15T02:02:44.655Z'
+const AUTO_DEPLOY_BRANCH_ALIAS = 'shredos-git-feature-weight-time-trackside-s-projects.vercel.app'
+
 /** Operator-supplied hosted identifiers, recorded verbatim, never re-read. */
 const CORRECTIVE_DEPLOYMENT_ID = 'dpl_By4VrKEjDkNTh4x7XDvAKNVEj5mu'
 const FIRST_DELIVERY_AT = '2026-09-14T15:25:02.898777Z'
@@ -146,8 +163,11 @@ const FORBIDDEN_RUN_KEY = 'exlib2u-plank-release1-staged-v1'
 /** The three RPC-summary counters that were NOT captured. */
 const UNCAPTURED_COUNTERS = ['skipped_already_delivered', 'alias_already_delivered'] as const
 
-/** The four provenance labels the record must declare and use. */
-const PROVENANCE_LABELS = ['OPERATOR-SUPPLIED', 'INDEPENDENT READBACK', 'LOCAL BYTES', 'REMOTE READBACK', 'NOT CAPTURED'] as const
+/** Every provenance label the record must declare and use — five original, two added later. */
+const PROVENANCE_LABELS = [
+  'OPERATOR-SUPPLIED', 'INDEPENDENT READBACK', 'LOCAL BYTES', 'REMOTE READBACK', 'NOT CAPTURED',
+  'REVIEW-TIME VERCEL READBACK', 'PUBLICATION-ACT REPORT',
+] as const
 
 /**
  * Artifacts whose size AND digest the record pins. Every one is re-hashed
@@ -752,6 +772,126 @@ function assertRecord(world: World, findings: Finding[]): void {
     && !REMOTE_PROOF_LIMITATION.test(s))
   add('A20c6 no sentence claims this static verifier proves, verifies or confirms the remote publication state — that would be a claim a network-free byte reader cannot make',
     remoteProofOverclaims.length === 0, remoteProofOverclaims[0])
+  // ── A20e…A20r ROUND 5: the publication DID trigger a deployment ──
+  //
+  // The push to origin automatically triggered a Vercel deployment through the
+  // repository's Git integration. It was NOT Production-target: target null,
+  // github ref feature/weight-time, github SHA the published tip, and the
+  // Production deployment itself never moved. The record at 7f039764 said the
+  // act "triggered no deployment", which was FALSE — and nothing in the A20c
+  // family could catch it, because not one of those guards was about
+  // deployments at all. A guard family that grows only where it has already
+  // been attacked is not a family; these close the axis, not the instance.
+  //
+  // Every guard here is selected on CLAIM SHAPE. A deployment-absence claim
+  // about the publication is legal in exactly four shapes: scoped to what an
+  // OPERATOR initiated, scoped to PRODUCTION, scoped to the PRE-PUBLICATION
+  // past, or a statement about what this VERIFIER cannot see. Anything else is
+  // the false sentence coming back, in whatever words.
+  //
+  // STILL STATIC, STILL NETWORK-FREE. No Vercel API call, no ls-remote, no
+  // curl, no Supabase. CONSIDERED AND DECLINED at this line: asking Vercel
+  // whether dpl_BFkcTYAwqJSZXLvLcBvQRXXSgmb5 exists. It would make X9a/X9b
+  // false, it would put a hosted call inside a byte reader, and the deployment
+  // facts are not Claude's to observe — they are REVIEW-TIME VERCEL READBACK,
+  // pinned as literals, which is the whole of what a byte reader can do.
+  const DEPLOY_NOUN = /\b(deploy|deploys|deployed|deployment|deployments|redeploy\w*)\b/i
+  const PUBLICATION_SUBJECT = /\b(publication|publish\w*|push|pushed|pushing)\b/i
+  const DEPLOY_ABSENCE = /\b(no|none|never|not|nothing|zero|without)\b/i
+  const OPERATOR_INITIATED_SCOPE = /(operator-initiated|operator initiated|deliberate\w*|manual\w*|by hand|API or UI|API\/UI|intentional\w*|invoked one|invoked a deployment)/i
+  const AUTOMATIC_SCOPE = /(automatic\w*|auto-triggered|triggered it|triggered a Vercel|Git integration)/i
+  const PRODUCTION_SCOPE = /\bProduction\b/
+  const VERIFIER_SCOPE = /\b(verifier|this check|the scan|network call|quer(y|ies|ied)|re-derive\w*|re-deriving|pins)\b/i
+
+  const deploymentDenials = sentences.filter((s) =>
+    PUBLICATION_SUBJECT.test(s) && DEPLOY_NOUN.test(s) && DEPLOY_ABSENCE.test(s)
+    && !OPERATOR_INITIATED_SCOPE.test(s) && !AUTOMATIC_SCOPE.test(s)
+    && !PRODUCTION_SCOPE.test(s) && !VERIFIER_SCOPE.test(s) && !HISTORICAL_SCOPE.test(s))
+  add('A20e no sentence says the publication triggered no deployment — the push DID trigger one, automatically, and an absence claim is legal only when it is scoped to operator initiation, to Production, to the pre-publication past, or to what this verifier cannot see',
+    deploymentDenials.length === 0, deploymentDenials[0])
+
+  const vercelDenials = sentences.filter((s) =>
+    /\bVercel\b/i.test(s) && DEPLOY_NOUN.test(s) && DEPLOY_ABSENCE.test(s)
+    && !OPERATOR_INITIATED_SCOPE.test(s) && !AUTOMATIC_SCOPE.test(s)
+    && !PRODUCTION_SCOPE.test(s) && !VERIFIER_SCOPE.test(s) && !HISTORICAL_SCOPE.test(s))
+  add('A20f no sentence denies the Vercel deployment outright — the denial is caught whether or not the sentence names the publication',
+    vercelDenials.length === 0, vercelDenials[0])
+
+  // The automatic deployment was target null. Calling it Production-target, or
+  // saying Production redeployed because of the push, are two different false
+  // claims, so they get two different guards.
+  const AUTO_DEPLOY_SUBJECT = new RegExp(
+    '(' + AUTO_DEPLOY_ID + '|automatic\\w*\\s+(Vercel\\s+)?deploy\\w*|branch deploy\\w*'
+    + '|branch alias|github (sha|ref|commit)|its source is git|its state is READY|its target is)', 'i')
+  const PRODUCTION_TARGET_CLAIM = /(Production[- ]target\w*|a Production deployment|the Production target|targeted Production|to Production|was Production)/i
+  const productionTargetClaims = sentences.filter((s) =>
+    (AUTO_DEPLOY_SUBJECT.test(s) || (PUBLICATION_SUBJECT.test(s) && DEPLOY_NOUN.test(s)))
+    && PRODUCTION_TARGET_CLAIM.test(s) && !NEGATION.test(s))
+  add('A20g no sentence calls the automatic branch deployment a Production-target deployment — its target was null',
+    productionTargetClaims.length === 0, productionTargetClaims[0])
+
+  const REDEPLOY_CLAIM = /\b(redeploy\w*|deployed again|re-deployed|rebuilt|redeployment)\b/i
+  const UNCHANGED_SCOPE = /\b(unchanged|remained|stayed|untouched|did not|was not|never|no)\b/i
+  const productionRedeployClaims = sentences.filter((s) =>
+    PRODUCTION_SCOPE.test(s) && PUBLICATION_SUBJECT.test(s)
+    && (REDEPLOY_CLAIM.test(s) || DEPLOY_NOUN.test(s))
+    && !UNCHANGED_SCOPE.test(s) && !NEGATION.test(s))
+  add(`A20h no sentence says Production redeployed as a result of the publication — the Production deployment stayed ${CORRECTIVE_DEPLOYMENT_ID} and main stayed ${DEPLOYED_SOURCE_COMMIT}`,
+    productionRedeployClaims.length === 0, productionRedeployClaims[0])
+
+  const wrongAutoDeploySha = sentences.filter((s) =>
+    AUTO_DEPLOY_SUBJECT.test(s) && /\b(sha|commit|tip|ref)\b/i.test(s)
+    && (s.match(/\b[0-9a-f]{40}\b/g) ?? []).some((sha) => sha !== PUBLISHED_TIP))
+  add(`A20i the automatic deployment is bound to the published tip ${PUBLISHED_TIP} and to no other commit`,
+    wrongAutoDeploySha.length === 0, wrongAutoDeploySha[0])
+
+  const vercelProofOverclaims = sentences.filter((s) =>
+    MECHANIZED_PROOF_SUBJECT.test(s) && PROOF_VERB.test(s)
+    && /(Vercel|deploy\w*)/i.test(s) && !REMOTE_PROOF_LIMITATION.test(s))
+  add('A20j no sentence claims this static verifier proves or confirms the Vercel deployment state — it makes no network call, so it cannot',
+    vercelProofOverclaims.length === 0, vercelProofOverclaims[0])
+
+  // Provenance, not politeness: how the push was invoked is not derivable from
+  // bytes, and an existing remote ref does not name the arguments that made it.
+  const MECHANICS_CLAIM = /(atomic|non-force|force[- ]?(option|flag|push\w*)|refspec\w*|push argument|argument to (that|the) push|one push|single push|command mechanics|command posture)/i
+  const MECHANICS_NEGATED = /\b(cannot|could not|does not|is not|are not|never|rather than)\b|NOT LOCAL BYTES/i
+  const mislabelledMechanics = sentences.filter((s) =>
+    MECHANICS_CLAIM.test(s) && /LOCAL BYTES/.test(s) && !MECHANICS_NEGATED.test(s))
+  add('A20k the publication command mechanics — one atomic push, no force option, exactly two refspecs — are never labelled LOCAL BYTES: committed bytes cannot establish how a command was invoked',
+    mislabelledMechanics.length === 0, mislabelledMechanics[0])
+
+  const remoteOnlyMechanics = sentences.filter((s) =>
+    MECHANICS_CLAIM.test(s) && /REMOTE READBACK/i.test(s)
+    && !/PUBLICATION-ACT REPORT/i.test(s)
+    && !/(corroborat\w*|cannot|does not prove|does not show|not proven)/i.test(s))
+  add('A20m the command mechanics are never presented as proven solely by REMOTE READBACK — readback corroborates the refs the push left behind, and cannot show which arguments produced them',
+    remoteOnlyMechanics.length === 0, remoteOnlyMechanics[0])
+
+  add(`A20n the review-time deployment facts are pinned as literals: id ${AUTO_DEPLOY_ID}, created ${AUTO_DEPLOY_CREATED_AT}, source git, github ref feature/weight-time, github SHA ${PUBLISHED_TIP}, state READY, target null, branch alias, and the unchanged Production deployment ${CORRECTIVE_DEPLOYMENT_ID}`,
+    record.includes(AUTO_DEPLOY_ID) && record.includes(AUTO_DEPLOY_CREATED_AT)
+    && record.includes(AUTO_DEPLOY_BRANCH_ALIAS) && record.includes(CORRECTIVE_DEPLOYMENT_ID)
+    && /Its source is git/i.test(prose)
+    && /github ref is feature\/weight-time/i.test(prose)
+    && new RegExp('github SHA is ' + PUBLISHED_TIP, 'i').test(prose)
+    && /Its state is READY/i.test(prose) && /Its target is null/i.test(prose))
+
+  add('A20p the record draws the distinction the whole correction turns on: an AUTOMATIC, NON-Production deployment for the branch through the Git integration, and a Production deployment that did not move',
+    /automatic Vercel deployment/i.test(prose) && /Git integration/i.test(prose)
+    && /NOT a Production-target deployment/i.test(record)
+    && /Production did NOT redeploy/i.test(record))
+
+  add(`A20q the Vercel facts are scoped as a LATER forward correction, discovered during the independent byte review of ${CORRECTION_PARENT_COMMIT} — not backdated into the publication addendum`,
+    new RegExp('None of this subsection existed in the record at ' + CORRECTION_PARENT_COMMIT).test(prose)
+    && /LATER forward correction/i.test(prose)
+    && /independently byte-reviewed/i.test(prose)
+    && /has been backdated/i.test(prose)
+    && /mis-stated the deployment consequences/i.test(prose))
+
+  add('A20r PUBLICATION-ACT REPORT is declared as its own class, with its limitation stated: the verifier pins it but cannot re-derive the historical push command, and remote readback corroborates the refs without proving the command',
+    /PUBLICATION-ACT REPORT/.test(record)
+    && /cannot independently re-derive the historical push command/i.test(prose)
+    && /does not prove the historical command mechanics/i.test(prose))
+
   add('A20d the record names its own verifier', record.includes(VERIFIER_PATH))
 
   // ── A21 migration 029: hosted record name, and the frozen artifact label ──
@@ -1254,6 +1394,58 @@ function runRecordControls(baseline: World): void {
       expect: 'A18e',
       mutate: (w) => { w.record += '\n\nThe verifier proves that no password, API key or bearer token appears in any of the four paths.\n' },
     },
+    // ROUND 5 — the publication DID trigger a Vercel deployment. The first two
+    // of these are the exact false sentence this round removed, in the two
+    // shapes it can take; the rest are the adjacent false claims it would be
+    // easy to write while correcting it. Each one mutates the committed record
+    // and is graded on the verifier's whole end-to-end behaviour.
+    {
+      label: 'NC-ADD: the removed false sentence returning — the publication credited with triggering NO deployment',
+      expect: 'A20e',
+      mutate: (w) => { w.record += '\n\nThe publication triggered no deployment.\n' },
+    },
+    {
+      label: 'NC-ADD: the Vercel deployment denied outright',
+      expect: 'A20f',
+      mutate: (w) => { w.record += '\n\nNo Vercel deployment occurred during publication.\n' },
+    },
+    {
+      label: 'NC-ADD: the automatic branch deployment upgraded to a Production-target deployment',
+      expect: 'A20g',
+      mutate: (w) => { w.record += '\n\nThe publication triggered a Production deployment.\n' },
+    },
+    {
+      label: 'NC-ADD: Production credited with redeploying as a result of the publication',
+      expect: 'A20h',
+      mutate: (w) => { w.record += '\n\nProduction redeployed as a result of the publication.\n' },
+    },
+    {
+      label: 'NC-SUBSTITUTE: the automatic deployment rebound to the Production source commit instead of the published tip',
+      expect: 'A20i',
+      mutate: (w) => {
+        w.record = w.record.replace(`github SHA is \`${PUBLISHED_TIP}\``, `github SHA is \`${DEPLOYED_SOURCE_COMMIT}\``)
+      },
+    },
+    {
+      label: 'NC-ADD: the static verifier credited with independently confirming the Vercel deployment',
+      expect: 'A20j',
+      mutate: (w) => { w.record += '\n\nThe verifier independently confirms the Vercel deployment.\n' },
+    },
+    {
+      label: 'NC-ADD: the push command mechanics mislabelled LOCAL BYTES',
+      expect: 'A20k',
+      mutate: (w) => { w.record += '\n\nThe atomic non-force push is proven by LOCAL BYTES.\n' },
+    },
+    {
+      label: 'NC-ADD: REMOTE READBACK credited with proving which refspecs the push was given',
+      expect: 'A20m',
+      mutate: (w) => { w.record += '\n\nREMOTE READBACK proves that no other refs were push arguments.\n' },
+    },
+    {
+      label: 'NC-DELETE: the chronology scoping stripped, so the Vercel facts read as something the publication addendum already knew',
+      expect: 'A20q',
+      mutate: (w) => { w.record = w.record.replace('a LATER forward correction, written after', 'written after') },
+    },
   ]
 
   for (const control of controls) {
@@ -1328,6 +1520,14 @@ function runAcceptanceControls(baseline: World): void {
     {
       label: 'the honest publication acknowledgement — pinned, explicitly not independently queried',
       sentence: 'Publication was subsequently authorized and performed; this verifier pins the supplied publication facts but does not independently query the remote.',
+    },
+    {
+      label: 'the automatic non-Production deployment, acknowledged alongside an unchanged Production — the true statement the false one has to be replaced BY',
+      sentence: 'During the publication act the Git push automatically triggered a non-Production Vercel deployment, and the Production deployment did not move.',
+    },
+    {
+      label: 'the publication mechanics labelled PUBLICATION-ACT REPORT, with the re-derivation limit stated in the same breath',
+      sentence: 'The one atomic push, its two explicit refspecs and its absence of any force option are a PUBLICATION-ACT REPORT: this verifier pins them as literals and cannot independently re-derive the historical push command.',
     },
   ]
 
