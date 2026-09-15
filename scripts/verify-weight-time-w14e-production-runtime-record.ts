@@ -11,8 +11,9 @@
 // about the bytes it describes, and that recording the runtime act disturbed
 // nothing:
 //
-//   1. PROVENANCE DISCIPLINE. Four classes are declared and kept distinct —
-//      OPERATOR-SUPPLIED, INDEPENDENT READBACK, LOCAL BYTES, NOT CAPTURED.
+//   1. PROVENANCE DISCIPLINE. Five classes are declared and kept distinct —
+//      OPERATOR-SUPPLIED, INDEPENDENT READBACK, LOCAL BYTES, REMOTE READBACK,
+//      NOT CAPTURED.
 //      No sentence may claim Claude observed hosted state. The three
 //      uncaptured RPC-summary counters may appear ONLY inside a sentence that
 //      disclaims them; a record that quietly starts reporting
@@ -44,6 +45,18 @@
 //      and check A18e rejects any sentence that claims such proof in other
 //      words. Neither check inspects a password, a key or a token: they
 //      police the CLAIM, which is the only part a byte reader can see.
+//   5. PUBLICATION CHRONOLOGY, NOT PUBLICATION STATE. The record was local-only
+//      when it was written and reviewed, and it was published afterwards under
+//      a separate authorization. Both facts are true of different moments, so
+//      the A20c family enforces the ORDER rather than either claim alone: a
+//      local-only / unpushed / untagged / unpublished statement is legal only
+//      when it is scoped to the pre-publication state, the publication must be
+//      acknowledged as the later act it was, and the tag name, tag object,
+//      peeled target and unchanged main are pinned as literals against
+//      transcription drift. This verifier makes NO network call, so it cannot
+//      and does not establish what the remote presently holds — A20c6 rejects
+//      any sentence that credits it with doing so. What it enforces is that the
+//      document's own chronology is internally honest, and no more than that.
 //
 // Run from the repository root:
 //   npx tsx scripts/verify-weight-time-w14e-production-runtime-record.ts
@@ -75,6 +88,18 @@ const RUN_SEAL_PACKAGE_PATH = 'docs/weight-time-five-entry-packages/07-run-seal.
  * here as they were at the deployment.
  */
 const DEPLOYED_SOURCE_COMMIT = '54a9d128bca659ec89d3ae149d47450e74a2ad2e'
+
+/**
+ * ROUND 4 — the publication act, which happened AFTER the accepted commit.
+ *
+ * These are OPERATOR-SUPPLIED / REMOTE READBACK facts. They are pinned here as
+ * literals for one reason: to catch transcription drift in the record. This
+ * verifier makes no network call and never will, so it CANNOT and does not
+ * claim to establish what the remote presently holds.
+ */
+const PUBLISHED_TIP = '08d9c68821da28c71c594639dc6f6c1678111c84'
+const STABLE_TAG_NAME = 'w14e-production-runtime-evidence-stable'
+const STABLE_TAG_OBJECT = 'dce6557ba6c63f2ae105ffe42a3656242161efab'
 
 /** The local review-freeze tip this record is committed forward of. */
 const RECORD_PARENT_COMMIT = '0532ffde309f0e548d6e1aa544d88107ccb50b58'
@@ -122,7 +147,7 @@ const FORBIDDEN_RUN_KEY = 'exlib2u-plank-release1-staged-v1'
 const UNCAPTURED_COUNTERS = ['skipped_already_delivered', 'alias_already_delivered'] as const
 
 /** The four provenance labels the record must declare and use. */
-const PROVENANCE_LABELS = ['OPERATOR-SUPPLIED', 'INDEPENDENT READBACK', 'LOCAL BYTES', 'NOT CAPTURED'] as const
+const PROVENANCE_LABELS = ['OPERATOR-SUPPLIED', 'INDEPENDENT READBACK', 'LOCAL BYTES', 'REMOTE READBACK', 'NOT CAPTURED'] as const
 
 /**
  * Artifacts whose size AND digest the record pins. Every one is re-hashed
@@ -656,9 +681,77 @@ function assertRecord(world: World, findings: Finding[]): void {
   // ── A20 the surviving rules ──
   add('A20a the DO NOT RERUN rule is carried', /DO NOT RERUN/.test(record))
   add('A20b the READ STATE FIRST rule is carried', /READ STATE FIRST/.test(record))
-  add('A20c the record states it is local-only: not pushed, not tagged, not published',
-    /not pushed, not tagged, not\s*published|not pushed, not tagged, not published/i.test(prose)
-    && /Publication is a separate authorization/i.test(prose))
+  // ── A20c the publication CHRONOLOGY ──
+  //
+  // ROUND 4. Publication happened, under its own narrow authorization, AFTER the
+  // accepted commit 08d9c688. That made the record's original present-tense
+  // claim — "This record is local-only. It is not pushed, not tagged, not
+  // published." — false. The A20c that stood here asserted exactly that
+  // sentence, so it was a guard holding a claim open past its expiry: it could
+  // only ever fail if the record told the truth about the world after
+  // publication.
+  //
+  // The replacement is a chronology guard, and it stays STATIC and LOCAL. It
+  // reads bytes, makes no network call, and still spawns nothing but git.
+  //
+  // CONSIDERED AND DECLINED at this line: running `git rev-parse
+  // <STABLE_TAG_NAME>^{}` here to peel the tag for real. It is local and it
+  // would run — but a LOCAL ref says nothing about what the remote holds, so it
+  // would buy confidence, not evidence, and it would fail in any clone that
+  // fetched no tags. The publication figures stay what they honestly are:
+  // REMOTE READBACK facts pinned as literals against transcription drift, which
+  // is the whole of what a byte reader can do with them.
+  const UNPUBLISHED_CLAIM = /(local-only|local only|not pushed|not tagged|not published|unpushed|untagged|unpublished)/i
+  const HISTORICAL_SCOPE = new RegExp(
+    '(PRE-PUBLICATION|HISTORICAL FACT|before the later publication|before publication'
+    + '|at commit ' + PUBLISHED_TIP + '|was local-only|was still\\s+unpushed'
+    + '|at authoring time|at review time|no longer the current state)', 'i')
+  const staleLocalOnlyClaims = sentences.filter((s) => UNPUBLISHED_CLAIM.test(s) && !HISTORICAL_SCOPE.test(s))
+  add('A20c1 every local-only / unpushed / untagged / unpublished statement is scoped to the HISTORICAL pre-publication state — none of them reads as a claim about CURRENT repo state',
+    staleLocalOnlyClaims.length === 0, staleLocalOnlyClaims[0])
+
+  add('A20c2 the record acknowledges the publication as a LATER, separately authorized act, and marks it a forward addendum rather than something the accepted commit already said',
+    /Publication was subsequently authorized and performed/i.test(prose)
+    && /FORWARD CORRECTION/i.test(prose)
+    && /None of this subsection existed in the record at/i.test(prose))
+
+  add(`A20c3 the publication facts are pinned as literals so transcription drift is caught: the stable tag name ${STABLE_TAG_NAME}, its annotated tag object, its peeled target ${PUBLISHED_TIP}, and remote main left at ${DEPLOYED_SOURCE_COMMIT}`,
+    record.includes(STABLE_TAG_NAME) && record.includes(STABLE_TAG_OBJECT)
+    && record.includes(PUBLISHED_TIP) && record.includes(DEPLOYED_SOURCE_COMMIT)
+    && /peeled target/i.test(prose) && /REMOTE READBACK/.test(record))
+
+  // The stable tag must not be described as pointing anywhere but the approved
+  // tip. Selected on the CLAIM SHAPE — tag subject crossed with peel/point
+  // language — and then every full SHA in the sentence must be the approved
+  // one. The tag-object line survives because it makes no peel claim.
+  const TAG_SUBJECT = new RegExp('(stable tag|peeled target|tag object|' + STABLE_TAG_NAME + ')', 'i')
+  const PEEL_LANGUAGE = /(peel\w*|points? (to|at)|resolves? to|targets? )/i
+  const wrongPeelClaims = sentences.filter((s) =>
+    TAG_SUBJECT.test(s) && PEEL_LANGUAGE.test(s)
+    && (s.match(/\b[0-9a-f]{40}\b/g) ?? []).some((sha) => sha !== PUBLISHED_TIP))
+  add(`A20c4 no sentence claims the stable tag peels, points or resolves to anything other than ${PUBLISHED_TIP}`,
+    wrongPeelClaims.length === 0, wrongPeelClaims[0])
+
+  // main was not an argument to the publication. Any sentence that says it moved
+  // is a false claim unless it is negated or explicitly says it stayed put.
+  const MAIN_MOVED = /\bmain\b/i
+  const UPDATE_VERB = /\b(updated|moved|advanced|changed|repointed|fast-forwarded|force[- ]pushed|modified)\b/i
+  const MAIN_UNCHANGED = /\b(unchanged|remained|stayed|untouched|did not|was not|never)\b/i
+  const mainUpdateClaims = sentences.filter((s) =>
+    MAIN_MOVED.test(s) && UPDATE_VERB.test(s) && !MAIN_UNCHANGED.test(s) && !NEGATION.test(s))
+  add(`A20c5 no sentence claims the publication updated main — the record pins it left at ${DEPLOYED_SOURCE_COMMIT}`,
+    mainUpdateClaims.length === 0, mainUpdateClaims[0])
+
+  // The record must never credit THIS verifier with proving remote state. Same
+  // shape as A18e: mechanized-proof subject x proof verb x remote-state noun,
+  // and only an explicit limitation excuses it.
+  const REMOTE_STATE_NOUN = /\b(remote|origin|publication state|published state|remote state|remotely)\b/i
+  const REMOTE_PROOF_LIMITATION = /(does not independently query|makes no network call|no network call|cannot|does not prove|does not claim|does NOT re-derive|not re-derive|pins these values as literals|pins the supplied publication facts)/i
+  const remoteProofOverclaims = sentences.filter((s) =>
+    MECHANIZED_PROOF_SUBJECT.test(s) && PROOF_VERB.test(s) && REMOTE_STATE_NOUN.test(s)
+    && !REMOTE_PROOF_LIMITATION.test(s))
+  add('A20c6 no sentence claims this static verifier proves, verifies or confirms the remote publication state — that would be a claim a network-free byte reader cannot make',
+    remoteProofOverclaims.length === 0, remoteProofOverclaims[0])
   add('A20d the record names its own verifier', record.includes(VERIFIER_PATH))
 
   // ── A21 migration 029: hosted record name, and the frozen artifact label ──
@@ -993,6 +1086,36 @@ function runRecordControls(baseline: World): void {
       expect: 'A26f',
       mutate: (w) => { w.record += '\n\nLeading whitespace in the configured value caused the initial mismatch.\n' },
     },
+    // ROUND 4 — the publication chronology. Every one of these is a claim that
+    // was TRUE of the record at 08d9c688 and became FALSE the moment the
+    // authorized publication landed, or a claim the static verifier cannot make
+    // at all. They mutate the committed record and are graded on the verifier's
+    // end-to-end behaviour, not on a helper regex.
+    {
+      label: 'NC-ADD: "This record is local-only" re-asserted as an unqualified CURRENT-state claim',
+      expect: 'A20c1',
+      mutate: (w) => { w.record += '\n\nThis record is local-only.\n' },
+    },
+    {
+      label: 'NC-ADD: not pushed / not tagged / not published re-asserted as a CURRENT-state claim',
+      expect: 'A20c1',
+      mutate: (w) => { w.record += '\n\nThis record is not pushed, not tagged, not published.\n' },
+    },
+    {
+      label: 'NC-ADD: the stable tag claimed to peel somewhere other than the approved tip',
+      expect: 'A20c4',
+      mutate: (w) => { w.record += `\n\nThe stable tag ${STABLE_TAG_NAME} peels to ${DEPLOYED_SOURCE_COMMIT}.\n` },
+    },
+    {
+      label: 'NC-ADD: main claimed to have been updated by the publication',
+      expect: 'A20c5',
+      mutate: (w) => { w.record += '\n\nThe publication also updated main to the published tip.\n' },
+    },
+    {
+      label: 'NC-ADD: the static verifier credited with proving the remote publication state',
+      expect: 'A20c6',
+      mutate: (w) => { w.record += '\n\nThis verifier confirms the remote holds the published tag.\n' },
+    },
     {
       label: 'NC-ADD: whitespace asserted as definitely NOT the cause of the initial failure',
       expect: 'A26f',
@@ -1197,6 +1320,14 @@ function runAcceptanceControls(baseline: World): void {
     {
       label: 'the A18 authorship commitment — the same credential nouns, carried as a limitation',
       sentence: 'The absence of passwords, API keys and bearer tokens in the four paths is an authorship commitment that this verifier does not mechanize.',
+    },
+    {
+      label: 'the historical local-only formulation — scoped to the accepted commit, before publication',
+      sentence: `At commit ${PUBLISHED_TIP}, before the later publication authorization, this record was local-only.`,
+    },
+    {
+      label: 'the honest publication acknowledgement — pinned, explicitly not independently queried',
+      sentence: 'Publication was subsequently authorized and performed; this verifier pins the supplied publication facts but does not independently query the remote.',
     },
   ]
 

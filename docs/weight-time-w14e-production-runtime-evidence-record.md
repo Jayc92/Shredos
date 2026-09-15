@@ -3,9 +3,12 @@
 STATUS: the W14-E hosted delivery lifecycle HAS RUN against Production and
 its first-delivery and controlled-later-initialization behaviour has been
 observed.
-This document is the durable, reviewable record of that runtime act. It is
-LOCAL-ONLY: it is committed to `feature/weight-time` and is not published,
-pushed or tagged.
+This document is the durable, reviewable record of that runtime act. At
+commit `08d9c68821da28c71c594639dc6f6c1678111c84` it was LOCAL-ONLY: it was
+committed to `feature/weight-time` and was not published, pushed or tagged.
+That is a PRE-PUBLICATION / HISTORICAL FACT, and it is no longer the current
+state — `feature/weight-time` was published later, under its own separate
+authorization, as the addendum in section 11 records.
 
 This record does not authorize anything. It does not re-run anything. It
 does not repoint any alias. It is evidence, held at the bytes that describe
@@ -23,7 +26,8 @@ this one is indistinguishable from a guess.
 |---|---|---|
 | **OPERATOR-SUPPLIED** | Observed by the Joseph/ChatGPT operator path on the Vercel side of the system: deployment identity, configuration change, request timings, HTTP status, browser-visible behaviour. Supplied to this record as text. | the operator path |
 | **INDEPENDENT READBACK** | Read out of hosted Supabase PERSISTED STATE, out of band from the application's own report. "Independent" means independent OF THE APPLICATION'S RETURN VALUE — the row counts and identity sets were read from the tables, not taken from what the delivery function said it did. It does NOT mean independent of the operator. | the operator path |
-| **LOCAL BYTES** | Derived from this repository's committed bytes and git objects, and re-derived on every run by the verifier named in section 11. This is the only class that was independently established without hosted contact. | Claude |
+| **LOCAL BYTES** | Derived from this repository's committed bytes and git objects, and re-derived on every run by the verifier named in section 11. It is the only class that verifier re-derives, and establishing it needs no network at all. | Claude |
+| **REMOTE READBACK** | Read back from the git remote `origin` with read-only `git ls-remote`, about git refs only, during the separately authorized publication act recorded in the section 11 addendum. It is not hosted Supabase and not Vercel, and no hosted system was contacted to obtain it. The static verifier makes no network call, so it pins these values as literals against transcription drift and does NOT re-derive them. | the publication act |
 | **NOT CAPTURED** | Named explicitly so that nobody later mistakes its absence for a value. See section 8. | nobody |
 
 Both OPERATOR-SUPPLIED and INDEPENDENT READBACK are hosted observations,
@@ -31,6 +35,11 @@ and neither was ever seen by Claude. No hosted system was contacted while
 this record was written: no hosted Supabase, no Supabase CLI, no Vercel, no
 SQL, no RPC. The standing rule that hosted acts belong to the
 Joseph/ChatGPT operator path alone was not relaxed for this round.
+
+That enumeration is exact, and it still holds — including for the later
+publication addendum in section 11. Reading git refs from GitHub is none of
+those five things, and no hosted Supabase, Supabase CLI, Vercel, SQL or RPC
+contact occurred at any point in this round or in the publication act.
 
 ---
 
@@ -51,7 +60,9 @@ here: the deployed source commit is an ancestor of the local tip, and the
 two files that produced the observed failure text are the same git blobs at
 both commits.
 
-The local branch `feature/weight-time` remains unpushed and untagged. The
+At that same commit the local branch `feature/weight-time` was still
+unpushed and untagged — again a PRE-PUBLICATION / HISTORICAL FACT, superseded
+by the publication addendum in section 11. The
 seven executable lifecycle packages under
 `docs/weight-time-five-entry-packages/` exist here as reviewed bytes.
 Whether the hosted stages executed THOSE EXACT BYTES is not observable from
@@ -469,8 +480,12 @@ must be corrected forward rather than left stale.
   package to see what happens.
 - **Hosted acts stay on the operator path.** Nothing in this record
   authorizes hosted contact, and it was written without any.
-- **This record is local-only.** It is not pushed, not tagged, not
-  published. Publication is a separate authorization.
+- **PRE-PUBLICATION / HISTORICAL FACT.** At commit
+  `08d9c68821da28c71c594639dc6f6c1678111c84`, before the later publication
+  authorization, this record was local-only: it was not pushed, not tagged,
+  not published, and publication was a separate authorization. That was the
+  state of the world at that commit, and it is no longer the current state.
+  See the publication addendum below.
 - The static verifier for this record is
   `scripts/verify-weight-time-w14e-production-runtime-record.ts`. It reads
   bytes and git objects only, spawns no command but `git`, and re-derives
@@ -480,6 +495,45 @@ must be corrected forward rather than left stale.
   readback figures) are pinned as literals so transcription drift is caught,
   but a git-only verifier cannot independently confirm them and does not
   claim to.
+
+### Publication addendum — written AFTER `08d9c688`, under a separate authorization
+
+**None of this subsection existed in the record at
+`08d9c68821da28c71c594639dc6f6c1678111c84`.** It is a FORWARD CORRECTION,
+written after that commit had been independently reviewed, accepted, and then
+published under its own narrow authorization. The reviewer who accepted
+`08d9c688` never saw any of these publication facts, because they had not
+happened yet. The historical statements above are preserved as the statements
+they actually were; none of them has been rewritten to imply the accepted
+commit already carried this wording.
+
+- `feature/weight-time` was published at
+  `08d9c68821da28c71c594639dc6f6c1678111c84` — REMOTE READBACK.
+- The annotated stable tag `w14e-production-runtime-evidence-stable` was
+  published — REMOTE READBACK.
+- Its annotated tag object is `dce6557ba6c63f2ae105ffe42a3656242161efab` —
+  REMOTE READBACK.
+- That tag's peeled target is
+  `08d9c68821da28c71c594639dc6f6c1678111c84`, the approved tip — REMOTE
+  READBACK.
+- Remote `main` remained `54a9d128bca659ec89d3ae149d47450e74a2ad2e`; the act
+  did not update it, and `main` was never an argument to it — REMOTE READBACK.
+- The refs published were exactly `refs/heads/feature/weight-time` and
+  `refs/tags/w14e-production-runtime-evidence-stable`, and no others — REMOTE
+  READBACK.
+- Publication used ONE atomic push, with no force option of any kind — LOCAL
+  BYTES.
+
+Publication was subsequently authorized and performed; this verifier pins the
+supplied publication facts but does not independently query the remote. It
+makes no network call, and no static, git-only inspection of local bytes can
+determine what a remote presently holds. The figures above are pinned as
+literals for exactly one purpose: so that transcription drift inside this
+document is caught.
+
+No Vercel, Supabase, deploy, SQL or RPC action occurred during publication.
+Production deploys from `main`, and `main` did not move, so the act triggered
+no deployment.
 
 ---
 
